@@ -1,26 +1,66 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+/*
+ * Studio OS design tokens.
+ * Warm off-white canvas, white surfaces, charcoal type, muted olive-gray accent.
+ */
+@theme {
+  --color-canvas: #f6f4ef;
+  --color-surface: #ffffff;
+  --color-surface-muted: #faf9f5;
+  --color-sunken: #efece5;
+
+  --color-ink: #23221f;
+  --color-ink-muted: #5c5b55;
+  --color-ink-subtle: #75746c;
+
+  --color-line: #e5e1d8;
+  --color-line-strong: #d3cec2;
+
+  --color-accent: #636850;
+  --color-accent-strong: #4c503d;
+  --color-accent-soft: #eceee4;
+
+  /* Restrained status hues, used for small dots and text only. */
+  --color-positive: #5b7553;
+  --color-caution: #a2732b;
+  --color-critical: #a14f3b;
+  --color-info: #57677a;
+  --color-neutral: #8f8d84;
+
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-serif: var(--font-newsreader), ui-serif, Georgia, serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+
+  --radius-control: 6px;
+  --radius-surface: 10px;
+
+  --shadow-overlay: 0 1px 2px rgb(35 34 31 / 0.04), 0 12px 32px -8px rgb(35 34 31 / 0.16);
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+@layer base {
+  html {
+    color-scheme: light;
   }
-}
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  body {
+    background: var(--color-canvas);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    font-feature-settings: "ss01", "cv11";
+    -webkit-font-smoothing: antialiased;
+  }
+
+  ::selection {
+    background: var(--color-accent-soft);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+  }
+
+  dialog::backdrop {
+    background: rgb(35 34 31 / 0.28);
+  }
 }
