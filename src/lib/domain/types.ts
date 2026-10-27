@@ -306,6 +306,11 @@ export interface ContextFieldInput {
   note?: string;
 }
 
+export interface NewContextItemInput {
+  kind: ContextItemKind;
+  text: string;
+}
+
 export interface NewSourceInput {
   type: SourceType;
   label: string;

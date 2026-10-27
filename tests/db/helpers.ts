@@ -52,7 +52,7 @@ export async function createStudio(owner: TestUser, name = "Test studio"): Promi
   return data as string;
 }
 
-export async function addMember(owner: TestUser, studioId: string, user: TestUser, role: "owner" | "member" | "viewer", displayName = role) {
+export async function addMember(owner: TestUser, studioId: string, user: TestUser, role: "owner" | "member" | "viewer", displayName: string = role) {
   const { error } = await owner.client.rpc("add_studio_member", { p_studio: studioId, p_email: user.email, p_display_name: displayName, p_role: role });
   if (error) throw error;
 }

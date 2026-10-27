@@ -1,7 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { AgentRunRecord } from "@/lib/agents/contract";
 import { buildNewClient, DomainError, setContextField, updateClientDetails, type DomainDeps } from "@/lib/domain/clients";
-import { addQuestion, buildSource, reviewProposal } from "@/lib/domain/intake";
+import { addContextItem, buildSource, reviewProposal } from "@/lib/domain/intake";
 import { buildProject, buildTask, setTaskStatus, updateProject } from "@/lib/domain/projects";
 import {
   CONTEXT_FIELD_KEYS,
@@ -12,6 +12,7 @@ import {
   type ContextFieldInput,
   type ContextFieldKey,
   type NewClientInput,
+  type NewContextItemInput,
   type NewProjectInput,
   type NewSourceInput,
   type NewTaskInput,
@@ -155,9 +156,9 @@ export class SupabaseRepository implements StudioRepository {
     });
   }
 
-  addQuestion(clientId: string, text: string): Promise<Client> {
+  addContextItem(clientId: string, input: NewContextItemInput): Promise<Client> {
     return this.write((s, deps) => {
-      const { client, item, event } = addQuestion(find(s.clients, clientId, "client"), text, deps);
+      const { client, item, event } = addContextItem(find(s.clients, clientId, "client"), input, deps);
       return [client, { context_items: [{ op: "insert", row: contextItemRow(clientId, item) }], events: [eventRow(event)] }];
     });
   }

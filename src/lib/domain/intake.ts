@@ -16,6 +16,7 @@ import {
   type ClientDetailsInput,
   type ContextFieldKey,
   type ContextItem,
+  type NewContextItemInput,
   type NewSourceInput,
   type ProposalDecision,
   type ProposalTarget,
@@ -43,18 +44,24 @@ export function buildSource(client: Client, input: NewSourceInput, deps: DomainD
   return { source, event: clientEvent(client.id, "source.received", `Added source material: ${label}`, deps, now) };
 }
 
-export function addQuestion(client: Client, text: string, deps: DomainDeps): { client: Client; item: ContextItem; event: ActivityEvent } {
-  const question = clean(text);
-  if (!question) throw new DomainError("Enter a question.");
-  if (question.length > QUESTION_MAX_LENGTH) throw new DomainError(`Keep the question under ${QUESTION_MAX_LENGTH} characters.`);
-  const duplicate = client.contextItems.some((item) => item.kind === "question" && item.text.toLocaleLowerCase() === question.toLocaleLowerCase());
-  if (duplicate) throw new DomainError("This question is already on the list.");
+/** Adds an open question for the client, or an assumption the team is working with. */
+export function addContextItem(
+  client: Client,
+  input: NewContextItemInput,
+  deps: DomainDeps,
+): { client: Client; item: ContextItem; event: ActivityEvent } {
+  const text = clean(input.text);
+  const what = input.kind === "question" ? "question" : "assumption";
+  if (!text) throw new DomainError(`Enter the ${what}.`);
+  if (text.length > QUESTION_MAX_LENGTH) throw new DomainError(`Keep the ${what} under ${QUESTION_MAX_LENGTH} characters.`);
+  const duplicate = client.contextItems.some((item) => item.kind === input.kind && item.text.toLocaleLowerCase() === text.toLocaleLowerCase());
+  if (duplicate) throw new DomainError(`This ${what} is already on the list.`);
   const now = deps.now();
-  const item: ContextItem = { id: deps.createId(), kind: "question", text: question, confidence: "unknown", createdAt: now };
+  const item: ContextItem = { id: deps.createId(), kind: input.kind, text, confidence: input.kind === "question" ? "unknown" : "proposed", createdAt: now };
   return {
     client: { ...client, contextItems: [...client.contextItems, item], updatedAt: now },
     item,
-    event: clientEvent(client.id, "client.context_updated", `Added open question: ${truncate(question, 80)}`, deps, now),
+    event: clientEvent(client.id, "client.context_updated", `Added open ${what}: ${truncate(text, 80)}`, deps, now),
   };
 }
 

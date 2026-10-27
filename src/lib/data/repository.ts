@@ -6,6 +6,7 @@ import type {
   ContextFieldInput,
   ContextFieldKey,
   NewClientInput,
+  NewContextItemInput,
   NewProjectInput,
   NewSourceInput,
   NewTaskInput,
@@ -29,7 +30,7 @@ export interface StudioRepository {
   createClient(input: NewClientInput): Promise<Client>;
   updateClient(clientId: string, input: ClientDetailsInput): Promise<Client>;
   setContextField(clientId: string, key: ContextFieldKey, input: ContextFieldInput): Promise<Client>;
-  addQuestion(clientId: string, text: string): Promise<Client>;
+  addContextItem(clientId: string, input: NewContextItemInput): Promise<Client>;
   addSource(clientId: string, input: NewSourceInput): Promise<SourceDocument>;
   createProject(clientId: string, input: NewProjectInput): Promise<Project>;
   updateProject(projectId: string, input: ProjectUpdateInput): Promise<Project>;

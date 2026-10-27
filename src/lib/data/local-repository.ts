@@ -1,5 +1,5 @@
 import { buildNewClient, DomainError, setContextField, updateClientDetails, type DomainDeps } from "@/lib/domain/clients";
-import { addQuestion, buildSource, reviewProposal } from "@/lib/domain/intake";
+import { addContextItem, buildSource, reviewProposal } from "@/lib/domain/intake";
 import { buildProject, buildTask, setTaskStatus, updateProject } from "@/lib/domain/projects";
 import type { AgentRunRecord } from "@/lib/agents/contract";
 import type {
@@ -10,6 +10,7 @@ import type {
   ContextFieldInput,
   ContextFieldKey,
   NewClientInput,
+  NewContextItemInput,
   NewProjectInput,
   NewSourceInput,
   NewTaskInput,
@@ -94,9 +95,9 @@ export class LocalDemoRepository implements StudioRepository {
     });
   }
 
-  addQuestion(clientId: string, text: string): Promise<Client> {
+  addContextItem(clientId: string, input: NewContextItemInput): Promise<Client> {
     return this.mutate((s) => {
-      const { client, event } = addQuestion(find(s.clients, clientId, "client"), text, this.deps);
+      const { client, event } = addContextItem(find(s.clients, clientId, "client"), input, this.deps);
       return [{ ...s, clients: replace(s.clients, client) }, client, [event]];
     });
   }
