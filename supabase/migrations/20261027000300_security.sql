@@ -62,7 +62,13 @@ create function private.ends_with(arr jsonb, tail jsonb) returns boolean
       ) = tail
   $$;
 
-grant execute on function private.importing(), private.ends_with(jsonb, jsonb) to authenticated, service_role;
+-- An actor carried over by the import: absent, or marked as imported.
+create function private.is_imported_actor(actor jsonb) returns boolean
+  language sql immutable set search_path = ''
+  as $$ select actor is null or actor = 'null'::jsonb or coalesce(actor ->> 'imported', '') = 'true' $$;
+
+grant execute on function private.importing(), private.ends_with(jsonb, jsonb), private.is_imported_actor(jsonb)
+  to authenticated, service_role;
 
 -- The calling person's actor id, or null for the service role.
 create function private.acts_as_caller(actor jsonb) returns boolean
@@ -227,6 +233,11 @@ create function private.guard_context_field() returns trigger
       raise exception 'Earlier values cannot be removed from history.' using errcode = '42501';
     end if;
     if private.importing() then
+      -- Imported values keep their original authors, visibly marked as imported,
+      -- so the import cannot be used to record or confirm in someone's name.
+      if not private.is_imported_actor(new.recorded_by) or not private.is_imported_actor(new.confirmed_by) then
+        raise exception 'Imported values must be marked as imported.' using errcode = '42501';
+      end if;
       return new;
     end if;
 
@@ -274,7 +285,11 @@ create function private.guard_source() returns trigger
   language plpgsql set search_path = ''
   as $$
   begin
-    if auth.uid() is not null and not private.importing() and not private.acts_as_caller(new.added_by) then
+    if private.importing() then
+      if not private.is_imported_actor(new.added_by) then
+        raise exception 'Imported source material must be marked as imported.' using errcode = '42501';
+      end if;
+    elsif auth.uid() is not null and not private.acts_as_caller(new.added_by) then
       raise exception 'Source material must be added in your own name.' using errcode = '42501';
     end if;
     return new;

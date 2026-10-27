@@ -1,46 +1,99 @@
-# Persistence: from the browser demo to a real backend
+# Persistence and setup
 
-## Today
+Studio OS runs in one of two modes, chosen by environment variables at build
+time (`src/lib/config.ts`). It never switches between them on its own.
 
-- All data lives in the browser's `localStorage` under `studio-os:workspace:v2`
-  (`LocalDemoRepository`). It is not synced, backed up or shared.
-- Data saved by the first version (`studio-os:workspace:v1`) is migrated on
-  first load by `src/lib/data/migrate.ts`, so nothing anyone entered is lost.
-- If storage is unavailable, the workspace runs in memory and the UI says so.
-- The top bar shows "Local demo" while this is the case.
+| Mode | When | Where data lives |
+| ---- | ---- | ---------------- |
+| **Supabase** | `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` are set | Postgres, shared by the studio, behind sign-in and row-level security |
+| **Local demo** | Neither is set, or `NEXT_PUBLIC_STUDIO_DATA_MODE=local` | This browser's `localStorage` only. The top bar says "Local demo". |
 
-## The boundary
+If Supabase is requested but only partly configured, the app shows a
+configuration error. It does not fall back to browser storage.
 
-The UI and, later, agent runners only talk to `StudioRepository`
-(`src/lib/data/repository.ts`). Every write goes through a pure domain
-function in `src/lib/domain` that enforces the rules (validation, history,
-"only a person can confirm or approve") and returns the activity events to
-store with the change. `src/lib/data/index.ts` is the one place that decides
-which repository to use.
+## The data model
 
-## Next step: Supabase
+Migrations are in `supabase/migrations`, applied in name order:
 
-Prerequisites that do not exist yet:
+| Migration | What it adds |
+| --------- | ------------ |
+| `…000100_core_schema` | Studios and members (owner, member, viewer), clients, brief values with history, open questions, source documents, projects, tasks, import batches, the activity log |
+| `…000200_agents` | Agent runs (inputs, outputs, status, errors, idempotency key) and agent proposals (value, quoted evidence, review) |
+| `…000300_security` | Grants, row-level security, and triggers (below) |
+| `…000400_functions` | `load_studio`, `apply_changes`, `import_browser_data`, studio and member management |
 
-1. A Supabase project, with the drafts in `supabase/migrations` reviewed and
-   applied (`0001` tables, `0002` actors, agent runs and row-level security).
-2. Sign-in (Supabase Auth), and studio members added to `studio_members` by an
-   administrator. Real client data must not be stored before this exists.
-3. Environment variables: `NEXT_PUBLIC_SUPABASE_URL` and
-   `NEXT_PUBLIC_SUPABASE_ANON_KEY` for the browser. The service-role key is
-   server-only (agent runners, migrations) and must never be in a
-   `NEXT_PUBLIC_` variable or committed.
+Every table carries `studio_id`, and child rows reference their parent by
+`(id, studio_id)`, so a row can never point into another studio.
 
-Then:
+### What the database enforces, whatever the client sends
 
-1. Implement `SupabaseRepository` against the same interface. Reuse the domain
-   functions: load the affected rows, apply the domain function, write the
-   result and its events in one transaction (an RPC or a server action).
-2. Choose it in `createRepository()` when the user is signed in; keep the local
-   repository for demos.
-3. Offer a one-time "import from this browser" for anything entered in the demo.
-4. Change the top bar badge and Settings copy to reflect the real storage.
+- **Studio scoping.** Row-level security lets people read only studios they
+  belong to. Changing an id in a URL or request returns nothing.
+- **Roles.** Owners and members can change data; viewers can only read. Only
+  owners manage members.
+- **Only a person confirms or approves.** A brief value can be `confirmed`, and
+  a task can go from `awaiting_approval` to `done`, only when the recorded actor
+  is the signed-in person (`auth.uid()`). Agents and the service role cannot.
+- **Nobody signs as someone else.** Actors recorded on rows and activity must
+  match the signed-in user.
+- **History is append-only.** Activity events and brief history cannot be
+  edited or deleted; `studio_id` cannot be changed.
+- **The database clock wins.** `created_at` and `updated_at` are set by triggers.
+- **Concurrent edits are detected.** Updates carry the `updated_at` they were
+  based on; a mismatch fails with a conflict and the app reloads.
+- **Agents only propose.** Agent runs and proposals are written by the server
+  (service role) only. People can change just the review columns of a
+  proposal, and accepting one goes through the same rules as a manual edit.
 
-The row-level security in `0002` lets signed-in studio members read and write,
-keeps the activity log append-only, and blocks agents from storing confirmed
-values at the database level.
+`npm run test:db` checks all of this against a real database (21 tests).
+
+### How writes work
+
+The browser applies the same pure domain function the demo uses
+(`src/lib/domain`), then sends the resulting rows and activity events to
+`apply_changes` in one call, which writes them in one transaction as the
+signed-in user (security invoker, so row-level security applies).
+
+## Importing data from the local demo
+
+**Settings → Import from this browser** appears when this browser holds data a
+person entered in the demo (example records are ignored).
+
+1. The data is validated and shown for review: counts, and anything that will
+   be skipped and why.
+2. On import, ids are derived from the studio and the original id, and the
+   batch is keyed by a hash of its content, so importing the same data twice
+   creates nothing new.
+3. Earlier changes keep their original dates and authors and are marked as
+   imported.
+4. After the import, the app reloads from the server and checks that every
+   record is there. Only then is **Remove browser copy** offered. Nothing is
+   deleted from the browser automatically.
+
+## Setting up a Supabase project
+
+Use a **development or staging** project first.
+
+1. Create a project at supabase.com. In **Authentication → Providers**, keep
+   Email enabled and turn **off** "Allow new users to sign up". There is no
+   public sign-up in the app.
+2. Review, then apply the migrations with the Supabase CLI:
+   `npx supabase link --project-ref <ref>` and `npx supabase db push`.
+   They create tables, policies and functions only, and drop nothing.
+3. Create people in **Authentication → Users → Add user** (email and
+   password, auto confirm).
+4. Set environment variables (see `.env.example`):
+   - Browser: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`.
+   - Server only: `SUPABASE_SERVICE_ROLE_KEY`, used only to record agent runs
+     and proposals. Never put it in a `NEXT_PUBLIC_` variable or commit it.
+5. The first person signs in and is offered **Create studio**; they become its
+   owner. They add colleagues under **Settings → People** by the email their
+   account was created with.
+
+## Running against a local stack
+
+Docker is required. `npm run db:start` starts Postgres, Auth and the REST API;
+`npm run test:db` runs the database tests; `npm run test:e2e` builds and starts
+the app in both modes and runs Playwright. The local stack's keys are fixed
+development keys, not secrets, and the test scripts refuse to run against
+anything but `localhost`.
