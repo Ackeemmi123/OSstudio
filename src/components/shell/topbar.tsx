@@ -94,17 +94,29 @@ function NavLinks({ pathname }: { pathname: string | null }) {
   });
 }
 
-/** Always visible while data lives only in this browser, so nobody mistakes it for a shared system. */
+/**
+ * Always visible while data lives only in this browser, so nobody mistakes it
+ * for a shared system. On the server it only appears for read-only access.
+ */
 function DemoBadge() {
   const state = useStudio();
   if (state.status !== "ready") return null;
+  const badge =
+    state.info.kind === "supabase"
+      ? state.info.canWrite
+        ? null
+        : { label: "Read only", title: "You can view this studio but not change it." }
+      : state.info.persistence === "browser"
+        ? { label: "Local demo", title: "Data is saved in this browser only." }
+        : { label: "Not saved", title: "Data is not saved. Changes reset on reload." };
+  if (!badge) return null;
   return (
     <Link
       href="/settings"
-      title={state.info.persistence === "browser" ? "Data is saved in this browser only." : "Data is not saved. Changes reset on reload."}
+      title={badge.title}
       className="mr-1 hidden h-6 items-center rounded-full border border-dashed border-line-strong px-2.5 text-[11.5px] text-ink-subtle transition-colors hover:text-ink-muted sm:inline-flex"
     >
-      {state.info.persistence === "browser" ? "Local demo" : "Not saved"}
+      {badge.label}
     </Link>
   );
 }

@@ -4,7 +4,7 @@ import { ArrowLeft, CircleSlash, Pencil, SearchX } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { LoadError } from "@/components/load-error";
-import { useStudio } from "@/components/providers/studio-provider";
+import { useCanEdit, useStudio } from "@/components/providers/studio-provider";
 import { Avatar } from "@/components/ui/avatar";
 import { Button, ButtonLink } from "@/components/ui/button";
 import { EmptyState, Section, Skeleton, Surface } from "@/components/ui/surface";
@@ -40,6 +40,7 @@ export function ClientWorkspace({ clientId }: { clientId: string }) {
 
 function Workspace({ client, snapshot }: { client: Client; snapshot: StudioSnapshot }) {
   const [editing, setEditing] = useState(false);
+  const canEdit = useCanEdit();
   useScrollToHash();
 
   return (
@@ -71,10 +72,12 @@ function Workspace({ client, snapshot }: { client: Client; snapshot: StudioSnaps
             </p>
           </div>
         </div>
-        <Button onClick={() => setEditing(true)} className="self-start">
-          <Pencil aria-hidden />
-          Edit details
-        </Button>
+        {canEdit ? (
+          <Button onClick={() => setEditing(true)} className="self-start">
+            <Pencil aria-hidden />
+            Edit details
+          </Button>
+        ) : null}
       </header>
 
       <div className="grid gap-x-12 gap-y-12 lg:grid-cols-[minmax(0,1fr)_300px]">
