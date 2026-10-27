@@ -30,9 +30,12 @@ npm run dev        # http://localhost:3000
 | `npm run db:start`  | Local Supabase stack (Docker)                 |
 | `npm run test:db`   | Database tests against the local stack        |
 | `npm run test:e2e`  | Playwright journeys (local stack and local demo) |
+| `npm run staging:check` | Read-only check of a hosted staging configuration |
+| `npm run staging:smoke` | One end-to-end pass against hosted staging (writes test data) |
 
 With no environment variables, the app runs as the **local demo**. To use
 Supabase, see [docs/persistence.md](docs/persistence.md) and `.env.example`.
+To stand up and check a hosted staging copy, see [docs/staging.md](docs/staging.md).
 
 ## What works
 
