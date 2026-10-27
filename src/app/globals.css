@@ -14,8 +14,17 @@
     -webkit-font-smoothing: antialiased;
   }
 
+  /* Headings: Geist 500 with slightly tight tracking, as on the Axivo website. */
+  h1,
+  h2,
+  h3 {
+    font-family: var(--font-display);
+    font-weight: 500;
+  }
+
   ::selection {
-    background: var(--color-accent-soft);
+    background: var(--brand-soft);
+    color: var(--brand-ink);
   }
 
   :focus-visible {
@@ -24,6 +33,6 @@
   }
 
   dialog::backdrop {
-    background: rgb(17 19 23 / 0.32);
+    background: color-mix(in srgb, var(--brand-ink) 45%, transparent);
   }
 }

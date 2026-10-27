@@ -104,7 +104,7 @@ export function SettingsView() {
         <Section id="brand" title="Brand">
           <p className="text-[13.5px] leading-relaxed text-ink-muted">
             {BRAND.verified
-              ? `Colors and type follow ${BRAND.company}'s brand guidelines.`
+              ? `Logo, colors and type follow ${BRAND.company}'s brand, as used on the ${BRAND.company} website. They are set in one place (src/app/theme.css).`
               : `The current colors and typeface are a neutral placeholder, not ${BRAND.company}'s official identity. ${BRAND.company}'s logo, palette and typeface still need to be supplied; they are set in one place (src/app/theme.css) when available.`}
           </p>
         </Section>

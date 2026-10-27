@@ -61,8 +61,12 @@ or Settings.
 - **No AI agents.** The run contract, permissions and registry exist in code;
   nothing executes. The UI says so.
 - **No file uploads, email intake, notifications or invoicing.**
-- **Brand.** Axivo's logo, colors and typeface were not available. The theme is
-  a neutral placeholder. See [docs/brand.md](docs/brand.md).
+
+## Brand
+
+Logo, the five Axivo brand colors and the Inter/Geist type pairing come from
+the Axivo website repository. All tokens are in `src/app/theme.css`. See
+[docs/brand.md](docs/brand.md).
 
 ## Data and persistence
 

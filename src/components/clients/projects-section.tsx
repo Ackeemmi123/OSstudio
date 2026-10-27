@@ -219,7 +219,7 @@ function NewProjectForm({ client, onDone }: { client: Client; onDone: () => void
             value={name}
             onChange={(event) => setName(event.target.value)}
             placeholder="e.g. Website & E-commerce"
-            className="h-9 rounded-[var(--radius-control)] border border-line-strong bg-surface px-3 text-sm text-ink placeholder:text-ink-subtle focus:border-focus focus:ring-2 focus:ring-focus/15 focus:outline-none"
+            className="h-9 rounded-[var(--radius-control)] border border-control bg-surface px-3 text-sm text-ink placeholder:text-ink-subtle focus:border-focus focus:ring-2 focus:ring-focus/15 focus:outline-none"
           />
         </div>
         <div className="flex flex-col gap-1.5">
@@ -230,7 +230,7 @@ function NewProjectForm({ client, onDone }: { client: Client; onDone: () => void
             id={`${formId}-type`}
             value={projectType}
             onChange={(event) => setProjectType(event.target.value as ProjectType)}
-            className="h-9 rounded-[var(--radius-control)] border border-line-strong bg-surface px-2.5 text-sm text-ink focus:border-focus focus:ring-2 focus:ring-focus/15 focus:outline-none"
+            className="h-9 rounded-[var(--radius-control)] border border-control bg-surface px-2.5 text-sm text-ink focus:border-focus focus:ring-2 focus:ring-focus/15 focus:outline-none"
           >
             {PROJECT_TYPES.map((type) => (
               <option key={type} value={type}>

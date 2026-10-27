@@ -1,47 +1,45 @@
-# Brand: what is set and what is missing
+# Brand
 
-Studio OS is meant to carry Axivo's visual identity. **None of Axivo's brand
-assets were available** when the interface was redesigned (October 2026):
+Studio OS uses Axivo's visual identity, taken from the Axivo website
+repository (`Ackeemmi123/axivo-website`). Its `src/styles.css` gives the five
+core colors as coming from the Axivo branding document; its `public/brand/`
+holds the logo files.
 
-- The repository, its Git history and the project files contain no Axivo logo,
-  color values, typeface, brand guidelines or design references.
-- The first version used a warm beige and olive theme taken from a written
-  design brief, not from Axivo's brand.
+## Source of truth
 
-So the current theme is a **neutral, provisional placeholder**. It is not
-Axivo's palette and should not be presented as such. Settings says the same in
-the app.
+| Item       | Value                                                   | Here                          |
+| ---------- | ------------------------------------------------------- | ----------------------------- |
+| Cloud White      | `#F7F9FC`, main background                        | `--brand-cloud`               |
+| Ice Blue         | `#E9EEF8`, secondary surfaces                     | `--brand-ice`                 |
+| Soft Blue        | `#C9D9F0`, accents, hairlines                     | `--brand-soft`                |
+| Muted Periwinkle | `#879DC7`, interactive details                    | `--brand-periwinkle`          |
+| Ink Black        | `#151922`, text and primary actions               | `--brand-ink`                 |
+| Text font  | Inter                                                   | `src/app/layout.tsx`          |
+| Heading font | Geist, weight 500, tight tracking                     | `src/app/layout.tsx`, `globals.css` |
+| Logo       | `axivo-logo.svg` (light), `-reversed`, `-symbol`, `-mark` | `public/brand/`, `src/lib/brand.ts` |
+| Favicon    | Website `favicon.ico`; symbol as `src/app/icon.svg`     | `src/app/`                    |
 
-## Missing
-
-| Item                  | Needed as                                    | Where it goes                         |
-| --------------------- | -------------------------------------------- | ------------------------------------- |
-| Logo                  | SVG (light background), plus a square mark   | `public/brand/`, then `src/lib/brand.ts` |
-| Primary color         | Hex value                                    | `--brand-primary` in `src/app/theme.css` |
-| Accent or secondary   | Hex values                                   | `--brand-accent`, `--brand-accent-tint` |
-| Neutral scale, if any | Hex values                                   | `--brand-neutral-*`                   |
-| Typeface              | Name and license (web font files or Google Fonts) | `src/app/layout.tsx`, `--brand-font` |
-| Usage rules           | Contrast, logo clear space, do's and don'ts  | This file                             |
+The website also uses two "extended accents" (Indigo `#4A5BB5`, Lilac
+`#C3BCF2`) for marketing gradients and glows. They are not part of the branding
+document's core palette, and a work tool has no use for gradients, so Studio OS
+does not use them.
 
 ## How the theme is built
 
 `src/app/theme.css` has two layers:
 
-1. **Brand primitives** (`--brand-*`). The only values to replace with Axivo's.
-2. **Semantic tokens** (`--color-canvas`, `--color-ink`, `--color-primary`,
-   `--color-focus`, …). Components use only these, through Tailwind classes
-   such as `bg-primary` or `text-ink-muted`. They point at the primitives.
+1. **Brand primitives** (`--brand-*`): the five colors and the two fonts.
+2. **Semantic tokens** (`--color-canvas`, `--color-ink-subtle`,
+   `--color-primary`, `--color-control`, …). Components use only these, via
+   Tailwind classes. Derived tones use `color-mix()` from the primitives, the
+   same way the website does.
 
-Status colors (positive, caution, critical, info) are functional and stay
-separate from the brand palette, so status stays readable whatever the brand
-colors are.
+Contrast: body text is Ink Black. Muted and subtle text are 6.3:1 and about
+5.3:1 on Cloud White. Form outlines are 3.6:1. Periwinkle (2.6:1) is only used
+for markers and underlines, never for text. Status colors (positive, caution,
+critical, info) are functional and separate from the brand.
 
-## Swapping in Axivo's identity
+## Keeping it in step
 
-1. Replace the `--brand-*` values in `src/app/theme.css`. Check that text on
-   `--brand-primary` (buttons) and `--color-ink-subtle` on the canvas keep at
-   least 4.5:1 contrast.
-2. Add the logo to `public/brand/` and set `BRAND.logo` in `src/lib/brand.ts`.
-   The top bar switches from the plain-text name to the logo automatically.
-3. Load the typeface in `src/app/layout.tsx` and point `--brand-font` at it.
-4. Set `BRAND.verified = true` so Settings stops calling the theme provisional.
+If the brand changes on the website, update `--brand-*` in `src/app/theme.css`
+and copy the files in `public/brand/`. Nothing else should need to change.

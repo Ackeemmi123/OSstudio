@@ -3,11 +3,11 @@ import { cn } from "@/lib/cn";
 
 const CONTROL =
   "w-full rounded-[var(--radius-control)] border bg-surface px-3 text-sm text-ink placeholder:text-ink-subtle/80 " +
-  "transition-colors hover:border-ink-subtle/60 focus:border-focus focus:outline-none focus:ring-2 focus:ring-focus/15 " +
+  "transition-colors hover:border-accent focus:border-focus focus:outline-none focus:ring-2 focus:ring-focus/15 " +
   "disabled:bg-surface-muted disabled:text-ink-subtle";
 
 function controlClass(invalid: boolean | undefined, className?: string) {
-  return cn(CONTROL, invalid ? "border-critical/60" : "border-line-strong", className);
+  return cn(CONTROL, invalid ? "border-critical/60" : "border-control", className);
 }
 
 interface FieldProps {

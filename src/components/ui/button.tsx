@@ -9,7 +9,7 @@ const VARIANTS: Record<Variant, string> = {
   primary:
     "bg-primary text-on-primary border border-primary hover:bg-primary-hover hover:border-primary-hover disabled:opacity-50",
   secondary:
-    "bg-surface text-ink border border-line-strong hover:border-ink-subtle/60 hover:bg-surface-muted disabled:text-ink-subtle",
+    "bg-surface text-ink border border-line-strong hover:border-accent hover:bg-sunken disabled:text-ink-subtle",
   ghost: "text-ink-muted hover:text-ink hover:bg-sunken border border-transparent disabled:text-ink-subtle",
 };
 
@@ -21,7 +21,7 @@ const SIZES: Record<Size, string> = {
 
 export function buttonClasses(variant: Variant = "secondary", size: Size = "md", className?: string) {
   return cn(
-    "inline-flex shrink-0 items-center justify-center rounded-[var(--radius-control)] font-medium whitespace-nowrap",
+    "inline-flex shrink-0 items-center justify-center rounded-full font-medium whitespace-nowrap",
     "transition-colors duration-150 disabled:cursor-not-allowed [&_svg]:shrink-0",
     VARIANTS[variant],
     SIZES[size],

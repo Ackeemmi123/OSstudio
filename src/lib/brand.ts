@@ -1,12 +1,14 @@
 /**
  * Brand identity used by the shell. Colors and type live in src/app/theme.css.
- * `logo` stays null until an official Axivo logo file is provided (see
- * docs/brand.md); until then the name is set as plain text, not a drawn mark.
+ * Logo files in public/brand/ are copied from the Axivo website repository
+ * (Ackeemmi123/axivo-website). Keep them in step with that repository.
  */
 export const BRAND = {
   company: "Axivo",
   product: "Studio OS",
-  logo: null as { src: string; width: number; height: number } | null,
-  /** False until the theme uses verified Axivo values. Shown in Settings. */
-  verified: false,
+  /** Wordmark for light backgrounds: Ink Black letters, Periwinkle dot on the i. */
+  logo: { src: "/brand/axivo-logo.svg", width: 434, height: 138 } as { src: string; width: number; height: number } | null,
+  /** True once the theme uses verified Axivo values. Shown in Settings. */
+  verified: true,
+  source: "Axivo website repository (Ackeemmi123/axivo-website)",
 };

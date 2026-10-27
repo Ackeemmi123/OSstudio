@@ -25,7 +25,7 @@ export function Section({
   return (
     <section id={id} aria-labelledby={headingId} className={cn("scroll-mt-20", className)}>
       <div className="mb-3 flex min-h-8 items-center justify-between gap-4">
-        <h2 id={headingId} className="flex items-baseline gap-2 text-[15px] font-semibold tracking-[-0.01em] text-ink">
+        <h2 id={headingId} className="flex items-baseline gap-2 text-[15.5px] font-medium tracking-[-0.015em] text-ink">
           {title}
           {count !== undefined ? <span className="text-[13px] font-normal tabular-nums text-ink-subtle">{count}</span> : null}
         </h2>
@@ -48,7 +48,7 @@ export function PageHeader({
   return (
     <div className="flex flex-col gap-4 pb-8 sm:flex-row sm:items-end sm:justify-between">
       <div className="min-w-0">
-        <h1 className="text-[28px] leading-tight font-semibold tracking-[-0.025em] text-ink">{title}</h1>
+        <h1 className="text-[28px] leading-tight font-medium tracking-[-0.032em] text-ink">{title}</h1>
         {description ? <p className="mt-1.5 max-w-2xl text-[14.5px] leading-relaxed text-ink-muted">{description}</p> : null}
       </div>
       {actions ? <div className="flex shrink-0 items-center gap-2">{actions}</div> : null}

@@ -52,7 +52,7 @@ export function Modal({ open, onClose, title, description, children, busy, size 
         <>
           <header className="flex items-start justify-between gap-4 border-b border-line px-6 pt-5 pb-4">
             <div>
-              <h2 id={titleId} className="text-[18px] font-semibold tracking-[-0.015em]">
+              <h2 id={titleId} className="text-[19px] font-medium tracking-[-0.02em]">
                 {title}
               </h2>
               {description ? (

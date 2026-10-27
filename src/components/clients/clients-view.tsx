@@ -47,7 +47,7 @@ export function ClientsView() {
           placeholder="Search by name, contact, email or project"
           value={query}
           onChange={(event) => setQuery(event.target.value)}
-          className="h-10 w-full rounded-[var(--radius-control)] border border-line-strong bg-surface pr-3 pl-9 text-sm text-ink placeholder:text-ink-subtle hover:border-ink-subtle/60 focus:border-focus focus:ring-2 focus:ring-focus/15 focus:outline-none"
+          className="h-10 w-full rounded-[var(--radius-control)] border border-control bg-surface pr-3 pl-9 text-sm text-ink placeholder:text-ink-subtle hover:border-accent focus:border-focus focus:ring-2 focus:ring-focus/15 focus:outline-none"
         />
       </div>
 

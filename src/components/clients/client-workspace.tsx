@@ -54,7 +54,7 @@ function Workspace({ client, snapshot }: { client: Client; snapshot: StudioSnaps
           <Avatar name={client.name} size="lg" />
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2.5">
-              <h1 className="text-[26px] leading-tight font-semibold tracking-[-0.025em] text-ink">{client.name}</h1>
+              <h1 className="text-[26px] leading-tight font-medium tracking-[-0.032em] text-ink">{client.name}</h1>
               {client.isDemo ? <DemoTag /> : null}
             </div>
             <p className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[13.5px] text-ink-muted">

@@ -33,7 +33,7 @@ export function TodayView() {
           <p className="mb-1 text-[13px] text-ink-subtle">
             <TodayLabel />
           </p>
-          <h1 className="text-[28px] leading-tight font-semibold tracking-[-0.025em] text-ink">Today</h1>
+          <h1 className="text-[28px] leading-tight font-medium tracking-[-0.032em] text-ink">Today</h1>
         </div>
         <Button variant="primary" onClick={() => setCreating(true)} disabled={state.status !== "ready"}>
           <Plus aria-hidden />

@@ -186,7 +186,7 @@ function FieldEditor({ client, fieldKey, onDone }: { client: Client; fieldKey: C
         onKeyDown={(event) => {
           if (event.key === "Escape") onDone();
         }}
-        className="w-full resize-y rounded-[var(--radius-control)] border border-line-strong bg-surface px-3 py-2 text-sm leading-relaxed text-ink placeholder:text-ink-subtle hover:border-ink-subtle/60 focus:border-focus focus:ring-2 focus:ring-focus/15 focus:outline-none"
+        className="w-full resize-y rounded-[var(--radius-control)] border border-control bg-surface px-3 py-2 text-sm leading-relaxed text-ink placeholder:text-ink-subtle hover:border-accent focus:border-focus focus:ring-2 focus:ring-focus/15 focus:outline-none"
       />
       <fieldset className="flex flex-wrap items-center gap-x-4 gap-y-2" disabled={!value.trim()}>
         <legend className="sr-only">How certain is this?</legend>
