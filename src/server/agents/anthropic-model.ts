@@ -4,6 +4,9 @@ import { intakeModelOutput, type IntakeInput } from "@/lib/agents/intake";
 import { buildIntakeMessage, INTAKE_SYSTEM_PROMPT } from "@/lib/agents/intake-prompt";
 import { ModelError, type IntakeModel } from "./model";
 
+/** Where the API key is sent. Never taken from ANTHROPIC_BASE_URL implicitly. */
+export const ANTHROPIC_API_URL = "https://api.anthropic.com";
+
 /**
  * Claude, through the Anthropic API, with structured output. One request per
  * run, no tools: the model only reads the material it is given.
@@ -18,7 +21,9 @@ export class AnthropicIntakeModel implements IntakeModel {
     readonly model: string,
     private readonly timeoutMs: number,
   ) {
-    this.client = new Anthropic({ apiKey, maxRetries: 1, timeout: timeoutMs });
+    // The SDK would otherwise pick up ANTHROPIC_BASE_URL from the environment
+    // and send the key wherever it points.
+    this.client = new Anthropic({ apiKey, baseURL: ANTHROPIC_API_URL, maxRetries: 1, timeout: timeoutMs });
   }
 
   async analyze(input: IntakeInput, signal: AbortSignal): Promise<unknown> {

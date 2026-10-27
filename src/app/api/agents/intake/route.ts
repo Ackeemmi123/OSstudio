@@ -16,7 +16,7 @@ const body = z.object({ studioId: z.uuid(), clientId: z.uuid(), force: z.boolean
  */
 export async function POST(request: Request) {
   const supabase = serverSupabase();
-  if (!supabase) return json(503, "The server is not connected to Supabase.");
+  if (!supabase.ok) return json(503, supabase.reason);
   const token = request.headers.get("authorization")?.match(/^Bearer (.+)$/)?.[1];
   if (!token) return json(401, "Sign in to run an analysis.");
 
