@@ -27,7 +27,22 @@ jobs:
       - run: npm run typecheck
       - run: npm run lint
       - run: npm test
-      - run: npm run build
+      # Built in Supabase mode with placeholder secrets, so the check below
+      # proves the server-only values never reach the browser bundle.
+      - name: Build
+        run: npm run build
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: https://ci-canary.supabase.co
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: sb_publishable_ci_canary_public
+          SUPABASE_SERVICE_ROLE_KEY: sb_secret_ci_canary_must_not_ship
+          ANTHROPIC_API_KEY: sk-ant-ci-canary-must-not-ship
+      - name: No secrets in the browser bundle
+        run: node scripts/check-bundle-secrets.mjs .next
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: https://ci-canary.supabase.co
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: sb_publishable_ci_canary_public
+          SUPABASE_SERVICE_ROLE_KEY: sb_secret_ci_canary_must_not_ship
+          ANTHROPIC_API_KEY: sk-ant-ci-canary-must-not-ship
 
   integration:
     name: Database and end-to-end tests (local Supabase)
@@ -46,6 +61,14 @@ jobs:
         run: npm run db:start
       - name: Database tests (row-level security, triggers, import)
         run: npm run test:db
+      - name: Database tests with publishable and secret keys
+        run: npm run test:db
+        env:
+          LOCAL_SUPABASE_KEYS: new
+      - name: Staging check and smoke test, against the local stack
+        run: |
+          node scripts/with-local-supabase.mjs npm run staging:check
+          STAGING_SMOKE=1 node scripts/with-local-supabase.mjs npm run staging:smoke
       - name: Install Playwright browser
         run: npx playwright install --with-deps chromium
       - name: End-to-end tests

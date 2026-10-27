@@ -91,6 +91,10 @@ Providers (`src/server/config.ts`):
 | `npm test` | Domain, data, import planning, agent contract, intake runner |
 | `npm run test:db` | Row-level security, triggers, import, against local Supabase |
 | `npm run test:e2e` | Playwright: sign-in, session expiry, viewers, other studios, clients, brief, projects, tasks, approvals, intake agent, import, local demo |
+| `npm run staging:check` / `staging:smoke` | A hosted staging project and deployment: configuration, migrations, grants, one real pass including the intake agent (see [staging.md](staging.md)) |
 
 CI (`.github/workflows/ci.yml`) runs all of them on every pull request,
-together with typecheck, lint and build.
+together with typecheck, lint and build. It also runs the database tests a
+second time with the publishable and secret keys newer hosted projects use,
+runs the staging check and smoke test against the local stack, and builds
+with placeholder secrets to prove none reaches the browser bundle.

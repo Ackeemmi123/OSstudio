@@ -12,6 +12,8 @@
     "test:watch": "vitest",
     "test:db": "node scripts/with-local-supabase.mjs vitest run -c vitest.db.config.mts",
     "test:e2e": "playwright test",
+    "staging:check": "node scripts/staging-check.mjs",
+    "staging:smoke": "vitest run -c vitest.staging.config.mts",
     "db:start": "sh scripts/supabase-start.sh",
     "db:stop": "supabase stop",
     "db:reset": "supabase db reset"

@@ -7,7 +7,9 @@
  *
  * Supabase mode reads the stack's fixed development keys from `supabase status`
  * and refuses anything but localhost. The intake agent uses the deterministic
- * test provider, which uses no AI.
+ * test provider, which uses no AI. LOCAL_SUPABASE_KEYS=new uses the stack's
+ * publishable and secret keys instead of the legacy JWT keys, as newer hosted
+ * projects do.
  */
 import { execFileSync, spawn } from "node:child_process";
 
@@ -18,7 +20,7 @@ if (!["supabase", "local"].includes(mode) || !port) {
 }
 
 const env = { ...process.env, STUDIO_DIST_DIR: `.next-e2e-${mode}`, NEXT_TELEMETRY_DISABLED: "1" };
-for (const key of ["NEXT_PUBLIC_SUPABASE_URL", "NEXT_PUBLIC_SUPABASE_ANON_KEY", "SUPABASE_URL", "SUPABASE_ANON_KEY", "SUPABASE_SERVICE_ROLE_KEY", "ANTHROPIC_API_KEY"]) {
+for (const key of ["NEXT_PUBLIC_SUPABASE_URL", "NEXT_PUBLIC_SUPABASE_ANON_KEY", "SUPABASE_URL", "SUPABASE_ANON_KEY", "SUPABASE_SERVICE_ROLE_KEY", "ANTHROPIC_API_KEY", "ANTHROPIC_BASE_URL"]) {
   delete env[key];
 }
 
@@ -29,11 +31,12 @@ if (mode === "supabase") {
     console.error(`Refusing to run against ${status.API_URL}: only a local Supabase stack is allowed.`);
     process.exit(1);
   }
+  const newKeys = process.env.LOCAL_SUPABASE_KEYS === "new";
   Object.assign(env, {
     NEXT_PUBLIC_STUDIO_DATA_MODE: "supabase",
     NEXT_PUBLIC_SUPABASE_URL: status.API_URL,
-    NEXT_PUBLIC_SUPABASE_ANON_KEY: status.ANON_KEY,
-    SUPABASE_SERVICE_ROLE_KEY: status.SERVICE_ROLE_KEY,
+    NEXT_PUBLIC_SUPABASE_ANON_KEY: newKeys ? status.PUBLISHABLE_KEY : status.ANON_KEY,
+    SUPABASE_SERVICE_ROLE_KEY: newKeys ? status.SECRET_KEY : status.SERVICE_ROLE_KEY,
     STUDIO_AGENT_PROVIDER: "fixture",
     STUDIO_ALLOW_TEST_PROVIDER: "1",
   });

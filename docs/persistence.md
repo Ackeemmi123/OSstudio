@@ -72,7 +72,8 @@ person entered in the demo (example records are ignored).
 
 ## Setting up a Supabase project
 
-Use a **development or staging** project first.
+Use a **development or staging** project first. [staging.md](staging.md) has
+the full staging procedure, including the checks and the smoke test.
 
 1. Create a project at supabase.com. In **Authentication → Providers**, keep
    Email enabled and turn **off** "Allow new users to sign up". There is no
