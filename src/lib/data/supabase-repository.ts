@@ -1,6 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { AgentRunRecord } from "@/lib/agents/contract";
-import { buildNewClient, DomainError, setContextField, updateClientDetails, type DomainDeps } from "@/lib/domain/clients";
+import { buildNewClient, DomainConflictError, DomainError, setContextField, updateClientDetails, type DomainDeps } from "@/lib/domain/clients";
 import { addContextItem, buildSource, reviewProposal } from "@/lib/domain/intake";
 import { buildOnboarding, completeOnboarding, findOnboarding, saveOnboardingStep } from "@/lib/domain/onboarding";
 import { buildProject, buildTask, setTaskStatus, updateProject } from "@/lib/domain/projects";
@@ -325,6 +325,7 @@ export class SupabaseRepository implements StudioRepository {
     try {
       [value, changes, onboarding] = change(snapshot, deps);
     } catch (error) {
+      if (error instanceof DomainConflictError) throw new RepositoryError(error.message, "conflict");
       if (error instanceof DomainError) throw new RepositoryError(error.message, "validation");
       throw error;
     }

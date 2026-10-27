@@ -28,6 +28,14 @@ export class DomainError extends Error {
   }
 }
 
+/** The record changed since the person last saw it. Repositories report it as a conflict. */
+export class DomainConflictError extends DomainError {
+  constructor(message: string) {
+    super(message);
+    this.name = "DomainConflictError";
+  }
+}
+
 /** Trims a string and turns empty values into null, so blanks are never stored as facts. */
 export function clean(value: string | null | undefined): string | null {
   if (value == null) return null;

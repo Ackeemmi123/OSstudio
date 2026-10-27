@@ -454,6 +454,12 @@ export interface OnboardingStepInput {
   answerConfidence?: "observed" | "confirmed";
   /** Existing observed values the person confirms as they are. */
   confirm?: ContextFieldKey[];
+  /**
+   * The brief value the person saw for each answered or confirmed question
+   * (null: unknown). If the brief changed since, the step is refused, so a
+   * newer or confirmed value is never overwritten or confirmed unseen.
+   */
+  seen?: Partial<Record<ContextFieldKey, string | null>>;
   /** Questions to mark as not known yet. */
   skip?: ContextFieldKey[];
   /** Open questions for the client. */

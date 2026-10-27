@@ -14,7 +14,7 @@
  * - "Confirmed" is only ever set by a person (see `setContextField`).
  */
 import { BRIEF_FIELD, BriefError, briefConditions, decodeSalesChannels, encodeSalesChannels, getBriefGaps } from "./brief";
-import { clean, clientEvent, DomainError, formatList, setContextField, toClientDetailsInput, updateClientDetails, type DomainDeps } from "./clients";
+import { clean, clientEvent, DomainConflictError, DomainError, formatList, setContextField, toClientDetailsInput, updateClientDetails, type DomainDeps } from "./clients";
 import { addContextItem, QUESTION_MAX_LENGTH } from "./intake";
 import { CONTEXT_FIELD_LABELS } from "./labels";
 import {
@@ -147,6 +147,14 @@ export function saveOnboardingStep(
   const errors = validateOnboardingStep(client, input);
   if (hasErrors(errors)) throw new DomainError(Object.values(errors)[0] ?? "Check the answers.");
 
+  // Someone else changed a value the person was looking at: refuse rather than overwrite it.
+  for (const key of [...Object.keys(input.answers ?? {}), ...(input.confirm ?? [])] as ContextFieldKey[]) {
+    const seen = input.seen?.[key];
+    if (seen !== undefined && seen !== client.context[key].value) {
+      throw new DomainConflictError(`${CONTEXT_FIELD_LABELS[key]} was changed by someone else in the meantime. Check the new value and answer again.`);
+    }
+  }
+
   const now = deps.now();
   const at: DomainDeps = { ...deps, now: () => now };
   const events: ActivityEvent[] = [];
@@ -203,7 +211,7 @@ export function saveOnboardingStep(
     addedItems.push(result.item);
   }
 
-  const summary = describeBriefChanges(changed, addedItems.length);
+  const summary = describeBriefChanges(changed, addedItems.length, confidence === "confirmed");
   if (summary) events.push(clientEvent(client.id, "client.context_updated", summary, at, now));
 
   const nextOnboarding: Onboarding = {
@@ -240,10 +248,14 @@ function normalizeChannelsValue(raw: string): string | null {
 }
 
 /** "Onboarding: added industry and goal; confirmed budget; 1 open question". */
-function describeBriefChanges(changed: Map<ContextFieldKey, string>, questions: number): string | null {
+function describeBriefChanges(changed: Map<ContextFieldKey, string>, questions: number, typedAsConfirmed = false): string | null {
   const groups = new Map<string, string[]>();
   for (const [key, verb] of changed) groups.set(verb, [...(groups.get(verb) ?? []), lowerFirst(CONTEXT_FIELD_LABELS[key])]);
-  const parts = ["added", "updated", "confirmed", "cleared"].flatMap((verb) => (groups.has(verb) ? [`${verb} ${formatList(groups.get(verb)!)}`] : []));
+  // Typed answers the client confirmed say so, so history shows who vouched for what.
+  const suffix = (verb: string) => (typedAsConfirmed && (verb === "added" || verb === "updated") ? " as confirmed" : "");
+  const parts = ["added", "updated", "confirmed", "cleared"].flatMap((verb) =>
+    groups.has(verb) ? [`${verb} ${formatList(groups.get(verb)!)}${suffix(verb)}`] : [],
+  );
   if (questions) parts.push(`added ${questions === 1 ? "1 open question" : `${questions} open questions`}`);
   if (!parts.length) return null;
   const text = `Onboarding: ${parts.join("; ")}`;

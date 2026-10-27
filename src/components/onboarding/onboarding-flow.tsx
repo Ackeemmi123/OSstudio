@@ -311,6 +311,16 @@ function StepForm({
       ]),
     ),
   );
+  // The brief as it was when this step opened. Answers are compared with it,
+  // so a value someone else saves meanwhile is never overwritten unseen.
+  const [seenContext, setSeenContext] = useState(() => client.context);
+  // After a failed save (for example, someone else changed a value), show the
+  // stored values; the person's typed answers stay in the form.
+  const [resync, setResync] = useState(false);
+  if (resync) {
+    setResync(false);
+    if (client.context !== seenContext) setSeenContext(client.context);
+  }
   const [questions, setQuestions] = useState<string[]>([]);
   const [confirmedByClient, setConfirmedByClient] = useState(false);
   const [errors, setErrors] = useState<FieldErrors<OnboardingFieldName>>({});
@@ -326,15 +336,21 @@ function StepForm({
     const answers: OnboardingStepInput["answers"] = {};
     const confirm: ContextFieldKey[] = [];
     const skip: ContextFieldKey[] = [];
+    const seen: OnboardingStepInput["seen"] = {};
     for (const definition of fields) {
       const draft = drafts[definition.key]!;
-      const field = client.context[definition.key];
+      const field = seenContext[definition.key];
       const state = questionState(field, definition.key, onboarding);
       if (state === "ask" && draft.skipping) skip.push(definition.key);
-      else if ((state === "ask" || draft.editing) && clean(draft.value) !== field.value) answers[definition.key] = draft.value;
-      else if (draft.confirming && !draft.editing) confirm.push(definition.key);
+      else if ((state === "ask" || draft.editing) && clean(draft.value) !== field.value) {
+        answers[definition.key] = draft.value;
+        seen[definition.key] = field.value;
+      } else if (draft.confirming && !draft.editing) {
+        confirm.push(definition.key);
+        seen[definition.key] = field.value;
+      }
     }
-    const input: OnboardingStepInput = { nextStep, answers, confirm, skip, questions };
+    const input: OnboardingStepInput = { nextStep, answers, confirm, skip, questions, seen };
     if (step === "business") {
       const changed = (Object.keys(details) as (keyof DetailsDraft)[]).filter((key) => (clean(details[key]) ?? null) !== (client[key] ?? null));
       if (changed.length) input.details = Object.fromEntries(changed.map((key) => [key, details[key]]));
@@ -364,7 +380,8 @@ function StepForm({
     }
     // Moving without changes still records where the person is, unless nothing would change at all.
     const progressOnly = !isDirty(input) && (then.step ?? step) === onboarding.currentStep;
-    await onSave(progressOnly ? null : input, then);
+    const saved = await onSave(progressOnly ? null : input, then);
+    if (!saved) setResync(true);
   }
 
   function handleSubmit(event: FormEvent) {
@@ -383,7 +400,7 @@ function StepForm({
     snapshot.proposals.filter((p) => p.clientId === client.id && p.status === "pending" && p.target === key);
   const typedAnything = fields.some((d) => {
     const draft = drafts[d.key]!;
-    return (questionState(client.context[d.key], d.key, onboarding) === "ask" || draft.editing) && clean(draft.value) && clean(draft.value) !== client.context[d.key].value;
+    return (questionState(seenContext[d.key], d.key, onboarding) === "ask" || draft.editing) && clean(draft.value) && clean(draft.value) !== seenContext[d.key].value;
   });
 
   return (
@@ -437,8 +454,8 @@ function StepForm({
               id={id(definition.key)}
               definition={definition}
               conditions={conditions}
-              field={client.context[definition.key]}
-              state={questionState(client.context[definition.key], definition.key, onboarding)}
+              field={seenContext[definition.key]}
+              state={questionState(seenContext[definition.key], definition.key, onboarding)}
               draft={drafts[definition.key]!}
               error={errors[definition.key]}
               proposals={proposalsFor(definition.key)}

@@ -14,6 +14,7 @@ import {
   type OnboardingStep,
   type ProjectType,
 } from "./types";
+import { isValidWebAddress } from "./validation";
 
 /* -------------------------------------------------------------------------- */
 /* Sales channels                                                             */
@@ -79,6 +80,24 @@ export class BriefError extends Error {
     super(message);
     this.name = "BriefError";
   }
+}
+
+/**
+ * Checks a value for a brief question with a structured input (a web address
+ * or sales channels) and returns it as stored. Used wherever a value enters
+ * the brief without the onboarding form, such as an accepted agent proposal.
+ */
+export function normalizeBriefValue(key: ContextFieldKey, raw: string): string | null {
+  const value = raw.trim();
+  if (!value) return null;
+  const input = BRIEF_FIELD[key].input;
+  if (input === "url" && !isValidWebAddress(value)) throw new BriefError(`“${value}” is not a valid web address.`);
+  if (input === "channels") {
+    const { channels, unrecognized } = decodeSalesChannels(value);
+    if (unrecognized.length) throw new BriefError(`Unknown sales channel: ${unrecognized.join(", ")}.`);
+    return channels.length ? encodeSalesChannels(channels) : null;
+  }
+  return value;
 }
 
 /* -------------------------------------------------------------------------- */

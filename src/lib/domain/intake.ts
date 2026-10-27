@@ -5,6 +5,7 @@
  * goes through the same rules as editing the brief by hand: the replaced value
  * is kept in history, and only a person can mark a value confirmed.
  */
+import { BriefError, normalizeBriefValue } from "./brief";
 import { clean, clientEvent, DomainError, setContextField, toClientDetailsInput, updateClientDetails, type DomainDeps } from "./clients";
 import { CONTEXT_FIELD_LABELS, PROPOSAL_TARGET_LABELS } from "./labels";
 import {
@@ -111,11 +112,20 @@ export function reviewProposal(
   let events: ActivityEvent[] = [];
 
   if (isContextFieldKey(proposal.target)) {
+    // A proposal enters the brief under the same rules as a typed answer.
+    let value: string | null;
+    try {
+      value = normalizeBriefValue(proposal.target, proposal.value);
+    } catch (error) {
+      if (error instanceof BriefError) throw new DomainError(`${error.message} Dismiss this suggestion and type the value instead.`);
+      throw error;
+    }
+    if (!value) throw new DomainError("This suggestion has no usable value. Dismiss it and type the value instead.");
     const result = setContextField(
       client,
       proposal.target,
       {
-        value: proposal.value,
+        value,
         confidence: decision.confidence,
         source: { type: sourceType, label: first ? `${first.sourceLabel} · intake analysis` : "Intake analysis" },
         note: [first ? `“${truncate(first.quote, 300)}”` : null, proposal.note].filter(Boolean).join(" · "),
