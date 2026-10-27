@@ -93,6 +93,12 @@ part of the public URL. It checks that:
 - with `STAGING_ANTHROPIC_API_KEY`: the key is accepted and the model is
   available to it (a model lookup, no tokens).
 
+Behind an HTTPS proxy (for example a Claude Code cloud environment), Node's
+`fetch` ignores `HTTPS_PROXY` unless `NODE_USE_ENV_PROXY=1` is set, and the
+proxy's certificate must be trusted with `NODE_EXTRA_CA_CERTS`. Run both
+staging commands with them, for example
+`NODE_USE_ENV_PROXY=1 NODE_EXTRA_CA_CERTS=/root/.ccr/ca-bundle.crt npm run staging:check`.
+
 Run it with the app host's variables too (for example after `vercel env pull`)
 to check the deployment's own configuration.
 
