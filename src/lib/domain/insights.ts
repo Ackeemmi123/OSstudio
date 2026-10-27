@@ -1,237 +1,29 @@
 /**
- * Read-only views derived from the studio snapshot. Every number on the
- * dashboard and client pages comes from here, so totals stay consistent.
+ * Read-only views derived from the studio snapshot. Every list on Today and
+ * in the client workspace comes from here, so the screens never disagree.
  */
-import { getMissingInformation, getUnconfirmedFields } from "./clients";
-import { TASK_STATUS_LABELS } from "./labels";
-import type {
-  ActivityEvent,
-  Client,
-  ISODateString,
-  Project,
-  ProjectType,
-  StudioSnapshot,
-  Task,
+import { formatContextValue } from "@/lib/format";
+import { getMissingEssentials } from "./clients";
+import { actorLabel, CLIENT_STATUS_LABELS, CONFIDENCE_LABELS, CONTEXT_FIELD_LABELS, PROJECT_STAGE_LABELS } from "./labels";
+import {
+  CONTEXT_FIELD_KEYS,
+  type ActivityEvent,
+  type Client,
+  type ISODateString,
+  type Project,
+  type StudioSnapshot,
+  type Task,
 } from "./types";
-
-export interface ProjectProgress {
-  done: number;
-  total: number;
-}
-
-export function getProjectProgress(project: Project, tasks: Task[]): ProjectProgress {
-  const projectTasks = tasks.filter((task) => task.projectId === project.id);
-  return {
-    done: projectTasks.filter((task) => task.status === "done").length,
-    total: projectTasks.length,
-  };
-}
-
-export function getClientProjects(clientId: string, projects: Project[]): Project[] {
-  return projects.filter((project) => project.clientId === clientId);
-}
-
-export function getClientTasks(clientId: string, snapshot: StudioSnapshot): Task[] {
-  const projectIds = new Set(getClientProjects(clientId, snapshot.projects).map((p) => p.id));
-  return snapshot.tasks.filter((task) => projectIds.has(task.projectId));
-}
-
-/** All events about the client, its projects and their tasks, newest first. */
-export function getClientActivity(clientId: string, snapshot: StudioSnapshot): ActivityEvent[] {
-  const projectIds = new Set(getClientProjects(clientId, snapshot.projects).map((p) => p.id));
-  const taskIds = new Set(
-    snapshot.tasks.filter((task) => projectIds.has(task.projectId)).map((task) => task.id),
-  );
-
-  return snapshot.activity
-    .filter(
-      (event) =>
-        (event.entityType === "client" && event.entityId === clientId) ||
-        (event.entityType === "project" && projectIds.has(event.entityId)) ||
-        (event.entityType === "task" && taskIds.has(event.entityId)),
-    )
-    .sort(byTimestampDesc);
-}
 
 export function byTimestampDesc(a: { timestamp: string }, b: { timestamp: string }): number {
   return b.timestamp.localeCompare(a.timestamp);
 }
 
-/* -------------------------------------------------------------------------- */
-/* Client list                                                                */
-/* -------------------------------------------------------------------------- */
-
-export interface ClientRow {
-  client: Client;
-  projects: Project[];
-  /** The client's stated project type, or the type of its first project. */
-  projectType: ProjectType | null;
-  lastActivity: ISODateString;
-  missingEssentials: number;
-}
-
-export function getClientRows(snapshot: StudioSnapshot): ClientRow[] {
-  return snapshot.clients
-    .map((client) => {
-      const projects = getClientProjects(client.id, snapshot.projects);
-      const latestEvent = getClientActivity(client.id, snapshot)[0];
-      const lastActivity =
-        latestEvent && latestEvent.timestamp > client.updatedAt
-          ? latestEvent.timestamp
-          : client.updatedAt;
-
-      return {
-        client,
-        projects,
-        projectType: client.projectType ?? projects[0]?.projectType ?? null,
-        lastActivity,
-        missingEssentials: getMissingInformation(client).filter((item) => item.essential).length,
-      };
-    })
-    .sort((a, b) => b.lastActivity.localeCompare(a.lastActivity));
-}
-
-export function matchesClientQuery(row: ClientRow, query: string): boolean {
-  const needle = query.trim().toLocaleLowerCase();
-  if (!needle) return true;
-  const haystack = [
-    row.client.name,
-    row.client.contactPerson,
-    row.client.email,
-    row.client.website,
-    ...row.projects.map((project) => project.name),
-  ]
-    .filter(Boolean)
-    .join(" ")
-    .toLocaleLowerCase();
-  return haystack.includes(needle);
-}
-
-/* -------------------------------------------------------------------------- */
-/* Attention and next steps                                                   */
-/* -------------------------------------------------------------------------- */
-
-export type AttentionKind = "missing_info" | "blocked" | "review" | "approval";
-
-export interface AttentionItem {
-  id: string;
-  kind: AttentionKind;
-  title: string;
-  detail: string;
-  clientId: string;
-  href: string;
-}
-
-const ATTENTION_ORDER: Record<AttentionKind, number> = {
-  blocked: 0,
-  approval: 1,
-  review: 2,
-  missing_info: 3,
-};
-
-export function getAttentionItems(snapshot: StudioSnapshot): AttentionItem[] {
-  const items: AttentionItem[] = [];
-  const projectById = new Map(snapshot.projects.map((project) => [project.id, project]));
-  const clientById = new Map(snapshot.clients.map((client) => [client.id, client]));
-
-  for (const task of snapshot.tasks) {
-    const project = projectById.get(task.projectId);
-    const client = project ? clientById.get(project.clientId) : undefined;
-    if (!project || !client) continue;
-
-    const where = `${client.name} · ${project.name}`;
-    const href = `/clients/${client.id}?tab=workflow`;
-    if (task.status === "blocked") {
-      items.push({
-        id: `blocked-${task.id}`,
-        kind: "blocked",
-        title: task.title,
-        detail: task.blockedReason ? `${where} — ${task.blockedReason}` : where,
-        clientId: client.id,
-        href,
-      });
-    } else if (task.status === "in_review") {
-      items.push({ id: `review-${task.id}`, kind: "review", title: task.title, detail: where, clientId: client.id, href });
-    } else if (task.status === "awaiting_approval") {
-      items.push({ id: `approval-${task.id}`, kind: "approval", title: task.title, detail: where, clientId: client.id, href });
-    }
-  }
-
-  for (const client of snapshot.clients) {
-    if (client.status === "archived") continue;
-    const essentials = getMissingInformation(client).filter((item) => item.essential);
-    if (essentials.length === 0) continue;
-    items.push({
-      id: `missing-${client.id}`,
-      kind: "missing_info",
-      title: `${client.name} is missing ${essentials.length === 1 ? "1 detail" : `${essentials.length} details`}`,
-      detail: essentials.map((item) => item.label).join(", "),
-      clientId: client.id,
-      href: `/clients/${client.id}`,
-    });
-  }
-
-  return items.sort((a, b) => ATTENTION_ORDER[a.kind] - ATTENTION_ORDER[b.kind]);
-}
-
-export interface NextStep {
-  id: string;
-  text: string;
-  detail?: string;
-}
-
-/** Suggested next steps for a client, derived only from recorded data. */
-export function getClientNextSteps(client: Client, snapshot: StudioSnapshot): NextStep[] {
-  const steps: NextStep[] = [];
-  const missing = getMissingInformation(client);
-  const essentials = missing.filter((item) => item.essential);
-
-  if (essentials.length > 0) {
-    steps.push({
-      id: "missing",
-      text: `Collect ${essentials.map((item) => item.label.toLowerCase()).join(", ")}`,
-      detail: "Essential before the project can be scoped.",
-    });
-  }
-
-  const unconfirmed = getUnconfirmedFields(client);
-  if (unconfirmed.length > 0) {
-    steps.push({
-      id: "confirm",
-      text: `Confirm ${unconfirmed.length === 1 ? "1 detail" : `${unconfirmed.length} details`} with the client`,
-      detail: unconfirmed.map((field) => field.label).join(", "),
-    });
-  }
-
-  const openQuestions = client.contextItems.filter(
-    (item) => item.kind === "question" && item.confidence !== "superseded",
-  );
-  if (openQuestions.length > 0) {
-    steps.push({
-      id: "questions",
-      text: `Resolve ${openQuestions.length === 1 ? "1 open question" : `${openQuestions.length} open questions`}`,
-    });
-  }
-
-  const tasks = getClientTasks(client.id, snapshot)
-    .filter((task) => task.status !== "done")
-    .sort((a, b) => taskUrgency(a) - taskUrgency(b));
-  for (const task of tasks.slice(0, 3)) {
-    steps.push({
-      id: `task-${task.id}`,
-      text: task.title,
-      detail: `${TASK_STATUS_LABELS[task.status]}${task.assignedTo ? ` · ${task.assignedTo}` : " · Unassigned"}`,
-    });
-  }
-
-  if (getClientProjects(client.id, snapshot.projects).length === 0) {
-    steps.push({
-      id: "project",
-      text: "Set up the first project once the brief is clear",
-    });
-  }
-
-  return steps;
+export function getClientProjects(clientId: string, projects: Project[]): Project[] {
+  const order = { active: 0, planned: 1, on_hold: 2, completed: 3 };
+  return projects
+    .filter((project) => project.clientId === clientId)
+    .sort((a, b) => order[a.status] - order[b.status] || b.updatedAt.localeCompare(a.updatedAt));
 }
 
 /** Blocked work first, then work waiting on someone, then active work. */
@@ -247,28 +39,25 @@ export function taskUrgency(task: Task): number {
   return order[task.status];
 }
 
-/* -------------------------------------------------------------------------- */
-/* Dashboard                                                                  */
-/* -------------------------------------------------------------------------- */
-
-export interface DashboardSummary {
-  activeProjects: Project[];
-  openTasks: number;
-  attention: AttentionItem[];
-  pendingApprovals: number;
-  activeClients: number;
+export function getProjectTasks(projectId: string, tasks: Task[]): Task[] {
+  return tasks
+    .filter((task) => task.projectId === projectId)
+    .sort((a, b) => taskUrgency(a) - taskUrgency(b) || a.createdAt.localeCompare(b.createdAt));
 }
 
-export function getDashboardSummary(snapshot: StudioSnapshot): DashboardSummary {
-  const activeProjects = snapshot.projects.filter((project) => project.status === "active");
-  const attention = getAttentionItems(snapshot);
-  return {
-    activeProjects,
-    openTasks: snapshot.tasks.filter((task) => task.status !== "done").length,
-    attention,
-    pendingApprovals: attention.filter((item) => item.kind === "approval").length,
-    activeClients: snapshot.clients.filter((client) => client.status === "active").length,
-  };
+/** All events about the client, its projects and their tasks, newest first. */
+export function getClientActivity(clientId: string, snapshot: StudioSnapshot): ActivityEvent[] {
+  const projectIds = new Set(snapshot.projects.filter((p) => p.clientId === clientId).map((p) => p.id));
+  const taskIds = new Set(snapshot.tasks.filter((task) => projectIds.has(task.projectId)).map((task) => task.id));
+
+  return snapshot.activity
+    .filter(
+      (event) =>
+        (event.entityType === "client" && event.entityId === clientId) ||
+        (event.entityType === "project" && projectIds.has(event.entityId)) ||
+        (event.entityType === "task" && taskIds.has(event.entityId)),
+    )
+    .sort(byTimestampDesc);
 }
 
 export interface ActivityEntry {
@@ -277,12 +66,10 @@ export interface ActivityEntry {
   clientName: string | null;
 }
 
-/** Resolves each event to its client so timelines can link to the right profile. */
-export function getRecentActivity(snapshot: StudioSnapshot, limit = 8): ActivityEntry[] {
+/** Resolves each event to its client so timelines can link to the right workspace. */
+export function getRecentActivity(snapshot: StudioSnapshot, limit = 6): ActivityEntry[] {
   const projectClient = new Map(snapshot.projects.map((project) => [project.id, project.clientId]));
-  const taskClient = new Map(
-    snapshot.tasks.map((task) => [task.id, projectClient.get(task.projectId) ?? null]),
-  );
+  const taskClient = new Map(snapshot.tasks.map((task) => [task.id, projectClient.get(task.projectId) ?? null]));
   const clientNames = new Map(snapshot.clients.map((client) => [client.id, client.name]));
 
   return [...snapshot.activity]
@@ -297,4 +84,217 @@ export function getRecentActivity(snapshot: StudioSnapshot, limit = 8): Activity
             : (taskClient.get(event.entityId) ?? null);
       return { event, clientId, clientName: clientId ? (clientNames.get(clientId) ?? null) : null };
     });
+}
+
+function clientHref(clientId: string, anchor?: string) {
+  return `/clients/${encodeURIComponent(clientId)}${anchor ? `#${anchor}` : ""}`;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Client list                                                                */
+/* -------------------------------------------------------------------------- */
+
+export interface ClientRow {
+  client: Client;
+  projects: Project[];
+  /** One short line that tells the client's current situation. */
+  situation: string;
+  lastActivity: ISODateString;
+}
+
+export function getClientRows(snapshot: StudioSnapshot): ClientRow[] {
+  return snapshot.clients
+    .map((client) => {
+      const projects = getClientProjects(client.id, snapshot.projects);
+      const latestEvent = getClientActivity(client.id, snapshot)[0];
+      const lastActivity =
+        latestEvent && latestEvent.timestamp > client.updatedAt ? latestEvent.timestamp : client.updatedAt;
+      return { client, projects, situation: describeSituation(client, projects), lastActivity };
+    })
+    .sort((a, b) => b.lastActivity.localeCompare(a.lastActivity));
+}
+
+function describeSituation(client: Client, projects: Project[]): string {
+  if (client.status === "archived") return projects.length ? `Archived · ${projects.length === 1 ? "1 project" : `${projects.length} projects`}` : "Archived";
+  if (client.status === "on_hold") return "On hold";
+  const current = projects.find((p) => p.status === "active") ?? projects.find((p) => p.status === "planned");
+  if (current) return `${current.name} · ${PROJECT_STAGE_LABELS[current.stage]}`;
+  const missing = getMissingEssentials(client).length;
+  const status = CLIENT_STATUS_LABELS[client.status];
+  return missing ? `${status} · ${missing} ${missing === 1 ? "detail" : "details"} to collect` : `${status} · Ready for a project`;
+}
+
+export function matchesClientQuery(row: ClientRow, query: string): boolean {
+  const needle = query.trim().toLocaleLowerCase();
+  if (!needle) return true;
+  return [row.client.name, row.client.contactPerson, row.client.email, row.client.website, ...row.projects.map((p) => p.name)]
+    .filter(Boolean)
+    .join(" ")
+    .toLocaleLowerCase()
+    .includes(needle);
+}
+
+/* -------------------------------------------------------------------------- */
+/* Decisions: what only a person can resolve                                  */
+/* -------------------------------------------------------------------------- */
+
+export type DecisionKind = "approval" | "review" | "proposal";
+
+export interface DecisionItem {
+  id: string;
+  kind: DecisionKind;
+  title: string;
+  /** Client and project, for orientation. */
+  where: string;
+  clientId: string;
+  href: string;
+}
+
+const DECISION_ORDER: Record<DecisionKind, number> = { approval: 0, review: 1, proposal: 2 };
+
+/**
+ * Approvals, reviews and proposed client facts. These wait for a person; no
+ * automation or agent may resolve them.
+ */
+export function getDecisions(snapshot: StudioSnapshot): DecisionItem[] {
+  const items: DecisionItem[] = [];
+  const projectById = new Map(snapshot.projects.map((project) => [project.id, project]));
+  const clientById = new Map(snapshot.clients.map((client) => [client.id, client]));
+
+  for (const task of snapshot.tasks) {
+    if (task.status !== "awaiting_approval" && task.status !== "in_review") continue;
+    const project = projectById.get(task.projectId);
+    const client = project ? clientById.get(project.clientId) : undefined;
+    if (!project || !client) continue;
+    items.push({
+      id: `task-${task.id}`,
+      kind: task.status === "awaiting_approval" ? "approval" : "review",
+      title: task.title,
+      where: `${client.name} · ${project.name}`,
+      clientId: client.id,
+      href: clientHref(client.id, `task-${task.id}`),
+    });
+  }
+
+  for (const client of snapshot.clients) {
+    if (client.status === "archived") continue;
+    for (const key of CONTEXT_FIELD_KEYS) {
+      const field = client.context[key];
+      if (field.value === null || field.confidence !== "proposed") continue;
+      items.push({
+        id: `proposal-${client.id}-${key}`,
+        kind: "proposal",
+        title: `${CONTEXT_FIELD_LABELS[key]}: ${formatContextValue(field.value)}`,
+        where: `${client.name} · ${field.recordedBy ? `Proposed by ${actorLabel(field.recordedBy)}` : CONFIDENCE_LABELS.proposed}`,
+        clientId: client.id,
+        href: clientHref(client.id, `brief-${key}`),
+      });
+    }
+  }
+
+  return items.sort((a, b) => DECISION_ORDER[a.kind] - DECISION_ORDER[b.kind]);
+}
+
+/* -------------------------------------------------------------------------- */
+/* Next actions: what should happen next                                      */
+/* -------------------------------------------------------------------------- */
+
+export type NextActionKind = "blocked" | "task" | "collect" | "start_project";
+
+export interface NextAction {
+  id: string;
+  kind: NextActionKind;
+  title: string;
+  detail: string;
+  clientId: string;
+  href: string;
+}
+
+const ACTION_ORDER: Record<NextActionKind, number> = { blocked: 0, task: 1, collect: 2, start_project: 3 };
+
+/**
+ * The next useful step for each client that is in play: unblock stuck work,
+ * continue the most important open task, or complete a new client's brief.
+ */
+export function getNextActions(snapshot: StudioSnapshot, clientId?: string): NextAction[] {
+  const actions: NextAction[] = [];
+
+  for (const client of snapshot.clients) {
+    if (clientId ? client.id !== clientId : client.status === "archived" || client.status === "on_hold") continue;
+    const projects = getClientProjects(client.id, snapshot.projects);
+    const running = projects.filter((p) => p.status === "active" || p.status === "planned");
+
+    for (const project of running) {
+      const tasks = getProjectTasks(project.id, snapshot.tasks);
+      for (const task of tasks.filter((t) => t.status === "blocked")) {
+        actions.push({
+          id: `blocked-${task.id}`,
+          kind: "blocked",
+          title: task.title,
+          detail: task.blockedReason ?? `${client.name} · ${project.name}`,
+          clientId: client.id,
+          href: clientHref(client.id, `task-${task.id}`),
+        });
+      }
+      const next = tasks.find((t) => t.status === "in_progress" || t.status === "todo");
+      if (next) {
+        actions.push({
+          id: `task-${next.id}`,
+          kind: "task",
+          title: next.title,
+          detail: [client.name, project.name, next.assignee ? actorLabel(next.assignee) : "Unassigned"].join(" · "),
+          clientId: client.id,
+          href: clientHref(client.id, `task-${next.id}`),
+        });
+      }
+    }
+
+    if (running.length === 0 && client.status !== "on_hold" && client.status !== "archived") {
+      const missing = getMissingEssentials(client);
+      actions.push(
+        missing.length > 0
+          ? {
+              id: `collect-${client.id}`,
+              kind: "collect",
+              title: `Complete the brief for ${client.name}`,
+              detail: `Still missing: ${missing.map((m) => m.label.toLowerCase()).join(", ")}`,
+              clientId: client.id,
+              href: clientHref(client.id, "brief"),
+            }
+          : {
+              id: `start-${client.id}`,
+              kind: "start_project",
+              title: `Start the first project for ${client.name}`,
+              detail: "The essentials are recorded.",
+              clientId: client.id,
+              href: clientHref(client.id, "projects"),
+            },
+      );
+    }
+  }
+
+  return actions.sort((a, b) => ACTION_ORDER[a.kind] - ACTION_ORDER[b.kind]);
+}
+
+/* -------------------------------------------------------------------------- */
+/* Work in progress                                                           */
+/* -------------------------------------------------------------------------- */
+
+export interface ActiveWork {
+  project: Project;
+  client: Client;
+  openTasks: number;
+}
+
+export function getActiveWork(snapshot: StudioSnapshot): ActiveWork[] {
+  const clientById = new Map(snapshot.clients.map((client) => [client.id, client]));
+  return snapshot.projects
+    .filter((project) => project.status === "active")
+    .flatMap((project) => {
+      const client = clientById.get(project.clientId);
+      if (!client) return [];
+      const openTasks = snapshot.tasks.filter((t) => t.projectId === project.id && t.status !== "done").length;
+      return [{ project, client, openTasks }];
+    })
+    .sort((a, b) => b.project.updatedAt.localeCompare(a.project.updatedAt));
 }

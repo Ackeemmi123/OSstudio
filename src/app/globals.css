@@ -1,66 +1,38 @@
 @import "tailwindcss";
-
-/*
- * Studio OS design tokens.
- * Warm off-white canvas, white surfaces, charcoal type, muted olive-gray accent.
- */
-@theme {
-  --color-canvas: #f6f4ef;
-  --color-surface: #ffffff;
-  --color-surface-muted: #faf9f5;
-  --color-sunken: #efece5;
-
-  --color-ink: #23221f;
-  --color-ink-muted: #5c5b55;
-  --color-ink-subtle: #75746c;
-
-  --color-line: #e5e1d8;
-  --color-line-strong: #d3cec2;
-
-  --color-accent: #636850;
-  --color-accent-strong: #4c503d;
-  --color-accent-soft: #eceee4;
-
-  /* Restrained status hues, used for small dots and text only. */
-  --color-positive: #5b7553;
-  --color-caution: #a2732b;
-  --color-critical: #a14f3b;
-  --color-info: #57677a;
-  --color-neutral: #8f8d84;
-
-  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
-  --font-serif: var(--font-newsreader), ui-serif, Georgia, serif;
-  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
-
-  --radius-control: 6px;
-  --radius-surface: 10px;
-
-  --shadow-overlay: 0 1px 2px rgb(35 34 31 / 0.04), 0 12px 32px -8px rgb(35 34 31 / 0.16);
-}
+@import "./theme.css";
 
 @layer base {
   html {
     color-scheme: light;
+    scroll-padding-top: 5rem;
   }
 
   body {
     background: var(--color-canvas);
     color: var(--color-ink);
     font-family: var(--font-sans);
-    font-feature-settings: "ss01", "cv11";
     -webkit-font-smoothing: antialiased;
   }
 
+  /* Headings: Geist 500 with slightly tight tracking, as on the Axivo website. */
+  h1,
+  h2,
+  h3 {
+    font-family: var(--font-display);
+    font-weight: 500;
+  }
+
   ::selection {
-    background: var(--color-accent-soft);
+    background: var(--brand-soft);
+    color: var(--brand-ink);
   }
 
   :focus-visible {
-    outline: 2px solid var(--color-accent);
+    outline: 2px solid var(--color-focus);
     outline-offset: 2px;
   }
 
   dialog::backdrop {
-    background: rgb(35 34 31 / 0.28);
+    background: color-mix(in srgb, var(--brand-ink) 45%, transparent);
   }
 }

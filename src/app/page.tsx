@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
-import { OverviewDashboard } from "@/components/overview/overview-dashboard";
+import { TodayView } from "@/components/today/today-view";
 
-export const metadata: Metadata = { title: "Overview" };
+export const metadata: Metadata = { title: "Today" };
 
-export default function OverviewPage() {
-  return <OverviewDashboard />;
+export default function TodayPage() {
+  return <TodayView />;
 }

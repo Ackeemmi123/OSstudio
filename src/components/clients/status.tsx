@@ -1,12 +1,14 @@
+import { Bot } from "lucide-react";
 import { StatusLabel, Tag, type Tone } from "@/components/ui/status";
 import {
+  actorLabel,
   CLIENT_STATUS_LABELS,
   CONFIDENCE_DESCRIPTIONS,
   CONFIDENCE_LABELS,
   PROJECT_STATUS_LABELS,
   TASK_STATUS_LABELS,
 } from "@/lib/domain/labels";
-import type { ClientStatus, FieldConfidence, ProjectStatus, TaskStatus } from "@/lib/domain/types";
+import type { Assignee, ClientStatus, FieldConfidence, ProjectStatus, TaskStatus } from "@/lib/domain/types";
 
 const CLIENT_TONES: Record<ClientStatus, Tone> = {
   lead: "info",
@@ -24,7 +26,7 @@ const PROJECT_TONES: Record<ProjectStatus, Tone> = {
   planned: "info",
   active: "positive",
   on_hold: "neutral",
-  completed: "accent",
+  completed: "neutral",
 };
 
 export function ProjectStatusLabel({ status }: { status: ProjectStatus }) {
@@ -66,4 +68,17 @@ export function DemoTag() {
       Demo
     </Tag>
   );
+}
+
+export function AssigneeLabel({ assignee }: { assignee: Assignee | null }) {
+  if (!assignee) return <span className="text-ink-subtle">Unassigned</span>;
+  if (assignee.kind === "agent") {
+    return (
+      <span className="inline-flex items-center gap-1 text-ink-muted">
+        <Bot aria-hidden className="size-3.5" strokeWidth={1.75} />
+        {actorLabel(assignee)}
+      </span>
+    );
+  }
+  return <span className="text-ink-muted">{assignee.name}</span>;
 }

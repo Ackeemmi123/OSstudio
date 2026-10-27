@@ -27,7 +27,7 @@ const TAG: Record<Tone, string> = {
   critical: "text-critical border-critical/25 bg-critical/[0.06]",
   info: "text-info border-info/25 bg-info/[0.06]",
   neutral: "text-ink-muted border-line-strong bg-surface-muted",
-  accent: "text-accent-strong border-accent/25 bg-accent-soft",
+  accent: "text-ink border-line-strong bg-accent-soft",
 };
 
 export function Tag({ tone = "neutral", children, className, title }: { tone?: Tone; children: React.ReactNode; className?: string; title?: string }) {
@@ -35,7 +35,7 @@ export function Tag({ tone = "neutral", children, className, title }: { tone?: T
     <span
       title={title}
       className={cn(
-        "inline-flex h-5 items-center rounded-[4px] border px-1.5 text-[11px] font-medium tracking-wide whitespace-nowrap",
+        "inline-flex h-5 items-center rounded-full border px-2 text-[11px] font-medium whitespace-nowrap",
         TAG[tone],
         className,
       )}

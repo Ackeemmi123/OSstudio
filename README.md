@@ -1,8 +1,17 @@
 # Studio OS
 
-The internal workspace for a web design and development studio: clients, projects, requirements, tasks and, later, specialized AI agents working from the same shared context.
+Axivo's studio workspace for clients, projects and the next step on each, built
+to work alongside specialized AI agents later.
 
-This is the first version. It focuses on the application shell, the Overview dashboard and client management.
+It answers three questions:
+
+1. **Which clients and projects are we working on?** The Clients list, and the
+   "In progress" list on Today.
+2. **What needs to happen next?** "Next up" on Today, and "What's next" in each
+   client workspace.
+3. **What needs my decision?** "Needs your decision" on Today: approvals,
+   reviews, and proposed client facts. No agents are connected yet; when they
+   are, their proposals land here too.
 
 ## Running locally
 
@@ -11,66 +20,79 @@ npm install
 npm run dev        # http://localhost:3000
 ```
 
-| Command             | What it does                                 |
-| ------------------- | -------------------------------------------- |
-| `npm run dev`       | Development server                           |
-| `npm run build`     | Production build                             |
-| `npm run start`     | Serve the production build                   |
-| `npm run lint`      | ESLint                                       |
-| `npm run typecheck` | Generates route types, then runs `tsc`       |
-| `npm test`          | Unit tests (Vitest) for domain logic and data |
+| Command             | What it does                                  |
+| ------------------- | --------------------------------------------- |
+| `npm run dev`       | Development server                            |
+| `npm run build`     | Production build                              |
+| `npm run start`     | Serve the production build                    |
+| `npm run lint`      | ESLint                                        |
+| `npm run typecheck` | Generates route types, then runs `tsc`        |
+| `npm test`          | Unit tests (Vitest) for domain, data and agent permissions |
 
 No environment variables are required.
 
 ## What works
 
-- **Overview**: workload summary, active projects with stage and task progress, items needing attention (blocked tasks, reviews, approvals, missing client details) and recent activity. Every number is derived from the same data.
-- **Clients**: search (name, contact, email, website, project), status filters, empty and loading states.
-- **New client**: only the name is required. Optional brief fields are stored as *observed*; anything left blank stays *unknown*. Duplicate names are flagged, double submission is prevented, and a creation event is recorded.
-- **Client profile**: Overview, Context, Workflow, Files & Deliverables and Activity tabs. Missing information and next steps are derived from the record.
-- **Editing**: core details, status, and every context value with its confidence. Replaced values are kept as superseded history.
-- **Search** (⌘K / Ctrl+K) across clients and projects, and a notifications panel listing attention items.
-- **Projects, Tasks and Approvals**: read-only views of the same data. **AI Agents** describes what is planned; nothing is active.
+- **Today**: decisions waiting on you, the next step for each client in play
+  (blocked work first), active projects, and recent activity.
+- **Clients**: search by name, contact, email or project, with one line on each
+  client's situation. Archived clients are tucked away.
+- **New client**: a name is enough. Contact details and the original inquiry
+  are optional, behind one click.
+- **Client workspace** (one page, no tabs):
+  - *What's next*: decisions, blocked work and missing essentials for this client.
+  - *Projects*: create a project, change its stage and status, add tasks, change
+    task status, approve work that is awaiting approval.
+  - *Brief*: goal, requirements, audience, budget, deadline and platform. Each
+    value is edited on its own, shows how certain it is and where it came from,
+    and can be confirmed with one click. Replaced values are kept as history.
+  - *Source material* and *Activity* alongside.
+- **Search** (⌘K / Ctrl+K) across clients and projects.
+- **Settings**: where data is stored, a reset for the demo data, what is
+  connected, and the planned agents.
+
+Old links to `/projects`, `/tasks`, `/approvals` and `/agents` redirect to Today
+or Settings.
+
+## Not built or not connected
+
+- **No backend.** Data lives in this browser only (see below).
+- **No sign-in.** Every change is recorded as made by "You".
+- **No AI agents.** The run contract, permissions and registry exist in code;
+  nothing executes. The UI says so.
+- **No file uploads, email intake, notifications or invoicing.**
+
+## Brand
+
+Logo, the five Axivo brand colors and the Inter/Geist type pairing come from
+the Axivo website repository. All tokens are in `src/app/theme.css`. See
+[docs/brand.md](docs/brand.md).
 
 ## Data and persistence
 
-There is no backend yet. Data lives in a **local demo repository** (`src/lib/data/local-repository.ts`) that stores the workspace in the browser's `localStorage`:
+Data is stored in the browser's `localStorage` by `LocalDemoRepository`. It is
+not synced to other devices or people. Example records are tagged "Demo";
+**Settings → Reset demo data** restores them. Data entered in the first version
+is migrated automatically.
 
-- Data stays in one browser on one device. It is not synced anywhere.
-- If storage is unavailable (for example, some private windows), the workspace runs in memory and says so.
-- Example records are marked as demo data. **Settings → Reset demo data** restores them.
-
-The UI only talks to the `StudioRepository` interface (`src/lib/data/repository.ts`), so a Supabase implementation can replace the local one without changing components. A draft schema is in `supabase/migrations/0001_initial_schema.sql`. **It has not been applied anywhere.** When it is, the expected environment variables are `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY`; never expose the service-role key to the browser.
+A draft Supabase schema with row-level security is in `supabase/migrations`.
+**It has not been applied anywhere.** The path to a real backend is in
+[docs/persistence.md](docs/persistence.md).
 
 ## Data confidence
-
-Context values (goal, audience, requirements, budget, deadline, platform) carry a confidence state:
 
 | State      | Meaning                                                          |
 | ---------- | ---------------------------------------------------------------- |
 | Confirmed  | Explicitly confirmed by the client or an authorized team member. |
 | Observed   | Taken from a source, not yet confirmed.                          |
-| Proposed   | Suggested by the team or AI. Needs confirmation.                 |
+| Proposed   | Suggested by the team or an agent. Needs a human decision.       |
 | Unknown    | Not yet established.                                             |
 | Superseded | Replaced by a newer value or decision.                           |
 
-Each value can also carry a source reference, a note and its update time.
+Only a person can confirm a value or approve work. The domain layer enforces
+this, and the draft database schema repeats it.
 
 ## Code structure
 
-```
-src/
-  app/                    Routes (App Router). Pages are thin wrappers.
-  components/
-    shell/                Sidebar, top bar, search, notifications
-    overview/             Dashboard
-    clients/              Client list, profile tabs, new/edit dialogs
-    workspace/            Projects, Tasks, Approvals, Settings views
-    ui/                   Buttons, fields, modal, toast, status labels
-    providers/            StudioProvider (data store for React)
-  lib/
-    domain/               Types, labels, pure business logic, validation (+ tests)
-    data/                 Repository interface, local demo repository, seed data, store
-```
-
-Business rules (creating and updating clients, missing information, attention items, next steps, dashboard metrics) are pure functions in `src/lib/domain` and are unit tested.
+See [docs/architecture.md](docs/architecture.md) for the layers, the rules the
+domain enforces, and how agents will plug in.

@@ -1,4 +1,7 @@
 import type {
+  Actor,
+  AgentId,
+  Assignee,
   ClientStatus,
   ContextFieldKey,
   FieldConfidence,
@@ -58,7 +61,7 @@ export const SOURCE_TYPE_LABELS: Record<SourceType, string> = {
   phone: "Phone call",
   referral: "Referral",
   document: "Document",
-  manual: "Entered manually",
+  manual: "Entered in Studio OS",
   other: "Other",
 };
 
@@ -72,17 +75,32 @@ export const CONFIDENCE_LABELS: Record<FieldConfidence, string> = {
 
 export const CONFIDENCE_DESCRIPTIONS: Record<FieldConfidence, string> = {
   confirmed: "Explicitly confirmed by the client or an authorized team member.",
-  observed: "Taken from a source, but not yet confirmed.",
-  proposed: "Suggested by the team or AI. Needs confirmation.",
+  observed: "Taken from a source, not yet confirmed.",
+  proposed: "Suggested by the team or an agent. Needs a human decision.",
   unknown: "Not yet established.",
   superseded: "Replaced by a newer value or decision.",
 };
 
 export const CONTEXT_FIELD_LABELS: Record<ContextFieldKey, string> = {
-  goal: "Client goal",
-  targetAudience: "Target audience",
+  goal: "Goal",
   requirements: "Requirements",
+  targetAudience: "Audience",
   budget: "Budget",
   deadline: "Deadline",
-  platform: "Platform & technical context",
+  platform: "Platform",
 };
+
+export const AGENT_LABELS: Record<AgentId, string> = {
+  research: "Research & strategy agent",
+  design: "Design agent",
+  development: "Development agent",
+  qa: "Quality assurance agent",
+  sales: "Sales & presentations agent",
+  coordination: "Project coordination agent",
+};
+
+export function actorLabel(actor: Actor | Assignee): string {
+  if (actor.kind === "human") return actor.name;
+  if (actor.kind === "agent") return AGENT_LABELS[actor.agentId];
+  return "Studio OS";
+}

@@ -43,16 +43,16 @@ export function Modal({ open, onClose, title, description, children, busy, size 
         if (!busy) onClose();
       }}
       className={cn(
-        "m-auto max-h-[min(88vh,860px)] w-[calc(100vw-2rem)] overflow-hidden rounded-[12px] border border-line bg-surface p-0 text-ink shadow-[var(--shadow-overlay)]",
+        "m-auto max-h-[min(88vh,860px)] w-[calc(100vw-2rem)] overflow-hidden rounded-[var(--radius-surface)] border border-line bg-surface p-0 text-ink shadow-[var(--shadow-overlay)]",
         "open:flex open:flex-col",
-        size === "lg" ? "max-w-3xl" : "max-w-xl",
+        size === "lg" ? "max-w-2xl" : "max-w-lg",
       )}
     >
       {open ? (
         <>
           <header className="flex items-start justify-between gap-4 border-b border-line px-6 pt-5 pb-4">
             <div>
-              <h2 id={titleId} className="font-serif text-[22px] leading-tight">
+              <h2 id={titleId} className="text-[19px] font-medium tracking-[-0.02em]">
                 {title}
               </h2>
               {description ? (

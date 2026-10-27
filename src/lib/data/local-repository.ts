@@ -1,10 +1,28 @@
-import { applyClientUpdate, buildNewClient, type DomainDeps } from "@/lib/domain/clients";
-import type { Client, ClientUpdateInput, NewClientInput, StudioSnapshot } from "@/lib/domain/types";
-import { validateClientIdentity, hasErrors } from "@/lib/domain/validation";
+import { buildNewClient, DomainError, setContextField, updateClientDetails, type DomainDeps } from "@/lib/domain/clients";
+import { buildProject, buildTask, setTaskStatus, updateProject } from "@/lib/domain/projects";
+import type {
+  ActivityEvent,
+  Client,
+  ClientDetailsInput,
+  ContextFieldInput,
+  ContextFieldKey,
+  NewClientInput,
+  NewProjectInput,
+  NewTaskInput,
+  Project,
+  ProjectUpdateInput,
+  StudioSnapshot,
+  Task,
+  TaskStatus,
+} from "@/lib/domain/types";
+import { hasErrors, validateClientIdentity, type ClientIdentityValues } from "@/lib/domain/validation";
+import { migrateSnapshot } from "./migrate";
 import { RepositoryError, type RepositoryInfo, type StudioRepository } from "./repository";
 import { createSeedSnapshot } from "./seed";
 
-export const STORAGE_KEY = "studio-os:workspace:v1";
+export const STORAGE_KEY = "studio-os:workspace:v2";
+/** Keys written by earlier versions. Read once, migrated, then left untouched. */
+export const LEGACY_STORAGE_KEYS = ["studio-os:workspace:v1"];
 
 /** The subset of the Web Storage API this repository needs. */
 export type KeyValueStorage = Pick<Storage, "getItem" | "setItem" | "removeItem">;
@@ -31,6 +49,8 @@ export class LocalDemoRepository implements StudioRepository {
     this.deps = {
       now: options.deps?.now ?? (() => new Date().toISOString()),
       createId: options.deps?.createId ?? (() => crypto.randomUUID()),
+      // There are no user accounts yet, so every change is made by "You".
+      actor: options.deps?.actor ?? { kind: "human", name: "You" },
     };
     this.seed = options.seed ?? (() => createSeedSnapshot());
     this.info = { kind: "local-demo", persistence: options.storage ? "browser" : "memory" };
@@ -38,79 +58,106 @@ export class LocalDemoRepository implements StudioRepository {
 
   async load(): Promise<StudioSnapshot> {
     if (this.snapshot) return this.snapshot;
-
     const stored = this.read();
-    if (stored) {
-      this.snapshot = stored;
-    } else {
-      this.snapshot = this.seed();
-      this.write(this.snapshot);
-    }
+    this.snapshot = stored?.snapshot ?? this.seed();
+    // Save fresh demo data, and move data from an older key to the current one.
+    if (stored?.key !== STORAGE_KEY) this.write(this.snapshot);
     return this.snapshot;
   }
 
-  async createClient(input: NewClientInput): Promise<Client> {
-    const errors = validateClientIdentity(input);
-    if (hasErrors(errors)) {
-      throw new RepositoryError(Object.values(errors)[0] ?? "Invalid client.", "validation");
-    }
-
-    const current = await this.load();
-    const { client, event } = buildNewClient(input, this.deps);
-    this.commit({
-      ...current,
-      clients: [client, ...current.clients],
-      activity: [event, ...current.activity],
+  createClient(input: NewClientInput): Promise<Client> {
+    return this.mutate((s) => {
+      validateIdentity(input);
+      const { client, event } = buildNewClient(input, this.deps);
+      return [{ ...s, clients: [client, ...s.clients] }, client, [event]];
     });
-    return client;
   }
 
-  async updateClient(clientId: string, input: ClientUpdateInput): Promise<Client> {
-    const errors = validateClientIdentity(input);
-    if (hasErrors(errors)) {
-      throw new RepositoryError(Object.values(errors)[0] ?? "Invalid client.", "validation");
-    }
-
-    const current = await this.load();
-    const existing = current.clients.find((client) => client.id === clientId);
-    if (!existing) {
-      throw new RepositoryError("This client no longer exists.", "not_found");
-    }
-
-    const { client, events } = applyClientUpdate(existing, input, this.deps);
-    if (events.length === 0) return existing;
-
-    this.commit({
-      ...current,
-      clients: current.clients.map((c) => (c.id === clientId ? client : c)),
-      activity: [...events, ...current.activity],
+  updateClient(clientId: string, input: ClientDetailsInput): Promise<Client> {
+    return this.mutate((s) => {
+      validateIdentity(input);
+      const { client, events } = updateClientDetails(find(s.clients, clientId, "client"), input, this.deps);
+      return [{ ...s, clients: replace(s.clients, client) }, client, events];
     });
-    return client;
+  }
+
+  setContextField(clientId: string, key: ContextFieldKey, input: ContextFieldInput): Promise<Client> {
+    return this.mutate((s) => {
+      const { client, events } = setContextField(find(s.clients, clientId, "client"), key, input, this.deps);
+      return [{ ...s, clients: replace(s.clients, client) }, client, events];
+    });
+  }
+
+  createProject(clientId: string, input: NewProjectInput): Promise<Project> {
+    return this.mutate((s) => {
+      const { project, event } = buildProject(find(s.clients, clientId, "client"), input, this.deps);
+      return [{ ...s, projects: [project, ...s.projects] }, project, [event]];
+    });
+  }
+
+  updateProject(projectId: string, input: ProjectUpdateInput): Promise<Project> {
+    return this.mutate((s) => {
+      const { project, events } = updateProject(find(s.projects, projectId, "project"), input, this.deps);
+      return [{ ...s, projects: replace(s.projects, project) }, project, events];
+    });
+  }
+
+  createTask(projectId: string, input: NewTaskInput): Promise<Task> {
+    return this.mutate((s) => {
+      const { task, event } = buildTask(find(s.projects, projectId, "project"), input, this.deps);
+      return [{ ...s, tasks: [...s.tasks, task] }, task, [event]];
+    });
+  }
+
+  setTaskStatus(taskId: string, status: TaskStatus): Promise<Task> {
+    return this.mutate((s) => {
+      const { task, events } = setTaskStatus(find(s.tasks, taskId, "task"), status, this.deps);
+      return [{ ...s, tasks: replace(s.tasks, task) }, task, events];
+    });
   }
 
   async resetDemoData(): Promise<StudioSnapshot> {
-    this.snapshot = this.seed();
-    this.write(this.snapshot);
-    return this.snapshot;
+    const fresh = this.seed();
+    this.write(fresh);
+    this.snapshot = fresh;
+    return fresh;
   }
 
-  /** Saves first, then swaps the in-memory snapshot, so a failed save changes nothing. */
-  private commit(next: StudioSnapshot) {
-    this.write(next);
-    this.snapshot = next;
-  }
-
-  private read(): StudioSnapshot | null {
-    if (!this.storage) return null;
+  /**
+   * Runs a domain change against the current snapshot and saves it with its
+   * activity events. Saves first, then swaps the in-memory snapshot, so a
+   * failed save changes nothing. No events means nothing changed.
+   */
+  private async mutate<T>(change: (snapshot: StudioSnapshot) => [StudioSnapshot, T, ActivityEvent[]]): Promise<T> {
+    const current = await this.load();
+    let result: [StudioSnapshot, T, ActivityEvent[]];
     try {
-      const raw = this.storage.getItem(STORAGE_KEY);
-      if (!raw) return null;
-      const parsed: unknown = JSON.parse(raw);
-      return isSnapshot(parsed) ? parsed : null;
-    } catch {
-      // Corrupt or unreadable data: fall back to a fresh demo workspace.
-      return null;
+      result = change(current);
+    } catch (error) {
+      if (error instanceof DomainError) throw new RepositoryError(error.message, "validation");
+      throw error;
     }
+    const [next, value, events] = result;
+    if (events.length === 0) return value;
+    const saved = { ...next, activity: [...events, ...next.activity] };
+    this.write(saved);
+    this.snapshot = saved;
+    return value;
+  }
+
+  private read(): { snapshot: StudioSnapshot; key: string } | null {
+    if (!this.storage) return null;
+    for (const key of [STORAGE_KEY, ...LEGACY_STORAGE_KEYS]) {
+      try {
+        const raw = this.storage.getItem(key);
+        if (!raw) continue;
+        const snapshot = migrateSnapshot(JSON.parse(raw));
+        if (snapshot) return { snapshot, key };
+      } catch {
+        // Corrupt or unreadable data: try the next key, then fall back to demo data.
+      }
+    }
+    return null;
   }
 
   private write(snapshot: StudioSnapshot) {
@@ -118,18 +165,24 @@ export class LocalDemoRepository implements StudioRepository {
     try {
       this.storage.setItem(STORAGE_KEY, JSON.stringify(snapshot));
     } catch {
-      throw new RepositoryError(
-        "Changes could not be saved in this browser. Storage may be full or disabled.",
-        "storage",
-      );
+      throw new RepositoryError("Changes could not be saved in this browser. Storage may be full or disabled.", "storage");
     }
   }
 }
 
-function isSnapshot(value: unknown): value is StudioSnapshot {
-  if (typeof value !== "object" || value === null) return false;
-  const candidate = value as Record<string, unknown>;
-  return ["clients", "projects", "tasks", "activity"].every((key) => Array.isArray(candidate[key]));
+function validateIdentity(values: ClientIdentityValues) {
+  const errors = validateClientIdentity(values);
+  if (hasErrors(errors)) throw new RepositoryError(Object.values(errors)[0] ?? "Invalid client.", "validation");
+}
+
+function find<T extends { id: string }>(items: T[], id: string, what: string): T {
+  const item = items.find((candidate) => candidate.id === id);
+  if (!item) throw new RepositoryError(`This ${what} no longer exists.`, "not_found");
+  return item;
+}
+
+function replace<T extends { id: string }>(items: T[], next: T): T[] {
+  return items.map((item) => (item.id === next.id ? next : item));
 }
 
 /** Returns browser storage when it is usable, or null (in-memory only) when it is not. */

@@ -1,11 +1,13 @@
-import { CONTEXT_FIELD_LABELS, CONFIDENCE_LABELS } from "./labels";
+import { CLIENT_STATUS_LABELS, CONTEXT_FIELD_LABELS } from "./labels";
 import {
   CONTEXT_FIELD_KEYS,
   type ActivityEvent,
+  type Actor,
   type Client,
   type ClientContext,
-  type ClientUpdateInput,
+  type ClientDetailsInput,
   type ContextField,
+  type ContextFieldInput,
   type ContextFieldKey,
   type ISODateString,
   type NewClientInput,
@@ -15,6 +17,15 @@ import {
 export interface DomainDeps {
   now: () => ISODateString;
   createId: () => string;
+  /** Who is making the change. Defaults to the signed-in person once auth exists. */
+  actor: Actor;
+}
+
+export class DomainError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "DomainError";
+  }
 }
 
 /** Trims a string and turns empty values into null, so blanks are never stored as facts. */
@@ -33,6 +44,16 @@ export function websiteHref(website: string): string {
   return /^https?:\/\//i.test(website) ? website : `https://${website}`;
 }
 
+export function clientEvent(
+  clientId: string,
+  eventType: ActivityEvent["eventType"],
+  description: string,
+  deps: DomainDeps,
+  now = deps.now(),
+): ActivityEvent {
+  return { id: deps.createId(), entityType: "client", entityId: clientId, eventType, description, actor: deps.actor, timestamp: now };
+}
+
 /**
  * Builds a new client record from the intake form.
  *
@@ -44,6 +65,9 @@ export function buildNewClient(
   input: NewClientInput,
   deps: DomainDeps,
 ): { client: Client; event: ActivityEvent } {
+  const name = clean(input.name);
+  if (!name) throw new DomainError("A client name is required.");
+
   const now = deps.now();
   const sourceType = input.sourceType || "manual";
   const source: SourceReference = { type: sourceType, label: "Recorded at intake" };
@@ -51,23 +75,18 @@ export function buildNewClient(
   const observed = (value: string | undefined): ContextField => {
     const cleaned = clean(value);
     return cleaned
-      ? { value: cleaned, confidence: "observed", source, updatedAt: now }
+      ? { value: cleaned, confidence: "observed", source, recordedBy: deps.actor, updatedAt: now }
       : unknownField(now);
   };
 
   const context: ClientContext = {
     goal: observed(input.goal),
-    targetAudience: observed(input.targetAudience),
     requirements: unknownField(now),
+    targetAudience: observed(input.targetAudience),
     budget: observed(input.budget),
     deadline: observed(input.deadline),
     platform: unknownField(now),
   };
-
-  const name = clean(input.name);
-  if (!name) {
-    throw new Error("A client name is required.");
-  }
 
   const client: Client = {
     id: deps.createId(),
@@ -77,11 +96,7 @@ export function buildNewClient(
     website: clean(input.website),
     status: "lead",
     projectType: input.projectType || null,
-    source: {
-      type: sourceType,
-      initialNotes: clean(input.initialNotes),
-      receivedAt: now,
-    },
+    source: { type: sourceType, initialNotes: clean(input.initialNotes), receivedAt: now },
     context,
     contextItems: [],
     isDemo: false,
@@ -89,20 +104,10 @@ export function buildNewClient(
     updatedAt: now,
   };
 
-  const event: ActivityEvent = {
-    id: deps.createId(),
-    entityType: "client",
-    entityId: client.id,
-    eventType: "client.created",
-    description: `Client record created for ${client.name}`,
-    actor: "You",
-    timestamp: now,
-  };
-
-  return { client, event };
+  return { client, event: clientEvent(client.id, "client.created", `Added ${client.name}`, deps, now) };
 }
 
-const CORE_FIELD_LABELS = {
+const DETAIL_LABELS = {
   name: "name",
   contactPerson: "contact person",
   email: "email",
@@ -111,114 +116,96 @@ const CORE_FIELD_LABELS = {
 } as const;
 
 /**
- * Applies an edit to a client. Replaced context values are kept in the
- * field's history as superseded, so earlier information is never silently lost.
+ * Applies an edit to the client's identity and relationship details.
+ * Returns the same object and no events when nothing changed.
  */
-export function applyClientUpdate(
+export function updateClientDetails(
   client: Client,
-  input: ClientUpdateInput,
+  input: ClientDetailsInput,
   deps: DomainDeps,
 ): { client: Client; events: ActivityEvent[] } {
-  const now = deps.now();
-  const changed: string[] = [];
-
   const name = clean(input.name);
-  if (!name) {
-    throw new Error("A client name is required.");
-  }
+  if (!name) throw new DomainError("A client name is required.");
 
-  const core = {
+  const details = {
     name,
     contactPerson: clean(input.contactPerson),
     email: clean(input.email),
     website: clean(input.website),
     projectType: input.projectType || null,
   };
-
-  for (const key of Object.keys(core) as (keyof typeof core)[]) {
-    if (core[key] !== client[key]) changed.push(CORE_FIELD_LABELS[key]);
-  }
-
-  const context = { ...client.context };
-  for (const key of CONTEXT_FIELD_KEYS) {
-    const next = updateContextField(client.context[key], input.context[key], now);
-    if (next !== client.context[key]) {
-      context[key] = next;
-      changed.push(CONTEXT_FIELD_LABELS[key].toLowerCase());
-    }
-  }
-
+  const changed = (Object.keys(details) as (keyof typeof details)[])
+    .filter((key) => details[key] !== client[key])
+    .map((key) => DETAIL_LABELS[key]);
   const statusChanged = input.status !== client.status;
-  if (changed.length === 0 && !statusChanged) {
-    return { client, events: [] };
-  }
 
-  const updated: Client = {
-    ...client,
-    ...core,
-    status: input.status,
-    context,
-    updatedAt: now,
-  };
+  if (changed.length === 0 && !statusChanged) return { client, events: [] };
 
+  const now = deps.now();
   const events: ActivityEvent[] = [];
   if (changed.length > 0) {
-    events.push({
-      id: deps.createId(),
-      entityType: "client",
-      entityId: client.id,
-      eventType: "client.updated",
-      description: `Updated ${formatList(changed)}`,
-      actor: "You",
-      timestamp: now,
-    });
+    events.push(clientEvent(client.id, "client.updated", `Updated ${formatList(changed)}`, deps, now));
   }
   if (statusChanged) {
-    events.push({
-      id: deps.createId(),
-      entityType: "client",
-      entityId: client.id,
-      eventType: "client.status_changed",
-      description: `Status changed to ${input.status.replace("_", " ")}`,
-      actor: "You",
-      timestamp: now,
-    });
+    events.push(
+      clientEvent(client.id, "client.status_changed", `Status changed to ${CLIENT_STATUS_LABELS[input.status]}`, deps, now),
+    );
   }
 
-  return { client: updated, events };
+  return { client: { ...client, ...details, status: input.status, updatedAt: now }, events };
 }
 
-/** Returns the same object when nothing changed so callers can detect edits by identity. */
-function updateContextField(
-  current: ContextField,
-  input: ClientUpdateInput["context"][ContextFieldKey],
-  now: ISODateString,
-): ContextField {
+/**
+ * Sets one context value.
+ *
+ * - A replaced value is kept in history, so earlier information is never lost.
+ * - An empty value becomes "unknown".
+ * - Agents can propose or record values, but only a person can confirm one.
+ */
+export function setContextField(
+  client: Client,
+  key: ContextFieldKey,
+  input: ContextFieldInput,
+  deps: DomainDeps,
+): { client: Client; events: ActivityEvent[] } {
+  if (input.confidence === "confirmed" && deps.actor.kind !== "human") {
+    throw new DomainError("Only a person can confirm client information.");
+  }
+
+  const current = client.context[key];
   const value = clean(input.value);
   const confidence = value ? input.confidence : "unknown";
+  if (value === current.value && confidence === current.confidence) return { client, events: [] };
 
-  if (value === current.value && confidence === current.confidence) {
-    return current;
-  }
+  const now = deps.now();
+  const label = CONTEXT_FIELD_LABELS[key].toLowerCase();
+  let next: ContextField;
+  let description: string;
 
   if (value === current.value) {
     // Same value, new confidence (for example, the client confirmed it).
-    return { ...current, confidence, updatedAt: now };
+    next = { ...current, confidence, updatedAt: now };
+    description = confidence === "confirmed" ? `Confirmed ${label}` : `Marked ${label} as ${confidence}`;
+  } else {
+    const history = current.value
+      ? [{ value: current.value, confidence: current.confidence, supersededAt: now }, ...(current.history ?? [])]
+      : current.history;
+    next = value
+      ? {
+          value,
+          confidence,
+          source: { type: "manual", label: "Edited in Studio OS" },
+          recordedBy: deps.actor,
+          updatedAt: now,
+          history,
+        }
+      : { value: null, confidence: "unknown", updatedAt: now, history };
+    description = !value ? `Cleared ${label}` : current.value ? `Updated ${label}` : `Added ${label}`;
   }
 
-  const history = current.value
-    ? [
-        { value: current.value, confidence: current.confidence, supersededAt: now },
-        ...(current.history ?? []),
-      ]
-    : current.history;
-
   return {
-    value,
-    confidence,
-    source: value ? { type: "manual", label: "Edited in Studio OS" } : undefined,
-    updatedAt: now,
-    history,
+    client: { ...client, context: { ...client.context, [key]: next }, updatedAt: now },
+    events: [clientEvent(client.id, "client.context_updated", description, deps, now)],
   };
 }
 
@@ -228,16 +215,7 @@ function formatList(items: string[]): string {
   return `${items.slice(0, -1).join(", ")} and ${items[items.length - 1]}`;
 }
 
-/** Prefills the edit form. Unknown fields default to "observed" once a value is entered. */
-export function toClientUpdateInput(client: Client): ClientUpdateInput {
-  const context = {} as ClientUpdateInput["context"];
-  for (const key of CONTEXT_FIELD_KEYS) {
-    const field = client.context[key];
-    context[key] = {
-      value: field.value ?? "",
-      confidence: field.confidence === "unknown" || field.confidence === "superseded" ? "observed" : field.confidence,
-    };
-  }
+export function toClientDetailsInput(client: Client): ClientDetailsInput {
   return {
     name: client.name,
     contactPerson: client.contactPerson ?? "",
@@ -245,62 +223,40 @@ export function toClientUpdateInput(client: Client): ClientUpdateInput {
     website: client.website ?? "",
     status: client.status,
     projectType: client.projectType ?? "",
-    context,
   };
 }
 
 /* -------------------------------------------------------------------------- */
-/* Missing information                                                        */
+/* Missing and unconfirmed information                                        */
 /* -------------------------------------------------------------------------- */
 
-export type MissingFieldKey =
-  | "contactPerson"
-  | "email"
-  | "website"
-  | "projectType"
-  | ContextFieldKey;
+export type MissingFieldKey = "contactPerson" | "email" | ContextFieldKey;
 
 export interface MissingItem {
   key: MissingFieldKey;
   label: string;
-  /** Essential items block a meaningful project start. */
-  essential: boolean;
 }
 
-const ESSENTIAL_FIELDS: ReadonlySet<MissingFieldKey> = new Set([
-  "contactPerson",
-  "email",
-  "goal",
-  "budget",
-  "deadline",
-]);
+/** Details the studio needs before a project can be scoped. Everything else is optional. */
+const ESSENTIAL_FIELDS: { key: MissingFieldKey; label: string }[] = [
+  { key: "contactPerson", label: "Contact person" },
+  { key: "email", label: "Email" },
+  { key: "goal", label: "Goal" },
+  { key: "budget", label: "Budget" },
+  { key: "deadline", label: "Deadline" },
+];
 
-export function getMissingInformation(client: Client): MissingItem[] {
-  const items: MissingItem[] = [];
-  const push = (key: MissingFieldKey, label: string) =>
-    items.push({ key, label, essential: ESSENTIAL_FIELDS.has(key) });
-
-  if (!client.contactPerson) push("contactPerson", "Contact person");
-  if (!client.email) push("email", "Email");
-  if (!client.website) push("website", "Website");
-  if (!client.projectType) push("projectType", "Project type");
-  for (const key of CONTEXT_FIELD_KEYS) {
-    if (!client.context[key].value) push(key, CONTEXT_FIELD_LABELS[key]);
-  }
-
-  return items.sort((a, b) => Number(b.essential) - Number(a.essential));
+export function getMissingEssentials(client: Client): MissingItem[] {
+  return ESSENTIAL_FIELDS.filter(({ key }) =>
+    key === "contactPerson" || key === "email" ? !client[key] : !client.context[key].value,
+  );
 }
 
-/** Context values that exist but are not confirmed yet. */
-export function getUnconfirmedFields(client: Client): { key: ContextFieldKey; label: string; confidence: string }[] {
-  return CONTEXT_FIELD_KEYS.filter((key) => {
-    const field = client.context[key];
-    return field.value !== null && field.confidence !== "confirmed";
-  }).map((key) => ({
-    key,
-    label: CONTEXT_FIELD_LABELS[key],
-    confidence: CONFIDENCE_LABELS[client.context[key].confidence],
-  }));
+/** Context values that exist but have not been confirmed, proposals first. */
+export function getUnconfirmedFields(client: Client): { key: ContextFieldKey; field: ContextField }[] {
+  return CONTEXT_FIELD_KEYS.map((key) => ({ key, field: client.context[key] }))
+    .filter(({ field }) => field.value !== null && field.confidence !== "confirmed")
+    .sort((a, b) => Number(b.field.confidence === "proposed") - Number(a.field.confidence === "proposed"));
 }
 
 export function getInitials(name: string): string {
@@ -312,6 +268,3 @@ export function getInitials(name: string): string {
   if (words.length === 1) return words[0].slice(0, 2).toUpperCase();
   return (words[0][0] + words[1][0]).toUpperCase();
 }
-
-/** Number of fields checked by getMissingInformation: four core fields plus every context field. */
-export const TRACKED_FIELD_COUNT = 4 + CONTEXT_FIELD_KEYS.length;

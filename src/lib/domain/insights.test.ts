@@ -1,11 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { createSeedSnapshot } from "@/lib/data/seed";
 import {
-  getAttentionItems,
+  getActiveWork,
   getClientActivity,
-  getClientNextSteps,
   getClientRows,
-  getDashboardSummary,
+  getDecisions,
+  getNextActions,
   matchesClientQuery,
 } from "./insights";
 
@@ -25,37 +25,57 @@ describe("seed data", () => {
     }
   });
 
-  it("includes Ateljé Henrik with a Website & E-commerce project", () => {
+  it("includes Ateljé Henrik with a Website & E-commerce project, marked as demo", () => {
     const henrik = snapshot.clients.find((c) => c.name === "Ateljé Henrik");
     expect(henrik?.isDemo).toBe(true);
     expect(snapshot.projects.find((p) => p.clientId === henrik?.id)?.projectType).toBe("website_ecommerce");
   });
-});
 
-describe("getDashboardSummary", () => {
-  it("derives every metric from the snapshot", () => {
-    const summary = getDashboardSummary(snapshot);
-    expect(summary.activeProjects).toHaveLength(snapshot.projects.filter((p) => p.status === "active").length);
-    expect(summary.openTasks).toBe(snapshot.tasks.filter((t) => t.status !== "done").length);
-    expect(summary.pendingApprovals).toBe(snapshot.tasks.filter((t) => t.status === "awaiting_approval").length);
-    expect(summary.attention.length).toBe(getAttentionItems(snapshot).length);
+  it("assigns no demo work to agents, because none are connected", () => {
+    expect(snapshot.tasks.every((t) => t.assignee === null || t.assignee.kind === "human")).toBe(true);
   });
 });
 
-describe("getAttentionItems", () => {
-  it("puts blocked work first and skips archived clients", () => {
-    const items = getAttentionItems(snapshot);
-    expect(items[0].kind).toBe("blocked");
-    expect(items.some((item) => item.clientId === "demo-kontur" && item.kind === "missing_info")).toBe(false);
-    expect(items.some((item) => item.clientId === "demo-lumen" && item.kind === "missing_info")).toBe(true);
+describe("getDecisions", () => {
+  it("lists approvals, then reviews, then proposed client facts", () => {
+    const decisions = getDecisions(snapshot);
+    const kinds = decisions.map((d) => d.kind);
+    expect(kinds).toEqual([...kinds].sort((a, b) => ["approval", "review", "proposal"].indexOf(a) - ["approval", "review", "proposal"].indexOf(b)));
+    expect(decisions.filter((d) => d.kind === "approval")).toHaveLength(snapshot.tasks.filter((t) => t.status === "awaiting_approval").length);
+    expect(decisions.some((d) => d.kind === "proposal" && d.clientId === "demo-atelje-henrik")).toBe(true);
+  });
+});
+
+describe("getNextActions", () => {
+  it("puts blocked work first and skips archived and paused clients", () => {
+    const actions = getNextActions(snapshot);
+    expect(actions[0].kind).toBe("blocked");
+    expect(actions.some((a) => a.clientId === "demo-kontur" || a.clientId === "demo-fjallgard")).toBe(false);
+  });
+
+  it("asks to complete the brief for a new lead without projects", () => {
+    const lumen = getNextActions(snapshot, "demo-lumen");
+    expect(lumen).toEqual([expect.objectContaining({ kind: "collect", clientId: "demo-lumen" })]);
+  });
+
+  it("suggests the next open task for each running project, not tasks waiting on a decision", () => {
+    const henrik = getNextActions(snapshot, "demo-atelje-henrik").filter((a) => a.kind === "task");
+    expect(henrik).toHaveLength(1);
+    expect(henrik[0].title).toBe("Product page design");
   });
 });
 
 describe("client rows", () => {
   it("uses the latest related event as last activity", () => {
     const henrik = getClientRows(snapshot).find((row) => row.client.id === "demo-atelje-henrik");
-    const latest = getClientActivity("demo-atelje-henrik", snapshot)[0];
-    expect(henrik?.lastActivity).toBe(latest.timestamp);
+    expect(henrik?.lastActivity).toBe(getClientActivity("demo-atelje-henrik", snapshot)[0].timestamp);
+  });
+
+  it("describes each client's situation in one line", () => {
+    const rows = new Map(getClientRows(snapshot).map((row) => [row.client.id, row.situation]));
+    expect(rows.get("demo-atelje-henrik")).toBe("Website & E-commerce · Design");
+    expect(rows.get("demo-lumen")).toBe("Lead · 5 details to collect");
+    expect(rows.get("demo-fjallgard")).toBe("On hold");
   });
 
   it("searches by name, contact, email and project name", () => {
@@ -68,11 +88,8 @@ describe("client rows", () => {
   });
 });
 
-describe("getClientNextSteps", () => {
-  it("asks for missing essentials and suggests a first project for a new lead", () => {
-    const lumen = snapshot.clients.find((c) => c.id === "demo-lumen")!;
-    const steps = getClientNextSteps(lumen, snapshot).map((s) => s.id);
-    expect(steps[0]).toBe("missing");
-    expect(steps).toContain("project");
+describe("getActiveWork", () => {
+  it("lists only active projects", () => {
+    expect(getActiveWork(snapshot).every((w) => w.project.status === "active")).toBe(true);
   });
 });

@@ -1,0 +1,74 @@
+/*
+ * Studio OS design tokens: the only place colors, type and radii are defined.
+ *
+ * Brand source: the Axivo website repository (Ackeemmi123/axivo-website,
+ * src/styles.css and public/brand/), whose five core colors are taken from
+ * the Axivo branding document. Keep these values in step with that repository.
+ *
+ *   Cloud White      #F7F9FC  main background, light surfaces
+ *   Ice Blue         #E9EEF8  secondary surfaces, subtle sections
+ *   Soft Blue        #C9D9F0  accents, highlights, hairlines
+ *   Muted Periwinkle #879DC7  secondary accents, interactive details
+ *   Ink Black        #151922  headings, primary text, primary actions
+ *
+ * Type: Inter for text, Geist (weight 500, tight tracking) for headings, as on
+ * the website. Everything else below is derived from these five colors, apart
+ * from the functional status hues.
+ *
+ * Layer 1, brand primitives. Layer 2, semantic tokens used by components.
+ */
+
+:root {
+  /* Layer 1: Axivo brand primitives --------------------------------------- */
+  --brand-cloud: #f7f9fc;
+  --brand-ice: #e9eef8;
+  --brand-soft: #c9d9f0;
+  --brand-periwinkle: #879dc7;
+  --brand-ink: #151922;
+  --brand-font-text: var(--font-inter);
+  --brand-font-display: var(--font-geist-sans);
+}
+
+@theme {
+  /* Layer 2: semantic tokens --------------------------------------------- */
+  --color-canvas: var(--brand-cloud);
+  /* White card surface, a touch brighter than Cloud White (as on the website). */
+  --color-surface: color-mix(in srgb, #ffffff 70%, var(--brand-cloud));
+  --color-surface-muted: color-mix(in srgb, var(--brand-ice) 40%, var(--brand-cloud));
+  --color-sunken: var(--brand-ice);
+
+  --color-ink: var(--brand-ink);
+  /* 6.3:1 on Cloud White. */
+  --color-ink-muted: color-mix(in srgb, var(--brand-ink) 70%, var(--brand-cloud));
+  /* About 5.3:1 on Cloud White, 4.8:1 on Ice Blue. */
+  --color-ink-subtle: color-mix(in srgb, var(--brand-ink) 65%, var(--brand-cloud));
+
+  --color-line: color-mix(in srgb, var(--brand-soft) 65%, var(--brand-cloud));
+  --color-line-strong: var(--brand-soft);
+  /* Form field outlines: 3.6:1 on Cloud White (WCAG non-text contrast). */
+  --color-control: color-mix(in srgb, var(--brand-periwinkle) 80%, var(--brand-ink));
+
+  --color-primary: var(--brand-ink);
+  --color-primary-hover: color-mix(in srgb, var(--brand-ink) 82%, var(--brand-periwinkle));
+  --color-on-primary: var(--brand-cloud);
+  /* Periwinkle is for details (markers, underlines), never body text: 2.6:1. */
+  --color-accent: var(--brand-periwinkle);
+  --color-accent-soft: var(--brand-ice);
+  --color-focus: var(--brand-ink);
+
+  /* Status hues: functional, not brand. Used for small dots, icons and text. */
+  --color-positive: #23794a;
+  --color-caution: #9a5b00;
+  --color-critical: #b42318;
+  --color-info: #3f5a8f;
+  --color-neutral: #8a92a3;
+
+  --font-sans: var(--brand-font-text), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--brand-font-display), var(--brand-font-text), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+
+  --radius-control: 10px;
+  --radius-surface: 16px;
+
+  --shadow-overlay: 0 2px 4px rgb(21 25 34 / 0.04), 0 24px 48px -24px rgb(64 84 130 / 0.35);
+}

@@ -3,11 +3,11 @@ import { cn } from "@/lib/cn";
 
 const CONTROL =
   "w-full rounded-[var(--radius-control)] border bg-surface px-3 text-sm text-ink placeholder:text-ink-subtle/80 " +
-  "transition-colors hover:border-ink-subtle/50 focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/15 " +
+  "transition-colors hover:border-accent focus:border-focus focus:outline-none focus:ring-2 focus:ring-focus/15 " +
   "disabled:bg-surface-muted disabled:text-ink-subtle";
 
 function controlClass(invalid: boolean | undefined, className?: string) {
-  return cn(CONTROL, invalid ? "border-critical/60" : "border-line-strong", className);
+  return cn(CONTROL, invalid ? "border-critical/60" : "border-control", className);
 }
 
 interface FieldProps {
@@ -72,7 +72,7 @@ export function Select({ invalid, className, ...props }: ComponentProps<"select"
         invalid,
         cn(
           "h-9 appearance-none bg-[length:16px] bg-[right_0.6rem_center] bg-no-repeat pr-8",
-          "bg-[url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2375746c' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E\")]",
+          "bg-[url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%236a6f78' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E\")]",
           className,
         ),
       )}

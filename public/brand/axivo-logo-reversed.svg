@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 -38 434 138" width="434" height="138" fill="none" stroke="#F7F9FC" stroke-width="22" stroke-linecap="round" stroke-linejoin="round">
+  <title>Axivo</title>
+  <circle cx="50" cy="50" r="39"/>
+  <path d="M89 11v78"/>
+  <path d="M121 11a40.35 40.35 0 0 1 0 78M181 11a40.35 40.35 0 0 0 0 78"/>
+  <path d="M213 11v78"/>
+  <circle cx="213" cy="-26" r="12" fill="#879DC7" stroke="none"/>
+  <path d="M245 11l34 78 34-78"/>
+  <circle cx="384" cy="50" r="39"/>
+</svg>

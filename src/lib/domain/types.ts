@@ -1,13 +1,33 @@
 /**
  * Core domain types for Studio OS.
  *
- * Client data is kept separate from project data so that one client can have
- * several projects over time. Context fields carry a confidence state so that
- * information extracted by people or (later) AI agents is never mistaken for a
- * confirmed client fact.
+ * One client has many projects; a project has tasks. Client context fields
+ * carry a confidence state and provenance so that information recorded by
+ * people or (later) AI agents is never mistaken for a confirmed client fact.
  */
 
 export type ISODateString = string;
+
+/* -------------------------------------------------------------------------- */
+/* Actors                                                                     */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Specialized agents the studio plans to run. Declared in the domain because
+ * tasks, events and context values can reference them; their capabilities and
+ * permissions live in `src/lib/agents`.
+ */
+export const AGENT_IDS = ["research", "design", "development", "qa", "sales", "coordination"] as const;
+export type AgentId = (typeof AGENT_IDS)[number];
+
+/** Who did something. Agents are never treated as an authorized human. */
+export type Actor =
+  | { kind: "human"; name: string }
+  | { kind: "agent"; agentId: AgentId }
+  | { kind: "system" };
+
+/** Who a task is assigned to. */
+export type Assignee = { kind: "human"; name: string } | { kind: "agent"; agentId: AgentId };
 
 /* -------------------------------------------------------------------------- */
 /* Data confidence and provenance                                             */
@@ -48,6 +68,8 @@ export interface ContextField {
   source?: SourceReference;
   /** Why this value is believed, or what still needs checking. */
   note?: string;
+  /** Who recorded the current value. Agent-recorded values can never be "confirmed". */
+  recordedBy?: Actor;
   updatedAt: ISODateString;
   /** Earlier values that were replaced, newest first. */
   history?: SupersededValue[];
@@ -55,8 +77,8 @@ export interface ContextField {
 
 export const CONTEXT_FIELD_KEYS = [
   "goal",
-  "targetAudience",
   "requirements",
+  "targetAudience",
   "budget",
   "deadline",
   "platform",
@@ -128,6 +150,7 @@ export interface Client {
   email: string | null;
   website: string | null;
   status: ClientStatus;
+  /** What the client asked for before any project exists. */
   projectType: ProjectType | null;
   source: ClientSource;
   context: ClientContext;
@@ -142,9 +165,11 @@ export interface Client {
 /* Projects and tasks                                                         */
 /* -------------------------------------------------------------------------- */
 
+/** Whether the engagement is running. Independent of task status. */
 export const PROJECT_STATUSES = ["planned", "active", "on_hold", "completed"] as const;
 export type ProjectStatus = (typeof PROJECT_STATUSES)[number];
 
+/** Where the engagement is in the studio's delivery process. */
 export const PROJECT_STAGES = [
   "intake",
   "discovery",
@@ -183,8 +208,8 @@ export interface Task {
   projectId: string;
   title: string;
   status: TaskStatus;
-  /** Team member name, or null when unassigned. */
-  assignedTo: string | null;
+  /** A team member or an agent, or null when unassigned. */
+  assignee: Assignee | null;
   /** Short explanation shown for blocked tasks. */
   blockedReason?: string;
   dueDate?: ISODateString;
@@ -199,14 +224,23 @@ export interface Task {
 
 export type EntityType = "client" | "project" | "task";
 
+/**
+ * The activity log doubles as the workflow event stream: future automations
+ * subscribe to these types (see `src/lib/agents/triggers.ts`).
+ */
 export type ActivityEventType =
   | "client.created"
   | "client.updated"
   | "client.status_changed"
+  | "client.context_updated"
+  | "source.received"
   | "project.created"
+  | "project.updated"
   | "project.stage_changed"
   | "task.created"
   | "task.status_changed"
+  | "task.completed"
+  | "decision.approved"
   | "note.added";
 
 export interface ActivityEvent {
@@ -216,7 +250,7 @@ export interface ActivityEvent {
   eventType: ActivityEventType;
   description: string;
   /** Who made the change, when known. */
-  actor?: string;
+  actor?: Actor;
   timestamp: ISODateString;
 }
 
@@ -239,20 +273,34 @@ export interface NewClientInput {
   sourceType?: SourceType | "";
 }
 
-export interface ContextFieldInput {
-  value: string;
-  confidence: Exclude<FieldConfidence, "superseded">;
-}
-
-/** Values captured by the "Edit client" form. */
-export interface ClientUpdateInput {
+/** Identity and relationship details, edited together. */
+export interface ClientDetailsInput {
   name: string;
   contactPerson: string;
   email: string;
   website: string;
   status: ClientStatus;
   projectType: ProjectType | "";
-  context: Record<ContextFieldKey, ContextFieldInput>;
+}
+
+/** One context value, edited on its own. */
+export interface ContextFieldInput {
+  value: string;
+  confidence: Exclude<FieldConfidence, "superseded" | "unknown">;
+}
+
+export interface NewProjectInput {
+  name: string;
+  projectType?: ProjectType;
+}
+
+export interface ProjectUpdateInput {
+  status?: ProjectStatus;
+  stage?: ProjectStage;
+}
+
+export interface NewTaskInput {
+  title: string;
 }
 
 export interface StudioSnapshot {

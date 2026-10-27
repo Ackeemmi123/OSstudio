@@ -90,13 +90,16 @@ export function createSeedSnapshot(nowMs: number = Date.now()): StudioSnapshot {
           ...field("SEK 280,000", "confirmed", ago(20 * DAY), { type: "document", label: "Signed scope document" }),
           history: [{ value: "SEK 220,000–250,000", confidence: "observed", supersededAt: ago(20 * DAY) }],
         },
-        deadline: field(
-          inDays(68),
-          "proposed",
-          ago(6 * DAY),
-          { type: "manual", label: "Production plan draft" },
-          "Proposed by the team to align with the spring collection. Awaiting Henrik's confirmation.",
-        ),
+        deadline: {
+          ...field(
+            inDays(68),
+            "proposed",
+            ago(6 * DAY),
+            { type: "manual", label: "Production plan draft" },
+            "Proposed by the team to align with the spring collection. Awaiting Henrik's confirmation.",
+          ),
+          recordedBy: { kind: "human", name: "Alex" },
+        },
         platform: field(
           "Shopify for commerce, headless front end. Existing Fortnox accounting must remain.",
           "observed",
@@ -359,7 +362,7 @@ export function createSeedSnapshot(nowMs: number = Date.now()): StudioSnapshot {
     projectId,
     title,
     status,
-    assignedTo,
+    assignee: assignedTo ? { kind: "human", name: assignedTo } : null,
     isDemo: true,
     createdAt: ago(createdDaysAgo * DAY),
     updatedAt: ago(updatedAgoMs),
@@ -404,7 +407,7 @@ export function createSeedSnapshot(nowMs: number = Date.now()): StudioSnapshot {
     entityId,
     eventType,
     description,
-    actor,
+    actor: actor ? { kind: "human", name: actor } : undefined,
     timestamp: ago(agoMs),
   });
 

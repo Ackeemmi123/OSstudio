@@ -1,9 +1,17 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
   cacheComponents: true,
   partialPrefetching: true,
+  // Sections folded into Today and the client workspace in the simplified layout.
+  redirects() {
+    return [
+      { source: "/projects", destination: "/", permanent: false },
+      { source: "/tasks", destination: "/", permanent: false },
+      { source: "/approvals", destination: "/", permanent: false },
+      { source: "/agents", destination: "/settings", permanent: false },
+    ];
+  },
   turbopack: {
     rules: {
       "*.css": {
