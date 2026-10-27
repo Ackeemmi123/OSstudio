@@ -138,7 +138,7 @@ export function matchesClientQuery(row: ClientRow, query: string): boolean {
 /* Decisions: what only a person can resolve                                  */
 /* -------------------------------------------------------------------------- */
 
-export type DecisionKind = "approval" | "review" | "proposal";
+export type DecisionKind = "approval" | "review" | "analysis" | "proposal";
 
 export interface DecisionItem {
   id: string;
@@ -150,7 +150,7 @@ export interface DecisionItem {
   href: string;
 }
 
-const DECISION_ORDER: Record<DecisionKind, number> = { approval: 0, review: 1, proposal: 2 };
+const DECISION_ORDER: Record<DecisionKind, number> = { approval: 0, review: 1, analysis: 2, proposal: 3 };
 
 /**
  * Approvals, reviews and proposed client facts. These wait for a person; no
@@ -192,7 +192,32 @@ export function getDecisions(snapshot: StudioSnapshot): DecisionItem[] {
     }
   }
 
+  // Agent proposals waiting for review, one entry per client.
+  const pending = new Map<string, number>();
+  for (const proposal of snapshot.proposals) {
+    if (proposal.status === "pending") pending.set(proposal.clientId, (pending.get(proposal.clientId) ?? 0) + 1);
+  }
+  for (const [clientId, count] of pending) {
+    const client = clientById.get(clientId);
+    if (!client || client.status === "archived") continue;
+    items.push({
+      id: `analysis-${clientId}`,
+      kind: "analysis",
+      title: `Review intake analysis: ${count === 1 ? "1 proposed value" : `${count} proposed values`}`,
+      where: `${client.name} · Proposed by ${actorLabel({ kind: "agent", agentId: "research" })}`,
+      clientId,
+      href: clientHref(clientId, "analysis"),
+    });
+  }
+
   return items.sort((a, b) => DECISION_ORDER[a.kind] - DECISION_ORDER[b.kind]);
+}
+
+/** The newest intake run for a client, if any. */
+export function getLatestIntakeRun(snapshot: StudioSnapshot, clientId: string) {
+  return snapshot.agentRuns
+    .filter((run) => run.clientId === clientId && run.taskType === "research.intake")
+    .sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0];
 }
 
 /* -------------------------------------------------------------------------- */

@@ -1,6 +1,8 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // End-to-end tests build the app twice (Supabase and local demo) side by side.
+  distDir: process.env.STUDIO_DIST_DIR || ".next",
   cacheComponents: true,
   partialPrefetching: true,
   // Sections folded into Today and the client workspace in the simplified layout.

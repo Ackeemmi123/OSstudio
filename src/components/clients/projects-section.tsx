@@ -2,6 +2,7 @@
 
 import { Check, Plus } from "lucide-react";
 import { useId, useState, type FormEvent } from "react";
+import { useCanEdit } from "@/components/providers/studio-provider";
 import { useStudioAction } from "@/components/providers/use-studio-action";
 import { Button } from "@/components/ui/button";
 import { Section, Surface } from "@/components/ui/surface";
@@ -26,6 +27,7 @@ import { AssigneeLabel } from "./status";
 export function ProjectsSection({ client, snapshot }: { client: Client; snapshot: StudioSnapshot }) {
   const projects = getClientProjects(client.id, snapshot.projects);
   const [creating, setCreating] = useState(false);
+  const canEdit = useCanEdit();
 
   return (
     <Section
@@ -33,7 +35,7 @@ export function ProjectsSection({ client, snapshot }: { client: Client; snapshot
       title="Projects"
       count={projects.length || undefined}
       action={
-        projects.length > 0 && !creating ? (
+        projects.length > 0 && !creating && canEdit ? (
           <Button size="sm" variant="ghost" onClick={() => setCreating(true)}>
             <Plus aria-hidden />
             New project
@@ -49,10 +51,12 @@ export function ProjectsSection({ client, snapshot }: { client: Client; snapshot
             ) : (
               <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-4">
                 <p className="text-[13.5px] text-ink-muted">No projects yet. Start one when the work is agreed, or earlier to plan it.</p>
-                <Button size="sm" onClick={() => setCreating(true)}>
-                  <Plus aria-hidden />
-                  New project
-                </Button>
+                {canEdit ? (
+                  <Button size="sm" onClick={() => setCreating(true)}>
+                    <Plus aria-hidden />
+                    New project
+                  </Button>
+                ) : null}
               </div>
             )}
           </Surface>
@@ -66,7 +70,7 @@ export function ProjectsSection({ client, snapshot }: { client: Client; snapshot
 }
 
 function ProjectCard({ project, tasks }: { project: Project; tasks: Task[] }) {
-  const { run, pending } = useStudioAction();
+  const { run, pending, canEdit } = useStudioAction();
   const [showDone, setShowDone] = useState(false);
   const open = tasks.filter((task) => task.status !== "done");
   const done = tasks.filter((task) => task.status === "done");
@@ -87,14 +91,14 @@ function ProjectCard({ project, tasks }: { project: Project; tasks: Task[] }) {
           <CompactSelect
             label="Stage"
             value={project.stage}
-            disabled={pending}
+            disabled={pending || !canEdit}
             onChange={(stage) => run((r) => r.updateProject(project.id, { stage: stage as Project["stage"] }))}
             options={PROJECT_STAGES.map((stage) => [stage, PROJECT_STAGE_LABELS[stage]])}
           />
           <CompactSelect
             label="Project status"
             value={project.status}
-            disabled={pending}
+            disabled={pending || !canEdit}
             onChange={(status) => run((r) => r.updateProject(project.id, { status: status as Project["status"] }))}
             options={PROJECT_STATUSES.map((status) => [status, PROJECT_STATUS_LABELS[status]])}
           />
@@ -109,7 +113,7 @@ function ProjectCard({ project, tasks }: { project: Project; tasks: Task[] }) {
         {showDone ? done.map((task) => <TaskRow key={task.id} task={task} />) : null}
       </ul>
       <div className="flex flex-wrap items-center gap-3 border-t border-line px-5 py-2.5">
-        <NewTaskInput projectId={project.id} />
+        {canEdit ? <NewTaskInput projectId={project.id} /> : null}
         {done.length > 0 ? (
           <button type="button" onClick={() => setShowDone((v) => !v)} aria-expanded={showDone} className="ml-auto rounded-sm text-[12.5px] text-ink-subtle hover:text-ink">
             {showDone ? "Hide completed" : `${done.length} completed`}
@@ -130,7 +134,7 @@ const STATUS_DOT: Record<TaskStatus, string> = {
 };
 
 function TaskRow({ task }: { task: Task }) {
-  const { run, pending } = useStudioAction();
+  const { run, pending, canEdit } = useStudioAction();
   const setStatus = (status: TaskStatus) => run((r) => r.setTaskStatus(task.id, status));
   const done = task.status === "done";
 
@@ -145,7 +149,7 @@ function TaskRow({ task }: { task: Task }) {
         </p>
       </div>
       <div className="flex w-full shrink-0 items-center gap-1.5 pl-6 sm:w-auto sm:pl-0">
-        {task.status === "awaiting_approval" ? (
+        {task.status === "awaiting_approval" && canEdit ? (
           <Button size="xs" variant="primary" onClick={() => setStatus("done")} disabled={pending}>
             <Check aria-hidden />
             Approve
@@ -154,7 +158,7 @@ function TaskRow({ task }: { task: Task }) {
         <CompactSelect
           label={`Status of ${task.title}`}
           value={task.status}
-          disabled={pending}
+          disabled={pending || !canEdit}
           onChange={(status) => setStatus(status as TaskStatus)}
           options={TASK_STATUSES.map((status) => [status, TASK_STATUS_LABELS[status]])}
         />

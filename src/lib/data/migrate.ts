@@ -6,6 +6,7 @@ import type { Actor, Assignee, StudioSnapshot } from "@/lib/domain/types";
  *
  * v1 (first release): tasks had `assignedTo: string | null`, events had
  * `actor?: string`. v2: both are structured, so agents can be represented.
+ * Phase 2 added source material, agent runs and proposals (empty when absent).
  */
 export function migrateSnapshot(value: unknown): StudioSnapshot | null {
   if (!isRecord(value)) return null;
@@ -24,7 +25,8 @@ export function migrateSnapshot(value: unknown): StudioSnapshot | null {
     return { ...event, actor };
   });
 
-  return { ...value, tasks, activity } as unknown as StudioSnapshot;
+  const list = (key: string) => (Array.isArray(value[key]) ? value[key] : []);
+  return { ...value, tasks, activity, sources: list("sources"), agentRuns: list("agentRuns"), proposals: list("proposals") } as unknown as StudioSnapshot;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

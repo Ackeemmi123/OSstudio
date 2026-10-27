@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono, Inter } from "next/font/google";
 import { AppShell } from "@/components/shell/app-shell";
-import { StudioProvider } from "@/components/providers/studio-provider";
+import { WorkspaceGate } from "@/components/providers/workspace-gate";
 import { ToastProvider } from "@/components/ui/toast";
 import { BRAND } from "@/lib/brand";
 import "./globals.css";
@@ -19,11 +19,11 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="en" className={`${inter.variable} ${geistSans.variable} ${geistMono.variable} h-full`}>
       <body className="min-h-full">
-        <StudioProvider>
-          <ToastProvider>
+        <ToastProvider>
+          <WorkspaceGate>
             <AppShell>{children}</AppShell>
-          </ToastProvider>
-        </StudioProvider>
+          </WorkspaceGate>
+        </ToastProvider>
       </body>
     </html>
   );

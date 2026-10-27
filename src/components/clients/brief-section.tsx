@@ -2,6 +2,7 @@
 
 import { Check, History, Pencil, Plus } from "lucide-react";
 import { useId, useState, type FormEvent } from "react";
+import { useCanEdit } from "@/components/providers/studio-provider";
 import { useStudioAction } from "@/components/providers/use-studio-action";
 import { Button } from "@/components/ui/button";
 import { RelativeTime } from "@/components/ui/relative-time";
@@ -27,6 +28,7 @@ const PLACEHOLDERS: Record<ContextFieldKey, string> = {
  */
 export function BriefSection({ client }: { client: Client }) {
   const [editing, setEditing] = useState<ContextFieldKey | null>(null);
+  const canEdit = useCanEdit();
   const known = CONTEXT_FIELD_KEYS.filter((key) => client.context[key].value !== null);
   const unknown = CONTEXT_FIELD_KEYS.filter((key) => client.context[key].value === null);
   const questions = client.contextItems.filter((item) => item.confidence !== "superseded");
@@ -54,7 +56,7 @@ export function BriefSection({ client }: { client: Client }) {
           ) : null}
         </ul>
 
-        {unknown.filter((key) => key !== editing).length > 0 ? (
+        {canEdit && unknown.filter((key) => key !== editing).length > 0 ? (
           <div className="flex flex-wrap items-center gap-2 border-t border-line px-5 py-3.5">
             <span className="mr-1 text-[12.5px] text-ink-subtle">Not known yet</span>
             {unknown
@@ -91,7 +93,7 @@ export function BriefSection({ client }: { client: Client }) {
 
 function KnownField({ client, fieldKey, onEdit }: { client: Client; fieldKey: ContextFieldKey; onEdit: () => void }) {
   const field = client.context[fieldKey];
-  const { run, pending } = useStudioAction();
+  const { run, pending, canEdit } = useStudioAction();
   const confirm = () =>
     run((repository) => repository.setContextField(client.id, fieldKey, { value: field.value ?? "", confidence: "confirmed" }));
 
@@ -103,7 +105,7 @@ function KnownField({ client, fieldKey, onEdit }: { client: Client; fieldKey: Co
         <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1.5 text-[12px] text-ink-subtle">
           <ConfidenceTag confidence={field.confidence} />
           <Provenance field={field} />
-          <span className="ml-auto flex items-center gap-1">
+          <span className="ml-auto flex items-center gap-1" hidden={!canEdit}>
             {field.confidence !== "confirmed" ? (
               <Button size="xs" variant="secondary" onClick={confirm} disabled={pending} title="Mark as confirmed by the client or an authorized team member">
                 <Check aria-hidden />
@@ -127,6 +129,7 @@ function Provenance({ field }: { field: ContextField }) {
   const parts = [
     field.source ? (field.source.label ?? SOURCE_TYPE_LABELS[field.source.type]) : null,
     field.recordedBy && field.confidence === "proposed" ? `by ${actorLabel(field.recordedBy)}` : null,
+    field.confidence === "confirmed" && field.confirmedBy ? `confirmed by ${actorLabel(field.confirmedBy)}` : null,
   ].filter(Boolean);
   return (
     <span>

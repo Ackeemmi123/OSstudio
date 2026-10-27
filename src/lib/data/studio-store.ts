@@ -1,5 +1,5 @@
 import type { StudioSnapshot } from "@/lib/domain/types";
-import type { RepositoryInfo, StudioRepository } from "./repository";
+import { RepositoryError, type RepositoryInfo, type StudioRepository } from "./repository";
 
 export type StudioState =
   | { status: "loading" }
@@ -19,7 +19,11 @@ export class StudioStore {
   private repository: StudioRepository | null = null;
   private loading: Promise<void> | null = null;
 
-  constructor(private readonly createRepository: () => StudioRepository) {}
+  constructor(
+    private readonly createRepository: () => StudioRepository,
+    /** Called when the sign-in session has ended, so the app can ask the person to sign in again. */
+    private readonly onSessionExpired?: () => void,
+  ) {}
 
   subscribe = (listener: () => void) => {
     this.listeners.add(listener);
@@ -33,16 +37,45 @@ export class StudioStore {
   load(): Promise<void> {
     this.loading ??= this.refresh().catch((error: unknown) => {
       this.loading = null;
+      this.notice(error);
       this.setState({ status: "error", message: errorMessage(error) });
     });
     return this.loading;
   }
 
-  /** Runs a write against the repository, then publishes the new snapshot. */
+  /**
+   * Runs a write against the repository, then publishes the new snapshot.
+   * After a conflict the snapshot is refreshed too, so the person sees what
+   * changed before trying again.
+   */
   async run<T>(write: (repository: StudioRepository) => Promise<T>): Promise<T> {
-    const result = await write(this.repo());
-    await this.refresh();
+    let result: T;
+    try {
+      result = await write(this.repo());
+    } catch (error) {
+      this.notice(error);
+      if (error instanceof RepositoryError && (error.code === "conflict" || error.code === "not_found")) {
+        await this.refresh().catch(() => undefined);
+      }
+      throw error;
+    }
+    await this.refresh().catch((error: unknown) => {
+      this.notice(error);
+      throw error;
+    });
     return result;
+  }
+
+  /** Reloads from the repository, for example after a background change. */
+  reload(): Promise<void> {
+    return this.refresh().catch((error: unknown) => {
+      this.notice(error);
+      throw error;
+    });
+  }
+
+  private notice(error: unknown) {
+    if (error instanceof RepositoryError && error.code === "session") this.onSessionExpired?.();
   }
 
   private repo(): StudioRepository {
