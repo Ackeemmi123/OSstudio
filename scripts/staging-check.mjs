@@ -293,7 +293,7 @@ async function request(url, init) {
     }
     return { ok: response.ok, status: response.status, body };
   } catch (error) {
-    const reason = error?.cause?.code ?? error?.name ?? "request failed";
+    const reason = error?.cause?.code || error?.cause?.message || error?.message || "request failed";
     // Node's fetch ignores HTTPS_PROXY unless told to use it.
     const proxyHint = (process.env.HTTPS_PROXY || process.env.https_proxy) && process.env.NODE_USE_ENV_PROXY !== "1"
       ? " (HTTPS_PROXY is set but Node ignores it: rerun with NODE_USE_ENV_PROXY=1)"
