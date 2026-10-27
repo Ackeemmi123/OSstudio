@@ -1,28 +1,52 @@
 import { defineConfig, devices } from "@playwright/test";
 
 /**
- * Browser tests. They run the production build in local demo mode, so they
- * need no credentials: each test starts from a fresh browser profile and
- * therefore a fresh demo workspace.
+ * End-to-end tests. The "supabase" project runs against the local Supabase
+ * stack (`npm run db:start`) with the intake agent's test provider, which uses
+ * no AI. The "local-demo" projects check the backend-free demo, including
+ * guided onboarding.
  */
-const PORT = Number(process.env.E2E_PORT ?? 3200);
+const SUPABASE_PORT = 3100;
+const LOCAL_PORT = 3101;
+/** Specs that run against the backend-free demo. */
+const LOCAL_SPECS = /(local-demo|onboarding)\.spec\.ts/;
 
 export default defineConfig({
   testDir: "tests/e2e",
+  outputDir: "test-results",
   fullyParallel: true,
   forbidOnly: Boolean(process.env.CI),
   retries: process.env.CI ? 1 : 0,
-  reporter: process.env.CI ? [["github"], ["list"]] : "list",
-  use: { baseURL: `http://localhost:${PORT}`, trace: "retain-on-failure" },
-  projects: [
-    { name: "desktop", use: { ...devices["Desktop Chrome"] } },
-    { name: "mobile", use: { ...devices["Pixel 7"] } },
-  ],
-  webServer: {
-    command: `npm run build && npm run start -- --port ${PORT}`,
-    url: `http://localhost:${PORT}/clients`,
-    reuseExistingServer: !process.env.CI,
-    timeout: 240_000,
-    env: { NEXT_PUBLIC_STUDIO_DATA_MODE: "local" },
+  workers: process.env.CI ? 2 : 3,
+  timeout: 45_000,
+  expect: { timeout: 10_000 },
+  reporter: process.env.CI ? [["list"], ["html", { open: "never" }]] : "list",
+  globalSetup: "./tests/e2e/global-setup.ts",
+  use: {
+    ...devices["Desktop Chrome"],
+    trace: "retain-on-failure",
+    screenshot: "only-on-failure",
   },
+  projects: [
+    { name: "supabase", testIgnore: LOCAL_SPECS, use: { baseURL: `http://127.0.0.1:${SUPABASE_PORT}` } },
+    { name: "local-demo", testMatch: LOCAL_SPECS, use: { baseURL: `http://127.0.0.1:${LOCAL_PORT}` } },
+    // Onboarding is also checked at phone width.
+    { name: "local-demo-mobile", testMatch: /onboarding\.spec\.ts/, use: { ...devices["Pixel 7"], baseURL: `http://127.0.0.1:${LOCAL_PORT}` } },
+  ],
+  webServer: [
+    {
+      command: `node scripts/e2e-server.mjs supabase ${SUPABASE_PORT}`,
+      url: `http://127.0.0.1:${SUPABASE_PORT}/api/agents/status`,
+      timeout: 300_000,
+      reuseExistingServer: !process.env.CI,
+      stdout: "pipe",
+    },
+    {
+      command: `node scripts/e2e-server.mjs local ${LOCAL_PORT}`,
+      url: `http://127.0.0.1:${LOCAL_PORT}`,
+      timeout: 300_000,
+      reuseExistingServer: !process.env.CI,
+      stdout: "pipe",
+    },
+  ],
 });

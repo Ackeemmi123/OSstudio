@@ -258,11 +258,19 @@ create function public.import_browser_data(p_studio uuid, p_hash text, p_data js
       select x.* from jsonb_array_elements(coalesce(p_data -> 'context_fields', '[]')) e,
         jsonb_populate_record(null::public.client_context_fields, e || jsonb_build_object('studio_id', p_studio)) x
       on conflict (client_id, field_key) do nothing;
+    get diagnostics n = row_count; v_counts := v_counts || jsonb_build_object('context_fields', n);
 
     insert into public.client_context_items
       select x.* from jsonb_array_elements(coalesce(p_data -> 'context_items', '[]')) e,
         jsonb_populate_record(null::public.client_context_items, e || jsonb_build_object('studio_id', p_studio)) x
       on conflict (id) do nothing;
+    get diagnostics n = row_count; v_counts := v_counts || jsonb_build_object('context_items', n);
+
+    insert into public.client_sources
+      select x.* from jsonb_array_elements(coalesce(p_data -> 'sources', '[]')) e,
+        jsonb_populate_record(null::public.client_sources, e || jsonb_build_object('studio_id', p_studio)) x
+      on conflict (id) do nothing;
+    get diagnostics n = row_count; v_counts := v_counts || jsonb_build_object('sources', n);
 
     insert into public.projects
       select x.* from jsonb_array_elements(coalesce(p_data -> 'projects', '[]')) e,

@@ -1,27 +1,32 @@
 "use client";
 
-import { ArrowUpRight } from "lucide-react";
+import { ArrowUpRight, Plus } from "lucide-react";
 import { useState, type ReactNode } from "react";
 import { ActivityTimeline } from "@/components/activity-timeline";
+import { useCanEdit } from "@/components/providers/studio-provider";
+import { Button } from "@/components/ui/button";
 import { Section } from "@/components/ui/surface";
 import { websiteHref } from "@/lib/domain/clients";
 import { getClientActivity } from "@/lib/domain/insights";
 import { SOURCE_TYPE_LABELS } from "@/lib/domain/labels";
-import { CONTEXT_FIELD_KEYS, type Client, type StudioSnapshot } from "@/lib/domain/types";
+import { CONTEXT_FIELD_KEYS, type Client, type SourceDocument, type StudioSnapshot } from "@/lib/domain/types";
 import { formatDate } from "@/lib/format";
+import { AddSourceDialog } from "./add-source-dialog";
 
 /** Source material and history: needed for context, rarely the first thing you look for. */
 export function ClientAside({ client, snapshot }: { client: Client; snapshot: StudioSnapshot }) {
   return (
     <div className="flex min-w-0 flex-col gap-10">
-      <SourceMaterial client={client} />
+      <SourceMaterial client={client} sources={snapshot.sources.filter((source) => source.clientId === client.id)} />
       <History client={client} snapshot={snapshot} />
     </div>
   );
 }
 
-function SourceMaterial({ client }: { client: Client }) {
+function SourceMaterial({ client, sources }: { client: Client; sources: SourceDocument[] }) {
   const [expanded, setExpanded] = useState(false);
+  const [adding, setAdding] = useState(false);
+  const canEdit = useCanEdit();
   const notes = client.source.initialNotes;
   const long = (notes?.length ?? 0) > 280;
   const referenced = Array.from(
@@ -34,7 +39,18 @@ function SourceMaterial({ client }: { client: Client }) {
   );
 
   return (
-    <Section id="sources" title="Source material">
+    <Section
+      id="sources"
+      title="Source material"
+      action={
+        canEdit ? (
+          <Button size="xs" variant="ghost" onClick={() => setAdding(true)}>
+            <Plus aria-hidden />
+            Add
+          </Button>
+        ) : null
+      }
+    >
       <div className="flex flex-col gap-4 text-[13.5px]">
         <div>
           <p className="text-ink">
@@ -54,6 +70,11 @@ function SourceMaterial({ client }: { client: Client }) {
             <p className="mt-1 text-ink-subtle">No notes were recorded.</p>
           )}
         </div>
+        {[...sources]
+          .sort((a, b) => b.receivedAt.localeCompare(a.receivedAt))
+          .map((source) => (
+            <SourceEntry key={source.id} source={source} />
+          ))}
         {referenced.length > 0 ? (
           <div>
             <p className="mb-1.5 text-[12.5px] text-ink-subtle">Cited in the brief</p>
@@ -67,9 +88,29 @@ function SourceMaterial({ client }: { client: Client }) {
             </ul>
           </div>
         ) : null}
-        <p className="text-[12px] text-ink-subtle">Attaching files is not available yet.</p>
+        <p className="text-[12px] text-ink-subtle">Paste text with Add. Attaching files is not available yet.</p>
       </div>
+      <AddSourceDialog clientId={client.id} open={adding} onClose={() => setAdding(false)} />
     </Section>
+  );
+}
+
+function SourceEntry({ source }: { source: SourceDocument }) {
+  const [expanded, setExpanded] = useState(false);
+  const long = source.content.length > 280;
+  return (
+    <div data-testid="source">
+      <p className="text-ink">
+        {source.label}
+        <span className="text-ink-subtle"> · {SOURCE_TYPE_LABELS[source.type]} · {formatDate(source.receivedAt)}</span>
+      </p>
+      <p className={`mt-1.5 leading-relaxed whitespace-pre-wrap text-ink-muted ${long && !expanded ? "line-clamp-5" : ""}`}>{source.content}</p>
+      {long ? (
+        <button type="button" onClick={() => setExpanded((v) => !v)} className="mt-1 rounded-sm text-[12.5px] text-ink-subtle hover:text-ink">
+          {expanded ? "Show less" : "Show all"}
+        </button>
+      ) : null}
+    </div>
   );
 }
 

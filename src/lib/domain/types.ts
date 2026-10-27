@@ -29,8 +29,8 @@ export type AgentId = (typeof AGENT_IDS)[number];
  */
 export type Actor =
   | { kind: "human"; name: string; userId?: string; imported?: boolean }
-  | { kind: "agent"; agentId: AgentId }
-  | { kind: "system" };
+  | { kind: "agent"; agentId: AgentId; imported?: boolean }
+  | { kind: "system"; imported?: boolean };
 
 /** Who a task is assigned to. */
 export type Assignee = { kind: "human"; name: string } | { kind: "agent"; agentId: AgentId };

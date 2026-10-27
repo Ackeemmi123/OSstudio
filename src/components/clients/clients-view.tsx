@@ -4,7 +4,7 @@ import { Plus, Search, Users, X } from "lucide-react";
 import Link from "next/link";
 import { useDeferredValue, useState } from "react";
 import { LoadError } from "@/components/load-error";
-import { useStudio } from "@/components/providers/studio-provider";
+import { useCanEdit, useStudio } from "@/components/providers/studio-provider";
 import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { RelativeTime } from "@/components/ui/relative-time";
@@ -15,6 +15,7 @@ import { DemoTag } from "./status";
 
 export function ClientsView() {
   const state = useStudio();
+  const canEdit = useCanEdit();
   const [query, setQuery] = useState("");
   const [showArchived, setShowArchived] = useState(false);
   const [creating, setCreating] = useState(false);
@@ -32,7 +33,7 @@ export function ClientsView() {
       <PageHeader
         title="Clients"
         actions={
-          <Button variant="primary" onClick={() => setCreating(true)} disabled={state.status !== "ready"}>
+          <Button variant="primary" onClick={() => setCreating(true)} disabled={!canEdit} hidden={state.status === "ready" && !canEdit}>
             <Plus aria-hidden />
             New client
           </Button>
@@ -63,10 +64,12 @@ export function ClientsView() {
               title="No clients yet"
               description="Add your first client with just a name."
               action={
-                <Button variant="primary" onClick={() => setCreating(true)}>
-                  <Plus aria-hidden />
-                  New client
-                </Button>
+                canEdit ? (
+                  <Button variant="primary" onClick={() => setCreating(true)}>
+                    <Plus aria-hidden />
+                    New client
+                  </Button>
+                ) : undefined
               }
             />
           ) : visible.length === 0 ? (

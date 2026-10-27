@@ -50,8 +50,11 @@ that adds it to the database checks (see `20261027000500_onboarding.sql`).
   step's brief values, details, questions, events and progress in one
   transaction with the usual concurrent-edit check. Verified against a local
   Supabase stack (`tests/db/onboarding.test.ts`), not against a hosted project.
-- Not yet: the browser-data import does not carry onboarding progress (the
-  answers themselves are imported, since they are brief values).
+- Browser import: onboarding progress is imported with its client (the
+  answers come along as brief values). If the client already has an
+  onboarding on the server, the server's one is kept. A later import adds
+  new records only; it never replaces brief values or progress already on the
+  server.
 
 ## Where the intake agent connects
 

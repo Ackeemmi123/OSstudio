@@ -10,8 +10,7 @@ It answers three questions:
 2. **What needs to happen next?** "Next up" on Today, and "What's next" in each
    client workspace.
 3. **What needs my decision?** "Needs your decision" on Today: approvals,
-   reviews, and proposed client facts. No agents are connected yet; when they
-   are, their proposals land here too.
+   reviews, proposed client facts, and intake analyses waiting for review.
 
 ## Running locally
 
@@ -27,9 +26,13 @@ npm run dev        # http://localhost:3000
 | `npm run start`     | Serve the production build                    |
 | `npm run lint`      | ESLint                                        |
 | `npm run typecheck` | Generates route types, then runs `tsc`        |
-| `npm test`          | Unit tests (Vitest) for domain, data and agent permissions |
+| `npm test`          | Unit tests (Vitest): domain, data, import, agents |
+| `npm run db:start`  | Local Supabase stack (Docker)                 |
+| `npm run test:db`   | Database tests against the local stack        |
+| `npm run test:e2e`  | Playwright journeys (local stack and local demo) |
 
-No environment variables are required.
+With no environment variables, the app runs as the **local demo**. To use
+Supabase, see [docs/persistence.md](docs/persistence.md) and `.env.example`.
 
 ## What works
 
@@ -54,13 +57,25 @@ No environment variables are required.
 Old links to `/projects`, `/tasks`, `/approvals` and `/agents` redirect to Today
 or Settings.
 
-## Not built or not connected
+## Sign-in, studios and the intake agent
 
-- **No backend.** Data lives in this browser only (see below).
-- **No sign-in.** Every change is recorded as made by "You".
-- **No AI agents.** The run contract, permissions and registry exist in code;
-  nothing executes. The UI says so.
-- **No file uploads, email intake, notifications or invoicing.**
+- **Supabase mode**: sign-in with email and password (no public sign-up),
+  studios with owners, members and viewers, and row-level security so nobody
+  sees another studio's data. Viewers get a read-only workspace.
+- **Import from this browser**: a one-time, verified copy of local demo data
+  into a studio (Settings).
+- **Source material**: paste emails, call notes or briefs into a client.
+- **Analyze client information**: the Client Intake & Research agent reads the
+  source material and proposes brief values, each with the quote it came
+  from, plus what is missing or unclear and questions to ask. Nothing changes
+  until a person accepts it. It does no web research. It needs
+  `ANTHROPIC_API_KEY` on the server; see [docs/architecture.md](docs/architecture.md).
+
+## Not built
+
+- File uploads, email intake, notifications, invoicing.
+- Other agents (design, development, QA, sales, coordination) are listed in
+  Settings as planned.
 
 ## Brand
 
@@ -70,14 +85,11 @@ the Axivo website repository. All tokens are in `src/app/theme.css`. See
 
 ## Data and persistence
 
-Data is stored in the browser's `localStorage` by `LocalDemoRepository`. It is
-not synced to other devices or people. Example records are tagged "Demo";
-**Settings → Reset demo data** restores them. Data entered in the first version
-is migrated automatically.
-
-A draft Supabase schema with row-level security is in `supabase/migrations`.
-**It has not been applied anywhere.** The path to a real backend is in
-[docs/persistence.md](docs/persistence.md).
+In **Supabase** mode data is stored in Postgres and shared by the studio. In
+**local demo** mode it is stored in this browser's `localStorage` only, and the
+top bar says "Local demo". A misconfigured backend shows an error; the app
+never falls back to browser storage. Details, migrations and setup steps are
+in [docs/persistence.md](docs/persistence.md).
 
 ## Data confidence
 
@@ -90,7 +102,7 @@ A draft Supabase schema with row-level security is in `supabase/migrations`.
 | Superseded | Replaced by a newer value or decision.                           |
 
 Only a person can confirm a value or approve work. The domain layer enforces
-this, and the draft database schema repeats it.
+this, and the database enforces it again.
 
 ## Code structure
 

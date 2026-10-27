@@ -4,14 +4,16 @@ import { useState } from "react";
 import { errorMessage } from "@/lib/data/studio-store";
 import type { StudioRepository } from "@/lib/data/repository";
 import { useToast } from "@/components/ui/toast";
-import { useStudioStore } from "./studio-provider";
+import { useCanEdit, useStudioStore } from "./studio-provider";
 
 /**
  * Runs one repository write with a pending flag and a visible error.
- * Resolves to undefined when the write failed.
+ * Resolves to undefined when the write failed. `canEdit` is false for people
+ * with read-only access, so controls can be hidden or disabled.
  */
 export function useStudioAction() {
   const store = useStudioStore();
+  const canEdit = useCanEdit();
   const toast = useToast();
   const [pending, setPending] = useState(false);
 
@@ -27,5 +29,5 @@ export function useStudioAction() {
     }
   }
 
-  return { run, pending };
+  return { run, pending, canEdit };
 }

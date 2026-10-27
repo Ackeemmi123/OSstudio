@@ -70,7 +70,7 @@ test("creates a client, saves a partial brief, resumes, edits and finishes", asy
   const brief = page.locator("#brief");
   await expect(brief.getByText("Onboarding finished")).toBeVisible();
   await expect(brief.getByText("Shopify, Etsy")).toBeVisible();
-  await expect(brief.locator("#brief-salesChannels").getByText("Confirmed")).toBeVisible();
+  await expect(brief.locator("#brief-salesChannels").getByText("Confirmed", { exact: true })).toBeVisible();
   await expect(brief.locator("#brief-goal").getByText("Observed")).toBeVisible();
   await page.reload();
   await expect(page.locator("#brief").getByText("shop.fjordceramics.no")).toBeVisible();

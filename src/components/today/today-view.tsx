@@ -6,7 +6,7 @@ import { useState } from "react";
 import { ActivityTimeline } from "@/components/activity-timeline";
 import { NewClientDialog } from "@/components/clients/new-client-dialog";
 import { LoadError } from "@/components/load-error";
-import { useStudio } from "@/components/providers/studio-provider";
+import { useCanEdit, useStudio } from "@/components/providers/studio-provider";
 import { Button } from "@/components/ui/button";
 import { Section, Skeleton, Surface } from "@/components/ui/surface";
 import { cn } from "@/lib/cn";
@@ -24,6 +24,7 @@ import { useNow } from "@/lib/use-now";
 
 export function TodayView() {
   const state = useStudio();
+  const canEdit = useCanEdit();
   const [creating, setCreating] = useState(false);
 
   return (
@@ -35,7 +36,7 @@ export function TodayView() {
           </p>
           <h1 className="text-[28px] leading-tight font-medium tracking-[-0.032em] text-ink">Today</h1>
         </div>
-        <Button variant="primary" onClick={() => setCreating(true)} disabled={state.status !== "ready"}>
+        <Button variant="primary" onClick={() => setCreating(true)} disabled={!canEdit} hidden={state.status === "ready" && !canEdit}>
           <Plus aria-hidden />
           New client
         </Button>

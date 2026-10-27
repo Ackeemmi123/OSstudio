@@ -8,6 +8,7 @@
 --    those are brief values and client details, stored where they always were.
 -- 3. apply_onboarding_changes() writes one onboarding step (brief values,
 --    details, questions, events and progress) in a single transaction.
+-- 4. import_browser_data() also imports onboarding progress from the browser.
 
 /* ------------------------------------------------------------------------ */
 /* Brief values                                                              */
@@ -111,3 +112,87 @@ create function public.apply_onboarding_changes(p_studio uuid, p_changes jsonb, 
 
 revoke execute on function public.apply_onboarding_changes(uuid, jsonb, jsonb) from public, anon;
 grant execute on function public.apply_onboarding_changes(uuid, jsonb, jsonb) to authenticated;
+
+/* ------------------------------------------------------------------------ */
+/* Import from the browser demo                                              */
+/* ------------------------------------------------------------------------ */
+
+-- Same as in the functions migration, plus onboarding progress, so a person
+-- can continue an onboarding they started in the browser demo.
+create or replace function public.import_browser_data(p_studio uuid, p_hash text, p_data jsonb) returns jsonb
+  language plpgsql set search_path = ''
+  as $$
+  declare
+    v_batch uuid := gen_random_uuid();
+    v_existing public.import_batches;
+    v_counts jsonb := '{}';
+    n int;
+  begin
+    if not private.can_write(p_studio) then
+      raise exception 'You have read-only access to this studio.' using errcode = '42501';
+    end if;
+    select * into v_existing from public.import_batches where studio_id = p_studio and content_hash = p_hash;
+    if found then
+      return jsonb_build_object('status', 'already_imported', 'batchId', v_existing.id, 'counts', v_existing.counts,
+                                'importedAt', v_existing.created_at);
+    end if;
+
+    perform set_config('studio_os.importing', 'on', true);
+
+    insert into public.clients
+      select x.* from jsonb_array_elements(coalesce(p_data -> 'clients', '[]')) e,
+        jsonb_populate_record(null::public.clients, e || jsonb_build_object('studio_id', p_studio)) x
+      on conflict (id) do nothing;
+    get diagnostics n = row_count; v_counts := v_counts || jsonb_build_object('clients', n);
+
+    -- Onboarding progress (added by the onboarding migration). Skipped when the
+    -- client already has an onboarding on the server, whatever its id.
+    insert into public.client_onboardings
+      select x.* from jsonb_array_elements(coalesce(p_data -> 'onboardings', '[]')) e,
+        jsonb_populate_record(null::public.client_onboardings, e || jsonb_build_object('studio_id', p_studio, 'project_id', null)) x
+      on conflict do nothing;
+    get diagnostics n = row_count; v_counts := v_counts || jsonb_build_object('onboardings', n);
+
+    insert into public.client_context_fields
+      select x.* from jsonb_array_elements(coalesce(p_data -> 'context_fields', '[]')) e,
+        jsonb_populate_record(null::public.client_context_fields, e || jsonb_build_object('studio_id', p_studio)) x
+      on conflict (client_id, field_key) do nothing;
+    get diagnostics n = row_count; v_counts := v_counts || jsonb_build_object('context_fields', n);
+
+    insert into public.client_context_items
+      select x.* from jsonb_array_elements(coalesce(p_data -> 'context_items', '[]')) e,
+        jsonb_populate_record(null::public.client_context_items, e || jsonb_build_object('studio_id', p_studio)) x
+      on conflict (id) do nothing;
+    get diagnostics n = row_count; v_counts := v_counts || jsonb_build_object('context_items', n);
+
+    insert into public.client_sources
+      select x.* from jsonb_array_elements(coalesce(p_data -> 'sources', '[]')) e,
+        jsonb_populate_record(null::public.client_sources, e || jsonb_build_object('studio_id', p_studio)) x
+      on conflict (id) do nothing;
+    get diagnostics n = row_count; v_counts := v_counts || jsonb_build_object('sources', n);
+
+    insert into public.projects
+      select x.* from jsonb_array_elements(coalesce(p_data -> 'projects', '[]')) e,
+        jsonb_populate_record(null::public.projects, e || jsonb_build_object('studio_id', p_studio)) x
+      on conflict (id) do nothing;
+    get diagnostics n = row_count; v_counts := v_counts || jsonb_build_object('projects', n);
+
+    insert into public.tasks
+      select x.* from jsonb_array_elements(coalesce(p_data -> 'tasks', '[]')) e,
+        jsonb_populate_record(null::public.tasks, e || jsonb_build_object('studio_id', p_studio)) x
+      on conflict (id) do nothing;
+    get diagnostics n = row_count; v_counts := v_counts || jsonb_build_object('tasks', n);
+
+    insert into public.activity_events
+      select x.* from jsonb_array_elements(coalesce(p_data -> 'activity', '[]')) e,
+        jsonb_populate_record(null::public.activity_events,
+          e || jsonb_build_object('studio_id', p_studio, 'import_batch_id', v_batch)) x
+      on conflict (id) do nothing;
+    get diagnostics n = row_count; v_counts := v_counts || jsonb_build_object('activity', n);
+
+    insert into public.import_batches (id, studio_id, content_hash, counts) values (v_batch, p_studio, p_hash, v_counts);
+    return jsonb_build_object('status', 'imported', 'batchId', v_batch, 'counts', v_counts);
+  end $$;
+
+revoke execute on function public.import_browser_data(uuid, text, jsonb) from public, anon;
+grant execute on function public.import_browser_data(uuid, text, jsonb) to authenticated;

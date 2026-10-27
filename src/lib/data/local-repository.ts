@@ -232,18 +232,7 @@ export class LocalDemoRepository implements StudioRepository {
   }
 
   private read(): { snapshot: StudioSnapshot; key: string } | null {
-    if (!this.storage) return null;
-    for (const key of [STORAGE_KEY, ...LEGACY_STORAGE_KEYS]) {
-      try {
-        const raw = this.storage.getItem(key);
-        if (!raw) continue;
-        const snapshot = migrateSnapshot(JSON.parse(raw));
-        if (snapshot) return { snapshot, key };
-      } catch {
-        // Corrupt or unreadable data: try the next key, then fall back to demo data.
-      }
-    }
-    return null;
+    return this.storage ? readStoredSnapshot(this.storage) : null;
   }
 
   private write(snapshot: StudioSnapshot) {
@@ -269,6 +258,21 @@ function find<T extends { id: string }>(items: T[], id: string, what: string): T
 
 function replace<T extends { id: string }>(items: T[], next: T): T[] {
   return items.map((item) => (item.id === next.id ? next : item));
+}
+
+/** Reads the saved workspace (current or an older version's key), or null when there is none. */
+export function readStoredSnapshot(storage: KeyValueStorage): { snapshot: StudioSnapshot; key: string } | null {
+  for (const key of [STORAGE_KEY, ...LEGACY_STORAGE_KEYS]) {
+    try {
+      const raw = storage.getItem(key);
+      if (!raw) continue;
+      const snapshot = migrateSnapshot(JSON.parse(raw));
+      if (snapshot) return { snapshot, key };
+    } catch {
+      // Corrupt or unreadable data: try the next key, then fall back to demo data.
+    }
+  }
+  return null;
 }
 
 /** Returns browser storage when it is usable, or null (in-memory only) when it is not. */

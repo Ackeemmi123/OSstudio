@@ -4,7 +4,7 @@ import { ArrowLeft, CircleSlash, Pencil, SearchX } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { LoadError } from "@/components/load-error";
-import { useStudio } from "@/components/providers/studio-provider";
+import { useCanEdit, useStudio } from "@/components/providers/studio-provider";
 import { Avatar } from "@/components/ui/avatar";
 import { Button, ButtonLink } from "@/components/ui/button";
 import { EmptyState, Section, Skeleton, Surface } from "@/components/ui/surface";
@@ -15,11 +15,13 @@ import type { Client, StudioSnapshot } from "@/lib/domain/types";
 import { BriefSection } from "./brief-section";
 import { ClientAside, ExternalLink } from "./client-aside";
 import { EditDetailsDialog } from "./edit-details-dialog";
+import { IntakeReview } from "./intake-review";
 import { ProjectsSection } from "./projects-section";
 import { ClientStatusLabel, DemoTag } from "./status";
 
 export function ClientWorkspace({ clientId }: { clientId: string }) {
   const state = useStudio();
+  const shared = state.status === "ready" && state.info.kind === "supabase";
   if (state.status === "error") return <LoadError message={state.message} />;
   if (state.status === "loading") return <WorkspaceSkeleton />;
 
@@ -30,7 +32,11 @@ export function ClientWorkspace({ clientId }: { clientId: string }) {
         <EmptyState
           icon={<SearchX />}
           title="Client not found"
-          description="This client may have been added in another browser. Workspace data is stored only in the browser where it was entered."
+          description={
+            shared
+              ? "This client does not exist in this studio, or you do not have access to it."
+              : "This client may have been added in another browser. Demo data is stored only in the browser where it was entered."
+          }
           action={<ButtonLink href="/clients">Back to clients</ButtonLink>}
         />
       </Surface>
@@ -41,6 +47,7 @@ export function ClientWorkspace({ clientId }: { clientId: string }) {
 
 function Workspace({ client, snapshot }: { client: Client; snapshot: StudioSnapshot }) {
   const [editing, setEditing] = useState(false);
+  const canEdit = useCanEdit();
   useScrollToHash();
 
   return (
@@ -72,10 +79,12 @@ function Workspace({ client, snapshot }: { client: Client; snapshot: StudioSnaps
             </p>
           </div>
         </div>
-        <Button onClick={() => setEditing(true)} className="self-start">
-          <Pencil aria-hidden />
-          Edit details
-        </Button>
+        {canEdit ? (
+          <Button onClick={() => setEditing(true)} className="self-start">
+            <Pencil aria-hidden />
+            Edit details
+          </Button>
+        ) : null}
       </header>
 
       <div className="grid gap-x-12 gap-y-12 lg:grid-cols-[minmax(0,1fr)_300px]">
@@ -83,6 +92,7 @@ function Workspace({ client, snapshot }: { client: Client; snapshot: StudioSnaps
           <NextUp client={client} snapshot={snapshot} />
           <ProjectsSection client={client} snapshot={snapshot} />
           <BriefSection client={client} onboarding={findOnboarding(snapshot.onboardings, client.id)} />
+          <IntakeReview client={client} snapshot={snapshot} />
         </div>
         <ClientAside client={client} snapshot={snapshot} />
       </div>

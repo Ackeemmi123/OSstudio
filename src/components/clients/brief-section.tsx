@@ -44,6 +44,7 @@ const UNKNOWN_CHIPS_SHOWN = 6;
 export function BriefSection({ client, onboarding }: { client: Client; onboarding: Onboarding | undefined }) {
   const [editing, setEditing] = useState<ContextFieldKey | null>(null);
   const [showAllUnknown, setShowAllUnknown] = useState(false);
+  const canEdit = useCanEdit();
   const conditions = briefConditions(client);
   const known = CONTEXT_FIELD_KEYS.filter((key) => client.context[key].value !== null);
   // Unknown values that matter for this kind of project. The rest stay out of the way.
@@ -85,7 +86,7 @@ export function BriefSection({ client, onboarding }: { client: Client; onboardin
           );
         })}
 
-        {unknown.length > 0 ? (
+        {canEdit && unknown.length > 0 ? (
           <div className="flex flex-wrap items-center gap-2 border-t border-line px-5 py-3.5">
             <span className="mr-1 text-[12.5px] text-ink-subtle">Not known yet</span>
             {shownUnknown.map((key) => (
@@ -179,7 +180,7 @@ function OnboardingStatus({ client, onboarding }: { client: Client; onboarding: 
 
 function KnownField({ client, fieldKey, onEdit }: { client: Client; fieldKey: ContextFieldKey; onEdit: () => void }) {
   const field = client.context[fieldKey];
-  const { run, pending } = useStudioAction();
+  const { run, pending, canEdit } = useStudioAction();
   const confirm = () =>
     run((repository) => repository.setContextField(client.id, fieldKey, { value: field.value ?? "", confidence: "confirmed" }));
 
@@ -191,7 +192,7 @@ function KnownField({ client, fieldKey, onEdit }: { client: Client; fieldKey: Co
         <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1.5 text-[12px] text-ink-subtle">
           <ConfidenceTag confidence={field.confidence} />
           <Provenance field={field} />
-          <span className="ml-auto flex items-center gap-1">
+          <span className="ml-auto flex items-center gap-1" hidden={!canEdit}>
             {field.confidence !== "confirmed" ? (
               <Button size="xs" variant="secondary" onClick={confirm} disabled={pending} title="Mark as confirmed by the client or an authorized team member">
                 <Check aria-hidden />
@@ -215,6 +216,7 @@ function Provenance({ field }: { field: ContextField }) {
   const parts = [
     field.source ? (field.source.label ?? SOURCE_TYPE_LABELS[field.source.type]) : null,
     field.recordedBy && field.confidence === "proposed" ? `by ${actorLabel(field.recordedBy)}` : null,
+    field.confidence === "confirmed" && field.confirmedBy ? `confirmed by ${actorLabel(field.confirmedBy)}` : null,
   ].filter(Boolean);
   return (
     <span>
