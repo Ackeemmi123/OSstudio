@@ -74,13 +74,18 @@ set -a; . ./.env.staging; set +a
 npm run staging:check
 ```
 
-It changes nothing and prints no keys. It checks that:
+It changes no data and prints no keys; it prints the project ref, which is
+part of the public URL. It checks that:
 
 - the keys are of the right kind and the service key is not the public one,
   no secret sits in a `NEXT_PUBLIC_` variable, and the test provider is off;
 - the project is reachable, sign-ups are disabled and email sign-in is on;
-- signed out, tables and functions refuse every request, and all 13 tables
-  exist;
+- signed out, tables and functions refuse every request;
+- all 13 tables exist: with the service role key if it is set, otherwise
+  as the owner test account. Without the service role key it also signs in
+  to all three smoke test accounts, checks that the five app functions
+  exist and refuse a studio nobody belongs to (so nothing is written), and
+  signs the accounts out again;
 - with `STAGING_DATABASE_URL`: the applied migrations match
   `supabase/migrations`, every table has row-level security, the anonymous
   role has no table grants, people cannot delete rows, no app function is

@@ -10,8 +10,10 @@
  * What it checks:
  *   - the configuration itself: keys of the right kind, no secret in a
  *     NEXT_PUBLIC_ variable, the test provider off;
- *   - Supabase: sign-ups disabled, email sign-in on, the migrations' tables and
- *     functions present, nothing readable or callable without signing in;
+ *   - Supabase: sign-ups disabled, email sign-in on, nothing readable or
+ *     callable without signing in, and the migrations' tables and functions
+ *     present (checked with the service role key, or else by signing in to
+ *     the smoke test accounts, which only reads and is signed out again);
  *   - with STAGING_DATABASE_URL: applied migrations match supabase/migrations,
  *     row-level security on every table, no grants to the anonymous role;
  *   - Anthropic: the key is accepted and the configured model is available
@@ -49,7 +51,7 @@ function checkConfiguration() {
   if (!config.url) fail("Supabase URL", "STAGING_SUPABASE_URL (or NEXT_PUBLIC_SUPABASE_URL) is not set");
   else if (isLocalUrl(config.url)) pass("Supabase URL", `${config.url} (local stack)`);
   else if (!config.url.startsWith("https://")) fail("Supabase URL", "must use https");
-  else pass("Supabase URL", new URL(config.url).host);
+  else pass("Supabase URL", `project ref ${projectRef(config.url) ?? "(custom domain)"}`);
 
   const anon = keyKind(config.anonKey);
   if (anon === "legacy anon" || anon === "publishable") pass("Public (anon) key", anon);
@@ -57,7 +59,8 @@ function checkConfiguration() {
 
   const service = keyKind(config.serviceKey);
   if (service === "legacy service_role" || service === "secret") pass("Service role key", service);
-  else fail("Service role key", service === "missing" ? "not set" : `expected a service_role or secret key, found: ${service}`);
+  else if (service === "missing") skip("Service role key", "not set (not needed here: the app host holds it)");
+  else fail("Service role key", `expected a service_role or secret key, found: ${service}`);
 
   // A secret in a NEXT_PUBLIC_ variable is built into the browser bundle.
   const secrets = [config.serviceKey, config.anthropicKey].filter(Boolean);
@@ -108,15 +111,79 @@ async function checkSupabase() {
   else if (!rpc.ok && (rpc.body?.code === "42501" || rpc.status === 401)) pass("Signed-out function calls refused");
   else fail("Signed-out function calls refused", `got HTTP ${rpc.status}`);
 
-  if (!config.serviceKey) return;
-  const serviceHeaders = headersFor(config.serviceKey);
+  if (config.serviceKey) {
+    await checkTables(headersFor(config.serviceKey), "service role");
+    return;
+  }
+  await checkTestAccounts(anonHeaders);
+}
+
+async function checkTables(headers, as) {
   const missing = [];
   for (const name of TABLES) {
-    const response = await request(`${config.url}/rest/v1/${name}?select=*&limit=0`, { headers: serviceHeaders });
+    const response = await request(`${config.url}/rest/v1/${name}?select=*&limit=0`, { headers });
     if (!response.ok) missing.push(`${name} (HTTP ${response.status})`);
   }
   if (missing.length) fail("Tables present", missing.join(", "));
-  else pass("Tables present", `${TABLES.length} tables`);
+  else pass("Tables present", `${TABLES.length} tables, as ${as}`);
+}
+
+/**
+ * Without the service role key: sign in to the smoke test accounts, check the
+ * tables and functions as the owner account, and sign out again. Function
+ * calls target a random studio nobody belongs to, so each is refused before
+ * it can write anything.
+ */
+async function checkTestAccounts(anonHeaders) {
+  const accounts = config.smokeAccounts;
+  const roles = ["owner", "viewer", "outsider"];
+  if (!roles.every((role) => accounts[role] && accounts[`${role}Password`])) {
+    skip("Test accounts", "STAGING_SMOKE_*_EMAIL and passwords are not all set; tables and functions not checked");
+    return;
+  }
+  const tokens = {};
+  for (const role of roles) {
+    const response = await request(`${config.url}/auth/v1/token?grant_type=password`, {
+      method: "POST",
+      headers: { ...anonHeaders, "content-type": "application/json" },
+      body: JSON.stringify({ email: accounts[role], password: accounts[`${role}Password`] }),
+    });
+    if (response.ok && response.body?.access_token) {
+      tokens[role] = response.body.access_token;
+      pass(`Test account signs in: ${role}`);
+    } else {
+      fail(`Test account signs in: ${role}`, response.body?.error_code ?? response.body?.msg ?? `HTTP ${response.status}`);
+    }
+  }
+  const owner = tokens.owner;
+  if (owner) {
+    const headers = { apikey: config.anonKey, authorization: `Bearer ${owner}` };
+    await checkTables(headers, "the owner test account");
+    const nobody = crypto.randomUUID();
+    const calls = {
+      my_studios: {},
+      load_studio: { p_studio: nobody },
+      apply_changes: { p_studio: nobody, p_changes: {} },
+      apply_onboarding_changes: { p_studio: nobody, p_changes: {}, p_onboarding: {} },
+      import_browser_data: { p_studio: nobody, p_hash: "staging-check", p_data: {} },
+    };
+    const problems = [];
+    for (const [name, args] of Object.entries(calls)) {
+      const response = await request(`${config.url}/rest/v1/rpc/${name}`, {
+        method: "POST",
+        headers: { ...headers, "content-type": "application/json" },
+        body: JSON.stringify(args),
+      });
+      const expected = name === "my_studios" ? response.ok : response.body?.code === "42501";
+      if (response.body?.code === "PGRST202") problems.push(`${name} missing`);
+      else if (!expected) problems.push(`${name} (HTTP ${response.status}${response.body?.code ? `, ${response.body.code}` : ""})`);
+    }
+    if (problems.length) fail("Functions present and refusing other studios", problems.join(", "));
+    else pass("Functions present and refusing other studios", `${Object.keys(calls).length} functions`);
+  }
+  for (const token of Object.values(tokens)) {
+    await request(`${config.url}/auth/v1/logout`, { method: "POST", headers: { apikey: config.anonKey, authorization: `Bearer ${token}` } });
+  }
 }
 
 async function checkDatabase() {
@@ -201,6 +268,12 @@ async function checkAnthropic() {
     else if (status === 404) fail("Anthropic key and model", `model ${config.model} is not available to this key`);
     else fail("Anthropic key and model", status ? `HTTP ${status}` : "the API could not be reached (check the network policy)");
   }
+}
+
+/** The project ref of a supabase.co URL. Not a secret: it is part of the public URL. */
+function projectRef(url) {
+  const match = /^([a-z0-9]+)\.supabase\.co$/.exec(new URL(url).hostname);
+  return match ? match[1] : null;
 }
 
 function headersFor(key) {
