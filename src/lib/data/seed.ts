@@ -431,5 +431,5 @@ export function createSeedSnapshot(nowMs: number = Date.now()): StudioSnapshot {
     event("project", "demo-p-kontur", "project.stage_changed", "Portfolio Website launched", 40 * DAY, "Alex"),
   ];
 
-  return { clients, projects, tasks, activity };
+  return { clients, projects, tasks, activity, sources: [], agentRuns: [], proposals: [] };
 }

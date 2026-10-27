@@ -1,12 +1,13 @@
 /**
- * The contract every future agent run follows, independent of which model
- * provider or agent framework executes it.
+ * The contract every agent run follows, independent of which model provider
+ * executes it.
  *
- * Nothing in the app executes agents yet. These types define what a run must
- * record so that a person can always see what an agent worked on, what it was
- * given, what it produced, and whether a human decision is needed.
+ * A run records what the agent was given (input references), what it
+ * produced (output references and a structured result), its status, and who
+ * asked for it, so that a person can always see what an agent worked on and
+ * what needs their decision.
  */
-import type { ActivityEvent, AgentId, ISODateString } from "@/lib/domain/types";
+import type { ActivityEventType, AgentId, ISODateString, ProposalTarget } from "@/lib/domain/types";
 import type { AgentAction } from "./permissions";
 
 /** A pointer to a record in the shared studio data. Agents never keep their own copy of client context. */
@@ -16,10 +17,11 @@ export type EntityRef =
   | { type: "task"; id: string }
   | { type: "context_field"; clientId: string; key: string }
   | { type: "source"; id: string; label?: string }
+  | { type: "proposal"; id: string }
   | { type: "artifact"; id: string; label?: string; url?: string };
 
 export const AGENT_TASK_TYPES = [
-  "research.brief",
+  "research.intake",
   "research.competitors",
   "design.direction",
   "design.review",
@@ -30,67 +32,88 @@ export const AGENT_TASK_TYPES = [
 ] as const;
 export type AgentTaskType = (typeof AGENT_TASK_TYPES)[number];
 
-export type AgentRunStatus =
-  | "queued"
-  | "running"
+export const AGENT_RUN_STATUSES = [
+  "queued",
+  "running",
   /** Stopped because it lacks information. `blocker` says what. */
-  | "needs_input"
-  /** Produced something that a person must approve before it takes effect. */
-  | "needs_approval"
-  | "succeeded"
-  | "failed"
-  | "cancelled";
+  "needs_input",
+  /** Produced something that a person must review before it takes effect. */
+  "needs_approval",
+  "succeeded",
+  "failed",
+  "cancelled",
+] as const;
+export type AgentRunStatus = (typeof AGENT_RUN_STATUSES)[number];
 
-export interface AgentRunRequest {
-  taskType: AgentTaskType;
-  agentId: AgentId;
-  clientId: string;
-  projectId: string | null;
-  /** The studio task this run belongs to, when there is one. */
-  taskId: string | null;
-  inputs: EntityRef[];
-  /** What triggered the run, for traceability. */
-  trigger: { kind: "manual"; requestedBy: string } | { kind: "event"; eventId: string; eventType: ActivityEvent["eventType"] };
-}
+export type AgentTrigger =
+  | { kind: "manual"; requestedBy: string }
+  | { kind: "event"; eventId: string; eventType: ActivityEventType };
 
 /** A durable record of one attempt. Stored so runs can be audited, retried and explained. */
-export interface AgentRun extends AgentRunRequest {
+export interface AgentRunRecord {
   id: string;
-  /** The same request retried keeps its key, so a retry never duplicates work. */
+  agentId: AgentId;
+  taskType: AgentTaskType;
+  clientId: string;
+  projectId: string | null;
+  taskId: string | null;
+  /** Identical inputs give the same key, so a repeated request reuses the run. */
   idempotencyKey: string;
   attempt: number;
   status: AgentRunStatus;
+  trigger: AgentTrigger;
+  inputs: EntityRef[];
   outputs: EntityRef[];
+  result: IntakeResult | null;
   /** Why the run stopped, in plain language. */
-  blocker?: string;
-  error?: { message: string; retryable: boolean };
-  /** Actions the run wants to take that need a person to approve first. */
-  pendingApprovals: { action: AgentAction; summary: string }[];
-  /** Which implementation ran it, e.g. "anthropic:claude" or "local-script". Never a credential. */
-  runner?: string;
+  blocker: string | null;
+  error: { message: string; retryable: boolean } | null;
+  /** Which implementation ran it, e.g. "anthropic". Never a credential. */
+  runner: string | null;
+  model: string | null;
   createdAt: ISODateString;
-  startedAt?: ISODateString;
-  finishedAt?: ISODateString;
+  startedAt: ISODateString | null;
+  finishedAt: ISODateString | null;
 }
 
-export type AgentRunResult =
-  | { status: "succeeded"; outputs: EntityRef[] }
-  | { status: "needs_input"; blocker: string; outputs?: EntityRef[] }
-  | { status: "needs_approval"; outputs: EntityRef[]; pendingApprovals: AgentRun["pendingApprovals"] }
-  | { status: "failed"; error: { message: string; retryable: boolean } };
+/** Statuses after which a run will not change again. */
+export function isFinished(status: AgentRunStatus): boolean {
+  return status !== "queued" && status !== "running";
+}
+
+/* -------------------------------------------------------------------------- */
+/* Client Intake & Research                                                   */
+/* -------------------------------------------------------------------------- */
 
 /**
- * Implemented once per provider or framework, server-side only. Runners
- * receive references, not secrets, and write results back through the same
- * repository the UI uses, so every agent shares one version of the truth.
+ * What the intake agent produced besides its proposals. Every item is about
+ * the supplied material only: the agent does not browse or research.
  */
-export interface AgentRunner {
-  readonly id: string;
-  canRun(taskType: AgentTaskType): boolean;
-  run(request: AgentRunRequest, signal: AbortSignal): Promise<AgentRunResult>;
+export interface IntakeResult {
+  /** A short, structured brief in plain language. */
+  summary: string;
+  /** Essentials the material does not establish. */
+  missing: { target: ProposalTarget | null; description: string }[];
+  /** Statements that are vague or contradict each other. */
+  ambiguities: { description: string; sourceId: string | null; quote: string | null }[];
+  /** Questions worth asking the client. */
+  questions: string[];
+  /** What the studio could do next. Suggestions, not decisions. */
+  nextSteps: string[];
+  /** The material that was analyzed. */
+  analyzedSources: { id: string; label: string; characters: number }[];
+  /** Proposals dropped because their quoted evidence was not found in the source. */
+  discardedProposals: number;
+  /** Always false for this agent; shown so nobody assumes otherwise. */
+  externalResearch: false;
 }
 
-export function idempotencyKey(request: Pick<AgentRunRequest, "agentId" | "taskType" | "trigger" | "taskId">): string {
-  const origin = request.trigger.kind === "event" ? `event:${request.trigger.eventId}` : `task:${request.taskId ?? "none"}`;
-  return `${request.agentId}:${request.taskType}:${origin}`;
+/** Actions a run wants to take that need a person to approve first. */
+export interface PendingApproval {
+  action: AgentAction;
+  summary: string;
+}
+
+export function intakeIdempotencyKey(clientId: string, inputFingerprint: string): string {
+  return `research.intake:${clientId}:${inputFingerprint}`;
 }

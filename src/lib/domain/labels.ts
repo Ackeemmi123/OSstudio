@@ -5,6 +5,7 @@ import type {
   ClientStatus,
   ContextFieldKey,
   FieldConfidence,
+  ProposalTarget,
   ProjectStage,
   ProjectStatus,
   ProjectType,
@@ -90,8 +91,16 @@ export const CONTEXT_FIELD_LABELS: Record<ContextFieldKey, string> = {
   platform: "Platform",
 };
 
+export const PROPOSAL_TARGET_LABELS: Record<ProposalTarget, string> = {
+  ...CONTEXT_FIELD_LABELS,
+  companyName: "Company name",
+  contactPerson: "Contact person",
+  email: "Email",
+  website: "Website",
+};
+
 export const AGENT_LABELS: Record<AgentId, string> = {
-  research: "Research & strategy agent",
+  research: "Intake & research agent",
   design: "Design agent",
   development: "Development agent",
   qa: "Quality assurance agent",

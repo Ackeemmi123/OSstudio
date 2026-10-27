@@ -103,7 +103,7 @@ function NextUp({ client, snapshot }: { client: Client; snapshot: StudioSnapshot
   if (decisions.length === 0 && actions.length === 0) return null;
 
   const items = [
-    ...decisions.map((d) => ({ id: d.id, href: d.href, title: d.title, tag: d.kind === "approval" ? "Approve" : d.kind === "review" ? "Review" : "Confirm", critical: false })),
+    ...decisions.map((d) => ({ id: d.id, href: d.href, title: d.title, tag: d.kind === "approval" ? "Approve" : d.kind === "proposal" ? "Confirm" : "Review", critical: false })),
     ...actions.map((a) => ({ id: a.id, href: a.href, title: a.title, tag: a.kind === "blocked" ? "Blocked" : null, critical: a.kind === "blocked", detail: a.kind === "blocked" || a.kind === "collect" ? a.detail : undefined })),
   ];
 

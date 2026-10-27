@@ -182,20 +182,29 @@ export function setContextField(
   let next: ContextField;
   let description: string;
 
+  const confirmation = confidence === "confirmed" ? { confirmedBy: deps.actor, confirmedAt: now } : {};
+
   if (value === current.value) {
     // Same value, new confidence (for example, the client confirmed it).
-    next = { ...current, confidence, updatedAt: now };
+    next = { ...current, confidence, ...confirmation, updatedAt: now };
+    if (confidence !== "confirmed") {
+      delete next.confirmedBy;
+      delete next.confirmedAt;
+    }
     description = confidence === "confirmed" ? `Confirmed ${label}` : `Marked ${label} as ${confidence}`;
   } else {
     const history = current.value
       ? [{ value: current.value, confidence: current.confidence, supersededAt: now }, ...(current.history ?? [])]
       : current.history;
+    const note = clean(input.note);
     next = value
       ? {
           value,
           confidence,
-          source: { type: "manual", label: "Edited in Studio OS" },
+          source: input.source ?? { type: "manual", label: "Edited in Studio OS" },
+          ...(note ? { note } : {}),
           recordedBy: deps.actor,
+          ...confirmation,
           updatedAt: now,
           history,
         }

@@ -1,6 +1,7 @@
 /**
- * The agents the studio plans to run. All are "planned": none is connected,
- * and the UI says so. Flip `status` only when a real runner exists.
+ * The agents the studio runs or plans to run. Only Client Intake & Research
+ * has a runner ("available"); the rest are planned and the UI says so. An
+ * available agent still needs a model provider configured on the server.
  */
 import { AGENT_LABELS } from "@/lib/domain/labels";
 import type { ActivityEventType, AgentId } from "@/lib/domain/types";
@@ -14,7 +15,10 @@ export interface AgentDefinition {
   status: "planned" | "available";
   taskTypes: AgentTaskType[];
   allowedActions: AgentAction[];
-  /** Events that will start a run once the agent is connected. */
+  /**
+   * Events that start a run automatically. Empty for every agent for now:
+   * runs start only when a person asks for one.
+   */
   triggers: ActivityEventType[];
 }
 
@@ -24,11 +28,11 @@ export const AGENTS: Record<AgentId, AgentDefinition> = {
   research: {
     id: "research",
     label: AGENT_LABELS.research,
-    purpose: "Turns source material into a structured brief and researches the market, citing every source.",
-    status: "planned",
-    taskTypes: ["research.brief", "research.competitors"],
-    allowedActions: READ_AND_PROPOSE,
-    triggers: ["client.created", "source.received"],
+    purpose: "Reads the source material you add and proposes brief values, each with a quote as evidence, plus open questions. It does not browse or research.",
+    status: "available",
+    taskTypes: ["research.intake"],
+    allowedActions: ["read_context", "propose_context"],
+    triggers: [],
   },
   design: {
     id: "design",

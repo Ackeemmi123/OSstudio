@@ -1,16 +1,22 @@
 import { buildNewClient, DomainError, setContextField, updateClientDetails, type DomainDeps } from "@/lib/domain/clients";
+import { addQuestion, buildSource, reviewProposal } from "@/lib/domain/intake";
 import { buildProject, buildTask, setTaskStatus, updateProject } from "@/lib/domain/projects";
+import type { AgentRunRecord } from "@/lib/agents/contract";
 import type {
   ActivityEvent,
+  AgentProposal,
   Client,
   ClientDetailsInput,
   ContextFieldInput,
   ContextFieldKey,
   NewClientInput,
   NewProjectInput,
+  NewSourceInput,
   NewTaskInput,
   Project,
   ProjectUpdateInput,
+  ProposalDecision,
+  SourceDocument,
   StudioSnapshot,
   Task,
   TaskStatus,
@@ -53,7 +59,7 @@ export class LocalDemoRepository implements StudioRepository {
       actor: options.deps?.actor ?? { kind: "human", name: "You" },
     };
     this.seed = options.seed ?? (() => createSeedSnapshot());
-    this.info = { kind: "local-demo", persistence: options.storage ? "browser" : "memory" };
+    this.info = { kind: "local-demo", persistence: options.storage ? "browser" : "memory", canWrite: true };
   }
 
   async load(): Promise<StudioSnapshot> {
@@ -86,6 +92,39 @@ export class LocalDemoRepository implements StudioRepository {
       const { client, events } = setContextField(find(s.clients, clientId, "client"), key, input, this.deps);
       return [{ ...s, clients: replace(s.clients, client) }, client, events];
     });
+  }
+
+  addQuestion(clientId: string, text: string): Promise<Client> {
+    return this.mutate((s) => {
+      const { client, event } = addQuestion(find(s.clients, clientId, "client"), text, this.deps);
+      return [{ ...s, clients: replace(s.clients, client) }, client, [event]];
+    });
+  }
+
+  addSource(clientId: string, input: NewSourceInput): Promise<SourceDocument> {
+    return this.mutate((s) => {
+      const { source, event } = buildSource(find(s.clients, clientId, "client"), input, this.deps);
+      return [{ ...s, sources: [source, ...s.sources] }, source, [event]];
+    });
+  }
+
+  reviewProposal(proposalId: string, decision: ProposalDecision): Promise<AgentProposal> {
+    return this.mutate((s) => {
+      const proposal = find(s.proposals, proposalId, "proposal");
+      const review = reviewProposal(find(s.clients, proposal.clientId, "client"), proposal, decision, s.sources, this.deps);
+      return [
+        { ...s, clients: replace(s.clients, review.client), proposals: replace(s.proposals, review.proposal) },
+        review.proposal,
+        review.events,
+      ];
+    });
+  }
+
+  async requestIntakeAnalysis(): Promise<AgentRunRecord> {
+    throw new RepositoryError(
+      "Analysis runs on the server and needs a signed-in workspace. The local demo cannot run agents.",
+      "unavailable",
+    );
   }
 
   createProject(clientId: string, input: NewProjectInput): Promise<Project> {
@@ -170,7 +209,7 @@ export class LocalDemoRepository implements StudioRepository {
   }
 }
 
-function validateIdentity(values: ClientIdentityValues) {
+export function validateIdentity(values: ClientIdentityValues) {
   const errors = validateClientIdentity(values);
   if (hasErrors(errors)) throw new RepositoryError(Object.values(errors)[0] ?? "Invalid client.", "validation");
 }

@@ -1,0 +1,301 @@
+import type { SupabaseClient } from "@supabase/supabase-js";
+import type { AgentRunRecord } from "@/lib/agents/contract";
+import { buildNewClient, DomainError, setContextField, updateClientDetails, type DomainDeps } from "@/lib/domain/clients";
+import { addQuestion, buildSource, reviewProposal } from "@/lib/domain/intake";
+import { buildProject, buildTask, setTaskStatus, updateProject } from "@/lib/domain/projects";
+import {
+  CONTEXT_FIELD_KEYS,
+  type ActivityEvent,
+  type AgentProposal,
+  type Client,
+  type ClientDetailsInput,
+  type ContextFieldInput,
+  type ContextFieldKey,
+  type NewClientInput,
+  type NewProjectInput,
+  type NewSourceInput,
+  type NewTaskInput,
+  type Project,
+  type ProjectUpdateInput,
+  type ProposalDecision,
+  type SourceDocument,
+  type StudioSnapshot,
+  type Task,
+  type TaskStatus,
+} from "@/lib/domain/types";
+import { validateIdentity } from "./local-repository";
+import { RepositoryError, type RepositoryInfo, type StudioRepository } from "./repository";
+import { toRepositoryError } from "./supabase-errors";
+import {
+  clientRow,
+  contextFieldRow,
+  contextItemRow,
+  eventRow,
+  projectRow,
+  sourceRow,
+  taskRow,
+  toAgentRun,
+  toSnapshot,
+  type StudioPayload,
+} from "./supabase-rows";
+
+type Row = Record<string, unknown>;
+type Write = { op: "insert"; row: Row } | { op: "update"; row: Row; expected: string };
+
+/** One domain change, applied by the database in a single transaction. */
+interface Changes {
+  clients?: Write[];
+  context_fields?: Write[];
+  context_items?: Write[];
+  sources?: Write[];
+  projects?: Write[];
+  tasks?: Write[];
+  proposals?: { id: string; status: string; review_confidence: string | null; reviewed_by: unknown }[];
+  events: Row[];
+}
+
+export interface SupabaseRepositoryOptions {
+  client: SupabaseClient;
+  studioId: string;
+  user: { id: string; email: string | null };
+  /** Where the server-side agent endpoint lives. */
+  agentEndpoint?: string;
+  fetch?: typeof fetch;
+  createId?: () => string;
+}
+
+/**
+ * Stores the workspace in Supabase. Reads and writes run as the signed-in
+ * user, so row-level security decides what they can see and change; the
+ * database also re-checks the domain rules that matter for integrity.
+ *
+ * Writes reuse the same pure domain functions as the local demo, then send
+ * the resulting rows and activity events to `apply_changes` in one call.
+ */
+export class SupabaseRepository implements StudioRepository {
+  private snapshot: StudioSnapshot | null = null;
+  private current: RepositoryInfo;
+  private readonly client: SupabaseClient;
+  private readonly studioId: string;
+  private readonly user: { id: string; email: string | null };
+  private readonly agentEndpoint: string;
+  private readonly fetchImpl: typeof fetch;
+  private readonly createId: () => string;
+
+  constructor(options: SupabaseRepositoryOptions) {
+    this.client = options.client;
+    this.studioId = options.studioId;
+    this.user = options.user;
+    this.agentEndpoint = options.agentEndpoint ?? "/api/agents/intake";
+    this.fetchImpl = options.fetch ?? ((...args) => fetch(...args));
+    this.createId = options.createId ?? (() => crypto.randomUUID());
+    this.current = {
+      kind: "supabase",
+      persistence: "server",
+      studio: { id: options.studioId, name: "" },
+      role: "viewer",
+      canWrite: false,
+      members: [],
+      user: options.user,
+    };
+  }
+
+  get info(): RepositoryInfo {
+    return this.current;
+  }
+
+  /** Always reads fresh data: other people may have changed it. */
+  async load(): Promise<StudioSnapshot> {
+    const { data, error } = await this.client.rpc("load_studio", { p_studio: this.studioId });
+    if (error) throw toRepositoryError(error);
+    const payload = data as StudioPayload;
+    this.snapshot = toSnapshot(payload);
+    this.current = {
+      kind: "supabase",
+      persistence: "server",
+      studio: payload.studio,
+      role: payload.role,
+      canWrite: payload.role !== "viewer",
+      members: payload.members,
+      user: this.user,
+    };
+    return this.snapshot;
+  }
+
+  createClient(input: NewClientInput): Promise<Client> {
+    return this.write((_, deps) => {
+      validateIdentity(input);
+      const { client, event } = buildNewClient(input, deps);
+      return [
+        client,
+        {
+          clients: [{ op: "insert", row: clientRow(client) }],
+          context_fields: CONTEXT_FIELD_KEYS.map((key) => ({ op: "insert", row: contextFieldRow(client.id, key, client.context[key]) })),
+          events: [eventRow(event)],
+        },
+      ];
+    });
+  }
+
+  updateClient(clientId: string, input: ClientDetailsInput): Promise<Client> {
+    return this.write((s, deps) => {
+      validateIdentity(input);
+      const before = find(s.clients, clientId, "client");
+      const { client, events } = updateClientDetails(before, input, deps);
+      return [client, events.length ? { clients: [update(clientRow(client), before.updatedAt)], events: events.map(eventRow) } : null];
+    });
+  }
+
+  setContextField(clientId: string, key: ContextFieldKey, input: ContextFieldInput): Promise<Client> {
+    return this.write((s, deps) => {
+      const before = find(s.clients, clientId, "client");
+      const { client, events } = setContextField(before, key, input, deps);
+      if (!events.length) return [client, null];
+      return [client, { context_fields: [fieldUpdate(client, key, before.context[key].updatedAt)], events: events.map(eventRow) }];
+    });
+  }
+
+  addQuestion(clientId: string, text: string): Promise<Client> {
+    return this.write((s, deps) => {
+      const { client, item, event } = addQuestion(find(s.clients, clientId, "client"), text, deps);
+      return [client, { context_items: [{ op: "insert", row: contextItemRow(clientId, item) }], events: [eventRow(event)] }];
+    });
+  }
+
+  addSource(clientId: string, input: NewSourceInput): Promise<SourceDocument> {
+    return this.write((s, deps) => {
+      const { source, event } = buildSource(find(s.clients, clientId, "client"), input, deps);
+      return [source, { sources: [{ op: "insert", row: sourceRow(source) }], events: [eventRow(event)] }];
+    });
+  }
+
+  createProject(clientId: string, input: NewProjectInput): Promise<Project> {
+    return this.write((s, deps) => {
+      const { project, event } = buildProject(find(s.clients, clientId, "client"), input, deps);
+      return [project, { projects: [{ op: "insert", row: projectRow(project) }], events: [eventRow(event)] }];
+    });
+  }
+
+  updateProject(projectId: string, input: ProjectUpdateInput): Promise<Project> {
+    return this.write((s, deps) => {
+      const before = find(s.projects, projectId, "project");
+      const { project, events } = updateProject(before, input, deps);
+      return [project, events.length ? { projects: [update(projectRow(project), before.updatedAt)], events: events.map(eventRow) } : null];
+    });
+  }
+
+  createTask(projectId: string, input: NewTaskInput): Promise<Task> {
+    return this.write((s, deps) => {
+      const { task, event } = buildTask(find(s.projects, projectId, "project"), input, deps);
+      return [task, { tasks: [{ op: "insert", row: taskRow(task) }], events: [eventRow(event)] }];
+    });
+  }
+
+  setTaskStatus(taskId: string, status: TaskStatus): Promise<Task> {
+    return this.write((s, deps) => {
+      const before = find(s.tasks, taskId, "task");
+      const { task, events } = setTaskStatus(before, status, deps);
+      return [task, events.length ? { tasks: [update(taskRow(task), before.updatedAt)], events: events.map(eventRow) } : null];
+    });
+  }
+
+  reviewProposal(proposalId: string, decision: ProposalDecision): Promise<AgentProposal> {
+    return this.write((s, deps) => {
+      const proposal = find(s.proposals, proposalId, "proposal");
+      const before = find(s.clients, proposal.clientId, "client");
+      const review = reviewProposal(before, proposal, decision, s.sources, deps);
+      const changes: Changes = {
+        proposals: [
+          { id: proposal.id, status: review.proposal.status, review_confidence: review.proposal.reviewConfidence, reviewed_by: deps.actor },
+        ],
+        events: review.events.map(eventRow),
+      };
+      if (review.changed?.kind === "context") {
+        changes.context_fields = [fieldUpdate(review.client, review.changed.key, before.context[review.changed.key].updatedAt)];
+      } else if (review.changed?.kind === "details") {
+        changes.clients = [update(clientRow(review.client), before.updatedAt)];
+      }
+      return [review.proposal, changes];
+    });
+  }
+
+  async requestIntakeAnalysis(clientId: string, options: { force?: boolean } = {}): Promise<AgentRunRecord> {
+    const { data } = await this.client.auth.getSession();
+    const token = data.session?.access_token;
+    if (!token) throw new RepositoryError("Your session has ended. Sign in again to continue.", "session");
+
+    let response: Response;
+    try {
+      response = await this.fetchImpl(this.agentEndpoint, {
+        method: "POST",
+        headers: { "content-type": "application/json", authorization: `Bearer ${token}` },
+        body: JSON.stringify({ studioId: this.studioId, clientId, force: options.force ?? false }),
+      });
+    } catch {
+      throw new RepositoryError("Studio OS could not reach the server. Check your connection and try again.", "network");
+    }
+    const body = (await response.json().catch(() => null)) as { run?: Record<string, unknown>; error?: string } | null;
+    if (body?.run) return toAgentRun(body.run);
+    const message = body?.error ?? "The analysis could not be started.";
+    const code =
+      response.status === 401 ? "session"
+      : response.status === 403 ? "permission"
+      : response.status === 404 ? "not_found"
+      : response.status === 409 ? "conflict"
+      : response.status === 503 || response.status === 429 ? "unavailable"
+      : "storage";
+    throw new RepositoryError(message, code);
+  }
+
+  async resetDemoData(): Promise<StudioSnapshot> {
+    throw new RepositoryError("Demo data can only be reset in the local demo.", "unavailable");
+  }
+
+  private async write<T>(change: (snapshot: StudioSnapshot, deps: DomainDeps) => [T, Changes | null]): Promise<T> {
+    if (!this.current.canWrite) {
+      throw new RepositoryError("You have read-only access to this studio. Ask an owner for member access.", "permission");
+    }
+    const snapshot = this.snapshot ?? (await this.load());
+    const deps: DomainDeps = { now: () => new Date().toISOString(), createId: this.createId, actor: this.actor() };
+    let value: T;
+    let changes: Changes | null;
+    try {
+      [value, changes] = change(snapshot, deps);
+    } catch (error) {
+      if (error instanceof DomainError) throw new RepositoryError(error.message, "validation");
+      throw error;
+    }
+    if (!changes) return value;
+
+    let failure: unknown;
+    try {
+      const { error } = await this.client.rpc("apply_changes", { p_studio: this.studioId, p_changes: changes });
+      failure = error;
+    } catch (error) {
+      failure = error;
+    }
+    if (failure) throw toRepositoryError(failure);
+    // The next load() replaces this with what the database stored.
+    this.snapshot = null;
+    return value;
+  }
+
+  private actor(): ActivityEvent["actor"] & { kind: "human" } {
+    const member = this.current.kind === "supabase" ? this.current.members.find((m) => m.userId === this.user.id) : undefined;
+    return { kind: "human", name: member?.displayName ?? this.user.email ?? "Studio member", userId: this.user.id };
+  }
+}
+
+function update(row: Row, expected: string): Write {
+  return { op: "update", row, expected };
+}
+
+function fieldUpdate(client: Client, key: ContextFieldKey, expected: string): Write {
+  return update(contextFieldRow(client.id, key, client.context[key]), expected);
+}
+
+function find<T extends { id: string }>(items: T[], id: string, what: string): T {
+  const item = items.find((candidate) => candidate.id === id);
+  if (!item) throw new RepositoryError(`This ${what} no longer exists, or you do not have access to it.`, "not_found");
+  return item;
+}

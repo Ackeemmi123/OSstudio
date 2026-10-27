@@ -6,6 +6,8 @@
  * people or (later) AI agents is never mistaken for a confirmed client fact.
  */
 
+import type { AgentRunRecord } from "@/lib/agents/contract";
+
 export type ISODateString = string;
 
 /* -------------------------------------------------------------------------- */
@@ -20,9 +22,13 @@ export type ISODateString = string;
 export const AGENT_IDS = ["research", "design", "development", "qa", "sales", "coordination"] as const;
 export type AgentId = (typeof AGENT_IDS)[number];
 
-/** Who did something. Agents are never treated as an authorized human. */
+/**
+ * Who did something. Agents are never treated as an authorized human.
+ * `userId` is the signed-in account (absent in the local demo); `imported`
+ * marks history brought over from the browser demo.
+ */
 export type Actor =
-  | { kind: "human"; name: string }
+  | { kind: "human"; name: string; userId?: string; imported?: boolean }
   | { kind: "agent"; agentId: AgentId }
   | { kind: "system" };
 
@@ -68,8 +74,11 @@ export interface ContextField {
   source?: SourceReference;
   /** Why this value is believed, or what still needs checking. */
   note?: string;
-  /** Who recorded the current value. Agent-recorded values can never be "confirmed". */
+  /** Who recorded the current value. */
   recordedBy?: Actor;
+  /** The person who confirmed the current value. Always a person, never an agent. */
+  confirmedBy?: Actor;
+  confirmedAt?: ISODateString;
   updatedAt: ISODateString;
   /** Earlier values that were replaced, newest first. */
   history?: SupersededValue[];
@@ -241,7 +250,12 @@ export type ActivityEventType =
   | "task.status_changed"
   | "task.completed"
   | "decision.approved"
-  | "note.added";
+  | "note.added"
+  | "agent.run_started"
+  | "agent.run_completed"
+  | "agent.run_failed"
+  | "agent.proposal_accepted"
+  | "agent.proposal_dismissed";
 
 export interface ActivityEvent {
   id: string;
@@ -287,6 +301,15 @@ export interface ClientDetailsInput {
 export interface ContextFieldInput {
   value: string;
   confidence: Exclude<FieldConfidence, "superseded" | "unknown">;
+  /** Where the value came from. Defaults to "Edited in Studio OS". */
+  source?: SourceReference;
+  note?: string;
+}
+
+export interface NewSourceInput {
+  type: SourceType;
+  label: string;
+  content: string;
 }
 
 export interface NewProjectInput {
@@ -303,9 +326,71 @@ export interface NewTaskInput {
   title: string;
 }
 
+/* -------------------------------------------------------------------------- */
+/* Source material                                                            */
+/* -------------------------------------------------------------------------- */
+
+export const SOURCE_CONTENT_MAX_LENGTH = 50_000;
+
+/** Material a person supplied about a client: an email, call notes, a brief. */
+export interface SourceDocument {
+  id: string;
+  clientId: string;
+  type: SourceType;
+  label: string;
+  content: string;
+  receivedAt: ISODateString;
+  addedBy?: Actor;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Agent runs and proposals                                                   */
+/* -------------------------------------------------------------------------- */
+
+/** What an agent may propose a value for: a brief value or a client detail. */
+export const PROPOSAL_TARGETS = [
+  ...CONTEXT_FIELD_KEYS,
+  "companyName",
+  "contactPerson",
+  "email",
+  "website",
+] as const;
+export type ProposalTarget = (typeof PROPOSAL_TARGETS)[number];
+
+export interface Evidence {
+  sourceId: string;
+  sourceLabel: string;
+  /** Text quoted verbatim from the source, checked before the proposal is stored. */
+  quote: string;
+}
+
+export type ProposalStatus = "pending" | "accepted" | "dismissed" | "superseded";
+
+/** A value an agent found in source material. Nothing changes until a person accepts it. */
+export interface AgentProposal {
+  id: string;
+  runId: string;
+  clientId: string;
+  target: ProposalTarget;
+  value: string;
+  evidence: Evidence[];
+  /** Why the value may need checking. */
+  note: string | null;
+  status: ProposalStatus;
+  reviewConfidence: "observed" | "confirmed" | null;
+  reviewedBy: Actor | null;
+  reviewedAt: ISODateString | null;
+  createdAt: ISODateString;
+}
+
+export type ProposalDecision = { action: "accept"; confidence: "observed" | "confirmed" } | { action: "dismiss" };
+
 export interface StudioSnapshot {
   clients: Client[];
   projects: Project[];
   tasks: Task[];
   activity: ActivityEvent[];
+  sources: SourceDocument[];
+  agentRuns: AgentRunRecord[];
+  proposals: AgentProposal[];
 }

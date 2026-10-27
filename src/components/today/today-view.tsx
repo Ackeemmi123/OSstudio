@@ -137,11 +137,12 @@ function Workspace({ snapshot }: { snapshot: StudioSnapshot }) {
 const DECISION_LABEL: Record<DecisionKind, string> = {
   approval: "Approve",
   review: "Review",
+  analysis: "Review",
   proposal: "Confirm",
 };
 
 function DecisionIcon({ kind }: { kind: DecisionKind }) {
-  const Icon = kind === "proposal" ? FileQuestion : Check;
+  const Icon = kind === "proposal" ? FileQuestion : kind === "analysis" ? Sparkles : Check;
   return <Icon aria-hidden strokeWidth={1.75} className="size-4 text-caution" />;
 }
 
