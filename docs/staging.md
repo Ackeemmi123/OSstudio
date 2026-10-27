@@ -115,10 +115,16 @@ STAGING_SMOKE=1 STAGING_APP_URL=https://<staging app> npm run staging:smoke
 material, and deletes nothing. It needs the project URL and anon key, plus one
 of two ways to get people:
 
-- **Existing test accounts (recommended)**: create three accounts in the
-  staging project (Authentication → Users → Add user, auto confirm) and set
+- **Existing test accounts (recommended)**: create three different accounts
+  in the staging project (Authentication → Users → Add user, auto confirm).
+  They need no Studio OS role: on each run the owner account creates a new
+  "Smoke test" studio (becoming its owner) and adds the viewer account as a
+  viewer, and the outsider account is never added. Set
   `STAGING_SMOKE_OWNER_EMAIL`, `STAGING_SMOKE_VIEWER_EMAIL`,
-  `STAGING_SMOKE_OUTSIDER_EMAIL` and `STAGING_SMOKE_PASSWORD`. These can only
+  `STAGING_SMOKE_OUTSIDER_EMAIL`, and either one shared
+  `STAGING_SMOKE_PASSWORD` or `STAGING_SMOKE_OWNER_PASSWORD`,
+  `STAGING_SMOKE_VIEWER_PASSWORD` and `STAGING_SMOKE_OUTSIDER_PASSWORD` (each
+  falls back to the shared one). These can only
   act as those test users, under row-level security, so they are safe to keep
   where the service role key is not (for example a Claude Code cloud
   environment, whose environment variables are readable by anyone who uses it).
@@ -128,7 +134,8 @@ of two ways to get people:
 
 It checks, against the real services:
 
-1. Sign-in, creating a studio and adding a viewer.
+1. Sign-in for all three, creating a studio (the owner gets the owner role)
+   and adding the viewer (who gets the viewer role).
 2. Creating a client and source material through the app's repository, and
    reading them back.
 3. Privacy: signed out and outside the studio, nothing is visible; the viewer

@@ -8,7 +8,14 @@ export declare function stagingEnv(env?: Record<string, string | undefined>): {
   anthropicKey?: string;
   model: string;
   appUrl?: string;
-  smokeAccounts: { owner?: string; viewer?: string; outsider?: string; password?: string };
+  smokeAccounts: {
+    owner?: string;
+    viewer?: string;
+    outsider?: string;
+    ownerPassword?: string;
+    viewerPassword?: string;
+    outsiderPassword?: string;
+  };
 };
 export declare function keyKind(key: string | undefined): string;
 export declare function isLocalUrl(url: string | undefined): boolean;

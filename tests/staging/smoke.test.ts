@@ -11,7 +11,9 @@ import { isLocalUrl, stagingEnv } from "../../scripts/staging-env.mjs";
  * It writes to the project: one studio named "Smoke test …" and one client,
  * plus, when it has the service role key, three throwaway accounts
  * (staging-smoke+…@example.com). Without that key it signs in to three
- * existing test accounts instead (STAGING_SMOKE_*_EMAIL, STAGING_SMOKE_PASSWORD).
+ * existing test accounts instead (STAGING_SMOKE_*_EMAIL and their passwords),
+ * which need no Studio OS role: the owner account creates the studio and
+ * adds the viewer itself, and the outsider is never added.
  * It deletes nothing. Run it only against a dedicated staging project:
  * `npm run staging:smoke`.
  */
@@ -46,7 +48,7 @@ const admin = () => createClient(config.url!, config.serviceKey!, options);
 /** A new throwaway account (with the service role key), or an existing test account. */
 async function person(role: "owner" | "viewer" | "outsider"): Promise<Person> {
   let email = accounts[role];
-  let secret = accounts.password;
+  let secret = accounts[`${role}Password`];
   if (config.serviceKey) {
     email = `staging-smoke+${run}-${role}@example.com`;
     secret = password;
@@ -74,18 +76,26 @@ describe(`staging smoke ${run}`, () => {
   beforeAll(() => {
     if (process.env.STAGING_SMOKE !== "1") throw new Error("Set STAGING_SMOKE=1 to confirm this may write test data to the staging project.");
     if (!config.url || !config.anonKey) throw new Error("STAGING_SUPABASE_URL and STAGING_SUPABASE_ANON_KEY must be set. See docs/staging.md.");
-    if (!config.serviceKey && !(accounts.owner && accounts.viewer && accounts.outsider && accounts.password)) {
-      throw new Error("Set STAGING_SUPABASE_SERVICE_ROLE_KEY, or the three STAGING_SMOKE_*_EMAIL test accounts and STAGING_SMOKE_PASSWORD. See docs/staging.md.");
+    if (!config.serviceKey) {
+      const { owner, viewer, outsider, ownerPassword, viewerPassword, outsiderPassword } = accounts;
+      if (!(owner && viewer && outsider && ownerPassword && viewerPassword && outsiderPassword)) {
+        throw new Error("Set STAGING_SUPABASE_SERVICE_ROLE_KEY, or the three STAGING_SMOKE_*_EMAIL test accounts and their passwords. See docs/staging.md.");
+      }
+      if (new Set([owner, viewer, outsider].map((email) => email.toLowerCase())).size < 3) {
+        throw new Error("The owner, viewer and outsider test accounts must be three different accounts.");
+      }
     }
   });
 
-  it("creates throwaway accounts and a studio", async () => {
+  it("signs in the owner, viewer and outsider, and the owner creates a studio and adds the viewer", async () => {
     [owner, viewer, outsider] = await Promise.all([person("owner"), person("viewer"), person("outsider")]);
     const created = await owner.client.rpc("create_studio", { p_name: `Smoke test ${run}`, p_display_name: "Smoke owner" });
     expect(created.error).toBeNull();
     studioId = created.data as string;
+    expect((await owner.client.rpc("load_studio", { p_studio: studioId })).data).toMatchObject({ role: "owner" });
     const added = await owner.client.rpc("add_studio_member", { p_studio: studioId, p_email: viewer.email, p_display_name: "Smoke viewer", p_role: "viewer" });
     expect(added.error).toBeNull();
+    expect((await viewer.client.rpc("load_studio", { p_studio: studioId })).data).toMatchObject({ role: "viewer" });
   });
 
   it("stores a client and its source material through the app's repository", async () => {

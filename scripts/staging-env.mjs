@@ -15,6 +15,9 @@
  *   STAGING_SMOKE_OWNER_EMAIL, STAGING_SMOKE_VIEWER_EMAIL, STAGING_SMOKE_OUTSIDER_EMAIL,
  *   STAGING_SMOKE_PASSWORD            (optional: existing test accounts for the smoke
  *                                      test, used instead of the service role key)
+ *   STAGING_SMOKE_OWNER_PASSWORD, …_VIEWER_PASSWORD, …_OUTSIDER_PASSWORD
+ *                                     (optional: one password per account; each falls
+ *                                      back to STAGING_SMOKE_PASSWORD)
  */
 export const ANTHROPIC_API_URL = "https://api.anthropic.com";
 export const DEFAULT_MODEL = "claude-opus-5-5";
@@ -39,7 +42,9 @@ export function stagingEnv(env = process.env) {
       owner: pick("STAGING_SMOKE_OWNER_EMAIL"),
       viewer: pick("STAGING_SMOKE_VIEWER_EMAIL"),
       outsider: pick("STAGING_SMOKE_OUTSIDER_EMAIL"),
-      password: pick("STAGING_SMOKE_PASSWORD"),
+      ownerPassword: pick("STAGING_SMOKE_OWNER_PASSWORD", "STAGING_SMOKE_PASSWORD"),
+      viewerPassword: pick("STAGING_SMOKE_VIEWER_PASSWORD", "STAGING_SMOKE_PASSWORD"),
+      outsiderPassword: pick("STAGING_SMOKE_OUTSIDER_PASSWORD", "STAGING_SMOKE_PASSWORD"),
     },
   };
 }
