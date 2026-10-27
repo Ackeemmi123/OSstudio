@@ -3,25 +3,26 @@ import type { ComponentProps } from "react";
 import { cn } from "@/lib/cn";
 
 type Variant = "primary" | "secondary" | "ghost";
-type Size = "sm" | "md";
+type Size = "xs" | "sm" | "md";
 
 const VARIANTS: Record<Variant, string> = {
   primary:
-    "bg-ink text-canvas hover:bg-ink/88 active:bg-ink border border-ink disabled:bg-ink/50 disabled:border-transparent",
+    "bg-primary text-on-primary border border-primary hover:bg-primary-hover hover:border-primary-hover disabled:opacity-50",
   secondary:
-    "bg-surface text-ink border border-line-strong hover:bg-surface-muted hover:border-ink-subtle/50 disabled:text-ink-subtle",
-  ghost: "text-ink-muted hover:text-ink hover:bg-sunken/70 border border-transparent disabled:text-ink-subtle",
+    "bg-surface text-ink border border-line-strong hover:border-ink-subtle/60 hover:bg-surface-muted disabled:text-ink-subtle",
+  ghost: "text-ink-muted hover:text-ink hover:bg-sunken border border-transparent disabled:text-ink-subtle",
 };
 
 const SIZES: Record<Size, string> = {
-  sm: "h-8 px-2.5 text-[13px] gap-1.5",
-  md: "h-9 px-3.5 text-sm gap-2",
+  xs: "h-7 px-2 text-[12.5px] gap-1 [&_svg]:size-3.5",
+  sm: "h-8 px-2.5 text-[13px] gap-1.5 [&_svg]:size-4",
+  md: "h-9 px-3.5 text-sm gap-2 [&_svg]:size-4",
 };
 
 export function buttonClasses(variant: Variant = "secondary", size: Size = "md", className?: string) {
   return cn(
     "inline-flex shrink-0 items-center justify-center rounded-[var(--radius-control)] font-medium whitespace-nowrap",
-    "transition-colors duration-150 disabled:cursor-not-allowed [&_svg]:size-4 [&_svg]:shrink-0",
+    "transition-colors duration-150 disabled:cursor-not-allowed [&_svg]:shrink-0",
     VARIANTS[variant],
     SIZES[size],
     className,
@@ -60,7 +61,7 @@ export function IconButton({
       title={label}
       className={cn(
         "inline-flex size-8 items-center justify-center rounded-[var(--radius-control)] text-ink-muted",
-        "transition-colors hover:bg-sunken/70 hover:text-ink [&_svg]:size-[17px]",
+        "transition-colors hover:bg-sunken hover:text-ink [&_svg]:size-[17px]",
         className,
       )}
       {...props}

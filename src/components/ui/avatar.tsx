@@ -5,13 +5,13 @@ export function Avatar({ name, size = "md", className }: { name: string; size?: 
   const sizes = {
     sm: "size-7 text-[11px]",
     md: "size-9 text-xs",
-    lg: "size-14 text-base",
+    lg: "size-12 text-[15px]",
   };
   return (
     <span
       aria-hidden
       className={cn(
-        "inline-flex shrink-0 items-center justify-center rounded-full border border-line-strong bg-accent-soft font-medium tracking-wide text-accent-strong",
+        "inline-flex shrink-0 items-center justify-center rounded-full bg-sunken font-medium tracking-wide text-ink-muted",
         sizes[size],
         className,
       )}

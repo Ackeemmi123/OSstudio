@@ -1,4 +1,4 @@
-import type { Client, ClientUpdateInput, NewClientInput, StudioSnapshot } from "@/lib/domain/types";
+import type { StudioSnapshot } from "@/lib/domain/types";
 import type { RepositoryInfo, StudioRepository } from "./repository";
 
 export type StudioState =
@@ -10,8 +10,8 @@ const LOADING: StudioState = { status: "loading" };
 
 /**
  * A small external store that exposes repository data to React via
- * `useSyncExternalStore`. Components read snapshots; writes go through the
- * repository and then refresh the snapshot.
+ * `useSyncExternalStore`. Components read snapshots; every write goes
+ * through the repository and then refreshes the snapshot.
  */
 export class StudioStore {
   private state: StudioState = LOADING;
@@ -38,21 +38,11 @@ export class StudioStore {
     return this.loading;
   }
 
-  async createClient(input: NewClientInput): Promise<Client> {
-    const client = await this.repo().createClient(input);
+  /** Runs a write against the repository, then publishes the new snapshot. */
+  async run<T>(write: (repository: StudioRepository) => Promise<T>): Promise<T> {
+    const result = await write(this.repo());
     await this.refresh();
-    return client;
-  }
-
-  async updateClient(clientId: string, input: ClientUpdateInput): Promise<Client> {
-    const client = await this.repo().updateClient(clientId, input);
-    await this.refresh();
-    return client;
-  }
-
-  async resetDemoData(): Promise<void> {
-    await this.repo().resetDemoData();
-    await this.refresh();
+    return result;
   }
 
   private repo(): StudioRepository {

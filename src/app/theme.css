@@ -1,0 +1,68 @@
+/*
+ * Studio OS design tokens: the only place colors, type and radii are defined.
+ *
+ * ┌──────────────────────────────────────────────────────────────────────────┐
+ * │ PROVISIONAL. These are NOT Axivo's official brand values.                │
+ * │ No Axivo logo, palette or typeface was available in the repository or    │
+ * │ project files. The palette below is a neutral placeholder chosen to be   │
+ * │ easy to replace. See docs/brand.md for what is missing and how to swap.  │
+ * └──────────────────────────────────────────────────────────────────────────┘
+ *
+ * Layer 1, brand primitives: replace these with Axivo's values.
+ * Layer 2, semantic tokens: what components use. Usually left alone.
+ */
+
+:root {
+  /* Layer 1: brand primitives (provisional) ------------------------------- */
+  --brand-primary: #111317; /* Axivo primary: MISSING. Neutral near-black placeholder. */
+  --brand-primary-hover: #2a2d33;
+  --brand-on-primary: #ffffff;
+  --brand-accent: #111317; /* Axivo accent: MISSING. Kept equal to primary until known. */
+  --brand-accent-tint: #eef0f3;
+  --brand-neutral-0: #ffffff;
+  --brand-neutral-50: #f6f7f8;
+  --brand-neutral-100: #eef0f2;
+  --brand-neutral-200: #e3e5e9;
+  --brand-neutral-300: #cdd1d7;
+  --brand-neutral-500: #6a6f78;
+  --brand-neutral-700: #464a52;
+  --brand-neutral-900: #111317;
+  --brand-font: var(--font-geist-sans); /* Axivo typeface: MISSING. Geist as placeholder. */
+}
+
+@theme {
+  /* Layer 2: semantic tokens --------------------------------------------- */
+  --color-canvas: var(--brand-neutral-50);
+  --color-surface: var(--brand-neutral-0);
+  --color-surface-muted: #fafbfb;
+  --color-sunken: var(--brand-neutral-100);
+
+  --color-ink: var(--brand-neutral-900);
+  --color-ink-muted: var(--brand-neutral-700);
+  --color-ink-subtle: var(--brand-neutral-500);
+
+  --color-line: var(--brand-neutral-200);
+  --color-line-strong: var(--brand-neutral-300);
+
+  --color-primary: var(--brand-primary);
+  --color-primary-hover: var(--brand-primary-hover);
+  --color-on-primary: var(--brand-on-primary);
+  --color-accent: var(--brand-accent);
+  --color-accent-soft: var(--brand-accent-tint);
+  --color-focus: var(--brand-accent);
+
+  /* Status hues: functional, not brand. Used for small dots, icons and text. */
+  --color-positive: #23794a;
+  --color-caution: #9a5b00;
+  --color-critical: #b4271b;
+  --color-info: #2f5d9a;
+  --color-neutral: #868b94;
+
+  --font-sans: var(--brand-font), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+
+  --radius-control: 7px;
+  --radius-surface: 12px;
+
+  --shadow-overlay: 0 1px 2px rgb(17 19 23 / 0.05), 0 16px 40px -12px rgb(17 19 23 / 0.22);
+}

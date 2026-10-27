@@ -6,7 +6,7 @@ import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { useStudio } from "@/components/providers/studio-provider";
 import { cn } from "@/lib/cn";
 import { getClientRows, matchesClientQuery } from "@/lib/domain/insights";
-import { CLIENT_STATUS_LABELS, PROJECT_STAGE_LABELS } from "@/lib/domain/labels";
+import { PROJECT_STAGE_LABELS } from "@/lib/domain/labels";
 
 interface Result {
   id: string;
@@ -37,7 +37,7 @@ export function SearchDialog({ open, onClose }: { open: boolean; onClose: () => 
       onClick={(event) => {
         if (event.target === event.currentTarget) onClose();
       }}
-      className="mx-auto mt-[12vh] w-[calc(100vw-2rem)] max-w-lg overflow-hidden rounded-[12px] border border-line bg-surface p-0 text-ink shadow-[var(--shadow-overlay)]"
+      className="mx-auto mt-[12vh] w-[calc(100vw-2rem)] max-w-lg overflow-hidden rounded-[var(--radius-surface)] border border-line bg-surface p-0 text-ink shadow-[var(--shadow-overlay)]"
     >
       {open ? <SearchPanel onClose={onClose} /> : null}
     </dialog>
@@ -59,8 +59,8 @@ function SearchPanel({ onClose }: { onClose: () => void }) {
       id: row.client.id,
       kind: "client",
       title: row.client.name,
-      subtitle: [CLIENT_STATUS_LABELS[row.client.status], row.client.contactPerson].filter(Boolean).join(" · "),
-      href: `/clients/${row.client.id}`,
+      subtitle: row.situation,
+      href: `/clients/${encodeURIComponent(row.client.id)}`,
     }));
     const clientNames = new Map(state.snapshot.clients.map((c) => [c.id, c.name]));
     const projects: Result[] = q
@@ -72,7 +72,7 @@ function SearchPanel({ onClose }: { onClose: () => void }) {
             kind: "project",
             title: project.name,
             subtitle: `${clientNames.get(project.clientId) ?? "Unknown client"} · ${PROJECT_STAGE_LABELS[project.stage]}`,
-            href: `/clients/${project.clientId}?tab=workflow`,
+            href: `/clients/${encodeURIComponent(project.clientId)}#project-${project.id}`,
           }))
       : [];
     return [...clients, ...projects];
@@ -97,7 +97,7 @@ function SearchPanel({ onClose }: { onClose: () => void }) {
           aria-controls={listId}
           aria-activedescendant={results[safeIndex] ? `${listId}-${safeIndex}` : undefined}
           aria-label="Search clients and projects"
-          placeholder="Search clients and projects"
+          placeholder="Find a client or project"
           value={query}
           onChange={(event) => {
             setQuery(event.target.value);
@@ -137,8 +137,8 @@ function SearchPanel({ onClose }: { onClose: () => void }) {
                 onMouseMove={() => setActiveIndex(index)}
                 onClick={() => go(result)}
                 className={cn(
-                  "flex cursor-pointer items-center gap-3 rounded-[6px] px-3 py-2",
-                  index === safeIndex ? "bg-sunken/70" : "",
+                  "flex cursor-pointer items-center gap-3 rounded-[var(--radius-control)] px-3 py-2",
+                  index === safeIndex ? "bg-sunken" : "",
                 )}
               >
                 <Icon aria-hidden strokeWidth={1.75} className="size-4 shrink-0 text-ink-subtle" />
