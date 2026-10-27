@@ -10,6 +10,7 @@ import { Button, ButtonLink } from "@/components/ui/button";
 import { EmptyState, Section, Skeleton, Surface } from "@/components/ui/surface";
 import { cn } from "@/lib/cn";
 import { getDecisions, getNextActions } from "@/lib/domain/insights";
+import { findOnboarding } from "@/lib/domain/onboarding";
 import type { Client, StudioSnapshot } from "@/lib/domain/types";
 import { BriefSection } from "./brief-section";
 import { ClientAside, ExternalLink } from "./client-aside";
@@ -81,7 +82,7 @@ function Workspace({ client, snapshot }: { client: Client; snapshot: StudioSnaps
         <div className="flex min-w-0 flex-col gap-12">
           <NextUp client={client} snapshot={snapshot} />
           <ProjectsSection client={client} snapshot={snapshot} />
-          <BriefSection client={client} />
+          <BriefSection client={client} onboarding={findOnboarding(snapshot.onboardings, client.id)} />
         </div>
         <ClientAside client={client} snapshot={snapshot} />
       </div>
@@ -99,7 +100,12 @@ function Detail({ value, missing }: { value: string | null; missing: string }) {
 function NextUp({ client, snapshot }: { client: Client; snapshot: StudioSnapshot }) {
   const decisions = getDecisions(snapshot).filter((item) => item.clientId === client.id);
   // Routine tasks are listed under Projects; only surface what is stuck or missing.
-  const actions = getNextActions(snapshot, client.id).filter((action) => action.kind !== "task");
+  // The brief already shows onboarding in progress, with its own Continue button.
+  const onboarding = findOnboarding(snapshot.onboardings, client.id);
+  const onboardingOpen = onboarding && onboarding.status !== "ready_for_review";
+  const actions = getNextActions(snapshot, client.id).filter(
+    (action) => action.kind !== "task" && !(action.kind === "collect" && onboardingOpen),
+  );
   if (decisions.length === 0 && actions.length === 0) return null;
 
   const items = [
@@ -112,7 +118,7 @@ function NextUp({ client, snapshot }: { client: Client; snapshot: StudioSnapshot
       <ul className="flex flex-col gap-2">
         {items.map((item) => (
           <li key={item.id}>
-            <a href={item.href.slice(item.href.indexOf("#"))} className="group flex items-start gap-3 rounded-[var(--radius-control)] border border-line bg-surface px-4 py-3 transition-colors hover:border-line-strong">
+            <a href={item.href.includes("#") ? item.href.slice(item.href.indexOf("#")) : item.href} className="group flex items-start gap-3 rounded-[var(--radius-control)] border border-line bg-surface px-4 py-3 transition-colors hover:border-line-strong">
               {item.critical ? (
                 <CircleSlash aria-hidden strokeWidth={1.75} className="mt-0.5 size-4 shrink-0 text-critical" />
               ) : (

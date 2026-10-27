@@ -2,6 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { AgentRunRecord } from "@/lib/agents/contract";
 import { buildNewClient, DomainError, setContextField, updateClientDetails, type DomainDeps } from "@/lib/domain/clients";
 import { addContextItem, buildSource, reviewProposal } from "@/lib/domain/intake";
+import { buildOnboarding, completeOnboarding, findOnboarding, saveOnboardingStep } from "@/lib/domain/onboarding";
 import { buildProject, buildTask, setTaskStatus, updateProject } from "@/lib/domain/projects";
 import {
   CONTEXT_FIELD_KEYS,
@@ -16,6 +17,8 @@ import {
   type NewProjectInput,
   type NewSourceInput,
   type NewTaskInput,
+  type Onboarding,
+  type OnboardingStepInput,
   type Project,
   type ProjectUpdateInput,
   type ProposalDecision,
@@ -32,6 +35,7 @@ import {
   contextFieldRow,
   contextItemRow,
   eventRow,
+  onboardingRow,
   projectRow,
   sourceRow,
   taskRow,
@@ -107,9 +111,13 @@ export class SupabaseRepository implements StudioRepository {
 
   /** Always reads fresh data: other people may have changed it. */
   async load(): Promise<StudioSnapshot> {
-    const { data, error } = await this.client.rpc("load_studio", { p_studio: this.studioId });
-    if (error) throw toRepositoryError(error);
-    const payload = data as StudioPayload;
+    const [studio, onboardings] = await Promise.all([
+      this.client.rpc("load_studio", { p_studio: this.studioId }),
+      this.client.from("client_onboardings").select("*").eq("studio_id", this.studioId),
+    ]);
+    if (studio.error) throw toRepositoryError(studio.error);
+    if (onboardings.error) throw toRepositoryError(onboardings.error);
+    const payload = { ...(studio.data as StudioPayload), onboardings: onboardings.data as Record<string, unknown>[] };
     this.snapshot = toSnapshot(payload);
     this.current = {
       kind: "supabase",
@@ -167,6 +175,53 @@ export class SupabaseRepository implements StudioRepository {
     return this.write((s, deps) => {
       const { source, event } = buildSource(find(s.clients, clientId, "client"), input, deps);
       return [source, { sources: [{ op: "insert", row: sourceRow(source) }], events: [eventRow(event)] }];
+    });
+  }
+
+  async startOnboarding(clientId: string): Promise<Onboarding> {
+    try {
+      return await this.write((s, deps) => {
+        const client = find(s.clients, clientId, "client");
+        const existing = findOnboarding(s.onboardings, client.id);
+        if (existing) return [existing, null];
+        const { onboarding, event } = buildOnboarding(client, deps);
+        return [onboarding, { events: [eventRow(event)] }, { op: "insert", row: onboardingRow(onboarding) }];
+      });
+    } catch (error) {
+      // Started at the same moment elsewhere (a double click, another tab): use that one.
+      if (error instanceof RepositoryError && error.code === "conflict") {
+        const existing = findOnboarding((await this.load()).onboardings, clientId);
+        if (existing) return existing;
+      }
+      throw error;
+    }
+  }
+
+  saveOnboardingStep(onboardingId: string, input: OnboardingStepInput): Promise<Onboarding> {
+    return this.write((s, deps) => {
+      const before = find(s.onboardings, onboardingId, "onboarding");
+      const client = find(s.clients, before.clientId, "client");
+      const save = saveOnboardingStep(client, before, input, deps);
+      const changes: Changes = { events: save.events.map(eventRow) };
+      if (save.detailsChanged) changes.clients = [update(clientRow(save.client), client.updatedAt)];
+      if (save.changedFields.length) {
+        changes.context_fields = save.changedFields.map((key) => fieldUpdate(save.client, key, client.context[key].updatedAt));
+      }
+      if (save.addedItems.length) {
+        changes.context_items = save.addedItems.map((item) => ({ op: "insert" as const, row: contextItemRow(client.id, item) }));
+      }
+      const hasChanges = Boolean(save.events.length || save.changedFields.length || save.addedItems.length);
+      const progress = save.onboardingChanged ? update(onboardingRow(save.onboarding), before.updatedAt) : undefined;
+      return [save.onboarding, hasChanges ? changes : null, progress];
+    });
+  }
+
+  completeOnboarding(onboardingId: string): Promise<Onboarding> {
+    return this.write((s, deps) => {
+      const before = find(s.onboardings, onboardingId, "onboarding");
+      const { onboarding, events } = completeOnboarding(find(s.clients, before.clientId, "client"), before, deps);
+      if (!events.length) return [onboarding, null];
+      return [onboarding, { events: events.map(eventRow) }, update(onboardingRow(onboarding), before.updatedAt)];
     });
   }
 
@@ -252,7 +307,13 @@ export class SupabaseRepository implements StudioRepository {
     throw new RepositoryError("Demo data can only be reset in the local demo.", "unavailable");
   }
 
-  private async write<T>(change: (snapshot: StudioSnapshot, deps: DomainDeps) => [T, Changes | null]): Promise<T> {
+  /**
+   * Applies one domain change. When it also touches onboarding progress, the
+   * onboarding row is written in the same transaction.
+   */
+  private async write<T>(
+    change: (snapshot: StudioSnapshot, deps: DomainDeps) => [T, Changes | null, Write?],
+  ): Promise<T> {
     if (!this.current.canWrite) {
       throw new RepositoryError("You have read-only access to this studio. Ask an owner for member access.", "permission");
     }
@@ -260,17 +321,20 @@ export class SupabaseRepository implements StudioRepository {
     const deps: DomainDeps = { now: () => new Date().toISOString(), createId: this.createId, actor: this.actor() };
     let value: T;
     let changes: Changes | null;
+    let onboarding: Write | undefined;
     try {
-      [value, changes] = change(snapshot, deps);
+      [value, changes, onboarding] = change(snapshot, deps);
     } catch (error) {
       if (error instanceof DomainError) throw new RepositoryError(error.message, "validation");
       throw error;
     }
-    if (!changes) return value;
+    if (!changes && !onboarding) return value;
 
     let failure: unknown;
     try {
-      const { error } = await this.client.rpc("apply_changes", { p_studio: this.studioId, p_changes: changes });
+      const { error } = onboarding
+        ? await this.client.rpc("apply_onboarding_changes", { p_studio: this.studioId, p_changes: changes ?? { events: [] }, p_onboarding: onboarding })
+        : await this.client.rpc("apply_changes", { p_studio: this.studioId, p_changes: changes });
       failure = error;
     } catch (error) {
       failure = error;

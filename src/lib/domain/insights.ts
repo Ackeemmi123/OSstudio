@@ -4,7 +4,7 @@
  */
 import { formatContextValue } from "@/lib/format";
 import { getMissingEssentials } from "./clients";
-import { actorLabel, CLIENT_STATUS_LABELS, CONFIDENCE_LABELS, CONTEXT_FIELD_LABELS, PROJECT_STAGE_LABELS } from "./labels";
+import { actorLabel, CLIENT_STATUS_LABELS, CONFIDENCE_LABELS, CONTEXT_FIELD_LABELS, ONBOARDING_STEP_LABELS, PROJECT_STAGE_LABELS } from "./labels";
 import {
   CONTEXT_FIELD_KEYS,
   type ActivityEvent,
@@ -276,8 +276,18 @@ export function getNextActions(snapshot: StudioSnapshot, clientId?: string): Nex
 
     if (running.length === 0 && client.status !== "on_hold" && client.status !== "archived") {
       const missing = getMissingEssentials(client);
+      const onboarding = snapshot.onboardings.find((o) => o.clientId === client.id && o.projectId === null);
       actions.push(
-        missing.length > 0
+        onboarding && onboarding.status !== "ready_for_review"
+          ? {
+              id: `collect-${client.id}`,
+              kind: "collect",
+              title: `Continue onboarding for ${client.name}`,
+              detail: `Saved at ${ONBOARDING_STEP_LABELS[onboarding.currentStep].toLowerCase()}`,
+              clientId: client.id,
+              href: `/clients/${encodeURIComponent(client.id)}/onboarding`,
+            }
+          : missing.length > 0
           ? {
               id: `collect-${client.id}`,
               kind: "collect",

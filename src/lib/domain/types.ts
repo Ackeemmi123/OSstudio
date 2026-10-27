@@ -84,13 +84,35 @@ export interface ContextField {
   history?: SupersededValue[];
 }
 
+/**
+ * Every structured fact the brief can hold. Labels, grouping, onboarding
+ * questions and when each one applies live in `brief.ts`. New keys are added
+ * to stored data as "unknown" by `migrateSnapshot`.
+ */
 export const CONTEXT_FIELD_KEYS = [
+  // Business overview
+  "industry",
+  "offering",
+  // Current setup
+  "salesChannels",
+  "platform",
+  "storeUrl",
+  "integrations",
+  // Goals and audience
   "goal",
-  "requirements",
   "targetAudience",
+  "challenges",
+  "outcomes",
+  // Scope and requirements
+  "requirements",
+  "designPreferences",
+  "content",
+  "technicalConstraints",
+  "existingMaterials",
+  // Budget and timing
   "budget",
   "deadline",
-  "platform",
+  "dependencies",
 ] as const;
 
 export type ContextFieldKey = (typeof CONTEXT_FIELD_KEYS)[number];
@@ -239,6 +261,8 @@ export type EntityType = "client" | "project" | "task";
  */
 export type ActivityEventType =
   | "client.created"
+  | "onboarding.started"
+  | "onboarding.ready_for_review"
   | "client.updated"
   | "client.status_changed"
   | "client.context_updated"
@@ -390,6 +414,52 @@ export interface AgentProposal {
 
 export type ProposalDecision = { action: "accept"; confidence: "observed" | "confirmed" } | { action: "dismiss" };
 
+/* -------------------------------------------------------------------------- */
+/* Onboarding                                                                 */
+/* -------------------------------------------------------------------------- */
+
+export const ONBOARDING_STEPS = ["business", "setup", "goals", "scope", "timeline", "review"] as const;
+export type OnboardingStep = (typeof ONBOARDING_STEPS)[number];
+
+/** draft: started, nothing answered. in_progress: answers saved. ready_for_review: a person finished the guided pass. */
+export const ONBOARDING_STATUSES = ["draft", "in_progress", "ready_for_review"] as const;
+export type OnboardingStatus = (typeof ONBOARDING_STATUSES)[number];
+
+/**
+ * Progress through the guided onboarding. Holds no answers: every answer is
+ * written to the client's details or brief, which stay the one source of truth.
+ */
+export interface Onboarding {
+  id: string;
+  clientId: string;
+  /** The project this onboarding scopes, once one exists. Null for a new lead. */
+  projectId: string | null;
+  status: OnboardingStatus;
+  currentStep: OnboardingStep;
+  /** Questions a person marked as not known yet, so they are not asked again. */
+  skipped: ContextFieldKey[];
+  createdAt: ISODateString;
+  updatedAt: ISODateString;
+  completedAt: ISODateString | null;
+}
+
+/** One save of an onboarding step. Only values that differ from the brief are written. */
+export interface OnboardingStepInput {
+  /** Where the person goes next. */
+  nextStep: OnboardingStep;
+  details?: Partial<Pick<ClientDetailsInput, "contactPerson" | "email" | "website" | "projectType">>;
+  /** Values typed by a person. An empty value clears the field. */
+  answers?: Partial<Record<ContextFieldKey, string>>;
+  /** How sure the person is of the values typed in this step. */
+  answerConfidence?: "observed" | "confirmed";
+  /** Existing observed values the person confirms as they are. */
+  confirm?: ContextFieldKey[];
+  /** Questions to mark as not known yet. */
+  skip?: ContextFieldKey[];
+  /** Open questions for the client. */
+  questions?: string[];
+}
+
 export interface StudioSnapshot {
   clients: Client[];
   projects: Project[];
@@ -398,4 +468,5 @@ export interface StudioSnapshot {
   sources: SourceDocument[];
   agentRuns: AgentRunRecord[];
   proposals: AgentProposal[];
+  onboardings: Onboarding[];
 }

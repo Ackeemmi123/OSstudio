@@ -79,14 +79,13 @@ export function buildNewClient(
       : unknownField(now);
   };
 
-  const context: ClientContext = {
-    goal: observed(input.goal),
-    requirements: unknownField(now),
-    targetAudience: observed(input.targetAudience),
-    budget: observed(input.budget),
-    deadline: observed(input.deadline),
-    platform: unknownField(now),
+  const supplied: Partial<Record<ContextFieldKey, string | undefined>> = {
+    goal: input.goal,
+    targetAudience: input.targetAudience,
+    budget: input.budget,
+    deadline: input.deadline,
   };
+  const context = Object.fromEntries(CONTEXT_FIELD_KEYS.map((key) => [key, observed(supplied[key])])) as ClientContext;
 
   const client: Client = {
     id: deps.createId(),
@@ -218,7 +217,7 @@ export function setContextField(
   };
 }
 
-function formatList(items: string[]): string {
+export function formatList(items: string[]): string {
   if (items.length <= 1) return items.join("");
   if (items.length === 2) return `${items[0]} and ${items[1]}`;
   return `${items.slice(0, -1).join(", ")} and ${items[items.length - 1]}`;

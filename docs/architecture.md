@@ -11,6 +11,7 @@ src/
     shell/             Top bar, search, brand mark
     today/             Today: decisions, next up, in progress, recent
     clients/           Client list, new client, the client workspace
+    onboarding/        Guided onboarding (see docs/onboarding.md)
     workspace/         Settings
     ui/                Buttons, fields, modal, toast, surfaces
   lib/

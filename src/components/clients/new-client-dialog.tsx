@@ -9,17 +9,20 @@ import { describedBy, Field, Select, TextArea, TextInput } from "@/components/ui
 import { Modal, ModalBody, ModalFooter } from "@/components/ui/modal";
 import { useToast } from "@/components/ui/toast";
 import { errorMessage } from "@/lib/data/studio-store";
-import { SOURCE_TYPE_LABELS } from "@/lib/domain/labels";
-import { SOURCE_TYPES, type NewClientInput } from "@/lib/domain/types";
+import { PROJECT_TYPE_LABELS, SOURCE_TYPE_LABELS } from "@/lib/domain/labels";
+import { PROJECT_TYPES, SOURCE_TYPES, type NewClientInput } from "@/lib/domain/types";
 import { findDuplicateClient, hasErrors, validateClientIdentity } from "@/lib/domain/validation";
 
-const EMPTY = { name: "", contactPerson: "", email: "", website: "", sourceType: "", initialNotes: "" } satisfies NewClientInput;
+const EMPTY = { name: "", website: "", projectType: "", sourceType: "", initialNotes: "" } satisfies NewClientInput;
 
-/** A name is enough. Everything else is optional and can be completed in the client workspace. */
+/**
+ * The start of onboarding. A name is enough; the website, project type and
+ * any notes help the next steps ask only what is relevant.
+ */
 export function NewClientDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
   const [busy, setBusy] = useState(false);
   return (
-    <Modal open={open} onClose={onClose} busy={busy} title="New client" description="A name is all you need. Add the rest whenever you have it.">
+    <Modal open={open} onClose={onClose} busy={busy} title="New client" description="A name is all you need. Guided onboarding follows, and every question can be skipped.">
       {/* Remount the form on each open so cancelled input is discarded. */}
       {open ? <NewClientForm onClose={onClose} onBusyChange={setBusy} /> : null}
     </Modal>
@@ -56,8 +59,7 @@ function NewClientForm({ onClose, onBusyChange }: { onClose: () => void; onBusyC
 
     const validation = validateClientIdentity(values);
     if (hasErrors(validation)) {
-      const firstInvalid = (["name", "email", "website"] as const).find((key) => validation[key]);
-      if (firstInvalid && firstInvalid !== "name") setShowMore(true);
+      const firstInvalid = (["name", "website"] as const).find((key) => validation[key]);
       if (firstInvalid) requestAnimationFrame(() => document.getElementById(id(firstInvalid))?.focus());
       return;
     }
@@ -68,18 +70,34 @@ function NewClientForm({ onClose, onBusyChange }: { onClose: () => void; onBusyC
 
     setSubmitting(true);
     onBusyChange(true);
+    let client;
     try {
-      const client = await store.run((repository) =>
-        repository.createClient({ ...values, sourceType: values.sourceType as NewClientInput["sourceType"] }),
+      client = await store.run((repository) =>
+        repository.createClient({
+          ...values,
+          projectType: values.projectType as NewClientInput["projectType"],
+          sourceType: values.sourceType as NewClientInput["sourceType"],
+        }),
       );
-      onBusyChange(false);
-      onClose();
-      toast.success(`${client.name} was added.`);
-      router.push(`/clients/${encodeURIComponent(client.id)}`);
     } catch (error) {
       setSubmitError(errorMessage(error));
       setSubmitting(false);
       onBusyChange(false);
+      return;
+    }
+
+    const workspace = `/clients/${encodeURIComponent(client.id)}`;
+    try {
+      await store.run((repository) => repository.startOnboarding(client.id));
+      onBusyChange(false);
+      onClose();
+      router.push(`${workspace}/onboarding`);
+    } catch (error) {
+      // The client exists; onboarding can be started again from its workspace.
+      onBusyChange(false);
+      onClose();
+      toast.error(`${client.name} was added, but onboarding could not start. ${errorMessage(error)}`);
+      router.push(workspace);
     }
   }
 
@@ -107,34 +125,32 @@ function NewClientForm({ onClose, onBusyChange }: { onClose: () => void; onBusyC
             ) : null}
           </Field>
 
+          <Field id={id("website")} label="Website" error={errors.website}>
+            <TextInput
+              id={id("website")}
+              inputMode="url"
+              autoComplete="off"
+              placeholder="company.com"
+              value={values.website}
+              onChange={set("website")}
+              invalid={Boolean(errors.website)}
+              aria-describedby={describedBy(id("website"), { error: errors.website })}
+            />
+          </Field>
+
+          <Field id={id("type")} label="What is the project?" hint="Decides which questions onboarding asks. You can change it later.">
+            <Select id={id("type")} value={values.projectType} onChange={set("projectType")} aria-describedby={`${id("type")}-hint`}>
+              <option value="">Not sure yet</option>
+              {PROJECT_TYPES.map((type) => (
+                <option key={type} value={type}>
+                  {PROJECT_TYPE_LABELS[type]}
+                </option>
+              ))}
+            </Select>
+          </Field>
+
           {showMore ? (
             <div className="grid gap-4 sm:grid-cols-2">
-              <Field id={id("contact")} label="Contact person">
-                <TextInput id={id("contact")} autoComplete="off" value={values.contactPerson} onChange={set("contactPerson")} />
-              </Field>
-              <Field id={id("email")} label="Email" error={errors.email}>
-                <TextInput
-                  id={id("email")}
-                  type="email"
-                  autoComplete="off"
-                  value={values.email}
-                  onChange={set("email")}
-                  invalid={Boolean(errors.email)}
-                  aria-describedby={describedBy(id("email"), { error: errors.email })}
-                />
-              </Field>
-              <Field id={id("website")} label="Website" error={errors.website}>
-                <TextInput
-                  id={id("website")}
-                  inputMode="url"
-                  autoComplete="off"
-                  placeholder="company.com"
-                  value={values.website}
-                  onChange={set("website")}
-                  invalid={Boolean(errors.website)}
-                  aria-describedby={describedBy(id("website"), { error: errors.website })}
-                />
-              </Field>
               <Field id={id("source")} label="How they reached us">
                 <Select id={id("source")} value={values.sourceType} onChange={set("sourceType")}>
                   <option value="">Not specified</option>
@@ -161,7 +177,7 @@ function NewClientForm({ onClose, onBusyChange }: { onClose: () => void; onBusyC
               className="inline-flex w-fit items-center gap-1.5 rounded-sm text-[13px] text-ink-muted hover:text-ink"
             >
               <ChevronDown aria-hidden className="size-3.5" />
-              Add contact details or the inquiry
+              Add the inquiry or notes
             </button>
           )}
         </fieldset>
@@ -177,7 +193,7 @@ function NewClientForm({ onClose, onBusyChange }: { onClose: () => void; onBusyC
           Cancel
         </Button>
         <Button type="submit" variant="primary" disabled={submitting} aria-busy={submitting}>
-          {submitting ? "Adding…" : awaitingDuplicateConfirmation ? "Add anyway" : "Add client"}
+          {submitting ? "Starting…" : awaitingDuplicateConfirmation ? "Add anyway" : "Continue"}
         </Button>
       </ModalFooter>
     </form>
