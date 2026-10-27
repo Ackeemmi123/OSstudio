@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { StudioSnapshot } from "@/lib/domain/types";
+import { CONTEXT_FIELD_KEYS, type Onboarding, type StudioSnapshot } from "@/lib/domain/types";
 import { deterministicId, hasImportableData, planImport, verifyImport } from "./browser-import";
 import { LocalDemoRepository } from "./local-repository";
 import { createSeedSnapshot } from "./seed";
@@ -31,7 +31,8 @@ describe("browser import", () => {
     expect(plan.counts).toMatchObject({ clients: 1, projects: 1, tasks: 1, sources: 1 });
     expect(plan.demoRecords).toBeGreaterThan(0);
     expect(plan.payload.clients[0]).toMatchObject({ name: "Real Client AB" });
-    expect(plan.payload.context_fields).toHaveLength(6);
+    // One row per brief value, including those still unknown.
+    expect(plan.payload.context_fields).toHaveLength(CONTEXT_FIELD_KEYS.length);
     // Activity about demo records is not imported.
     expect(plan.payload.activity.length).toBe(plan.counts.activity);
     expect(plan.skippedActivity).toBeGreaterThan(0);
@@ -68,7 +69,7 @@ describe("browser import", () => {
 
   it("verifies that every record came back from the server", async () => {
     const plan = await planImport(await localWorkspace(), STUDIO);
-    const empty: StudioSnapshot = { clients: [], projects: [], tasks: [], activity: [], sources: [], agentRuns: [], proposals: [] };
+    const empty: StudioSnapshot = { clients: [], projects: [], tasks: [], activity: [], sources: [], agentRuns: [], proposals: [], onboardings: [] };
     expect(verifyImport(plan, empty)).toEqual({ ok: false, missing: 3 });
     const present = {
       ...empty,
@@ -77,5 +78,40 @@ describe("browser import", () => {
       tasks: plan.expected.tasks.map((id) => ({ id })),
     } as unknown as StudioSnapshot;
     expect(verifyImport(plan, present)).toEqual({ ok: true, missing: 0 });
+  });
+
+  it("imports onboarding progress for imported clients only, with derived ids", async () => {
+    const snapshot = await localWorkspace();
+    const client = snapshot.clients.find((c) => !c.isDemo)!;
+    const demo = snapshot.clients.find((c) => c.isDemo)!;
+    const progress: Omit<Onboarding, "id" | "clientId"> = {
+      status: "in_progress",
+      currentStep: "goals",
+      skipped: ["offering"],
+      createdAt: client.createdAt,
+      updatedAt: client.createdAt,
+      completedAt: null,
+      projectId: null,
+    };
+    const plan = await planImport(
+      {
+        ...snapshot,
+        onboardings: [
+          { ...progress, id: "onb-1", clientId: client.id },
+          { ...progress, id: "onb-demo", clientId: demo.id },
+          { ...progress, id: "onb-broken", clientId: client.id, status: "ready_for_review" },
+        ],
+      },
+      STUDIO,
+    );
+    expect(plan.counts.onboardings).toBe(1);
+    expect(plan.payload.onboardings[0]).toMatchObject({
+      id: await deterministicId(STUDIO, "onboarding", "onb-1"),
+      client_id: await deterministicId(STUDIO, "client", client.id),
+      project_id: null,
+      current_step: "goals",
+      skipped: ["offering"],
+    });
+    expect(plan.skipped).toMatchObject([{ kind: "onboarding", reason: expect.stringContaining("finish date") }]);
   });
 });

@@ -1,5 +1,6 @@
-import { buildNewClient, DomainError, setContextField, updateClientDetails, type DomainDeps } from "@/lib/domain/clients";
+import { buildNewClient, DomainConflictError, DomainError, setContextField, updateClientDetails, type DomainDeps } from "@/lib/domain/clients";
 import { addContextItem, buildSource, reviewProposal } from "@/lib/domain/intake";
+import { buildOnboarding, completeOnboarding, findOnboarding, saveOnboardingStep } from "@/lib/domain/onboarding";
 import { buildProject, buildTask, setTaskStatus, updateProject } from "@/lib/domain/projects";
 import type { AgentRunRecord } from "@/lib/agents/contract";
 import type {
@@ -14,6 +15,8 @@ import type {
   NewProjectInput,
   NewSourceInput,
   NewTaskInput,
+  Onboarding,
+  OnboardingStepInput,
   Project,
   ProjectUpdateInput,
   ProposalDecision,
@@ -46,6 +49,7 @@ interface LocalRepositoryOptions {
  */
 export class LocalDemoRepository implements StudioRepository {
   private snapshot: StudioSnapshot | null = null;
+  private queue: Promise<unknown> = Promise.resolve();
   private readonly storage: KeyValueStorage | null;
   private readonly deps: DomainDeps;
   private readonly seed: () => StudioSnapshot;
@@ -128,6 +132,37 @@ export class LocalDemoRepository implements StudioRepository {
     );
   }
 
+  startOnboarding(clientId: string): Promise<Onboarding> {
+    return this.mutate((s) => {
+      const client = find(s.clients, clientId, "client");
+      const existing = findOnboarding(s.onboardings, client.id);
+      if (existing) return [s, existing, []];
+      const { onboarding, event } = buildOnboarding(client, this.deps);
+      return [{ ...s, onboardings: [...s.onboardings, onboarding] }, onboarding, [event]];
+    });
+  }
+
+  saveOnboardingStep(onboardingId: string, input: OnboardingStepInput): Promise<Onboarding> {
+    return this.mutate((s) => {
+      const before = find(s.onboardings, onboardingId, "onboarding");
+      const save = saveOnboardingStep(find(s.clients, before.clientId, "client"), before, input, this.deps);
+      return [
+        { ...s, clients: replace(s.clients, save.client), onboardings: replace(s.onboardings, save.onboarding) },
+        save.onboarding,
+        save.events,
+        save.onboardingChanged,
+      ];
+    });
+  }
+
+  completeOnboarding(onboardingId: string): Promise<Onboarding> {
+    return this.mutate((s) => {
+      const before = find(s.onboardings, onboardingId, "onboarding");
+      const { onboarding, events } = completeOnboarding(find(s.clients, before.clientId, "client"), before, this.deps);
+      return [{ ...s, onboardings: replace(s.onboardings, onboarding) }, onboarding, events];
+    });
+  }
+
   createProject(clientId: string, input: NewProjectInput): Promise<Project> {
     return this.mutate((s) => {
       const { project, event } = buildProject(find(s.clients, clientId, "client"), input, this.deps);
@@ -166,19 +201,30 @@ export class LocalDemoRepository implements StudioRepository {
   /**
    * Runs a domain change against the current snapshot and saves it with its
    * activity events. Saves first, then swaps the in-memory snapshot, so a
-   * failed save changes nothing. No events means nothing changed.
+   * failed save changes nothing. No events (and no progress flag) means
+   * nothing changed.
    */
-  private async mutate<T>(change: (snapshot: StudioSnapshot) => [StudioSnapshot, T, ActivityEvent[]]): Promise<T> {
+  private mutate<T>(change: (snapshot: StudioSnapshot) => [StudioSnapshot, T, ActivityEvent[], boolean?]): Promise<T> {
+    // One write at a time, each against the result of the last, so a double
+    // click cannot apply the same change twice.
+    const result = this.queue.then(() => this.apply(change));
+    this.queue = result.catch(() => undefined);
+    return result;
+  }
+
+  private async apply<T>(change: (snapshot: StudioSnapshot) => [StudioSnapshot, T, ActivityEvent[], boolean?]): Promise<T> {
     const current = await this.load();
-    let result: [StudioSnapshot, T, ActivityEvent[]];
+    let result: [StudioSnapshot, T, ActivityEvent[], boolean?];
     try {
       result = change(current);
     } catch (error) {
+      if (error instanceof DomainConflictError) throw new RepositoryError(error.message, "conflict");
       if (error instanceof DomainError) throw new RepositoryError(error.message, "validation");
       throw error;
     }
-    const [next, value, events] = result;
-    if (events.length === 0) return value;
+    // Progress-only changes (like moving to the next onboarding step) save without an event.
+    const [next, value, events, changedWithoutEvents = false] = result;
+    if (events.length === 0 && !changedWithoutEvents) return value;
     const saved = { ...next, activity: [...events, ...next.activity] };
     this.write(saved);
     this.snapshot = saved;

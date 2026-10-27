@@ -3,17 +3,19 @@
  * labels it as example data. Timestamps are generated relative to the moment
  * the demo workspace is first created so that "2 hours ago" stays meaningful.
  */
-import type {
-  ActivityEvent,
-  Client,
-  ClientContext,
-  ContextField,
-  FieldConfidence,
-  ISODateString,
-  Project,
-  SourceReference,
-  StudioSnapshot,
-  Task,
+import {
+  CONTEXT_FIELD_KEYS,
+  type ActivityEvent,
+  type Client,
+  type ClientContext,
+  type ContextField,
+  type FieldConfidence,
+  type ISODateString,
+  type Onboarding,
+  type Project,
+  type SourceReference,
+  type StudioSnapshot,
+  type Task,
 } from "@/lib/domain/types";
 
 const HOUR = 60 * 60 * 1000;
@@ -34,14 +36,8 @@ export function createSeedSnapshot(nowMs: number = Date.now()): StudioSnapshot {
       ? { value: null, confidence: "unknown", updatedAt }
       : { value, confidence, updatedAt, source, note };
 
-  const unknownContext = (at: ISODateString): ClientContext => ({
-    goal: field(null, "unknown", at),
-    targetAudience: field(null, "unknown", at),
-    requirements: field(null, "unknown", at),
-    budget: field(null, "unknown", at),
-    deadline: field(null, "unknown", at),
-    platform: field(null, "unknown", at),
-  });
+  const unknownContext = (at: ISODateString): ClientContext =>
+    Object.fromEntries(CONTEXT_FIELD_KEYS.map((key) => [key, field(null, "unknown", at)])) as ClientContext;
 
   /* ---------------------------------------------------------------------- */
   /* Clients                                                                */
@@ -66,6 +62,9 @@ export function createSeedSnapshot(nowMs: number = Date.now()): StudioSnapshot {
         receivedAt: ago(34 * DAY),
       },
       context: {
+        ...unknownContext(ago(34 * DAY)),
+        industry: field("Furniture and interior atelier", "confirmed", ago(26 * DAY), henrikKickoff),
+        salesChannels: field("Not selling online yet", "observed", ago(34 * DAY), henrikEmail, "The current site is a single page with no ordering."),
         goal: field(
           "Sell limited-edition pieces online and present the atelier's craft to architects and private buyers.",
           "confirmed",
@@ -186,6 +185,9 @@ export function createSeedSnapshot(nowMs: number = Date.now()): StudioSnapshot {
       projectType: "ecommerce",
       source: { type: "contact_form", initialNotes: null, receivedAt: ago(61 * DAY) },
       context: {
+        ...unknownContext(ago(61 * DAY)),
+        salesChannels: field("Shopify", "confirmed", ago(55 * DAY), { type: "meeting", label: "Discovery workshop" }),
+        storeUrl: field("solbergcoffee.com", "confirmed", ago(55 * DAY), { type: "meeting", label: "Discovery workshop" }),
         goal: field("Launch subscriptions and grow direct online sales.", "confirmed", ago(55 * DAY), {
           type: "meeting",
           label: "Discovery workshop",
@@ -421,7 +423,8 @@ export function createSeedSnapshot(nowMs: number = Date.now()): StudioSnapshot {
     event("task", "demo-t-5", "task.status_changed", "Product data import blocked: product list not received", 2 * DAY, "Oskar"),
     event("project", "demo-p-solberg", "note.added", "Wholesale pricing rules clarified with Jonas", 2 * DAY + 3 * HOUR, "Oskar"),
     event("project", "demo-p-nordvik", "project.created", "Identity & Website project created", 5 * DAY, "Alex"),
-    event("client", "demo-nordvik", "client.updated", "Recorded goal and timeline from intro call", 5 * DAY, "Alex"),
+    event("client", "demo-nordvik", "client.context_updated", "Onboarding: added goal and deadline", 5 * DAY, "Alex"),
+    event("client", "demo-nordvik", "onboarding.started", "Started guided onboarding", 5 * DAY + HOUR, "Alex"),
     event("client", "demo-atelje-henrik", "client.updated", "Proposed launch date added to deadline", 6 * DAY, "Alex"),
     event("client", "demo-nordvik", "client.created", "Client record created from referral", 9 * DAY, "Alex"),
     event("client", "demo-fjallgard", "client.status_changed", "Paused at the client's request", 15 * DAY, "Alex"),
@@ -431,5 +434,24 @@ export function createSeedSnapshot(nowMs: number = Date.now()): StudioSnapshot {
     event("project", "demo-p-kontur", "project.stage_changed", "Portfolio Website launched", 40 * DAY, "Alex"),
   ];
 
-  return { clients, projects, tasks, activity, sources: [], agentRuns: [], proposals: [] };
+  /* ---------------------------------------------------------------------- */
+  /* Onboarding                                                             */
+  /* ---------------------------------------------------------------------- */
+
+  // Nordvik's onboarding was left halfway, so the demo shows how to resume one.
+  const onboardings: Onboarding[] = [
+    {
+      id: "demo-onboarding-nordvik",
+      clientId: "demo-nordvik",
+      projectId: null,
+      status: "in_progress",
+      currentStep: "scope",
+      skipped: ["industry"],
+      createdAt: ago(5 * DAY + HOUR),
+      updatedAt: ago(5 * DAY),
+      completedAt: null,
+    },
+  ];
+
+  return { clients, projects, tasks, activity, sources: [], agentRuns: [], proposals: [], onboardings };
 }

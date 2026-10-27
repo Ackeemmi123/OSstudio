@@ -3,10 +3,13 @@ import { defineConfig, devices } from "@playwright/test";
 /**
  * End-to-end tests. The "supabase" project runs against the local Supabase
  * stack (`npm run db:start`) with the intake agent's test provider, which uses
- * no AI. The "local-demo" project checks the backend-free demo.
+ * no AI. The "local-demo" projects check the backend-free demo, including
+ * guided onboarding.
  */
 const SUPABASE_PORT = 3100;
 const LOCAL_PORT = 3101;
+/** Specs that run against the backend-free demo. */
+const LOCAL_SPECS = /(local-demo|onboarding)\.spec\.ts/;
 
 export default defineConfig({
   testDir: "tests/e2e",
@@ -25,8 +28,10 @@ export default defineConfig({
     screenshot: "only-on-failure",
   },
   projects: [
-    { name: "supabase", testIgnore: /local-demo\.spec\.ts/, use: { baseURL: `http://127.0.0.1:${SUPABASE_PORT}` } },
-    { name: "local-demo", testMatch: /local-demo\.spec\.ts/, use: { baseURL: `http://127.0.0.1:${LOCAL_PORT}` } },
+    { name: "supabase", testIgnore: LOCAL_SPECS, use: { baseURL: `http://127.0.0.1:${SUPABASE_PORT}` } },
+    { name: "local-demo", testMatch: LOCAL_SPECS, use: { baseURL: `http://127.0.0.1:${LOCAL_PORT}` } },
+    // Onboarding is also checked at phone width.
+    { name: "local-demo-mobile", testMatch: /onboarding\.spec\.ts/, use: { ...devices["Pixel 7"], baseURL: `http://127.0.0.1:${LOCAL_PORT}` } },
   ],
   webServer: [
     {

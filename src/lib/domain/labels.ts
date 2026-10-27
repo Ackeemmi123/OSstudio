@@ -6,6 +6,8 @@ import type {
   ContextFieldKey,
   FieldConfidence,
   ProposalTarget,
+  OnboardingStatus,
+  OnboardingStep,
   ProjectStage,
   ProjectStatus,
   ProjectType,
@@ -83,12 +85,39 @@ export const CONFIDENCE_DESCRIPTIONS: Record<FieldConfidence, string> = {
 };
 
 export const CONTEXT_FIELD_LABELS: Record<ContextFieldKey, string> = {
+  industry: "Industry",
+  offering: "Products or services",
+  salesChannels: "Sales channels",
+  platform: "Platform",
+  storeUrl: "Store URL",
+  integrations: "Integrations",
   goal: "Goal",
-  requirements: "Requirements",
   targetAudience: "Audience",
+  challenges: "Challenges",
+  outcomes: "Desired outcomes",
+  requirements: "Requirements",
+  designPreferences: "Design",
+  content: "Content",
+  technicalConstraints: "Constraints",
+  existingMaterials: "Existing materials",
   budget: "Budget",
   deadline: "Deadline",
-  platform: "Platform",
+  dependencies: "Dependencies",
+};
+
+export const ONBOARDING_STEP_LABELS: Record<OnboardingStep, string> = {
+  business: "Business",
+  setup: "Current setup",
+  goals: "Goals",
+  scope: "Scope",
+  timeline: "Budget & timing",
+  review: "Review",
+};
+
+export const ONBOARDING_STATUS_LABELS: Record<OnboardingStatus, string> = {
+  draft: "Not started",
+  in_progress: "In progress",
+  ready_for_review: "Ready for review",
 };
 
 export const PROPOSAL_TARGET_LABELS: Record<ProposalTarget, string> = {

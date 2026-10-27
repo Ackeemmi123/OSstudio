@@ -10,6 +10,8 @@ import type {
   NewProjectInput,
   NewSourceInput,
   NewTaskInput,
+  Onboarding,
+  OnboardingStepInput,
   Project,
   ProjectUpdateInput,
   ProposalDecision,
@@ -32,6 +34,12 @@ export interface StudioRepository {
   setContextField(clientId: string, key: ContextFieldKey, input: ContextFieldInput): Promise<Client>;
   addContextItem(clientId: string, input: NewContextItemInput): Promise<Client>;
   addSource(clientId: string, input: NewSourceInput): Promise<SourceDocument>;
+  /** Starts the client's guided onboarding, or returns the one already started. */
+  startOnboarding(clientId: string): Promise<Onboarding>;
+  /** Saves one onboarding step atomically: details, answers, skips, questions and progress. */
+  saveOnboardingStep(onboardingId: string, input: OnboardingStepInput): Promise<Onboarding>;
+  /** Marks the brief ready for review. Unknown values stay unknown. */
+  completeOnboarding(onboardingId: string): Promise<Onboarding>;
   createProject(clientId: string, input: NewProjectInput): Promise<Project>;
   updateProject(projectId: string, input: ProjectUpdateInput): Promise<Project>;
   createTask(projectId: string, input: NewTaskInput): Promise<Task>;

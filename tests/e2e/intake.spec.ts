@@ -40,14 +40,15 @@ test("analyzes source material into proposals that only a person can add to the 
   await proposals.filter({ hasText: "Deadline" }).getByRole("button", { name: "Dismiss" }).click();
   await expect(proposals).toHaveCount(0);
 
-  const question = analysis.getByRole("listitem").filter({ hasText: "What is the goal for this project?" });
+  const question = analysis.getByRole("listitem").filter({ hasText: "What is the industry for this project?" });
   await question.getByRole("button", { name: "Add to open questions" }).click();
   await expect(question.getByText("In open questions")).toBeVisible();
 
   await page.reload();
   await expect(brief.locator("#brief-budget").getByText("50 000 SEK", { exact: true })).toBeVisible();
-  await expect(brief.locator("#brief-deadline")).not.toContainText("before the summer term");
-  await expect(brief.getByText("What is the goal for this project?")).toBeVisible();
+  // The dismissed deadline is not anywhere in the brief.
+  await expect(brief).not.toContainText("before the summer term");
+  await expect(brief.getByText("What is the industry for this project?")).toBeVisible();
 
   const activity = section(page, "activity");
   const showAll = activity.getByRole("button", { name: /Show all/ });

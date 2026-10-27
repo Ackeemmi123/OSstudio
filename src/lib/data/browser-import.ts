@@ -17,6 +17,8 @@ import {
   CLIENT_STATUSES,
   CONTEXT_FIELD_KEYS,
   FIELD_CONFIDENCES,
+  ONBOARDING_STATUSES,
+  ONBOARDING_STEPS,
   PROJECT_STAGES,
   PROJECT_STATUSES,
   PROJECT_TYPES,
@@ -27,6 +29,7 @@ import {
   type ActivityEvent,
   type Client,
   type ContextField,
+  type Onboarding,
   type Project,
   type SourceDocument,
   type StudioSnapshot,
@@ -34,7 +37,7 @@ import {
 } from "@/lib/domain/types";
 import { NAME_MAX_LENGTH } from "@/lib/domain/validation";
 import { toRepositoryError } from "./supabase-errors";
-import { clientRow, contextFieldRow, contextItemRow, eventRow, projectRow, sourceRow, taskRow } from "./supabase-rows";
+import { clientRow, contextFieldRow, contextItemRow, eventRow, onboardingRow, projectRow, sourceRow, taskRow } from "./supabase-rows";
 
 const isoDate = z.string().refine((value) => !Number.isNaN(Date.parse(value)), "is not a valid date");
 const actor = z.union([
@@ -124,8 +127,21 @@ const sourceSchema = z.object({
   addedBy: actor.optional(),
 });
 
+const onboardingSchema = z
+  .object({
+    id: z.string().min(1),
+    clientId: z.string().min(1),
+    status: z.enum(ONBOARDING_STATUSES),
+    currentStep: z.enum(ONBOARDING_STEPS),
+    skipped: z.array(z.enum(CONTEXT_FIELD_KEYS)).max(50).default([]),
+    createdAt: isoDate,
+    updatedAt: isoDate,
+    completedAt: isoDate.nullable().default(null),
+  })
+  .refine((o) => (o.status === "ready_for_review") === (o.completedAt !== null), { message: "has a finish date that does not match its status" });
+
 export interface SkippedRecord {
-  kind: "client" | "project" | "task" | "source";
+  kind: "client" | "project" | "task" | "source" | "onboarding";
   label: string;
   reason: string;
 }
@@ -133,8 +149,11 @@ export interface SkippedRecord {
 export interface ImportPlan {
   /** SHA-256 of the prepared data; the server refuses the same data twice. */
   hash: string;
-  payload: Record<"clients" | "context_fields" | "context_items" | "sources" | "projects" | "tasks" | "activity", Record<string, unknown>[]>;
-  counts: { clients: number; projects: number; tasks: number; sources: number; activity: number };
+  payload: Record<
+    "clients" | "context_fields" | "context_items" | "sources" | "onboardings" | "projects" | "tasks" | "activity",
+    Record<string, unknown>[]
+  >;
+  counts: { clients: number; projects: number; tasks: number; sources: number; onboardings: number; activity: number };
   /** The ids the imported records will have, to check them after the import. */
   expected: { clients: string[]; projects: string[]; tasks: string[] };
   /** Records that will not be imported, and why. */
@@ -225,6 +244,24 @@ export async function planImport(snapshot: StudioSnapshot, studioId: string): Pr
     sources.push({ ...parsed.data, id: await mapId("source", parsed.data.id), clientId, addedBy: imported(parsed.data.addedBy as Actor | undefined) });
   }
 
+  // Onboarding progress, so a person can continue where they left off. The
+  // answers themselves are brief values and come with the client.
+  const onboardings: Onboarding[] = [];
+  const onboarded = new Set<string>();
+  for (const raw of snapshot.onboardings ?? []) {
+    const parsed = onboardingSchema.safeParse(raw);
+    const clientId = parsed.success ? includedClient(parsed.data.clientId) : undefined;
+    if (!parsed.success) {
+      skipped.push({ kind: "onboarding", label: "Onboarding progress", reason: describeIssue(parsed.error) });
+      continue;
+    }
+    // Progress for a demo or skipped client is left out with that client.
+    if (!clientId) continue;
+    if (onboarded.has(clientId)) continue; // One onboarding per client.
+    onboarded.add(clientId);
+    onboardings.push({ ...parsed.data, id: await mapId("onboarding", parsed.data.id), clientId, projectId: null });
+  }
+
   const activity: ActivityEvent[] = [];
   let skippedActivity = 0;
   for (const raw of snapshot.activity) {
@@ -260,6 +297,7 @@ export async function planImport(snapshot: StudioSnapshot, studioId: string): Pr
     context_fields: contextFields,
     context_items: contextItems,
     sources: sources.map(sourceRow),
+    onboardings: onboardings.map(onboardingRow),
     projects: projects.map(projectRow),
     tasks: tasks.map(taskRow),
     activity: activity.map(eventRow),
@@ -268,7 +306,7 @@ export async function planImport(snapshot: StudioSnapshot, studioId: string): Pr
   return {
     hash: await sha256(JSON.stringify(payload)),
     payload,
-    counts: { clients: clients.length, projects: projects.length, tasks: tasks.length, sources: sources.length, activity: activity.length },
+    counts: { clients: clients.length, projects: projects.length, tasks: tasks.length, sources: sources.length, onboardings: onboardings.length, activity: activity.length },
     expected: { clients: clients.map((c) => c.id), projects: projects.map((p) => p.id), tasks: tasks.map((t) => t.id) },
     skipped,
     demoRecords,

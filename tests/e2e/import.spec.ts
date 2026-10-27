@@ -12,7 +12,7 @@ function browserWorkspace(name: string): StudioSnapshot {
   const { client, event } = buildNewClient({ name, contactPerson: "Kim", goal: "New website" }, deps);
   const { project, event: projectEvent } = buildProject(client, { name: "Website", projectType: "website" }, deps);
   const { task, event: taskEvent } = buildTask(project, { title: "Collect logo files" }, deps);
-  return { clients: [client], projects: [project], tasks: [task], activity: [event, projectEvent, taskEvent], sources: [], agentRuns: [], proposals: [] };
+  return { clients: [client], projects: [project], tasks: [task], activity: [event, projectEvent, taskEvent], sources: [], agentRuns: [], proposals: [], onboardings: [] };
 }
 
 test("imports browser data once, verifies it, and keeps history", async ({ page }) => {

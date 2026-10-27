@@ -16,6 +16,7 @@ import {
   type ContextField,
   type ContextFieldKey,
   type ContextItem,
+  type Onboarding,
   type Project,
   type SourceDocument,
   type StudioSnapshot,
@@ -38,6 +39,8 @@ export interface StudioPayload {
   activity: Row[];
   agent_runs: Row[];
   proposals: Row[];
+  /** Read from client_onboardings next to load_studio. */
+  onboardings?: Row[];
 }
 
 const str = (value: unknown): string => String(value);
@@ -70,6 +73,21 @@ export function toSnapshot(payload: StudioPayload): StudioSnapshot {
     sources: payload.sources.map(toSource),
     agentRuns: payload.agent_runs.map(toAgentRun),
     proposals: payload.proposals.map(toProposal),
+    onboardings: (payload.onboardings ?? []).map(toOnboarding),
+  };
+}
+
+export function toOnboarding(row: Row): Onboarding {
+  return {
+    id: str(row.id),
+    clientId: str(row.client_id),
+    projectId: opt(row.project_id),
+    status: row.status as Onboarding["status"],
+    currentStep: row.current_step as Onboarding["currentStep"],
+    skipped: Array.isArray(row.skipped) ? (row.skipped as Onboarding["skipped"]) : [],
+    createdAt: str(row.created_at),
+    updatedAt: str(row.updated_at),
+    completedAt: opt(row.completed_at),
   };
 }
 
@@ -262,6 +280,20 @@ export function sourceRow(source: SourceDocument): Row {
     received_at: source.receivedAt,
     added_by: source.addedBy ?? null,
     created_at: source.receivedAt,
+  };
+}
+
+export function onboardingRow(onboarding: Onboarding): Row {
+  return {
+    id: onboarding.id,
+    client_id: onboarding.clientId,
+    project_id: onboarding.projectId,
+    status: onboarding.status,
+    current_step: onboarding.currentStep,
+    skipped: onboarding.skipped,
+    created_at: onboarding.createdAt,
+    updated_at: onboarding.updatedAt,
+    completed_at: onboarding.completedAt,
   };
 }
 

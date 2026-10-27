@@ -8,10 +8,14 @@ src/
   app/                 Routes. Thin pages. theme.css holds every design token.
     api/agents/        Server routes: run the intake agent, report agent status
   components/          UI only. Reads derived views, writes through the store.
+    shell/             Top bar, search, brand mark
+    today/             Today: decisions, next up, in progress, recent
     auth/              Sign-in, create a studio, configuration errors
     providers/         Workspace gate (local demo or Supabase), studio store
     clients/           Client list, workspace, brief, source material, intake review
+    onboarding/        Guided onboarding (see docs/onboarding.md)
     workspace/         Settings: data, import, people, connections, agents
+    ui/                Buttons, fields, modal, toast, surfaces
   lib/
     config.ts          Which data mode is configured (never falls back silently)
     domain/            Types, labels, validation and pure business rules (+ tests)

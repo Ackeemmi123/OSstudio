@@ -39,6 +39,10 @@ export function validateClientIdentity(
   return errors;
 }
 
+export function isValidWebAddress(value: string): boolean {
+  return WEBSITE_PATTERN.test(value.trim());
+}
+
 export function hasErrors(errors: Record<string, string | undefined>): boolean {
   return Object.values(errors).some(Boolean);
 }

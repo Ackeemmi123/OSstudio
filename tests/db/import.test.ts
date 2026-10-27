@@ -78,4 +78,34 @@ describe("browser import", () => {
     const { count } = await admin.from("clients").select("id", { count: "exact", head: true }).eq("studio_id", studio);
     expect(count).toBe(0);
   });
+
+  it("carries onboarding progress, so a person continues where they left off", async () => {
+    const owner = await createUser("import-onboarding");
+    const studio = await createStudio(owner);
+    const local = new LocalDemoRepository({ storage: null, seed: () => createSeedSnapshot() });
+    const client = await local.createClient({ name: "Halfway Bakery", projectType: "ecommerce" });
+    const onboarding = await local.startOnboarding(client.id);
+    await local.saveOnboardingStep(onboarding.id, { nextStep: "goals", answers: { industry: "Bakery" }, skip: ["offering"] });
+    const workspace = await local.load();
+    const plan = await planImport(workspace, studio);
+
+    const first = await sendImport(owner.client, studio, plan);
+    expect(first).toMatchObject({ status: "imported", counts: { onboardings: 1 } });
+    const repository = repositoryFor(owner, studio);
+    const snapshot = await repository.load();
+    const imported = snapshot.clients.find((c) => c.name === "Halfway Bakery")!;
+    expect(imported.context.industry).toMatchObject({ value: "Bakery", source: { label: "Onboarding" } });
+    expect(snapshot.onboardings).toMatchObject([{ clientId: imported.id, status: "in_progress", currentStep: "goals", skipped: ["offering"] }]);
+    // The person continues on the server from the imported progress.
+    await repository.saveOnboardingStep(snapshot.onboardings[0].id, { nextStep: "scope", answers: { goal: "Sell online" } });
+
+    // Data changed in the browser afterwards: a new import adds what is new and
+    // never fails on, or replaces, the onboarding already on the server.
+    await local.saveOnboardingStep(onboarding.id, { nextStep: "timeline" });
+    await local.createClient({ name: "Later Client" });
+    const again = await sendImport(owner.client, studio, await planImport(await local.load(), studio));
+    expect(again).toMatchObject({ status: "imported", counts: { clients: 1, onboardings: 0 } });
+    const after = await repositoryFor(owner, studio).load();
+    expect(after.onboardings).toMatchObject([{ clientId: imported.id, currentStep: "scope" }]);
+  });
 });

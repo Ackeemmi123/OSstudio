@@ -124,3 +124,89 @@ describe("LocalDemoRepository", () => {
     expect((await repository.load()).clients[0].name).toBe("In memory");
   });
 });
+
+describe("LocalDemoRepository onboarding", () => {
+  it("starts one onboarding per client, even when asked twice", async () => {
+    const repository = repo();
+    const client = await repository.createClient({ name: "Lindgren Studio", projectType: "ecommerce" });
+    const [first, second] = await Promise.all([repository.startOnboarding(client.id), repository.startOnboarding(client.id)]);
+    const snapshot = await repository.load();
+
+    expect(second.id).toBe(first.id);
+    expect(snapshot.onboardings.filter((o) => o.clientId === client.id)).toHaveLength(1);
+    expect(snapshot.activity.filter((e) => e.eventType === "onboarding.started" && e.entityId === client.id)).toHaveLength(1);
+  });
+
+  it("saves a partial brief, and resumes where the person left off after a reload", async () => {
+    const storage = memoryStorage();
+    const repository = repo(storage);
+    const client = await repository.createClient({ name: "Lindgren Studio", projectType: "ecommerce" });
+    const onboarding = await repository.startOnboarding(client.id);
+    await repository.saveOnboardingStep(onboarding.id, { nextStep: "setup", answers: { industry: "Ceramics" } });
+    await repository.saveOnboardingStep(onboarding.id, {
+      nextStep: "goals",
+      answers: { salesChannels: "Etsy, Shopify", storeUrl: "lindgren.etsy.com" },
+      skip: ["integrations"],
+    });
+
+    // A new repository on the same storage is a page reload.
+    const reloaded = await repo(storage).load();
+    const resumed = reloaded.onboardings.find((o) => o.id === onboarding.id)!;
+    const saved = reloaded.clients.find((c) => c.id === client.id)!;
+    expect(resumed).toMatchObject({ status: "in_progress", currentStep: "goals", skipped: ["integrations"] });
+    expect(saved.context.salesChannels.value).toBe("Shopify, Etsy");
+    expect(saved.context.industry.value).toBe("Ceramics");
+    expect(saved.context.goal.value).toBeNull();
+  });
+
+  it("saves step progress without logging activity, and edits answers without touching other values", async () => {
+    const repository = repo();
+    const client = await repository.createClient({ name: "Lindgren Studio", budget: "SEK 50,000" });
+    const onboarding = await repository.startOnboarding(client.id);
+    const eventsBefore = (await repository.load()).activity.length;
+    await repository.saveOnboardingStep(onboarding.id, { nextStep: "goals" });
+    expect((await repository.load()).activity).toHaveLength(eventsBefore);
+    expect((await repository.load()).onboardings.find((o) => o.id === onboarding.id)?.currentStep).toBe("goals");
+
+    await repository.saveOnboardingStep(onboarding.id, { nextStep: "scope", answers: { goal: "Open a webshop" } });
+    const saved = (await repository.load()).clients.find((c) => c.id === client.id)!;
+    expect(saved.context.goal.value).toBe("Open a webshop");
+    expect(saved.context.budget).toMatchObject({ value: "SEK 50,000", confidence: "observed" });
+  });
+
+  it("marks the brief ready for review once", async () => {
+    const repository = repo();
+    const client = await repository.createClient({ name: "Lindgren Studio" });
+    const onboarding = await repository.startOnboarding(client.id);
+    await repository.completeOnboarding(onboarding.id);
+    await repository.completeOnboarding(onboarding.id);
+    const snapshot = await repository.load();
+    expect(snapshot.onboardings.find((o) => o.id === onboarding.id)?.status).toBe("ready_for_review");
+    expect(snapshot.activity.filter((e) => e.eventType === "onboarding.ready_for_review")).toHaveLength(1);
+  });
+
+  it("rejects invalid answers and keeps the stored data as it was", async () => {
+    const storage = memoryStorage();
+    const repository = repo(storage);
+    const client = await repository.createClient({ name: "Lindgren Studio" });
+    const onboarding = await repository.startOnboarding(client.id);
+    const before = storage.data[STORAGE_KEY];
+    await expect(
+      repository.saveOnboardingStep(onboarding.id, { nextStep: "goals", answers: { goal: "Valid", salesChannels: "Shopify, Not selling online yet" } }),
+    ).rejects.toMatchObject({ code: "validation" });
+    expect(storage.data[STORAGE_KEY]).toBe(before);
+  });
+
+  it("adds new brief values as unknown to data saved before onboarding existed", async () => {
+    const old = createSeedSnapshot(Date.parse("2026-10-26T12:00:00.000Z")) as unknown as Record<string, unknown>;
+    const clients = (old.clients as { context: Record<string, unknown> }[]).map(({ context, ...client }) => ({
+      ...client,
+      context: { goal: context.goal, requirements: context.requirements, targetAudience: context.targetAudience, budget: context.budget, deadline: context.deadline, platform: context.platform },
+    }));
+    delete old.onboardings;
+    const snapshot = await repo(memoryStorage({ [STORAGE_KEY]: JSON.stringify({ ...old, clients }) })).load();
+    expect(snapshot.onboardings).toEqual([]);
+    expect(snapshot.clients[0].context.industry).toMatchObject({ value: null, confidence: "unknown" });
+    expect(snapshot.clients[0].context.goal.value).not.toBeNull();
+  });
+});

@@ -67,7 +67,7 @@ test.describe("sign-in", () => {
     await page.getByRole("button", { name: "New client" }).first().click();
     const dialog = page.getByRole("dialog", { name: "New client" });
     await dialog.getByLabel("Company or client name").fill("Should not be saved");
-    await dialog.getByRole("button", { name: "Add client" }).click();
+    await dialog.getByRole("button", { name: "Continue" }).click();
 
     await expect(page.getByRole("heading", { name: "Sign in" })).toBeVisible();
     await expect(page.getByText("Your session has ended. Sign in again to continue.")).toBeVisible();
