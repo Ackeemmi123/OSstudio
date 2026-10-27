@@ -97,6 +97,45 @@ describe("onboarding persistence", () => {
   });
 });
 
+describe("onboarding data integrity", () => {
+  it("never overwrites a value a colleague confirmed while the step was open", async () => {
+    const { repository, client } = await newClient("Confirmed Coffee");
+    const onboarding = await repository.startOnboarding(client.id);
+    const colleague = repositoryFor(owner, studio);
+    await colleague.load();
+    await colleague.setContextField(client.id, "budget", { value: "SEK 80,000", confidence: "confirmed" });
+
+    // The person's form opened while the budget was unknown; their repository has the latest data.
+    await repository.load();
+    const error = await repository
+      .saveOnboardingStep(onboarding.id, { nextStep: "review", answers: { budget: "SEK 10,000" }, seen: { budget: null } })
+      .catch((e: unknown) => e);
+    expect((error as RepositoryError).code).toBe("conflict");
+
+    const fresh = await repositoryFor(owner, studio).load();
+    expect(fresh.clients.find((c) => c.id === client.id)!.context.budget).toMatchObject({ value: "SEK 80,000", confidence: "confirmed" });
+    expect(fresh.onboardings.find((o) => o.id === onboarding.id)).toMatchObject({ currentStep: "business", status: "draft" });
+  });
+
+  it("writes nothing from a step whose progress update is refused", async () => {
+    const { repository, client } = await newClient("Atomic Agency");
+    const onboarding = await repository.startOnboarding(client.id);
+    const other = repositoryFor(owner, studio);
+    await Promise.all([repository.load(), other.load()]);
+    await other.saveOnboardingStep(onboarding.id, { nextStep: "goals" });
+    const error = await repository
+      .saveOnboardingStep(onboarding.id, { nextStep: "setup", answers: { industry: "Design" }, questions: ["Who signs off?"] })
+      .catch((e: unknown) => e);
+    expect((error as RepositoryError).code).toBe("conflict");
+
+    const fresh = await repositoryFor(owner, studio).load();
+    const saved = fresh.clients.find((c) => c.id === client.id)!;
+    expect(saved.context.industry.value).toBeNull();
+    expect(saved.contextItems).toHaveLength(0);
+    expect(fresh.activity.filter((e) => e.entityId === client.id && e.description.startsWith("Onboarding:"))).toHaveLength(0);
+  });
+});
+
 describe("onboarding access control", () => {
   it("lets viewers read progress but not change it", async () => {
     const { repository, client } = await newClient("Viewer Check");
