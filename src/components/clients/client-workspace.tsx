@@ -14,11 +14,13 @@ import type { Client, StudioSnapshot } from "@/lib/domain/types";
 import { BriefSection } from "./brief-section";
 import { ClientAside, ExternalLink } from "./client-aside";
 import { EditDetailsDialog } from "./edit-details-dialog";
+import { IntakeReview } from "./intake-review";
 import { ProjectsSection } from "./projects-section";
 import { ClientStatusLabel, DemoTag } from "./status";
 
 export function ClientWorkspace({ clientId }: { clientId: string }) {
   const state = useStudio();
+  const shared = state.status === "ready" && state.info.kind === "supabase";
   if (state.status === "error") return <LoadError message={state.message} />;
   if (state.status === "loading") return <WorkspaceSkeleton />;
 
@@ -29,7 +31,11 @@ export function ClientWorkspace({ clientId }: { clientId: string }) {
         <EmptyState
           icon={<SearchX />}
           title="Client not found"
-          description="This client may have been added in another browser. Workspace data is stored only in the browser where it was entered."
+          description={
+            shared
+              ? "This client does not exist in this studio, or you do not have access to it."
+              : "This client may have been added in another browser. Demo data is stored only in the browser where it was entered."
+          }
           action={<ButtonLink href="/clients">Back to clients</ButtonLink>}
         />
       </Surface>
@@ -85,6 +91,7 @@ function Workspace({ client, snapshot }: { client: Client; snapshot: StudioSnaps
           <NextUp client={client} snapshot={snapshot} />
           <ProjectsSection client={client} snapshot={snapshot} />
           <BriefSection client={client} />
+          <IntakeReview client={client} snapshot={snapshot} />
         </div>
         <ClientAside client={client} snapshot={snapshot} />
       </div>

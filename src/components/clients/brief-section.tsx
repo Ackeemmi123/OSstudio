@@ -129,6 +129,7 @@ function Provenance({ field }: { field: ContextField }) {
   const parts = [
     field.source ? (field.source.label ?? SOURCE_TYPE_LABELS[field.source.type]) : null,
     field.recordedBy && field.confidence === "proposed" ? `by ${actorLabel(field.recordedBy)}` : null,
+    field.confidence === "confirmed" && field.confirmedBy ? `confirmed by ${actorLabel(field.confirmedBy)}` : null,
   ].filter(Boolean);
   return (
     <span>
