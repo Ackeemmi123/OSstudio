@@ -244,15 +244,17 @@ needs setup that only a person with access to the dashboards can do. Use
 5. **Deployment Protection.** If it is on for `studio-os-staging`, the Axivo
    server's calls are blocked before they reach the app. Create a "Protection
    Bypass for Automation" secret, or turn protection off for the API route.
-6. **Check it.** From your machine:
+6. **Check it.** From the repository folder on your machine, run
+   `npm run staging:inquiry`. The first run creates `.env.inquiry.local`
+   (ignored by git). Open it in your editor, fill in `STAGING_APP_URL` (the
+   staging domain, which Deployment Protection does not cover) and
+   `INQUIRY_SIGNING_KEYS` (copied as is from Vercel), save, and run it again.
+   A deployment-specific `…-<hash>-….vercel.app` address is protected and
+   also needs `STAGING_PROTECTION_BYPASS`.
 
-   ```bash
-   STAGING_INQUIRY=1 STAGING_APP_URL=https://<studio-os staging or preview URL> \
-   STAGING_INQUIRY_KEY_ID=axivo-staging-1 STAGING_INQUIRY_SECRET=<signing secret> \
-   npm run staging:inquiry
-   ```
-
-   Four checks must pass (new, retry, conflict, forged). The stored row is in
+   The script first checks that Studio OS itself answers, not Vercel's
+   protection, and says which one blocked a request. Then four checks must
+   pass (new, retry, conflict, forged). The stored row is in
    Supabase → Table editor → `inquiries`, marked `is_test`. Then
    `npm run staging:check` confirms signed-out reads are refused and only the
    server can receive.
