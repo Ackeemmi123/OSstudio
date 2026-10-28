@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
 
-const { intakeModel, intakeTimeoutMs, isLocalSupabase, serverSupabase } = await import("./config");
+const { inquiryConfig, intakeModel, intakeTimeoutMs, isLocalSupabase, serverSupabase } = await import("./config");
 
 /** A legacy Supabase key: an unsigned JWT is enough to carry the role claim. */
 function jwt(role: string) {
@@ -103,5 +103,48 @@ describe("isLocalSupabase", () => {
     ["not a url", false],
   ])("%s → %s", (url, expected) => {
     expect(isLocalSupabase(url)).toBe(expected);
+  });
+});
+
+describe("inquiryConfig", () => {
+  const secret = "s".repeat(32);
+  const ready = {
+    ...hosted,
+    INQUIRY_SIGNING_KEYS: `axivo-staging-1:${secret}`,
+    INQUIRY_STUDIO_ID: "11111111-2222-4333-8444-555555555555",
+    INQUIRY_HASH_KEY: "h".repeat(32),
+  };
+
+  it("reads the signing keys, studio and hash key", () => {
+    const config = inquiryConfig(ready);
+    expect(config.ok).toBe(true);
+    if (config.ok) {
+      expect([...config.value.signingKeys]).toEqual([["axivo-staging-1", secret]]);
+      expect(config.value.studioId).toBe(ready.INQUIRY_STUDIO_ID);
+      expect(config.value.supabase.serviceRoleKey).toBe(hosted.SUPABASE_SERVICE_ROLE_KEY);
+    }
+  });
+
+  it("accepts two keys during a rotation", () => {
+    const config = inquiryConfig({ ...ready, INQUIRY_SIGNING_KEYS: `old:${secret}, new:${"t".repeat(40)}` });
+    expect(config.ok && [...config.value.signingKeys.keys()]).toEqual(["old", "new"]);
+  });
+
+  it.each([
+    ["no signing keys", { INQUIRY_SIGNING_KEYS: "" }],
+    ["no studio", { INQUIRY_STUDIO_ID: " " }],
+    ["no hash key", { INQUIRY_HASH_KEY: undefined }],
+    ["a short secret", { INQUIRY_SIGNING_KEYS: "axivo:short" }],
+    ["a secret without a key id", { INQUIRY_SIGNING_KEYS: secret }],
+    ["a repeated key id", { INQUIRY_SIGNING_KEYS: `a:${secret},a:${secret}x` }],
+    ["a studio that is not a UUID", { INQUIRY_STUDIO_ID: "axivo" }],
+    ["a short hash key", { INQUIRY_HASH_KEY: "short" }],
+    ["a hash key equal to a signing secret", { INQUIRY_HASH_KEY: secret }],
+    ["no service role key", { SUPABASE_SERVICE_ROLE_KEY: "" }],
+  ])("is unavailable with %s", (_label, change) => {
+    const config = inquiryConfig({ ...ready, ...change });
+    expect(config.ok).toBe(false);
+    // The reason names settings, never their values.
+    if (!config.ok) expect(config.reason).not.toContain(secret);
   });
 });
