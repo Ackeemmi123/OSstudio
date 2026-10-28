@@ -270,10 +270,12 @@ needs setup that only a person with access to the dashboards can do. Use
    - `select private.run_inquiry_retention(true);` is a dry run. It should
      list no inquiries (`"anonymised": []`), because every staging inquiry is
      younger than 12 months.
-   - Paste and run `scripts/sql/retention-staging-check.sql`. It adds dated
-     test inquiries, runs the job as a dry run, for real and again, erases its
-     leftover test rows, and shows one row per check. Every result should be
-     PASS (the approved case shows SKIPPED if the studio has no client yet).
+   - Paste and run `scripts/sql/retention-staging-check.sql`. Inside one
+     block that is rolled back at the end, it adds dated test inquiries and a
+     temporary test client (for the approved case), runs the job as a dry run,
+     for real and again, and records the results. Nothing is kept: the last
+     row checks that inquiries, clients, rate limits and run records are as
+     before. Every result should be PASS.
    - `select jobname, schedule, active from cron.job;` shows
      `inquiry-retention`, `17 3 * * *`, active. After 03:17 UTC,
      `select * from private.inquiry_retention_runs order by id desc;` shows

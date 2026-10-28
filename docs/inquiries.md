@@ -173,7 +173,8 @@ decision. Rate-limit rows (keyed IP hashes) are deleted after 24 hours.
 
 Tests: `tests/db/inquiry-retention.test.ts`. On staging,
 `scripts/sql/retention-staging-check.sql` adds dated test inquiries, runs the
-job three times (dry run, run, retry) and shows PASS or FAIL per case (see
+job three times (dry run, run, retry), rolls all of it back and shows PASS or
+FAIL per case (see
 [staging.md](staging.md) §8).
 
 ## AI suggestions on inquiries: checks before real data
