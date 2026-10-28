@@ -258,6 +258,12 @@ needs setup that only a person with access to the dashboards can do. Use
    Supabase → Table editor → `inquiries`, marked `is_test`. Then
    `npm run staging:check` confirms signed-out reads are refused and only the
    server can receive.
+7. **Review it.** Apply `20261028000300_inquiry_review.sql` the same way. Sign
+   in to the staging app as an owner or member of "Axivo (staging)": the test
+   inquiry is on Today under "Needs your decision". Open it and approve,
+   reject or mark it as spam. Approving creates a client with a draft
+   onboarding. `npm run staging:check` confirms only signed-in people can
+   decide.
 7. **Axivo preview only.** In the Axivo Vercel project, **Preview scope only**:
    `STUDIO_OS_INQUIRY_URL=https://<studio-os staging URL>/api/inquiries`,
    `STUDIO_OS_INQUIRY_KEY_ID=axivo-staging-1`, `STUDIO_OS_INQUIRY_SECRET=<signing secret>`

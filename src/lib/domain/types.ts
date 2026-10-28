@@ -56,6 +56,8 @@ export interface SourceReference {
   label?: string;
   /** Optional link to the original material. */
   url?: string;
+  /** The website inquiry the value came from, when it did. */
+  inquiryId?: string;
 }
 
 export interface SupersededValue {
@@ -466,6 +468,55 @@ export interface OnboardingStepInput {
   questions?: string[];
 }
 
+/* -------------------------------------------------------------------------- */
+/* Website inquiries                                                          */
+/* -------------------------------------------------------------------------- */
+
+export const INQUIRY_STATUSES = ["new", "approved", "rejected", "spam", "merged"] as const;
+export type InquiryStatus = (typeof INQUIRY_STATUSES)[number];
+
+/**
+ * What a prospective customer sent through the Axivo website, as stored by
+ * POST /api/inquiries. The submitted fields never change; only the decision
+ * does, once, by a person. Ids match the contract in src/lib/inquiries/contract.ts.
+ */
+export interface Inquiry {
+  id: string;
+  status: InquiryStatus;
+  isTest: boolean;
+  locale: "en" | "sv" | "fi";
+  contactName: string;
+  email: string;
+  company: string | null;
+  website: string | null;
+  service: "websites" | "marketing" | "other";
+  projectType: "website" | "ecommerce" | "website_ecommerce" | "brand_website" | "not_sure" | null;
+  budget: "under_1k" | "1k_3k" | "3k_5k" | "5k_10k" | "over_10k" | "not_sure" | "custom" | null;
+  /** Whole euros, only with budget "custom". */
+  budgetAmount: number | null;
+  timeline: "asap" | "within_3_months" | "3_6_months" | "flexible" | null;
+  /** YYYY-MM-DD. */
+  desiredDate: string | null;
+  message: string;
+  receivedAt: ISODateString;
+  /** The client it became or was added to, once approved. */
+  clientId: string | null;
+  createdClient: boolean;
+  decidedBy: Actor | null;
+  decidedAt: ISODateString | null;
+  /** Internal reason for a rejection. Never shown to the customer. */
+  decisionReason: string | null;
+}
+
+/** A person's decision on a new inquiry. */
+export type InquiryDecision =
+  /** Create a client (under this name) and start its onboarding. */
+  | { action: "approve"; name: string }
+  /** Add the inquiry to a client that already exists. */
+  | { action: "link"; clientId: string }
+  | { action: "reject"; reason?: string }
+  | { action: "spam" };
+
 export interface StudioSnapshot {
   clients: Client[];
   projects: Project[];
@@ -475,4 +526,6 @@ export interface StudioSnapshot {
   agentRuns: AgentRunRecord[];
   proposals: AgentProposal[];
   onboardings: Onboarding[];
+  /** Website inquiries. Only a signed-in workspace receives them; always empty in the local demo. */
+  inquiries: Inquiry[];
 }

@@ -5,6 +5,8 @@ import type {
   ClientDetailsInput,
   ContextFieldInput,
   ContextFieldKey,
+  Inquiry,
+  InquiryDecision,
   NewClientInput,
   NewContextItemInput,
   NewProjectInput,
@@ -48,6 +50,12 @@ export interface StudioRepository {
   reviewProposal(proposalId: string, decision: ProposalDecision): Promise<AgentProposal>;
   /** Asks the server to run the intake agent on this client's source material. */
   requestIntakeAnalysis(clientId: string, options?: { force?: boolean }): Promise<AgentRunRecord>;
+  /**
+   * A person decides a new website inquiry: approve it as a new client (with
+   * a draft onboarding), add it to an existing client, reject it or mark it
+   * as spam. Each inquiry is decided once.
+   */
+  decideInquiry(inquiryId: string, decision: InquiryDecision): Promise<Inquiry>;
   /** Restores the demonstration workspace. Only meaningful for demo repositories. */
   resetDemoData(): Promise<StudioSnapshot>;
 }

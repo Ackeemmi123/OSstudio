@@ -10,5 +10,8 @@ export const PRIMARY_NAV: NavItem[] = [
 ];
 
 export function isActive(pathname: string, href: string): boolean {
-  return href === "/" ? pathname === "/" : pathname === href || pathname.startsWith(`${href}/`);
+  if (href === "/") return pathname === "/";
+  // A website inquiry is reviewed on its way to becoming a client.
+  if (href === "/clients" && pathname.startsWith("/inquiries/")) return true;
+  return pathname === href || pathname.startsWith(`${href}/`);
 }

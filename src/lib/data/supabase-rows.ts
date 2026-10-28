@@ -16,6 +16,7 @@ import {
   type ContextField,
   type ContextFieldKey,
   type ContextItem,
+  type Inquiry,
   type Onboarding,
   type Project,
   type SourceDocument,
@@ -41,7 +42,14 @@ export interface StudioPayload {
   proposals: Row[];
   /** Read from client_onboardings next to load_studio. */
   onboardings?: Row[];
+  /** Read from inquiries next to load_studio. */
+  inquiries?: Row[];
 }
+
+/** The inquiry columns the app reads. The content hash and submission id stay in the database. */
+export const INQUIRY_COLUMNS =
+  "id, status, is_test, locale, contact_name, email, company, website, service, project_type, budget_range, budget_amount_eur, " +
+  "timeline, desired_date, message, received_at, client_id, created_client, decided_by, decided_at, decision_reason";
 
 const str = (value: unknown): string => String(value);
 const opt = (value: unknown): string | null => (value == null ? null : String(value));
@@ -74,6 +82,33 @@ export function toSnapshot(payload: StudioPayload): StudioSnapshot {
     agentRuns: payload.agent_runs.map(toAgentRun),
     proposals: payload.proposals.map(toProposal),
     onboardings: (payload.onboardings ?? []).map(toOnboarding),
+    inquiries: (payload.inquiries ?? []).map(toInquiry),
+  };
+}
+
+export function toInquiry(row: Row): Inquiry {
+  return {
+    id: str(row.id),
+    status: row.status as Inquiry["status"],
+    isTest: Boolean(row.is_test),
+    locale: row.locale as Inquiry["locale"],
+    contactName: str(row.contact_name),
+    email: str(row.email),
+    company: opt(row.company),
+    website: opt(row.website),
+    service: row.service as Inquiry["service"],
+    projectType: (row.project_type as Inquiry["projectType"]) ?? null,
+    budget: (row.budget_range as Inquiry["budget"]) ?? null,
+    budgetAmount: row.budget_amount_eur == null ? null : Number(row.budget_amount_eur),
+    timeline: (row.timeline as Inquiry["timeline"]) ?? null,
+    desiredDate: opt(row.desired_date),
+    message: str(row.message),
+    receivedAt: str(row.received_at),
+    clientId: opt(row.client_id),
+    createdClient: Boolean(row.created_client),
+    decidedBy: actor(row.decided_by) ?? null,
+    decidedAt: opt(row.decided_at),
+    decisionReason: opt(row.decision_reason),
   };
 }
 

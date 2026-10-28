@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowRight, Check, CircleSlash, Circle, FileQuestion, Plus, Sparkles } from "lucide-react";
+import { ArrowRight, Check, CircleSlash, Circle, FileQuestion, Inbox, Plus, Sparkles } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 import { ActivityTimeline } from "@/components/activity-timeline";
@@ -136,6 +136,7 @@ function Workspace({ snapshot }: { snapshot: StudioSnapshot }) {
 }
 
 const DECISION_LABEL: Record<DecisionKind, string> = {
+  inquiry: "Review",
   approval: "Approve",
   review: "Review",
   analysis: "Review",
@@ -143,7 +144,7 @@ const DECISION_LABEL: Record<DecisionKind, string> = {
 };
 
 function DecisionIcon({ kind }: { kind: DecisionKind }) {
-  const Icon = kind === "proposal" ? FileQuestion : kind === "analysis" ? Sparkles : Check;
+  const Icon = kind === "inquiry" ? Inbox : kind === "proposal" ? FileQuestion : kind === "analysis" ? Sparkles : Check;
   return <Icon aria-hidden strokeWidth={1.75} className="size-4 text-caution" />;
 }
 

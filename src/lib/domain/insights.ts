@@ -4,6 +4,7 @@
  */
 import { formatContextValue } from "@/lib/format";
 import { getMissingEssentials } from "./clients";
+import { describeInquiry, getOpenInquiries } from "./inquiries";
 import { actorLabel, CLIENT_STATUS_LABELS, CONFIDENCE_LABELS, CONTEXT_FIELD_LABELS, ONBOARDING_STEP_LABELS, PROJECT_STAGE_LABELS } from "./labels";
 import {
   CONTEXT_FIELD_KEYS,
@@ -138,7 +139,7 @@ export function matchesClientQuery(row: ClientRow, query: string): boolean {
 /* Decisions: what only a person can resolve                                  */
 /* -------------------------------------------------------------------------- */
 
-export type DecisionKind = "approval" | "review" | "analysis" | "proposal";
+export type DecisionKind = "inquiry" | "approval" | "review" | "analysis" | "proposal";
 
 export interface DecisionItem {
   id: string;
@@ -146,18 +147,30 @@ export interface DecisionItem {
   title: string;
   /** Client and project, for orientation. */
   where: string;
-  clientId: string;
+  /** Null for a website inquiry that has no client yet. */
+  clientId: string | null;
   href: string;
 }
 
-const DECISION_ORDER: Record<DecisionKind, number> = { approval: 0, review: 1, analysis: 2, proposal: 3 };
+const DECISION_ORDER: Record<DecisionKind, number> = { inquiry: 0, approval: 1, review: 2, analysis: 3, proposal: 4 };
 
 /**
- * Approvals, reviews and proposed client facts. These wait for a person; no
- * automation or agent may resolve them.
+ * New website inquiries, approvals, reviews and proposed client facts. These
+ * wait for a person; no automation or agent may resolve them.
  */
 export function getDecisions(snapshot: StudioSnapshot): DecisionItem[] {
   const items: DecisionItem[] = [];
+
+  for (const inquiry of getOpenInquiries(snapshot)) {
+    items.push({
+      id: `inquiry-${inquiry.id}`,
+      kind: "inquiry",
+      title: `New inquiry from ${inquiry.company ?? inquiry.contactName}`,
+      where: `${inquiry.isTest ? "Test inquiry" : "Website inquiry"} · ${describeInquiry(inquiry)}`,
+      clientId: null,
+      href: `/inquiries/${encodeURIComponent(inquiry.id)}`,
+    });
+  }
   const projectById = new Map(snapshot.projects.map((project) => [project.id, project]));
   const clientById = new Map(snapshot.clients.map((client) => [client.id, client]));
 

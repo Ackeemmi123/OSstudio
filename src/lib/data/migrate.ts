@@ -45,6 +45,8 @@ export function migrateSnapshot(value: unknown): StudioSnapshot | null {
     agentRuns: list("agentRuns"),
     proposals: list("proposals"),
     onboardings: list("onboardings"),
+    // Inquiries only exist in a signed-in workspace.
+    inquiries: [],
   } as unknown as StudioSnapshot;
 }
 
