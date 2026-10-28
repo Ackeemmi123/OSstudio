@@ -13,6 +13,7 @@ import { createHash, randomUUID } from "node:crypto";
 import type pg from "pg";
 import { beforeAll, describe, expect, it } from "vitest";
 import type { SupabaseRepository } from "@/lib/data/supabase-repository";
+import { lastClientActivity } from "@/lib/domain/client-activity";
 import { examplePayload } from "@/lib/inquiries/test-helpers";
 import { addMember, admin, anonClient, asDatabaseOwner, createStudio, createUser, repositoryFor, type TestUser } from "./helpers";
 
@@ -115,6 +116,12 @@ describe("what counts as client activity", () => {
     const after = await dates(id);
     expect(Date.now() - after.last.getTime()).toBeLessThan(60_000);
     expect(monthsFromNow(after.ends)).toBeGreaterThan(11.5);
+
+    // The app's definition (lastClientActivity) agrees with the database's, before and after.
+    const snapshot = await (await loaded(owner)).load();
+    const client = snapshot.clients.find((c) => c.id === id)!;
+    expect(Date.parse(lastClientActivity(client, snapshot))).toBe(after.last.getTime());
+    expect(Date.parse(client.retention!.lastActivityAt)).toBe(after.last.getTime());
   });
 
   it("history imported later counts at its original date, never at the date it was stored", async () => {
@@ -132,6 +139,8 @@ describe("what counts as client activity", () => {
       await db.query("commit");
     });
     expect(monthsFromNow((await dates(id)).last)).toBeLessThan(-12);
+    const snapshot = await (await loaded(owner)).load();
+    expect(Date.parse(lastClientActivity(snapshot.clients.find((c) => c.id === id)!, snapshot))).toBe((await dates(id)).last.getTime());
   });
 });
 

@@ -1,9 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { createSeedSnapshot } from "@/lib/data/seed";
 import { toSnapshot, type StudioPayload } from "@/lib/data/supabase-rows";
+import { lastClientActivity } from "./client-activity";
 import { getDecisions } from "./insights";
 import { cleanHoldReason, daysUntilAnonymised, describeDaysLeft, getRetentionWarnings } from "./retention";
-import type { Client, ClientRetention } from "./types";
+import type { Actor, Client, ClientRetention, StudioSnapshot } from "./types";
 
 const NOW = Date.parse("2026-10-29T12:00:00.000Z");
 const DAY = 24 * 3600 * 1000;
@@ -68,5 +69,30 @@ describe("reading retention from the database", () => {
       log: [{ action: "hold", reason: "Dispute", actor: { kind: "human", name: "Alex" }, at: "2026-10-01T00:00:00Z" }],
     });
     expect(unknown.retention).toBeUndefined();
+  });
+});
+
+describe("client activity", () => {
+  const client = base.clients[0];
+  const project = base.projects.find((p) => p.clientId === client.id)!;
+  const task = base.tasks.find((t) => t.projectId === project.id)!;
+  const at = (days: number) => new Date(NOW + days * DAY).toISOString();
+  const event = (entityType: "client" | "project" | "task", entityId: string, timestamp: string, actor: Actor) =>
+    ({ id: `e-${timestamp}-${entityId}`, entityType, entityId, eventType: "note.added" as const, description: "x", actor, timestamp });
+  const old = { ...client, createdAt: at(-400) };
+
+  it("is the newest change a person made to the client, its projects or tasks; agents and the system never count", () => {
+    const activity = [
+      event("client", client.id, at(-300), { kind: "human", name: "Alex" }),
+      event("task", task.id, at(-200), { kind: "human", name: "Sara" }),
+      event("client", client.id, at(-1), { kind: "agent", agentId: "research" }),
+      event("project", project.id, at(-2), { kind: "system" }),
+      event("client", "someone-else", at(-1), { kind: "human", name: "Alex" }),
+    ] as StudioSnapshot["activity"];
+    expect(lastClientActivity(old, { projects: base.projects, tasks: base.tasks, activity })).toBe(at(-200));
+  });
+
+  it("is the client's creation when nobody has changed it", () => {
+    expect(lastClientActivity(old, { projects: base.projects, tasks: base.tasks, activity: [] })).toBe(at(-400));
   });
 });

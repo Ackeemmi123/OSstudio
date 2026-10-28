@@ -25,7 +25,10 @@ reading anything, agent runs and their proposals, anything the system or a
 scheduled job does (including the retention jobs), and placing or releasing a
 hold. Each event counts at the earlier of when it happened and when the
 database stored it, so neither a device clock nor an import can push the date
-forward. With no activity at all, the client's creation counts.
+forward. With no activity at all, the client's creation counts. In the app this is
+`lastClientActivity()` in `src/lib/domain/client-activity.ts`, the one
+definition follow-ups also use; the database's `private.client_last_activity()`
+decides retention, and a database test checks the two agree.
 
 The database sets three dates itself and ignores anything the app or the API
 sends for them: `became_customer_at` (the first time the status became
