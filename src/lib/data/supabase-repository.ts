@@ -2,6 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { AgentRunRecord } from "@/lib/agents/contract";
 import { buildNewClient, DomainConflictError, DomainError, setContextField, updateClientDetails, type DomainDeps } from "@/lib/domain/clients";
 import { addContextItem, buildSource, reviewProposal } from "@/lib/domain/intake";
+import { approveInquiry, assertDecidable, cleanRejectionReason, linkInquiry } from "@/lib/domain/inquiries";
 import { buildOnboarding, completeOnboarding, findOnboarding, saveOnboardingStep } from "@/lib/domain/onboarding";
 import { buildProject, buildTask, setTaskStatus, updateProject } from "@/lib/domain/projects";
 import {
@@ -12,6 +13,8 @@ import {
   type ClientDetailsInput,
   type ContextFieldInput,
   type ContextFieldKey,
+  type Inquiry,
+  type InquiryDecision,
   type NewClientInput,
   type NewContextItemInput,
   type NewProjectInput,
@@ -35,6 +38,7 @@ import {
   contextFieldRow,
   contextItemRow,
   eventRow,
+  INQUIRY_COLUMNS,
   onboardingRow,
   projectRow,
   sourceRow,
@@ -46,6 +50,8 @@ import {
 
 type Row = Record<string, unknown>;
 type Write = { op: "insert"; row: Row } | { op: "update"; row: Row; expected: string };
+/** A decision on a website inquiry, recorded by decide_inquiry() with its changes. */
+type Decision = { status: "approved" | "rejected" | "spam"; client_id?: string; reason?: string | null; decided_by: Row };
 
 /** One domain change, applied by the database in a single transaction. */
 interface Changes {
@@ -111,13 +117,19 @@ export class SupabaseRepository implements StudioRepository {
 
   /** Always reads fresh data: other people may have changed it. */
   async load(): Promise<StudioSnapshot> {
-    const [studio, onboardings] = await Promise.all([
+    const [studio, onboardings, inquiries] = await Promise.all([
       this.client.rpc("load_studio", { p_studio: this.studioId }),
       this.client.from("client_onboardings").select("*").eq("studio_id", this.studioId),
+      this.client.from("inquiries").select(INQUIRY_COLUMNS).eq("studio_id", this.studioId).order("received_at", { ascending: false }).limit(500),
     ]);
     if (studio.error) throw toRepositoryError(studio.error);
     if (onboardings.error) throw toRepositoryError(onboardings.error);
-    const payload = { ...(studio.data as StudioPayload), onboardings: onboardings.data as Record<string, unknown>[] };
+    if (inquiries.error) throw toRepositoryError(inquiries.error);
+    const payload = {
+      ...(studio.data as StudioPayload),
+      onboardings: onboardings.data as Record<string, unknown>[],
+      inquiries: inquiries.data as unknown as Record<string, unknown>[],
+    };
     this.snapshot = toSnapshot(payload);
     this.current = {
       kind: "supabase",
@@ -275,6 +287,49 @@ export class SupabaseRepository implements StudioRepository {
     });
   }
 
+  async decideInquiry(inquiryId: string, decision: InquiryDecision): Promise<Inquiry> {
+    await this.write<Inquiry>((s, deps) => {
+      const inquiry = find(s.inquiries, inquiryId, "inquiry");
+      const decided = { ...inquiry, decidedBy: deps.actor, decidedAt: deps.now() };
+      if (decision.action === "approve") {
+        const approval = approveInquiry(inquiry, decision.name, deps);
+        const { client } = approval;
+        return [
+          { ...decided, status: "approved", clientId: client.id, createdClient: true },
+          {
+            clients: [{ op: "insert", row: clientRow(client) }],
+            context_fields: CONTEXT_FIELD_KEYS.map((key) => ({ op: "insert", row: contextFieldRow(client.id, key, client.context[key]) })),
+            context_items: approval.items.map((item) => ({ op: "insert" as const, row: contextItemRow(client.id, item) })),
+            sources: [{ op: "insert", row: sourceRow(approval.source) }],
+            events: approval.events.map(eventRow),
+          },
+          { op: "insert", row: onboardingRow(approval.onboarding) },
+          { status: "approved", client_id: client.id, decided_by: deps.actor },
+        ];
+      }
+      if (decision.action === "link") {
+        const before = find(s.clients, decision.clientId, "client");
+        const link = linkInquiry(inquiry, before, deps);
+        const changes: Changes = { sources: [{ op: "insert", row: sourceRow(link.source) }], events: link.events.map(eventRow) };
+        if (link.detailsChanged) changes.clients = [update(clientRow(link.client), before.updatedAt)];
+        if (link.changedFields.length) {
+          changes.context_fields = link.changedFields.map((key) => fieldUpdate(link.client, key, before.context[key].updatedAt));
+        }
+        return [
+          { ...decided, status: "approved", clientId: before.id, createdClient: false },
+          changes,
+          undefined,
+          { status: "approved", client_id: before.id, decided_by: deps.actor },
+        ];
+      }
+      assertDecidable(inquiry, deps);
+      const status = decision.action === "reject" ? "rejected" : "spam";
+      const reason = decision.action === "reject" ? cleanRejectionReason(decision.reason) : null;
+      return [{ ...decided, status, decisionReason: reason }, null, undefined, { status, reason, decided_by: deps.actor }];
+    }, inquiryId);
+    return find((await this.load()).inquiries, inquiryId, "inquiry");
+  }
+
   async requestIntakeAnalysis(clientId: string, options: { force?: boolean } = {}): Promise<AgentRunRecord> {
     const { data } = await this.client.auth.getSession();
     const token = data.session?.access_token;
@@ -312,7 +367,8 @@ export class SupabaseRepository implements StudioRepository {
    * onboarding row is written in the same transaction.
    */
   private async write<T>(
-    change: (snapshot: StudioSnapshot, deps: DomainDeps) => [T, Changes | null, Write?],
+    change: (snapshot: StudioSnapshot, deps: DomainDeps) => [T, Changes | null, Write?, Decision?],
+    inquiryId?: string,
   ): Promise<T> {
     if (!this.current.canWrite) {
       throw new RepositoryError("You have read-only access to this studio. Ask an owner for member access.", "permission");
@@ -322,18 +378,27 @@ export class SupabaseRepository implements StudioRepository {
     let value: T;
     let changes: Changes | null;
     let onboarding: Write | undefined;
+    let decision: Decision | undefined;
     try {
-      [value, changes, onboarding] = change(snapshot, deps);
+      [value, changes, onboarding, decision] = change(snapshot, deps);
     } catch (error) {
       if (error instanceof DomainConflictError) throw new RepositoryError(error.message, "conflict");
       if (error instanceof DomainError) throw new RepositoryError(error.message, "validation");
       throw error;
     }
-    if (!changes && !onboarding) return value;
+    if (!changes && !onboarding && !decision) return value;
 
     let failure: unknown;
     try {
-      const { error } = onboarding
+      const { error } = decision
+        ? await this.client.rpc("decide_inquiry", {
+            p_studio: this.studioId,
+            p_inquiry: inquiryId,
+            p_decision: decision,
+            p_changes: changes,
+            p_onboarding: onboarding ?? null,
+          })
+        : onboarding
         ? await this.client.rpc("apply_onboarding_changes", { p_studio: this.studioId, p_changes: changes ?? { events: [] }, p_onboarding: onboarding })
         : await this.client.rpc("apply_changes", { p_studio: this.studioId, p_changes: changes });
       failure = error;

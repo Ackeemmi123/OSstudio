@@ -39,7 +39,7 @@ const TABLES = [
   "projects", "tasks", "import_batches", "activity_events", "agent_runs", "agent_proposals", "client_onboardings",
   "inquiries", "inquiry_rate_limits",
 ];
-const FUNCTIONS = ["my_studios", "create_studio", "load_studio", "apply_changes", "apply_onboarding_changes", "import_browser_data", "receive_inquiry"];
+const FUNCTIONS = ["my_studios", "create_studio", "load_studio", "apply_changes", "apply_onboarding_changes", "import_browser_data", "receive_inquiry", "decide_inquiry"];
 
 checkConfiguration();
 if (config.url && config.anonKey) await checkSupabase();
@@ -271,6 +271,17 @@ async function checkDatabase() {
     if (!row) fail("Inquiries are received only by the server", "function receive_inquiry does not exist");
     else if (!row.service || row.people || row.visitors) fail("Inquiries are received only by the server", "receive_inquiry must be executable by service_role only");
     else pass("Inquiries are received only by the server");
+
+    // Inquiries are decided only by signed-in people, through decide_inquiry().
+    const decide = await db.query(
+      `select has_function_privilege('authenticated', 'public.decide_inquiry(uuid, uuid, jsonb, jsonb, jsonb)', 'execute') as people,
+              has_function_privilege('service_role', 'public.decide_inquiry(uuid, uuid, jsonb, jsonb, jsonb)', 'execute') as service,
+              has_function_privilege('anon', 'public.decide_inquiry(uuid, uuid, jsonb, jsonb, jsonb)', 'execute') as visitors`,
+    ).catch(() => null);
+    const decideRow = decide?.rows[0];
+    if (!decideRow) fail("Inquiries are decided only by people", "function decide_inquiry does not exist (apply 20261028000300_inquiry_review.sql)");
+    else if (!decideRow.people || decideRow.service || decideRow.visitors) fail("Inquiries are decided only by people", "decide_inquiry must be executable by authenticated only");
+    else pass("Inquiries are decided only by people");
   } finally {
     await db.end();
   }

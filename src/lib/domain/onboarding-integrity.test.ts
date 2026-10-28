@@ -54,7 +54,7 @@ describe("values changed by someone else", () => {
     const storage = new Map<string, string>();
     const repo = new LocalDemoRepository({
       storage: { getItem: (k) => storage.get(k) ?? null, setItem: (k, v) => void storage.set(k, v), removeItem: (k) => void storage.delete(k) },
-      seed: () => ({ clients: [], projects: [], tasks: [], activity: [], sources: [], agentRuns: [], proposals: [], onboardings: [] }),
+      seed: () => ({ clients: [], projects: [], tasks: [], activity: [], sources: [], agentRuns: [], proposals: [], onboardings: [], inquiries: [] }),
     });
     const client = await repo.createClient({ name: "Lumen" });
     const onboarding = await repo.startOnboarding(client.id);

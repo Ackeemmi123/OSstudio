@@ -10,6 +10,7 @@ import type {
   ClientDetailsInput,
   ContextFieldInput,
   ContextFieldKey,
+  Inquiry,
   NewClientInput,
   NewContextItemInput,
   NewProjectInput,
@@ -189,6 +190,10 @@ export class LocalDemoRepository implements StudioRepository {
       const { task, events } = setTaskStatus(find(s.tasks, taskId, "task"), status, this.deps);
       return [{ ...s, tasks: replace(s.tasks, task) }, task, events];
     });
+  }
+
+  async decideInquiry(): Promise<Inquiry> {
+    throw new RepositoryError("Website inquiries only arrive in a signed-in Studio OS workspace, not in the local demo.", "unavailable");
   }
 
   async resetDemoData(): Promise<StudioSnapshot> {

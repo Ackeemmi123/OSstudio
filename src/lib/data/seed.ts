@@ -453,5 +453,5 @@ export function createSeedSnapshot(nowMs: number = Date.now()): StudioSnapshot {
     },
   ];
 
-  return { clients, projects, tasks, activity, sources: [], agentRuns: [], proposals: [], onboardings };
+  return { clients, projects, tasks, activity, sources: [], agentRuns: [], proposals: [], onboardings, inquiries: [] };
 }

@@ -7,11 +7,14 @@ it is safely stored. This is the first slice of the plan
 contract v1, revision 3 (https://claude.ai/artifact/SS53XHpDBTYpWeWngFaK6M).
 
 **Built:** the signed endpoint, storage, duplicate and conflict handling, rate
-limits, and read access for studio members (database only).
-**Not built yet:** the review screen (approve, link, reject, spam), turning an
-approved inquiry into a client and onboarding, AI suggestions on inquiries,
-and the retention job. Until the retention job exists and is tested, **only
-test inquiries may be sent to Studio OS.**
+limits, and the review screen: staff approve an inquiry as a new client (with
+a draft onboarding), add it to an existing client, reject it or mark it as
+spam (see [Reviewing an inquiry](#reviewing-an-inquiry)).
+**Not built yet:** grouping repeat submissions from one address (the `merged`
+status), the retention job, and AI suggestions run from the inquiry page
+(the intake agent can be run from the new client's workspace). Until the
+retention job exists and is tested, **only test inquiries may be sent to
+Studio OS.**
 
 ## How a request is handled
 
@@ -74,18 +77,46 @@ Counted in the database, so they hold across server instances:
 
 The budget never affects whether an inquiry is accepted.
 
+## Reviewing an inquiry
+
+New inquiries appear on **Today** under "Needs your decision" and at the top of
+**Clients** under "New inquiries", newest first. Nothing sorts, filters or
+decides by budget. Each opens `/inquiries/<id>`, which shows what the customer
+sent, marked "From website inquiry · not reviewed", possible existing clients
+(same email, website domain, company name or contact person) and other
+inquiries from the same address (with a "Previously rejected" flag). Owners
+and members decide; viewers only read. Nothing is ever sent to the customer.
+
+| Decision | What it writes |
+| -------- | -------------- |
+| **Approve as new client** (the reviewer may change the name) | One client in status *onboarding* with contact person, email, website and project type; the message as source material (`contact_form`, "Website inquiry · 28 Oct 2026", first line "Language: Swedish") and as the client's initial notes; budget and timing as **observed** brief values whose source points back to the inquiry (`inquiryId`); "Discuss budget with the customer" as an open question when they were not sure; a **draft** onboarding, where those values show as "verify"; activity in the reviewer's name. The message is never turned into a goal or other value. |
+| **Add to an existing client** | The message as source material. Contact details, budget and timing only where the client has none. No existing value changes (differences are listed before confirming), no client is created, no onboarding starts. |
+| **Reject** (optional internal reason) | Only the inquiry: status, who, when, reason. |
+| **Mark as spam** | Only the inquiry: status, who, when. |
+
+Every decision goes through `decide_inquiry()`
+(`supabase/migrations/20261028000300_inquiry_review.sql`), which runs as the
+signed-in person. It locks the inquiry, refuses one that is already decided,
+and for an approval applies the client, brief, source and onboarding through
+`apply_onboarding_changes()` in the same transaction. Two people approving at
+the same moment therefore create one client; the second is told the inquiry
+was already decided. A guard trigger refuses any other update to an inquiry,
+any change to what the customer sent, and a decision in someone else's name.
+
 ## Who can see what
 
-| Who | `inquiries` | `inquiry_rate_limits` | `receive_inquiry()` |
-| --- | ----------- | --------------------- | ------------------- |
-| Signed out (anon) | nothing | nothing | no |
-| Studio owner, member, viewer | read their studio's rows | nothing | no |
-| Other signed-in people | nothing | nothing | no |
-| Service role | nothing | nothing | yes, the only way in |
+| Who | `inquiries` | `inquiry_rate_limits` | `receive_inquiry()` | `decide_inquiry()` |
+| --- | ----------- | --------------------- | ------------------- | ------------------ |
+| Signed out (anon) | nothing | nothing | no | no |
+| Studio owner, member | read their studio's rows; decide through `decide_inquiry()` | nothing | no | yes |
+| Studio viewer | read their studio's rows | nothing | no | refused |
+| Other signed-in people | nothing | nothing | no | refused |
+| Service role | nothing | nothing | yes, the only way in | no |
 
-Nobody can edit or delete an inquiry; what the customer wrote stays as written.
-`tests/db/inquiries.test.ts` checks every row of this table, and
-`npm run staging:check` checks the same against staging.
+Nobody can delete an inquiry or edit what the customer wrote.
+`tests/db/inquiries.test.ts` and `tests/db/inquiry-review.test.ts` check
+every row of this table, and `npm run staging:check` checks the function
+privileges against staging.
 
 ## Configuration (server only)
 
@@ -108,9 +139,9 @@ shell only. See [staging.md](staging.md#8-website-inquiries).
 
 ## AI suggestions on inquiries: checks before real data
 
-Staff will be able to ask the intake agent for suggestions from an inquiry
-once inquiries become clients (next slice). That sends the inquiry text to
-Anthropic. Before any **real** inquiry is analyzed:
+Once an inquiry is approved, staff can run the intake agent ("Analyze client
+information") on the new client, whose source material is the inquiry
+message. That sends the inquiry text to Anthropic. Before any **real** inquiry is analyzed:
 
 - Confirm a data processing agreement with Anthropic covers this use, and
   where requests are processed.

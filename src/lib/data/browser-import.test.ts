@@ -69,7 +69,7 @@ describe("browser import", () => {
 
   it("verifies that every record came back from the server", async () => {
     const plan = await planImport(await localWorkspace(), STUDIO);
-    const empty: StudioSnapshot = { clients: [], projects: [], tasks: [], activity: [], sources: [], agentRuns: [], proposals: [], onboardings: [] };
+    const empty: StudioSnapshot = { clients: [], projects: [], tasks: [], activity: [], sources: [], agentRuns: [], proposals: [], onboardings: [], inquiries: [] };
     expect(verifyImport(plan, empty)).toEqual({ ok: false, missing: 3 });
     const present = {
       ...empty,
