@@ -52,10 +52,12 @@ They drop nothing. Review what will run first:
 npx supabase db push --db-url "$STAGING_DATABASE_URL" --dry-run
 ```
 
-Exactly these five should be listed, in this order, on a new project:
+On a new project, exactly these six should be listed, in this order:
 `20261027000100_core_schema`, `…000200_agents`, `…000300_security`,
-`…000400_functions`, `…000500_onboarding`. If anything else is listed, stop:
-the database is not the empty staging project you think it is. Then:
+`…000400_functions`, `…000500_onboarding`, `20261028000100_service_role_grants`.
+On a project that already has the first five, only the last one should be
+listed. If anything else is listed, stop: the database is not the staging
+project you think it is. Then:
 
 ```bash
 npx supabase db push --db-url "$STAGING_DATABASE_URL"

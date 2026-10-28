@@ -52,8 +52,15 @@ Every table carries `studio_id`, and child rows reference their parent by
 - **Agents only propose.** Agent runs and proposals are written by the server
   (service role) only. People can change just the review columns of a
   proposal, and accepting one goes through the same rules as a manual edit.
+- **The server's key reaches only the agent tables.** The service role is
+  granted exactly what the agent runner does: read and record runs and
+  proposals, finish a run, supersede a pending proposal, and log activity
+  (`20261028000100_service_role_grants.sql`). It cannot read client data;
+  the runner reads that with the requesting person's session. Supabase
+  projects created after May 2026 grant nothing by default, so every grant is
+  explicit.
 
-`npm run test:db` checks all of this against a real database (21 tests).
+`npm run test:db` checks all of this against a real database.
 
 ### How writes work
 

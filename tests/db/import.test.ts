@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { planImport, sendImport, verifyImport } from "@/lib/data/browser-import";
 import { LocalDemoRepository } from "@/lib/data/local-repository";
 import { createSeedSnapshot } from "@/lib/data/seed";
-import { admin, createStudio, createUser, repositoryFor } from "./helpers";
+import { createStudio, createUser, repositoryFor } from "./helpers";
 
 async function browserWorkspace() {
   const repository = new LocalDemoRepository({ storage: null, seed: () => createSeedSnapshot() });
@@ -40,7 +40,7 @@ describe("browser import", () => {
 
     const second = await sendImport(owner.client, studio, plan);
     expect(second.status).toBe("already_imported");
-    const { count } = await admin.from("clients").select("id", { count: "exact", head: true }).eq("studio_id", studio);
+    const { count } = await owner.client.from("clients").select("id", { count: "exact", head: true }).eq("studio_id", studio);
     expect(count).toBe(1);
 
     // Imported work still needs a person's approval on the server.
@@ -75,7 +75,7 @@ describe("browser import", () => {
     expect(source.error?.code).toBe("42501");
 
     // Nothing from the refused imports was kept.
-    const { count } = await admin.from("clients").select("id", { count: "exact", head: true }).eq("studio_id", studio);
+    const { count } = await member.client.from("clients").select("id", { count: "exact", head: true }).eq("studio_id", studio);
     expect(count).toBe(0);
   });
 
