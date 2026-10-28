@@ -273,9 +273,10 @@ needs setup that only a person with access to the dashboards can do. Use
    - Paste and run `scripts/sql/retention-staging-check.sql`. Inside one
      block that is rolled back at the end, it adds dated test inquiries and a
      temporary test client (for the approved case), runs the job as a dry run,
-     for real and again, and records the results. Nothing is kept: the last
-     row checks that inquiries, clients, rate limits and run records are as
-     before. Every result should be PASS.
+     for real and again, and compares every column of every test row and of
+     every other inquiry. Nothing is kept: the last row checks that every
+     column of every inquiry, client, rate-limit row and run record is as
+     before. Every result (11 rows) should be PASS.
    - `select jobname, schedule, active from cron.job;` shows
      `inquiry-retention`, `17 3 * * *`, active. After 03:17 UTC,
      `select * from private.inquiry_retention_runs order by id desc;` shows
