@@ -37,8 +37,9 @@ const skip = (label, detail) => record("skip", label, detail);
 const TABLES = [
   "studios", "studio_members", "clients", "client_context_fields", "client_context_items", "client_sources",
   "projects", "tasks", "import_batches", "activity_events", "agent_runs", "agent_proposals", "client_onboardings",
+  "inquiries", "inquiry_rate_limits",
 ];
-const FUNCTIONS = ["my_studios", "create_studio", "load_studio", "apply_changes", "apply_onboarding_changes", "import_browser_data"];
+const FUNCTIONS = ["my_studios", "create_studio", "load_studio", "apply_changes", "apply_onboarding_changes", "import_browser_data", "receive_inquiry"];
 
 checkConfiguration();
 if (config.url && config.anonKey) await checkSupabase();
@@ -105,6 +106,12 @@ async function checkSupabase() {
   if (table.status === 404 || table.body?.code === "PGRST205") fail("Migrations applied", "table public.clients does not exist");
   else if (!table.ok && (table.body?.code === "42501" || table.status === 401)) pass("Signed-out table reads refused");
   else fail("Signed-out table reads refused", `got HTTP ${table.status}`);
+
+  // Website inquiries hold what visitors wrote: never readable signed out.
+  const inquiries = await request(`${config.url}/rest/v1/inquiries?select=id&limit=1`, { headers: anonHeaders });
+  if (inquiries.status === 404 || inquiries.body?.code === "PGRST205") fail("Migrations applied", "table public.inquiries does not exist");
+  else if (!inquiries.ok && (inquiries.body?.code === "42501" || inquiries.status === 401)) pass("Signed-out inquiry reads refused");
+  else fail("Signed-out inquiry reads refused", `got HTTP ${inquiries.status}`);
 
   const rpc = await request(`${config.url}/rest/v1/rpc/my_studios`, { method: "POST", headers: { ...anonHeaders, "content-type": "application/json" }, body: "{}" });
   if (rpc.body?.code === "PGRST202") fail("Migrations applied", "function my_studios does not exist");
@@ -253,6 +260,17 @@ async function checkDatabase() {
     );
     if (runner.rows.length) fail("Agent runner can record runs", `service_role lacks: ${runner.rows.map((r) => r.need).join(", ")}`);
     else pass("Agent runner can record runs");
+
+    // Inquiries arrive only through receive_inquiry(), called by /api/inquiries with the service role.
+    const receive = await db.query(
+      `select has_function_privilege('service_role', 'public.receive_inquiry(uuid, jsonb, text, text)', 'execute') as service,
+              has_function_privilege('authenticated', 'public.receive_inquiry(uuid, jsonb, text, text)', 'execute') as people,
+              has_function_privilege('anon', 'public.receive_inquiry(uuid, jsonb, text, text)', 'execute') as visitors`,
+    ).catch(() => null);
+    const row = receive?.rows[0];
+    if (!row) fail("Inquiries are received only by the server", "function receive_inquiry does not exist");
+    else if (!row.service || row.people || row.visitors) fail("Inquiries are received only by the server", "receive_inquiry must be executable by service_role only");
+    else pass("Inquiries are received only by the server");
   } finally {
     await db.end();
   }

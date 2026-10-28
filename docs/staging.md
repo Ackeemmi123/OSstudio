@@ -222,6 +222,45 @@ These need a person in a browser:
 6. Sign out, and let a session expire (or revoke it in Supabase): the app asks
    to sign in again rather than failing silently.
 
+## 8. Website inquiries
+
+Receiving inquiries from the Axivo website ([inquiries.md](inquiries.md))
+needs setup that only a person with access to the dashboards can do. Use
+**test inquiries only**: the retention job does not exist yet.
+
+1. **Studio.** Sign in to the staging app as the owner and create a studio
+   named "Axivo (staging)" (or choose an existing one). Copy its id from the
+   Supabase dashboard (`select id, name from studios`).
+2. **Migration.** Apply `20261028000200_inquiries.sql` as before
+   (`supabase db push --dry-run`, review, then `supabase db push`).
+3. **Secrets, created on your own machine.** `openssl rand -hex 32` twice: one
+   signing secret, one hash key. Paste them only into the Vercel dashboards and
+   your password manager, never into chat, git or a cloud environment.
+4. **Studio OS staging (Vercel project `studio-os-staging`)**, server only,
+   Preview and Production scope of that staging project:
+   `INQUIRY_SIGNING_KEYS=axivo-staging-1:<signing secret>`,
+   `INQUIRY_STUDIO_ID=<studio id>`, `INQUIRY_HASH_KEY=<hash key>`. Check that
+   `SUPABASE_SERVICE_ROLE_KEY` is set there too. Redeploy.
+5. **Deployment Protection.** If it is on for `studio-os-staging`, the Axivo
+   server's calls are blocked before they reach the app. Create a "Protection
+   Bypass for Automation" secret, or turn protection off for the API route.
+6. **Check it.** From your machine:
+
+   ```bash
+   STAGING_INQUIRY=1 STAGING_APP_URL=https://<studio-os staging or preview URL> \
+   STAGING_INQUIRY_KEY_ID=axivo-staging-1 STAGING_INQUIRY_SECRET=<signing secret> \
+   npm run staging:inquiry
+   ```
+
+   Four checks must pass (new, retry, conflict, forged). The stored row is in
+   Supabase → Table editor → `inquiries`, marked `is_test`. Then
+   `npm run staging:check` confirms signed-out reads are refused and only the
+   server can receive.
+7. **Axivo preview only.** In the Axivo Vercel project, **Preview scope only**:
+   `STUDIO_OS_INQUIRY_URL=https://<studio-os staging URL>/api/inquiries`,
+   `STUDIO_OS_INQUIRY_KEY_ID=axivo-staging-1`, `STUDIO_OS_INQUIRY_SECRET=<signing secret>`
+   (and `STUDIO_OS_BYPASS_TOKEN` if step 5 needed one). Never in Production.
+
 ## Cleaning up
 
 The smoke test's studios (and accounts it created) are clearly named and can stay. Nothing

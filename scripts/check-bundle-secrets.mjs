@@ -5,8 +5,9 @@
  *
  *   node scripts/check-bundle-secrets.mjs [distDir]   # default .next
  *
- * It looks for the values of SUPABASE_SERVICE_ROLE_KEY and ANTHROPIC_API_KEY
- * (and their STAGING_ names) from the environment, and for anything shaped
+ * It looks for the values of SUPABASE_SERVICE_ROLE_KEY, ANTHROPIC_API_KEY,
+ * INQUIRY_HASH_KEY and each secret in INQUIRY_SIGNING_KEYS (and their
+ * STAGING_ names) from the environment, and for anything shaped
  * like a Supabase secret key, an Anthropic key, or a service_role JWT. It
  * prints file names only, never what it found.
  */
@@ -14,9 +15,12 @@ import { readdirSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
 
 const dist = path.resolve(process.argv[2] ?? ".next");
-const values = ["SUPABASE_SERVICE_ROLE_KEY", "STAGING_SUPABASE_SERVICE_ROLE_KEY", "ANTHROPIC_API_KEY", "STAGING_ANTHROPIC_API_KEY"]
-  .map((name) => [name, process.env[name]?.trim()])
-  .filter(([, value]) => value && value.length >= 8);
+const values = [
+  ...["SUPABASE_SERVICE_ROLE_KEY", "STAGING_SUPABASE_SERVICE_ROLE_KEY", "ANTHROPIC_API_KEY", "STAGING_ANTHROPIC_API_KEY", "INQUIRY_HASH_KEY", "STAGING_INQUIRY_SECRET"]
+    .map((name) => [name, process.env[name]?.trim()]),
+  // "keyId:secret,keyId:secret": the secrets, not the public key ids.
+  ...(process.env.INQUIRY_SIGNING_KEYS ?? "").split(",").map((entry) => ["a secret in INQUIRY_SIGNING_KEYS", entry.slice(entry.indexOf(":") + 1).trim()]),
+].filter(([, value]) => value && value.length >= 8);
 const SHAPES = [
   ["a Supabase secret key", /sb_secret_[A-Za-z0-9_-]{8,}/],
   ["an Anthropic API key", /sk-ant-[A-Za-z0-9_-]{8,}/],

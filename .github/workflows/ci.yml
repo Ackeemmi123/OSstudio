@@ -36,6 +36,9 @@ jobs:
           NEXT_PUBLIC_SUPABASE_ANON_KEY: sb_publishable_ci_canary_public
           SUPABASE_SERVICE_ROLE_KEY: sb_secret_ci_canary_must_not_ship
           ANTHROPIC_API_KEY: sk-ant-ci-canary-must-not-ship
+          INQUIRY_SIGNING_KEYS: ci-canary:inquiry-signing-secret-ci-canary-must-not-ship
+          INQUIRY_HASH_KEY: inquiry-hash-key-ci-canary-must-not-ship-0123
+          INQUIRY_STUDIO_ID: 00000000-0000-4000-8000-000000000000
       - name: No secrets in the browser bundle
         run: node scripts/check-bundle-secrets.mjs .next
         env:
@@ -43,6 +46,9 @@ jobs:
           NEXT_PUBLIC_SUPABASE_ANON_KEY: sb_publishable_ci_canary_public
           SUPABASE_SERVICE_ROLE_KEY: sb_secret_ci_canary_must_not_ship
           ANTHROPIC_API_KEY: sk-ant-ci-canary-must-not-ship
+          INQUIRY_SIGNING_KEYS: ci-canary:inquiry-signing-secret-ci-canary-must-not-ship
+          INQUIRY_HASH_KEY: inquiry-hash-key-ci-canary-must-not-ship-0123
+          INQUIRY_STUDIO_ID: 00000000-0000-4000-8000-000000000000
 
   integration:
     name: Database and end-to-end tests (local Supabase)

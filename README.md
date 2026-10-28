@@ -77,6 +77,13 @@ or Settings.
   until a person accepts it. It does no web research. It needs
   `ANTHROPIC_API_KEY` on the server; see [docs/architecture.md](docs/architecture.md).
 
+## Website inquiries
+
+The Axivo website forwards contact-form inquiries to a signed endpoint,
+`POST /api/inquiries`, which stores each one once and confirms with `202`.
+Studio members can read them; nobody can edit them. Reviewing and approving
+inquiries is not built yet. See [docs/inquiries.md](docs/inquiries.md).
+
 ## Not built
 
 - File uploads, email intake, notifications, invoicing.

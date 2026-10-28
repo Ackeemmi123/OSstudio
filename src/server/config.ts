@@ -76,6 +76,59 @@ export function intakeModel(env: Env = process.env): IntakeModelConfig {
   return { ok: false, reason: "No AI model is configured on the server. Set ANTHROPIC_API_KEY to enable client analysis." };
 }
 
+export interface InquiryConfig {
+  supabase: ServerSupabase;
+  /** Key id → shared signing secret. More than one during a rotation. */
+  signingKeys: ReadonlyMap<string, string>;
+  /** The studio that receives website inquiries. */
+  studioId: string;
+  /** Keys the hash of a visitor's IP address for rate limiting. */
+  hashKey: string;
+}
+
+export type InquiryConfigResult = { ok: true; value: InquiryConfig } | { ok: false; reason: string };
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const KEY_ID = /^[A-Za-z0-9._-]{1,64}$/;
+const MIN_SECRET_LENGTH = 32;
+
+/**
+ * Website inquiries (POST /api/inquiries) need, all server only:
+ * - INQUIRY_SIGNING_KEYS: "keyId:secret", comma-separated during a rotation.
+ *   Each secret at least 32 characters, created by a person, never committed.
+ * - INQUIRY_STUDIO_ID: the studio that receives inquiries.
+ * - INQUIRY_HASH_KEY: at least 32 characters, keys the IP hash for rate limits.
+ * - the Supabase service role, as for the intake agent.
+ * Without all of them the endpoint answers 503 and stores nothing.
+ */
+export function inquiryConfig(env: Env = process.env): InquiryConfigResult {
+  const supabase = serverSupabase(env);
+  if (!supabase.ok) return supabase;
+
+  const rawKeys = clean(env.INQUIRY_SIGNING_KEYS);
+  const studioId = clean(env.INQUIRY_STUDIO_ID);
+  const hashKey = clean(env.INQUIRY_HASH_KEY);
+  if (!rawKeys || !studioId || !hashKey) {
+    return { ok: false, reason: "Website inquiries are not configured (INQUIRY_SIGNING_KEYS, INQUIRY_STUDIO_ID and INQUIRY_HASH_KEY must be set)." };
+  }
+  const signingKeys = new Map<string, string>();
+  for (const entry of rawKeys.split(",")) {
+    const at = entry.indexOf(":");
+    const id = entry.slice(0, at).trim();
+    const secret = entry.slice(at + 1).trim();
+    if (at < 1 || !KEY_ID.test(id) || secret.length < MIN_SECRET_LENGTH || signingKeys.has(id)) {
+      return { ok: false, reason: `INQUIRY_SIGNING_KEYS must be "keyId:secret" pairs with unique ids and secrets of at least ${MIN_SECRET_LENGTH} characters.` };
+    }
+    signingKeys.set(id, secret);
+  }
+  if (!UUID.test(studioId)) return { ok: false, reason: "INQUIRY_STUDIO_ID must be a studio id (a UUID)." };
+  if (hashKey.length < MIN_SECRET_LENGTH) return { ok: false, reason: `INQUIRY_HASH_KEY must be at least ${MIN_SECRET_LENGTH} characters.` };
+  if ([...signingKeys.values()].includes(hashKey)) return { ok: false, reason: "INQUIRY_HASH_KEY must differ from every signing secret." };
+
+  const { url, anonKey, serviceRoleKey } = supabase;
+  return { ok: true, value: { supabase: { url, anonKey, serviceRoleKey }, signingKeys, studioId: studioId.toLowerCase(), hashKey } };
+}
+
 export function intakeTimeoutMs(env: Env = process.env): number {
   return clamp(Number(env.STUDIO_AGENT_TIMEOUT_MS) || 90_000, 10_000, 110_000);
 }

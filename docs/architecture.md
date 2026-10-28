@@ -7,6 +7,7 @@ on, what needs to happen next, and what needs a person's decision.
 src/
   app/                 Routes. Thin pages. theme.css holds every design token.
     api/agents/        Server routes: run the intake agent, report agent status
+    api/inquiries/     Signed endpoint for Axivo website inquiries (docs/inquiries.md)
   components/          UI only. Reads derived views, writes through the store.
     shell/             Top bar, search, brand mark
     today/             Today: decisions, next up, in progress, recent
@@ -37,6 +38,7 @@ tests/e2e/             Playwright journeys
 | Database rules | `supabase/migrations` | Row-level security and triggers, 22 database tests |
 | Agent contract and permissions | `src/lib/agents` | Enforced in code and in the database |
 | Intake agent | `src/server/agents`, `/api/agents/intake` | Working with the test provider; the Anthropic provider is built but has not been called with a real key |
+| Website inquiries | `src/lib/inquiries`, `src/server/inquiries`, `/api/inquiries` | Receiving and storage working against a local stack; review and approval not built ([inquiries.md](inquiries.md)) |
 
 ## Rules
 
