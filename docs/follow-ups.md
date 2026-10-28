@@ -17,6 +17,7 @@ is changed and nothing is sent, so there is nothing extra to anonymise.
 | Task awaiting approval | 2 working days | Task last changed |
 | Task in review | 2 working days | Task last changed |
 | Task blocked | 3 days | Task last changed |
+| Task past its due date | 1 day | The due date (Helsinki) |
 | Onboarding saved but not finished | 5 days | Onboarding last saved |
 | Brief never started (no onboarding, essentials missing) | 5 days | Client last changed |
 | Brief ready, no project | 3 days | Onboarding finished |

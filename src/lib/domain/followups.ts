@@ -13,7 +13,7 @@ import { getClientProjects } from "./insights";
 import { PROJECT_STAGE_LABELS } from "./labels";
 import type { ISODateString, StudioSnapshot } from "./types";
 
-export type FollowUpKind = "inquiry" | "approval" | "review" | "blocked" | "onboarding" | "start_project" | "quiet_project";
+export type FollowUpKind = "inquiry" | "approval" | "review" | "blocked" | "overdue" | "onboarding" | "start_project" | "quiet_project";
 
 export interface FollowUpRule {
   /** How long the item may wait before it is a follow-up. */
@@ -32,6 +32,7 @@ export const FOLLOW_UP_RULES: Record<FollowUpKind, FollowUpRule> = {
   approval: { after: 2, unit: "working_days", action: "Approve" },
   review: { after: 2, unit: "working_days", action: "Review" },
   blocked: { after: 3, unit: "days", action: "Unblock" },
+  overdue: { after: 1, unit: "days", action: "Reschedule" },
   onboarding: { after: 5, unit: "days", action: "Continue" },
   start_project: { after: 3, unit: "days", action: "Start project" },
   quiet_project: { after: 10, unit: "days", action: "Check in" },
@@ -57,6 +58,11 @@ const DAY = 24 * 60 * 60 * 1000;
 const TIME_ZONE = "Europe/Helsinki";
 
 const dayFormat = new Intl.DateTimeFormat("en-CA", { timeZone: TIME_ZONE, year: "numeric", month: "2-digit", day: "2-digit" });
+
+/** Today's date in Helsinki, as YYYY-MM-DD. */
+export function helsinkiDate(ms: number): string {
+  return dayFormat.format(ms);
+}
 
 /** The calendar day in Helsinki, as a UTC midnight timestamp, so days can be stepped through safely. */
 function helsinkiDay(ms: number): number {
@@ -93,6 +99,7 @@ export function describeWait(followUp: Pick<FollowUp, "kind" | "waited">): strin
   const amount = `${followUp.waited} ${unit === "working_days" ? "working " : ""}${followUp.waited === 1 ? "day" : "days"}`;
   if (followUp.kind === "quiet_project") return `No activity for ${amount}`;
   if (followUp.kind === "blocked") return `Blocked for ${amount}`;
+  if (followUp.kind === "overdue") return `Overdue by ${amount}`;
   if (followUp.kind === "onboarding") return `Untouched for ${amount}`;
   if (followUp.kind === "start_project") return `Brief ready for ${amount}`;
   return `Waiting ${amount}`;
@@ -117,6 +124,7 @@ export function getFollowUps(snapshot: StudioSnapshot, nowMs: number, clientId?:
     const waited = waitedFor(item.kind, item.since, nowMs);
     if (waited !== null) items.push({ ...item, waited });
   };
+  const today = helsinkiDay(nowMs);
 
   if (!clientId) {
     for (const inquiry of getOpenInquiries(snapshot)) {
@@ -159,6 +167,23 @@ export function getFollowUps(snapshot: StudioSnapshot, nowMs: number, clientId?:
             since: task.updatedAt,
             relatedIds: [`blocked-${task.id}`],
           });
+        } else if (task.status !== "done" && task.dueDate) {
+          // Due dates are calendar days: a task due today is not overdue until tomorrow in Helsinki.
+          const due = Date.parse(`${task.dueDate.slice(0, 10)}T00:00:00Z`);
+          const late = Math.round((today - due) / DAY);
+          if (!Number.isNaN(due) && late >= FOLLOW_UP_RULES.overdue.after) {
+            items.push({
+              id: `follow-task-${task.id}`,
+              kind: "overdue",
+              title: task.title,
+              detail: [where, task.assignee ? (task.assignee.kind === "human" ? task.assignee.name : null) : "Unassigned"].filter(Boolean).join(" · "),
+              clientId: client.id,
+              href: clientHref(client.id, `task-${task.id}`),
+              since: new Date(due).toISOString(),
+              waited: late,
+              relatedIds: [`task-${task.id}`],
+            });
+          }
         }
       }
 

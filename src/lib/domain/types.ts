@@ -32,8 +32,8 @@ export type Actor =
   | { kind: "agent"; agentId: AgentId; imported?: boolean }
   | { kind: "system"; imported?: boolean };
 
-/** Who a task is assigned to. */
-export type Assignee = { kind: "human"; name: string } | { kind: "agent"; agentId: AgentId };
+/** Who a task is assigned to. `userId` is set when the person is a studio member. */
+export type Assignee = { kind: "human"; name: string; userId?: string } | { kind: "agent"; agentId: AgentId };
 
 /* -------------------------------------------------------------------------- */
 /* Data confidence and provenance                                             */
@@ -274,6 +274,7 @@ export type ActivityEventType =
   | "project.stage_changed"
   | "task.created"
   | "task.status_changed"
+  | "task.updated"
   | "task.completed"
   | "decision.approved"
   | "note.added"
@@ -355,6 +356,16 @@ export interface ProjectUpdateInput {
 
 export interface NewTaskInput {
   title: string;
+}
+
+/** Owner and due date, edited together. Empty values clear them. */
+export interface TaskDetailsInput {
+  /** A person's name, or "" for unassigned. */
+  ownerName: string;
+  /** The studio member, when the owner is one. */
+  ownerUserId?: string;
+  /** YYYY-MM-DD, or "". */
+  dueDate: string;
 }
 
 /* -------------------------------------------------------------------------- */
