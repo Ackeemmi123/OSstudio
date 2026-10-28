@@ -1,4 +1,5 @@
 import { clean, DomainError, type DomainDeps } from "./clients";
+import { PLAYBOOK_MAX_TASKS } from "./playbooks";
 import { PROJECT_STAGE_LABELS, PROJECT_STATUS_LABELS, PROJECT_TYPE_LABELS, TASK_STATUS_LABELS } from "./labels";
 import type {
   ActivityEvent,
@@ -39,13 +40,18 @@ export function suggestProjectName(client: Client): string {
   return client.projectType ? PROJECT_TYPE_LABELS[client.projectType] : "";
 }
 
-/** A new project starts planned, at intake. Only the name is needed. */
+/**
+ * A new project starts planned, at intake. Only the name is needed. Tasks
+ * given with it (usually from its playbook) are created with it, once each.
+ */
 export function buildProject(
   client: Client,
   input: NewProjectInput,
   deps: DomainDeps,
-): { project: Project; event: ActivityEvent } {
+): { project: Project; event: ActivityEvent; tasks: Task[] } {
   const name = requireTitle(input.name, "project name");
+  const titles = [...new Set((input.tasks ?? []).map((title) => requireTitle(title, "task")))];
+  if (titles.length > PLAYBOOK_MAX_TASKS) throw new DomainError(`Start with at most ${PLAYBOOK_MAX_TASKS} tasks.`);
   const now = deps.now();
   const project: Project = {
     id: deps.createId(),
@@ -58,7 +64,20 @@ export function buildProject(
     createdAt: now,
     updatedAt: now,
   };
-  return { project, event: event("project", project.id, "project.created", `Started project ${name}`, deps, now) };
+  const tasks: Task[] = titles.map((title) => ({
+    id: deps.createId(),
+    projectId: project.id,
+    title,
+    status: "todo",
+    assignee: null,
+    isDemo: false,
+    createdAt: now,
+    updatedAt: now,
+  }));
+  const description = tasks.length
+    ? `Started project ${name} with ${tasks.length === 1 ? "1 task" : `${tasks.length} tasks`}`
+    : `Started project ${name}`;
+  return { project, tasks, event: event("project", project.id, "project.created", description, deps, now) };
 }
 
 export function updateProject(

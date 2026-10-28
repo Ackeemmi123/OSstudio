@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Section, Surface } from "@/components/ui/surface";
 import { cn } from "@/lib/cn";
 import { helsinkiDate } from "@/lib/domain/followups";
+import { PLAYBOOKS } from "@/lib/domain/playbooks";
 import { getClientProjects, getProjectTasks } from "@/lib/domain/insights";
 import { PROJECT_STAGE_LABELS, PROJECT_STATUS_LABELS, PROJECT_TYPE_LABELS, TASK_STATUS_LABELS } from "@/lib/domain/labels";
 import { BLOCKED_REASON_MAX_LENGTH, OWNER_NAME_MAX_LENGTH, suggestProjectName } from "@/lib/domain/projects";
@@ -329,12 +330,25 @@ function NewProjectForm({ client, onDone }: { client: Client; onDone: () => void
   const formId = useId();
   const [name, setName] = useState(suggestProjectName(client));
   const [projectType, setProjectType] = useState<ProjectType>(client.projectType ?? "website");
+  const playbook = PLAYBOOKS[projectType];
+  // Titles the person unticked; everything else in the playbook is created.
+  const [skipped, setSkipped] = useState<Set<string>>(new Set());
+  const chosen = playbook.filter((task) => !skipped.has(task.title)).map((task) => task.title);
   const { run, pending } = useStudioAction();
 
   async function create(event: FormEvent) {
     event.preventDefault();
-    const project = await run((r) => r.createProject(client.id, { name, projectType }), "The project was not created.");
+    const project = await run((r) => r.createProject(client.id, { name, projectType, tasks: chosen }), "The project was not created.");
     if (project) onDone();
+  }
+
+  function toggle(title: string) {
+    setSkipped((current) => {
+      const next = new Set(current);
+      if (next.has(title)) next.delete(title);
+      else next.add(title);
+      return next;
+    });
   }
 
   return (
@@ -360,7 +374,10 @@ function NewProjectForm({ client, onDone }: { client: Client; onDone: () => void
           <select
             id={`${formId}-type`}
             value={projectType}
-            onChange={(event) => setProjectType(event.target.value as ProjectType)}
+            onChange={(event) => {
+              setProjectType(event.target.value as ProjectType);
+              setSkipped(new Set());
+            }}
             className="h-9 rounded-[var(--radius-control)] border border-control bg-surface px-2.5 text-sm text-ink focus:border-focus focus:ring-2 focus:ring-focus/15 focus:outline-none"
           >
             {PROJECT_TYPES.map((type) => (
@@ -371,10 +388,27 @@ function NewProjectForm({ client, onDone }: { client: Client; onDone: () => void
           </select>
         </div>
       </div>
+      <fieldset className="flex flex-col gap-2">
+        <legend className="mb-1 text-[13px] font-medium text-ink">Tasks to start with</legend>
+        <p className="text-[12px] text-ink-subtle">The usual tasks for this type of project. Untick what does not apply; you can add more later.</p>
+        {PROJECT_STAGES.filter((stage) => playbook.some((task) => task.stage === stage)).map((stage) => (
+          <div key={stage} className="flex flex-col gap-1">
+            <p className="text-[11.5px] font-medium tracking-[0.04em] text-ink-subtle uppercase">{PROJECT_STAGE_LABELS[stage]}</p>
+            {playbook
+              .filter((task) => task.stage === stage)
+              .map((task) => (
+                <label key={task.title} className="flex items-center gap-2 text-[13.5px] text-ink">
+                  <input type="checkbox" checked={!skipped.has(task.title)} onChange={() => toggle(task.title)} className="size-4 accent-[var(--color-primary)]" />
+                  {task.title}
+                </label>
+              ))}
+          </div>
+        ))}
+      </fieldset>
       <p className="text-[12px] text-ink-subtle">Starts as planned, at intake. Move it forward when work begins.</p>
       <div className="flex gap-2">
         <Button type="submit" size="sm" variant="primary" disabled={pending || !name.trim()}>
-          {pending ? "Creating…" : "Create project"}
+          {pending ? "Creating…" : chosen.length ? `Create project with ${chosen.length === 1 ? "1 task" : `${chosen.length} tasks`}` : "Create project"}
         </Button>
         <Button size="sm" variant="ghost" onClick={onDone} disabled={pending}>
           Cancel

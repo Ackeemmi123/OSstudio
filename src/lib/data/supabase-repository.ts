@@ -240,8 +240,12 @@ export class SupabaseRepository implements StudioRepository {
 
   createProject(clientId: string, input: NewProjectInput): Promise<Project> {
     return this.write((s, deps) => {
-      const { project, event } = buildProject(find(s.clients, clientId, "client"), input, deps);
-      return [project, { projects: [{ op: "insert", row: projectRow(project) }], events: [eventRow(event)] }];
+      const { project, tasks, event } = buildProject(find(s.clients, clientId, "client"), input, deps);
+      // One transaction: the project and its tasks are created together or not at all.
+      return [
+        project,
+        { projects: [{ op: "insert", row: projectRow(project) }], tasks: tasks.map((task) => ({ op: "insert", row: taskRow(task) })), events: [eventRow(event)] },
+      ];
     });
   }
 

@@ -160,6 +160,41 @@ describe("task owner, due date and blocked reason", () => {
   });
 });
 
+describe("starting a project from a playbook", () => {
+  it("creates the project and its tasks together", async () => {
+    const repository = repositoryFor(member, studio);
+    await repository.load();
+    const project = await repository.createProject(clientId, { name: "Playbook site", projectType: "website", tasks: ["Kickoff call", "Page designs"] });
+    const fresh = await repositoryFor(owner, studio).load();
+    expect(fresh.tasks.filter((t) => t.projectId === project.id).map((t) => t.title).sort()).toEqual(["Kickoff call", "Page designs"]);
+    expect(fresh.activity.find((e) => e.entityId === project.id)?.description).toBe("Started project Playbook site with 2 tasks");
+  });
+
+  it("creates nothing when one task cannot be stored", async () => {
+    const changes = (projectId: string, secondStatus: string) => ({
+      p_studio: studio,
+      p_changes: {
+        projects: [{ op: "insert", row: { id: projectId, client_id: clientId, name: "Half a project", project_type: "website", status: "planned", stage: "intake", is_demo: false } }],
+        tasks: [
+          { op: "insert", row: { id: randomUUID(), project_id: projectId, title: "Fine", status: "todo", is_demo: false } },
+          { op: "insert", row: { id: randomUUID(), project_id: projectId, title: "Second", status: secondStatus, is_demo: false } },
+        ],
+        events: [],
+      },
+    });
+    const broken = randomUUID();
+    expect((await member.client.rpc("apply_changes", changes(broken, "not_a_status"))).error).not.toBeNull();
+    // The same change with a valid second task goes through, so the refusal was that one row.
+    const valid = randomUUID();
+    expect((await member.client.rpc("apply_changes", changes(valid, "todo"))).error).toBeNull();
+
+    const fresh = await repositoryFor(owner, studio).load();
+    expect(fresh.projects.some((p) => p.id === broken)).toBe(false);
+    expect(fresh.tasks.some((t) => t.projectId === broken)).toBe(false);
+    expect(fresh.tasks.filter((t) => t.projectId === valid)).toHaveLength(2);
+  });
+});
+
 describe("roles", () => {
   it("lets viewers read but not write", async () => {
     const repository = repositoryFor(viewer, studio);

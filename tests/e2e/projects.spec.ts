@@ -12,7 +12,7 @@ test("creates a project and tasks, completes and approves work, and records it a
   await projects.getByRole("button", { name: "Create project" }).click();
   await expect(projects.getByText("Website relaunch")).toBeVisible();
 
-  for (const title of ["Write homepage copy", "Design direction"]) {
+  for (const title of ["Write homepage copy", "Moodboard sign-off"]) {
     await projects.getByLabel("New task").fill(title);
     await projects.getByRole("button", { name: "Add", exact: true }).click();
     await expect(projects.getByText(title, { exact: true })).toBeVisible();
@@ -21,7 +21,7 @@ test("creates a project and tasks, completes and approves work, and records it a
   await projects.getByLabel("Status of Write homepage copy").selectOption("done");
   await expect(projects.getByRole("button", { name: "1 completed" })).toBeVisible();
 
-  await projects.getByLabel("Status of Design direction").selectOption("awaiting_approval");
+  await projects.getByLabel("Status of Moodboard sign-off").selectOption("awaiting_approval");
   await projects.getByRole("button", { name: "Approve" }).click();
   await expect(projects.getByRole("button", { name: "2 completed" })).toBeVisible();
 
@@ -33,7 +33,7 @@ test("creates a project and tasks, completes and approves work, and records it a
   const showAll = activity.getByRole("button", { name: /Show all/ });
   if (await showAll.isVisible()) await showAll.click();
   await expect(activity.getByText("Completed Write homepage copy")).toBeVisible();
-  await expect(activity.getByText("Approved Design direction")).toBeVisible();
+  await expect(activity.getByText("Approved Moodboard sign-off")).toBeVisible();
 });
 
 test("gives a task an owner and a due date, asks why it is blocked, and flags it once overdue", async ({ page }) => {
@@ -80,4 +80,26 @@ test("gives a task an owner and a due date, asks why it is blocked, and flags it
   const followUp = page.locator("section#follow-up").getByRole("link", { name: /Product photos/ }).filter({ hasText: name });
   await expect(followUp).toContainText(/Overdue by \d+ days?/);
   await expect(followUp).toContainText("Reschedule");
+});
+
+test("starts a project with the playbook's tasks, minus the ones unticked", async ({ page }) => {
+  await signIn(page, fixture().member);
+  await createClientNamed(page, uniqueName("Playbook Co"));
+  const projects = section(page, "projects");
+  await projects.getByRole("button", { name: "New project" }).first().click();
+  await projects.getByLabel("Project name").fill("Online store");
+  await projects.getByLabel("Type").selectOption("ecommerce");
+  const create = projects.getByRole("button", { name: /^Create project with \d+ tasks$/ });
+  const offered = Number((await create.textContent())!.match(/\d+/)![0]);
+  expect(offered).toBeGreaterThan(5);
+
+  await projects.getByLabel("Payment and shipping setup").uncheck();
+  await expect(projects.getByRole("button", { name: `Create project with ${offered - 1} tasks` })).toBeVisible();
+  await projects.getByRole("button", { name: `Create project with ${offered - 1} tasks` }).click();
+
+  const card = projects.locator('[id^="project-"]', { hasText: "Online store" });
+  await expect(card.getByText("Kickoff call with the client", { exact: true })).toBeVisible();
+  await expect(card.getByText("Payment and shipping setup", { exact: true })).toHaveCount(0);
+  await page.reload();
+  await expect(card.locator("li[id^='task-']")).toHaveCount(offered - 1);
 });
