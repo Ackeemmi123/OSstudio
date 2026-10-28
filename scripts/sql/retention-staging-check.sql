@@ -10,10 +10,11 @@
 -- session ends.
 --
 -- The test:
---   1. adds a temporary client "Retention check client (test)" and six test
+--   1. adds a temporary client "Retention check client (test)" and eight test
 --      inquiries (is_test, company "Retention check (test)") with every
 --      personal field filled in, dated as they will be a year from now; the
---      approved one is linked to that client;
+--      approved one is linked to that client, and two are repeats merged into
+--      the rejected and the approved one;
 --   2. runs the retention as a dry run, for real, and again (a retry);
 --   3. compares every column of every test row with what was inserted, and
 --      every column of every other inquiry with how it was before the runs;
@@ -52,14 +53,18 @@ begin
 
   begin
     create temp table retention_check (label text, status text, received interval, decided interval, expected text,
-      id uuid default gen_random_uuid(), inserted jsonb);
-    insert into retention_check (label, status, received, decided, expected) values
-      ('Rejected 12 months + 1 day ago', 'rejected', '13 months', '12 months 1 day', 'anonymised'),
-      ('Spam 12 months + 1 day ago', 'spam', '12 months 2 days', '12 months 1 day', 'anonymised'),
-      ('Undecided, received 12 months + 1 day ago', 'new', '12 months 1 day', null, 'anonymised'),
-      ('Rejected 1 day short of 12 months', 'rejected', '13 months', '12 months -1 day', 'unchanged'),
-      ('Undecided, 1 day short of 12 months', 'new', '12 months -1 day', null, 'unchanged'),
-      ('Approved 2 years ago (temporary test client)', 'approved', '2 years', '2 years', 'unchanged');
+      first_label text, id uuid default gen_random_uuid(), inserted jsonb);
+    insert into retention_check (label, status, received, decided, expected, first_label) values
+      ('Rejected 12 months + 1 day ago', 'rejected', '13 months', '12 months 1 day', 'anonymised', null),
+      ('Spam 12 months + 1 day ago', 'spam', '12 months 2 days', '12 months 1 day', 'anonymised', null),
+      ('Undecided, received 12 months + 1 day ago', 'new', '12 months 1 day', null, 'anonymised', null),
+      ('Rejected 1 day short of 12 months', 'rejected', '13 months', '12 months -1 day', 'unchanged', null),
+      ('Undecided, 1 day short of 12 months', 'new', '12 months -1 day', null, 'unchanged', null),
+      ('Approved 2 years ago (temporary test client)', 'approved', '2 years', '2 years', 'unchanged', null),
+      ('Repeat merged into the rejected one, 12 months + 1 day ago', 'merged', '12 months 20 days', '12 months 1 day', 'anonymised',
+       'Rejected 12 months + 1 day ago'),
+      ('Repeat merged into the approved one, 2 years ago', 'merged', '2 years', '2 years', 'unchanged',
+       'Approved 2 years ago (temporary test client)');
 
     v_others_before := (select md5(coalesce(string_agg(to_jsonb(i)::text, ',' order by i.id), '')) from public.inquiries i);
 
@@ -70,16 +75,16 @@ begin
     insert into public.inquiries (id, studio_id, source, submission_id, content_hash, status, is_test, locale,
       contact_name, email, company, website, service, project_type, budget_range, budget_amount_eur, timeline,
       desired_date, message, privacy_notice_version, submitted_at, received_at, decided_at, decided_by,
-      client_id, created_client, decision_reason)
+      client_id, created_client, decision_reason, repeat_of)
     select c.id, v_studio, 'axivo_website', gen_random_uuid(), repeat('0', 64), c.status, true, 'en',
       'Retention Check', 'retention-check-' || c.id || '@example.com', 'Retention check (test)',
       'retention-check.example', 'websites', 'website', 'custom', 5000, 'flexible',
       (now() - c.received)::date + 90, 'Test inquiry for the retention check. Not a real customer.', 'test-2026-10',
       now() - c.received, now() - c.received, now() - c.decided,
       case when c.status <> 'new' then '{"kind":"system"}'::jsonb end,
-      case when c.status = 'approved' then v_client end, c.status = 'approved',
-      case when c.status in ('rejected', 'spam') then 'Retention check (test)' end
-    from retention_check c;
+      case when c.status = 'approved' or f.status = 'approved' then v_client end, c.status = 'approved',
+      case when c.status in ('rejected', 'spam') then 'Retention check (test)' end, f.id
+    from retention_check c left join retention_check f on f.label = c.first_label;
 
     update retention_check c set inserted = to_jsonb(i) from public.inquiries i where i.id = c.id;
 
@@ -139,8 +144,8 @@ begin
   values ('Nothing left behind: inquiries, clients, rate limits, runs (every column)', 'identical', 0, v_after = v_before);
 end $$;
 
--- Unchanged test rows keep all 11 personal fields (10 for the undecided and approved
--- ones, which have no rejection reason).
+-- Unchanged test rows keep all 11 personal fields (10 for the undecided, approved and
+-- merged ones, which have no rejection reason).
 select label, expected, named_by_dry_run, anonymised, personal_fields_left, other_columns_unchanged, touched_by_retry,
   case when expected = 'anonymised' then
          case when named_by_dry_run and anonymised and personal_fields_left = 0 and other_columns_unchanged and not touched_by_retry

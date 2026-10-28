@@ -7,10 +7,12 @@ import {
   DISCUSS_BUDGET_QUESTION,
   findInquiryMatches,
   getOpenInquiries,
+  getRepeats,
   inquiryBriefValues,
   inquiryProjectType,
   inquirySourceLabel,
   linkInquiry,
+  openFirstInquiry,
   websiteDomain,
 } from "./inquiries";
 import { getDecisions } from "./insights";
@@ -40,6 +42,7 @@ function inquiry(overrides: Partial<Inquiry> = {}): Inquiry {
     decidedBy: null,
     decidedAt: null,
     decisionReason: null,
+    repeatOf: null,
     ...overrides,
   };
 }
@@ -182,5 +185,43 @@ describe("open inquiries", () => {
       ["New inquiry from Small Shop", "Test inquiry · Website · Within 3 months", "/inquiries/small"],
     ]);
     expect(getDecisions(snapshot)[0].kind).toBe("inquiry");
+  });
+});
+
+describe("repeat submissions", () => {
+  const first = inquiry({ id: "first", receivedAt: "2026-10-28T09:00:00.000Z" });
+  const later = inquiry({ id: "later", repeatOf: "first", receivedAt: "2026-10-29T09:00:00.000Z", message: "Glömde nämna presentkort i webbutiken." });
+  const earlier = inquiry({ id: "earlier", repeatOf: "first", receivedAt: "2026-10-28T12:00:00.000Z", message: "Och ett nyhetsbrev, om det går." });
+
+  it("are decided with the first inquiry, which shows how often it was sent", () => {
+    const snapshot = { ...createSeedSnapshot(), inquiries: [later, first, earlier] };
+    expect(getOpenInquiries(snapshot).map((i) => i.id)).toEqual(["first"]);
+    expect(getRepeats(first, snapshot.inquiries).map((i) => i.id)).toEqual(["earlier", "later"]);
+    expect(openFirstInquiry(later, snapshot.inquiries)?.id).toBe("first");
+    expect(getDecisions(snapshot).filter((d) => d.kind === "inquiry").map((d) => d.where)).toEqual(["Test inquiry · Website · Within 3 months · Sent 3 times"]);
+  });
+
+  it("stand on their own once the first inquiry is no longer open", () => {
+    const decided = { ...first, status: "rejected" as const };
+    const snapshot = { ...createSeedSnapshot(), inquiries: [decided, later] };
+    expect(openFirstInquiry(later, snapshot.inquiries)).toBeNull();
+    expect(getOpenInquiries(snapshot).map((i) => i.id)).toEqual(["later"]);
+    // The first inquiry was anonymised, so it is not loaded at all.
+    expect(getOpenInquiries({ ...createSeedSnapshot(), inquiries: [later] }).map((i) => i.id)).toEqual(["later"]);
+  });
+
+  it("add each message as source material when the first is approved or added to a client, and nothing else", () => {
+    const deps = testDeps();
+    const approval = approveInquiry(first, "Lumen Yoga", deps, [earlier, later]);
+    expect(approval.repeatSources.map((s) => [s.clientId, s.label, s.content])).toEqual([
+      [approval.client.id, "Website inquiry · 28 Oct 2026", "Language: Swedish\n\nOch ett nyhetsbrev, om det går."],
+      [approval.client.id, "Website inquiry · 29 Oct 2026", "Language: Swedish\n\nGlömde nämna presentkort i webbutiken."],
+    ]);
+    expect(approval.events.filter((e) => e.eventType === "source.received")).toHaveLength(3);
+    expect(approval.client.context.budget.source).toMatchObject({ inquiryId: "first" });
+
+    const existing = buildNewClient({ name: "Lumen" }, deps).client;
+    expect(linkInquiry(first, existing, deps, [later]).repeatSources).toHaveLength(1);
+    expect(approveInquiry(first, "Lumen Yoga", deps).repeatSources).toEqual([]);
   });
 });

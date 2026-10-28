@@ -37,6 +37,7 @@ function inquiry(overrides: Partial<Inquiry> = {}): Inquiry {
     receivedAt: "2026-10-26T09:00:00.000Z",
     clientId: null,
     createdClient: false,
+    repeatOf: null,
     decidedBy: null,
     decidedAt: null,
     decisionReason: null,

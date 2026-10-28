@@ -191,7 +191,7 @@ describe("who can run it", () => {
         await db.query<{ fn: string; role: string; allowed: boolean }>(
           `select f as fn, r as role, has_function_privilege(r, f, 'execute') as allowed
              from unnest(array['private.run_inquiry_retention(boolean)', 'private.anonymise_inquiry(uuid, boolean)',
-                               'private.inquiry_retention_ends(text, timestamptz, timestamptz)']) f,
+                               'private.inquiry_retention_ends(text, uuid, timestamptz, timestamptz)']) f,
                   unnest(array['anon', 'authenticated', 'service_role']) r`,
         )
       ).rows,

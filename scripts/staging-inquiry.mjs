@@ -113,8 +113,13 @@ check("Same id with different answers is refused (409)", changed.status === 409,
 const forged = await send(payload, { secretOverride: "not-the-real-secret-but-long-enough-000" });
 check("Wrong signature is refused by Studio OS (401)", forged.status === 401 && forged.fromStudioOs, forged);
 
+// A new submission from the same address while the first is open: Studio OS shows it with the first one.
+const repeat = await send({ ...payload, submissionId: randomUUID(), submittedAt: new Date().toISOString(), message: "A second automated staging test inquiry from the same address." });
+check("Second inquiry from the same address is confirmed (202) as a new submission", repeat.status === 202 && repeat.body?.duplicate === false, repeat);
+
 for (const { label, ok, result } of results) console.log(`${ok ? "PASS" : "FAIL"}  ${label}  (${describe(result)})`);
 if (first.body?.reference) console.log(`\nStored test inquiry: ${first.body.reference} (contact "Staging test ${run}")`);
+if (repeat.body?.reference) console.log(`Stored a repeat from the same address: ${repeat.body.reference} (shown under "Sent again" on the first one)`);
 if (first.fromStudioOs && first.status === 401) {
   console.log(
     "\nStudio OS refused the signature. The secret or key id in your settings differs from INQUIRY_SIGNING_KEYS in the Vercel environment this deployment uses (Production for main, Preview for branches), or your computer's clock is more than 5 minutes off. Vercel's logs for /api/inquiries name the reason.",

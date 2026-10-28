@@ -253,8 +253,9 @@ needs setup that only a person with access to the dashboards can do. Use
    also needs `STAGING_PROTECTION_BYPASS`.
 
    The script first checks that Studio OS itself answers, not Vercel's
-   protection, and says which one blocked a request. Then four checks must
-   pass (new, retry, conflict, forged). The stored row is in
+   protection, and says which one blocked a request. Then five checks must
+   pass (new, retry, conflict, forged, and a second inquiry from the same
+   address, which the review shows with the first one). The stored row is in
    Supabase → Table editor → `inquiries`, marked `is_test`. Then
    `npm run staging:check` confirms signed-out reads are refused and only the
    server can receive.
@@ -276,7 +277,7 @@ needs setup that only a person with access to the dashboards can do. Use
      for real and again, and compares every column of every test row and of
      every other inquiry. Nothing is kept: the last row checks that every
      column of every inquiry, client, rate-limit row and run record is as
-     before. Every result (11 rows) should be PASS.
+     before. Every result should be PASS (11 rows; 13 once the repeat-submissions migration is applied).
    - `select jobname, schedule, active from cron.job;` shows
      `inquiry-retention`, `17 3 * * *`, active. After 03:17 UTC,
      `select * from private.inquiry_retention_runs order by id desc;` shows
@@ -284,7 +285,12 @@ needs setup that only a person with access to the dashboards can do. Use
 
    `npm run staging:check` confirms only the owner can run the retention and
    that it is scheduled.
-9. **Axivo preview only.** In the Axivo Vercel project, **Preview scope only**:
+9. **Repeat submissions.** Apply `20261029000100_inquiry_repeats.sql` the
+   same way. Run `npm run staging:inquiry`: it stores a test inquiry and a
+   second one from the same address. On Today the inquiry shows "Sent 2
+   times", and its page shows the second message under "Sent again". Deciding
+   it resolves both.
+10. **Axivo preview only.** In the Axivo Vercel project, **Preview scope only**:
    `STUDIO_OS_INQUIRY_URL=https://<studio-os staging URL>/api/inquiries`,
    `STUDIO_OS_INQUIRY_KEY_ID=axivo-staging-1`, `STUDIO_OS_INQUIRY_SECRET=<signing secret>`
    (and `STUDIO_OS_BYPASS_TOKEN` if step 5 needed one). Never in Production.
