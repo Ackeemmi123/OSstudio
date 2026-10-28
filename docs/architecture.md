@@ -10,7 +10,7 @@ src/
     api/inquiries/     Signed endpoint for Axivo website inquiries (docs/inquiries.md)
   components/          UI only. Reads derived views, writes through the store.
     shell/             Top bar, search, brand mark
-    today/             Today: decisions, next up, in progress, recent
+    today/             Today: follow-ups, decisions, next up, in progress, recent
     auth/              Sign-in, create a studio, configuration errors
     providers/         Workspace gate (local demo or Supabase), studio store
     clients/           Client list, workspace, brief, source material, intake review
@@ -38,6 +38,7 @@ tests/e2e/             Playwright journeys
 | Database rules | `supabase/migrations` | Row-level security and triggers, 22 database tests |
 | Agent contract and permissions | `src/lib/agents` | Enforced in code and in the database |
 | Intake agent | `src/server/agents`, `/api/agents/intake` | Working with the test provider; the Anthropic provider is built but has not been called with a real key |
+| Follow-ups | `src/lib/domain/followups.ts` | Computed on Today and per client, stores nothing ([follow-ups.md](follow-ups.md)) |
 | Website inquiries | `src/lib/inquiries`, `src/server/inquiries`, `/api/inquiries` | Receiving and storage working against a local stack; review and approval not built ([inquiries.md](inquiries.md)) |
 
 ## Rules
