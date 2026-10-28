@@ -62,3 +62,8 @@ export const PLAYBOOKS: Record<ProjectType, PlaybookTask[]> = {
 
 /** At most this many tasks are created with a project. */
 export const PLAYBOOK_MAX_TASKS = 40;
+
+/** The task added for a client's open questions. Generic, so no question text is copied into it. */
+export function openQuestionsTaskTitle(count: number): string {
+  return count === 1 ? "Ask the client the open question" : `Ask the client the ${count} open questions`;
+}

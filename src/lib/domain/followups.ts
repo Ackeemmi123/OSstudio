@@ -237,7 +237,7 @@ export function getFollowUps(snapshot: StudioSnapshot, nowMs: number, clientId?:
           title: `Start a project for ${client.name}`,
           detail: missing ? `Brief ready for review, ${missing === 1 ? "1 essential" : `${missing} essentials`} still missing` : "Brief ready for review",
           clientId: client.id,
-          href: clientHref(client.id, "projects"),
+          href: clientHref(client.id, "new-project"),
           since: onboarding.completedAt,
           relatedIds: [`collect-${client.id}`, `start-${client.id}`],
         });
