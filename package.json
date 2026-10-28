@@ -14,6 +14,7 @@
     "test:e2e": "playwright test",
     "staging:check": "node scripts/staging-check.mjs",
     "staging:smoke": "vitest run -c vitest.staging.config.mts",
+    "staging:e2e": "playwright test -c playwright.staging.config.ts",
     "db:start": "sh scripts/supabase-start.sh",
     "db:stop": "supabase stop",
     "db:reset": "supabase db reset"
