@@ -225,3 +225,107 @@ describe("retention of repeats", () => {
     });
   });
 });
+
+describe("after a decision", () => {
+  it("a repeat still open after its first inquiry is gone (anonymised) is listed and decided on its own", async () => {
+    const email = address();
+    const first = await receive(email, "Den första förfrågan, som sedan raderas på begäran.");
+    const second = await receive(email, "Den andra förfrågan från samma adress, fortfarande öppen.");
+    // An erasure request clears the first inquiry, which is then no longer loaded or open.
+    await asDatabaseOwner((db) => db.query("select private.anonymise_inquiry($1, true)", [first]));
+
+    const repository = await loaded(member);
+    expect(getOpenInquiries(await repository.load()).map((i) => i.id)).toContain(second);
+    expect(await repository.decideInquiry(second, { action: "reject" })).toMatchObject({ status: "rejected", repeatOf: first });
+  });
+
+  it("a decided inquiry is final: its merged repeats cannot be decided again", async () => {
+    const email = address();
+    const first = await receive(email, "Den första förfrågan, som markeras som skräp.");
+    const second = await receive(email, "Den andra förfrågan, som slås ihop med den första.");
+    const repository = await loaded(member);
+    await repository.decideInquiry(first, { action: "spam" });
+    await expect(repository.decideInquiry(second, { action: "approve", name: "Too Late (test)" })).rejects.toMatchObject({ code: "conflict" });
+    await expect(repository.decideInquiry(first, { action: "reject" })).rejects.toMatchObject({ code: "conflict" });
+    expect((await rows([first, second])).get(second)).toMatchObject({ status: "merged", client_id: null });
+  });
+});
+
+describe("duplicates", () => {
+  it("a retry of the same submission is the same inquiry, never a repeat", async () => {
+    const email = address();
+    const payload = examplePayload(
+      { submissionId: randomUUID(), contact: { name: "Maja Lind", email, company: "Lumen Yoga (test)" }, message: "En förfrågan som skickas två gånger av nätverket." },
+      new Date(),
+    );
+    const hash = createHash("sha256").update(JSON.stringify(payload)).digest("hex");
+    const send = () => admin.rpc("receive_inquiry", { p_studio: studio, p_inquiry: payload, p_content_hash: hash, p_ip_hash: null });
+    const [a, b] = await Promise.all([send(), send()]);
+    const results = [a.data, b.data] as { result: string; id: string }[];
+    expect(results.map((r) => r.result).sort()).toEqual(["duplicate", "received"]);
+    expect(results[0].id).toBe(results[1].id);
+    const { count } = await owner.client.from("inquiries").select("id", { count: "exact", head: true }).eq("email", email);
+    expect(count).toBe(1);
+  });
+
+  it("repeats arriving at the same moment all link to the same first inquiry, and approving creates one client", async () => {
+    const email = address();
+    const first = await receive(email, "Den första förfrågan innan två till kommer samtidigt.");
+    const [second, third] = await Promise.all([
+      receive(email, "Den andra förfrågan, skickad samtidigt som den tredje."),
+      receive(email, "Den tredje förfrågan, skickad samtidigt som den andra."),
+    ]);
+    const stored = await rows([first, second, third]);
+    expect([stored.get(second)?.repeat_of, stored.get(third)?.repeat_of]).toEqual([first, first]);
+
+    const [a, b] = await Promise.all([loaded(owner), loaded(member)]);
+    const results = await Promise.allSettled([
+      a.decideInquiry(first, { action: "approve", name: "Concurrent Repeat (test)" }),
+      b.decideInquiry(first, { action: "approve", name: "Concurrent Repeat (test)" }),
+    ]);
+    expect(results.filter((r) => r.status === "fulfilled")).toHaveLength(1);
+    const { data: clients } = await owner.client.from("clients").select("id").eq("studio_id", studio).eq("email", email);
+    expect(clients).toHaveLength(1);
+    const { data: sources } = await owner.client.from("client_sources").select("id").eq("client_id", clients![0].id);
+    expect(sources).toHaveLength(3);
+  });
+});
+
+describe("permissions", () => {
+  it("viewers and other studios cannot decide a first inquiry, so its repeats stay open", async () => {
+    const viewer = await createUser("repeat-viewer");
+    await addMember(owner, studio, viewer, "viewer");
+    const outsider = await createUser("repeat-outsider");
+    await createStudio(outsider, "Someone else's studio (repeats)");
+    const email = address();
+    const first = await receive(email, "Den första förfrågan som bara läses av en tittare.");
+    const second = await receive(email, "Den andra förfrågan som bara läses av en tittare.");
+
+    for (const user of [viewer, outsider]) {
+      const { error } = await user.client.rpc("decide_inquiry", {
+        p_studio: studio, p_inquiry: first, p_decision: { status: "spam", decided_by: { kind: "human", name: "Someone", userId: user.id } }, p_changes: null, p_onboarding: null,
+      });
+      expect(error?.code).toBe("42501");
+    }
+    // Outsiders and visitors do not see the inquiries at all.
+    expect((await outsider.client.from("inquiries").select("id").in("id", [first, second])).data).toEqual([]);
+    expect((await viewer.client.from("inquiries").select("id, repeat_of").eq("id", second).single()).data).toMatchObject({ repeat_of: first });
+    const stored = await rows([first, second]);
+    expect([stored.get(first)?.status, stored.get(second)?.status]).toEqual(["new", "new"]);
+  });
+
+  it("nobody signed in can set or change repeat_of, or mark an inquiry as merged, outside the review", async () => {
+    const email = address();
+    const first = await receive(email, "Den första förfrågan, som någon försöker ändra.");
+    const second = await receive(email, "Den andra förfrågan, som någon försöker ändra.");
+    const relink = await member.client.from("inquiries").update({ repeat_of: null }).eq("id", second).select("id");
+    expect(relink.error?.code).toBe("42501");
+    const merge = await member.client
+      .from("inquiries")
+      .update({ status: "merged", decided_by: { kind: "human", name: "Sam Member", userId: member.id } })
+      .eq("id", second)
+      .select("id");
+    expect(merge.error?.code).toBe("42501");
+    expect((await rows([second])).get(second)).toMatchObject({ status: "new", repeat_of: first });
+  });
+});
