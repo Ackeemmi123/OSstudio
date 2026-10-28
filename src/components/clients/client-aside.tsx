@@ -12,12 +12,14 @@ import { SOURCE_TYPE_LABELS } from "@/lib/domain/labels";
 import { CONTEXT_FIELD_KEYS, type Client, type SourceDocument, type StudioSnapshot } from "@/lib/domain/types";
 import { formatDate } from "@/lib/format";
 import { AddSourceDialog } from "./add-source-dialog";
+import { RetentionSection } from "./retention-section";
 
 /** Source material and history: needed for context, rarely the first thing you look for. */
 export function ClientAside({ client, snapshot }: { client: Client; snapshot: StudioSnapshot }) {
   return (
     <div className="flex min-w-0 flex-col gap-10">
       <SourceMaterial client={client} sources={snapshot.sources.filter((source) => source.clientId === client.id)} />
+      <RetentionSection client={client} />
       <History client={client} snapshot={snapshot} />
     </div>
   );

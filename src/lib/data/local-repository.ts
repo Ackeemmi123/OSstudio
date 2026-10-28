@@ -204,6 +204,10 @@ export class LocalDemoRepository implements StudioRepository {
     throw new RepositoryError("Website inquiries only arrive in a signed-in Studio OS workspace, not in the local demo.", "unavailable");
   }
 
+  async setRetentionHold(): Promise<Client> {
+    throw new RepositoryError("Client retention runs in a signed-in Studio OS workspace, not in the local demo.", "unavailable");
+  }
+
   async resetDemoData(): Promise<StudioSnapshot> {
     const fresh = this.seed();
     this.write(fresh);

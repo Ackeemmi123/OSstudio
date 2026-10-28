@@ -192,6 +192,33 @@ export interface Client {
   isDemo: boolean;
   createdAt: ISODateString;
   updatedAt: ISODateString;
+  /** When the database will anonymise this client. Only a signed-in workspace has it; never in the local demo. */
+  retention?: ClientRetention;
+}
+
+/**
+ * Worked out by the database from the client's history (see
+ * supabase/migrations/20261029000200_client_retention.sql): never a customer,
+ * 12 months after the last activity; a customer, 3 years after archiving or
+ * after 12 months without activity, whichever comes first.
+ */
+export interface ClientRetention {
+  /** Reached Active at least once. */
+  customer: boolean;
+  /** The last change a person made to the client, its projects or tasks. */
+  lastActivityAt: ISODateString;
+  /** Null while an owner holds it. */
+  endsAt: ISODateString | null;
+  hold: { reason: string; by: Actor; at: ISODateString } | null;
+  /** Every hold and release, oldest first. */
+  log: RetentionHoldEntry[];
+}
+
+export interface RetentionHoldEntry {
+  action: "hold" | "release";
+  reason: string | null;
+  actor: Actor;
+  at: ISODateString;
 }
 
 /* -------------------------------------------------------------------------- */
