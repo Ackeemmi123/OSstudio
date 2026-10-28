@@ -43,7 +43,7 @@ test.describe("sign-in", () => {
     const created = await admin.auth.admin.createUser({ email, password, email_confirm: true });
     expect(created.error).toBeNull();
 
-    await signIn(page, { id: created.data.user!.id, email, password, name: "Lonely" });
+    await signIn(page, { email, password });
     await expect(page.getByRole("heading", { name: "You're not in a studio yet" })).toBeVisible();
     await expect(page.getByText("Confidential Client B")).toHaveCount(0);
   });

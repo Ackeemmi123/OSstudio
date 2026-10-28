@@ -6,10 +6,18 @@ time (`src/lib/config.ts`). It never switches between them on its own.
 | Mode | When | Where data lives |
 | ---- | ---- | ---------------- |
 | **Supabase** | `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` are set | Postgres, shared by the studio, behind sign-in and row-level security |
-| **Local demo** | Neither is set, or `NEXT_PUBLIC_STUDIO_DATA_MODE=local` | This browser's `localStorage` only. The top bar says "Local demo". |
+| **Local demo** | `NEXT_PUBLIC_STUDIO_DATA_MODE=local`, or nothing is set in development (`next dev`) | This browser's `localStorage` only. The top bar says "Local demo". |
 
-If Supabase is requested but only partly configured, the app shows a
-configuration error. It does not fall back to browser storage.
+The app shows a configuration error instead of any data, and never falls back
+to browser storage, when:
+
+- a production build (`next build`, every deployment) has no Supabase settings
+  and the demo was not chosen with `NEXT_PUBLIC_STUDIO_DATA_MODE=local`;
+- Supabase is requested or only partly configured;
+- `NEXT_PUBLIC_STUDIO_DATA_MODE=local` is set while Supabase settings are too.
+
+These values are read when the app is built, so after changing them on a host,
+rebuild and redeploy.
 
 ## The data model
 

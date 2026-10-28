@@ -173,7 +173,32 @@ analysis costs one model request.
 | Database connection string | Yes: database owner | No | Only where migrations are applied |
 | Anthropic API key | Yes | Yes, server only | Optional (model lookup in the check) |
 
-## 6. Check by hand
+## 6. Run the browser journey
+
+```bash
+STAGING_E2E=1 STAGING_APP_URL=https://<staging app> npm run staging:e2e
+```
+
+One Playwright test, in a real browser against the deployed app: it signs in,
+creates a client named "E2E persistence <run>", adds source material, reloads,
+opens the client again in a new browser session with empty storage, and reads
+both records back from Supabase as the same person. The local-stack copy of
+the same journey (`tests/e2e/persistence.spec.ts`) runs in CI.
+
+It needs `STAGING_E2E=1` (it adds test data), `STAGING_APP_URL` (https),
+`STAGING_SUPABASE_URL` and `STAGING_SUPABASE_ANON_KEY` for the project the app
+uses, and an existing account: `STAGING_E2E_EMAIL` and `STAGING_E2E_PASSWORD`,
+or by default the smoke test owner. Without any of these it fails and names
+what is missing; it never reports a pass it did not run. No service role key.
+
+It works only in the studio "E2E persistence (automated)", which the account
+creates on its first run and reuses after that, and adds one client with one
+source per run. It deletes, resets and overwrites nothing, and does not touch
+the "Smoke test" studios. Run it from a machine that can reach the app (run
+`npx playwright install chromium` once). It does not run in CI, which has no
+staging credentials.
+
+## 7. Check by hand
 
 These need a person in a browser:
 
