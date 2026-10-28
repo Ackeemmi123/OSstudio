@@ -124,6 +124,42 @@ describe("studio isolation", () => {
   });
 });
 
+describe("task owner, due date and blocked reason", () => {
+  it("stores them for members and refuses viewers", async () => {
+    const repository = repositoryFor(member, studio);
+    await repository.load();
+    const project = await repository.createProject(clientId, { name: "Owners and dates" });
+    const task = await repository.createTask(project.id, { title: "Product photos" });
+    await repository.updateTask(task.id, { ownerName: "Mia Member", ownerUserId: member.id, dueDate: "2026-11-12" });
+    await repository.setTaskStatus(task.id, "blocked", { blockedReason: "Waiting for photos from the client" });
+
+    const fresh = await repositoryFor(owner, studio).load();
+    expect(fresh.tasks.find((t) => t.id === task.id)).toMatchObject({
+      assignee: { kind: "human", name: "Mia Member", userId: member.id },
+      dueDate: "2026-11-12",
+      status: "blocked",
+      blockedReason: "Waiting for photos from the client",
+    });
+    const events = fresh.activity.filter((e) => e.entityId === task.id).map((e) => e.eventType);
+    expect(events).toEqual(expect.arrayContaining(["task.created", "task.updated", "task.status_changed"]));
+
+    const viewing = repositoryFor(viewer, studio);
+    await viewing.load();
+    await expectRepositoryError(viewing.updateTask(task.id, { ownerName: "Vera Viewer", dueDate: "" }), "permission");
+    const direct = await viewer.client.from("tasks").update({ due_date: "2030-01-01" }).eq("id", task.id).select();
+    expect(direct.data ?? []).toEqual([]);
+    expect((await repositoryFor(owner, studio).load()).tasks.find((t) => t.id === task.id)?.dueDate).toBe("2026-11-12");
+  });
+
+  it("refuses a system owner, as before", async () => {
+    const repository = repositoryFor(member, studio);
+    const snapshot = await repository.load();
+    const task = snapshot.tasks.find((t) => t.title === "Product photos")!;
+    const { error } = await member.client.from("tasks").update({ assignee: { kind: "system" } }).eq("id", task.id);
+    expect(error).not.toBeNull();
+  });
+});
+
 describe("roles", () => {
   it("lets viewers read but not write", async () => {
     const repository = repositoryFor(viewer, studio);

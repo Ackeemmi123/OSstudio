@@ -130,6 +130,22 @@ describe("getFollowUps: tasks", () => {
     expect(getFollowUps({ ...empty(), clients: [c], projects: [p], tasks: [notYet] }, NOW)).toEqual([]);
   });
 
+  it("flags an open task the day after its due date, in Helsinki", () => {
+    const due = task(p, { status: "in_progress", dueDate: "2026-10-27", assignee: { kind: "human", name: "Sara" } });
+    const [item] = getFollowUps({ ...empty(), clients: [c], projects: [p], tasks: [due] }, NOW);
+    expect(item).toMatchObject({ kind: "overdue", waited: 1, relatedIds: [`task-${due.id}`] });
+    expect(item.detail).toContain("Sara");
+    expect(getFollowUps({ ...empty(), clients: [c], projects: [p], tasks: [{ ...due, dueDate: "2026-10-28" }] }, NOW)).toEqual([]);
+    expect(getFollowUps({ ...empty(), clients: [c], projects: [p], tasks: [{ ...due, status: "done" }] }, NOW)).toEqual([]);
+    // 22:30 UTC on 27 October is already the 28th in Helsinki.
+    expect(getFollowUps({ ...empty(), clients: [c], projects: [p], tasks: [due] }, Date.parse("2026-10-27T22:30:00Z"))).toHaveLength(1);
+  });
+
+  it("lists a blocked task that is also overdue once, as blocked", () => {
+    const both = task(p, { status: "blocked", dueDate: "2026-10-01", updatedAt: ago(5) });
+    expect(getFollowUps({ ...empty(), clients: [c], projects: [p], tasks: [both] }, NOW).map((f) => f.kind)).toEqual(["blocked"]);
+  });
+
   it("ignores tasks in completed or paused projects, and paused or archived clients", () => {
     const stuck = (pr: Project) => task(pr, { status: "blocked", updatedAt: ago(10) });
     const done = project(c, { id: "p-done", status: "completed" });
@@ -250,6 +266,7 @@ describe("describeWait", () => {
     expect(describeWait({ kind: "inquiry", waited: 2 })).toBe("Waiting 2 working days");
     expect(describeWait({ kind: "approval", waited: 1 })).toBe("Waiting 1 working day");
     expect(describeWait({ kind: "blocked", waited: 4 })).toBe("Blocked for 4 days");
+    expect(describeWait({ kind: "overdue", waited: 2 })).toBe("Overdue by 2 days");
     expect(describeWait({ kind: "quiet_project", waited: 12 })).toBe("No activity for 12 days");
     expect(describeWait({ kind: "onboarding", waited: 6 })).toBe("Untouched for 6 days");
     expect(describeWait({ kind: "start_project", waited: 3 })).toBe("Brief ready for 3 days");

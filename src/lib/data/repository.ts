@@ -20,6 +20,7 @@ import type {
   SourceDocument,
   StudioSnapshot,
   Task,
+  TaskDetailsInput,
   TaskStatus,
 } from "@/lib/domain/types";
 
@@ -45,7 +46,10 @@ export interface StudioRepository {
   createProject(clientId: string, input: NewProjectInput): Promise<Project>;
   updateProject(projectId: string, input: ProjectUpdateInput): Promise<Project>;
   createTask(projectId: string, input: NewTaskInput): Promise<Task>;
-  setTaskStatus(taskId: string, status: TaskStatus): Promise<Task>;
+  /** A reason is kept only when the task is blocked. */
+  setTaskStatus(taskId: string, status: TaskStatus, options?: { blockedReason?: string }): Promise<Task>;
+  /** Owner and due date. */
+  updateTask(taskId: string, input: TaskDetailsInput): Promise<Task>;
   /** A person accepts or dismisses an agent's proposal. */
   reviewProposal(proposalId: string, decision: ProposalDecision): Promise<AgentProposal>;
   /** Asks the server to run the intake agent on this client's source material. */
