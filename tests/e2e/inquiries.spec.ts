@@ -141,3 +141,20 @@ test("viewers see inquiries but cannot decide; spam is one click away for member
   await page.reload();
   await expect(page.getByText(/marked it as spam/)).toBeVisible();
 });
+
+test("an inquiry left undecided for 2 working days moves to Follow up", async ({ page }) => {
+  const company = uniqueName("Waiting Co (test)");
+  await receiveInquiry(company);
+  await page.clock.install();
+  await signIn(page, fixture().member);
+  await page.goto("/");
+  await expect(page.locator("section#decisions").getByRole("link", { name: new RegExp(`New inquiry from ${escape(company)}`) })).toBeVisible();
+
+  // Four calendar days always include at least two working days.
+  await page.clock.fastForward(4 * 24 * 60 * 60 * 1000);
+  const followUp = page.locator("section#follow-up").getByRole("link", { name: new RegExp(`Inquiry from ${escape(company)}`) });
+  await expect(followUp).toBeVisible();
+  await expect(followUp).toContainText(/Waiting \d working days · Test inquiry/);
+  await expect(followUp).toContainText("Decide");
+  await expect(page.locator("section#decisions").getByRole("link", { name: new RegExp(`New inquiry from ${escape(company)}`) })).toHaveCount(0);
+});

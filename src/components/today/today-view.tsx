@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowRight, Check, CircleSlash, Circle, FileQuestion, Inbox, Plus, Sparkles } from "lucide-react";
+import { ArrowRight, Check, CircleSlash, Circle, Clock, FileQuestion, Inbox, Plus, Sparkles } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 import { ActivityTimeline } from "@/components/activity-timeline";
@@ -10,6 +10,7 @@ import { useCanEdit, useStudio } from "@/components/providers/studio-provider";
 import { Button } from "@/components/ui/button";
 import { Section, Skeleton, Surface } from "@/components/ui/surface";
 import { cn } from "@/lib/cn";
+import { describeWait, FOLLOW_UP_RULES, getFollowUps } from "@/lib/domain/followups";
 import {
   getActiveWork,
   getDecisions,
@@ -56,13 +57,48 @@ export function TodayView() {
 }
 
 function Workspace({ snapshot }: { snapshot: StudioSnapshot }) {
-  const decisions = getDecisions(snapshot);
-  const actions = getNextActions(snapshot);
+  const now = useNow();
+  const [showAllFollowUps, setShowAllFollowUps] = useState(false);
+  // Before the clock is known (server render) there are no follow-ups, and every item stays in its usual section.
+  const followUps = now ? getFollowUps(snapshot, now) : [];
+  // A follow-up stands for a decision or next action; show each item once.
+  const shown = new Set(followUps.flatMap((item) => item.relatedIds));
+  const decisions = getDecisions(snapshot).filter((item) => !shown.has(item.id));
+  const actions = getNextActions(snapshot).filter((action) => !shown.has(action.id));
   const work = getActiveWork(snapshot);
 
   return (
     <div className="grid gap-x-12 gap-y-12 lg:grid-cols-[minmax(0,1fr)_320px]">
       <div className="flex min-w-0 flex-col gap-12">
+        {followUps.length > 0 ? (
+          <Section id="follow-up" title="Follow up" count={followUps.length}>
+            <Surface>
+              <ul className="divide-y divide-line">
+                {(showAllFollowUps ? followUps : followUps.slice(0, 8)).map((item) => (
+                  <Row
+                    key={item.id}
+                    href={item.href}
+                    icon={<Clock aria-hidden strokeWidth={1.75} className={cn("size-4", item.kind === "blocked" ? "text-critical" : "text-caution")} />}
+                    title={item.title}
+                    detail={`${describeWait(item)} · ${item.detail}`}
+                    tag={FOLLOW_UP_RULES[item.kind].action}
+                    critical={item.kind === "blocked"}
+                  />
+                ))}
+              </ul>
+              {followUps.length > 8 && !showAllFollowUps ? (
+                <button
+                  type="button"
+                  onClick={() => setShowAllFollowUps(true)}
+                  className="block w-full border-t border-line px-5 py-3 text-left text-[12.5px] text-ink-muted hover:text-ink"
+                >
+                  Show {followUps.length - 8} more
+                </button>
+              ) : null}
+            </Surface>
+          </Section>
+        ) : null}
+
         <Section id="decisions" title="Needs your decision" count={decisions.length}>
           {decisions.length === 0 ? (
             <Quiet>Nothing is waiting for you.</Quiet>
