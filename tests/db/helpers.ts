@@ -1,4 +1,5 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import pg from "pg";
 import { SupabaseRepository } from "@/lib/data/supabase-repository";
 
 /**
@@ -21,6 +22,23 @@ function required(name: string): string {
 }
 
 export const admin = createClient(env.url, env.serviceKey, { auth: { persistSession: false, autoRefreshToken: false } });
+
+/**
+ * A direct connection as the database owner: full table access, no row-level
+ * security and nobody signed in. For checking what the triggers refuse even
+ * to a role that has every privilege.
+ */
+export async function asDatabaseOwner<T>(work: (db: pg.Client) => Promise<T>): Promise<T> {
+  const url = process.env.STAGING_DATABASE_URL;
+  if (!url || !/@(127\.0\.0\.1|localhost):/.test(url)) throw new Error("The local database URL is not set. Run the database tests with `npm run test:db`.");
+  const db = new pg.Client({ connectionString: url });
+  await db.connect();
+  try {
+    return await work(db);
+  } finally {
+    await db.end();
+  }
+}
 
 export function anonClient(): SupabaseClient {
   return createClient(env.url, env.anonKey, { auth: { persistSession: false, autoRefreshToken: false } });

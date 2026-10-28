@@ -7,7 +7,7 @@
 import { randomUUID } from "node:crypto";
 import { beforeAll, describe, expect, it } from "vitest";
 import { RepositoryError } from "@/lib/data/repository";
-import { addMember, admin, anonClient, createStudio, createUser, repositoryFor, type TestUser } from "./helpers";
+import { addMember, admin, anonClient, asDatabaseOwner, createStudio, createUser, repositoryFor, type TestUser } from "./helpers";
 
 let owner: TestUser;
 let member: TestUser;
@@ -100,7 +100,7 @@ describe("studio isolation", () => {
     });
     expect(apply.error?.code).toBe("42501");
 
-    const { data: check } = await admin.from("clients").select("name").eq("id", clientId).single();
+    const { data: check } = await owner.client.from("clients").select("name").eq("id", clientId).single();
     expect(check?.name).toBe("Ateljé Test");
   });
 
@@ -167,7 +167,7 @@ describe("people act only in their own name", () => {
   });
 
   it("rejects a confirmation in someone else's name", async () => {
-    const { data: field } = await admin.from("client_context_fields").select("*").eq("client_id", clientId).eq("field_key", "platform").single();
+    const { data: field } = await member.client.from("client_context_fields").select("*").eq("client_id", clientId).eq("field_key", "platform").single();
     const { error } = await member.client.rpc("apply_changes", {
       p_studio: studio,
       p_changes: {
@@ -184,20 +184,25 @@ describe("people act only in their own name", () => {
 
 describe("history", () => {
   it("keeps the activity log append-only, even for the service role", async () => {
-    const { data: event } = await admin.from("activity_events").select("id").eq("entity_id", clientId).limit(1).single();
+    const { data: event } = await owner.client.from("activity_events").select("id").eq("entity_id", clientId).limit(1).single();
     const asOwner = await owner.client.from("activity_events").update({ description: "Rewritten" }).eq("id", event!.id);
     expect(asOwner.error).not.toBeNull();
     const asService = await admin.from("activity_events").update({ description: "Rewritten" }).eq("id", event!.id);
-    expect(asService.error?.message).toMatch(/append-only/);
+    expect(asService.error?.code).toBe("42501");
     const deleted = await admin.from("activity_events").delete().eq("id", event!.id);
-    expect(deleted.error?.message).toMatch(/append-only/);
+    expect(deleted.error?.code).toBe("42501");
+    // Even with full table access, the history cannot be rewritten.
+    await asDatabaseOwner(async (db) => {
+      await expect(db.query("update public.activity_events set description = 'Rewritten' where id = $1", [event!.id])).rejects.toThrow(/append-only/);
+      await expect(db.query("delete from public.activity_events where id = $1", [event!.id])).rejects.toThrow(/append-only/);
+    });
   });
 
   it("never drops earlier values from a field's history", async () => {
     const repository = repositoryFor(owner, studio);
     await repository.load();
     await repository.setContextField(clientId, "goal", { value: "Sell prints and frames online", confidence: "observed" });
-    const { data: field } = await admin.from("client_context_fields").select("*").eq("client_id", clientId).eq("field_key", "goal").single();
+    const { data: field } = await owner.client.from("client_context_fields").select("*").eq("client_id", clientId).eq("field_key", "goal").single();
     expect((field!.history as unknown[]).length).toBeGreaterThan(0);
     const { error } = await owner.client.rpc("apply_changes", {
       p_studio: studio,
@@ -212,7 +217,15 @@ describe("automation cannot make a person's decisions", () => {
     const { error } = await admin.from("client_context_fields")
       .update({ value: "Agent says 200k", confidence: "confirmed", confirmed_by: { kind: "human", name: "Owner", userId: owner.id } })
       .eq("client_id", clientId).eq("field_key", "requirements");
-    expect(error?.message).toMatch(/Only a person can confirm/);
+    expect(error?.code).toBe("42501");
+    // Even with full table access, only a signed-in person can confirm.
+    await asDatabaseOwner(async (db) => {
+      await expect(db.query(
+        `update public.client_context_fields set value = 'Agent says 200k', confidence = 'confirmed', confirmed_by = $1
+          where client_id = $2 and field_key = 'requirements'`,
+        [{ kind: "human", name: "Owner", userId: owner.id }, clientId],
+      )).rejects.toThrow(/Only a person can confirm/);
+    });
   });
 
   it("refuses an approval made with the service role", async () => {
@@ -223,7 +236,10 @@ describe("automation cannot make a person's decisions", () => {
     await repository.load();
     await repository.setTaskStatus(task.id, "awaiting_approval");
     const { error } = await admin.from("tasks").update({ status: "done" }).eq("id", task.id);
-    expect(error?.message).toMatch(/Only a person can approve/);
+    expect(error?.code).toBe("42501");
+    await asDatabaseOwner(async (db) => {
+      await expect(db.query("update public.tasks set status = 'done' where id = $1", [task.id])).rejects.toThrow(/Only a person can approve/);
+    });
 
     await repository.load();
     await repository.setTaskStatus(task.id, "done");
@@ -284,6 +300,9 @@ describe("agent proposals", () => {
     const { error } = await admin.from("agent_proposals")
       .update({ status: "accepted", review_confidence: "confirmed", reviewed_by: { kind: "human", name: "Owner", userId: owner.id }, reviewed_at: new Date().toISOString() })
       .eq("id", id);
-    expect(error?.message).toMatch(/Only a person can review/);
+    expect(error?.code).toBe("42501");
+    // The runner may change a proposal's status, but only to supersede it.
+    const accepted = await admin.from("agent_proposals").update({ status: "accepted" }).eq("id", id);
+    expect(accepted.error?.message).toMatch(/Only a person can review/);
   });
 });

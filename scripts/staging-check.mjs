@@ -122,7 +122,8 @@ async function checkTables(headers, as) {
   const missing = [];
   for (const name of TABLES) {
     const response = await request(`${config.url}/rest/v1/${name}?select=*&limit=0`, { headers });
-    if (!response.ok) missing.push(`${name} (HTTP ${response.status})`);
+    // The service role may read only the agent tables; "permission denied" still means the table exists.
+    if (!response.ok && response.body?.code !== "42501") missing.push(`${name} (HTTP ${response.status})`);
   }
   if (missing.length) fail("Tables present", missing.join(", "));
   else pass("Tables present", `${TABLES.length} tables, as ${as}`);
@@ -240,12 +241,17 @@ async function checkDatabase() {
     if (anonFunctions.rows.length) fail("No functions callable when signed out", anonFunctions.rows.map((r) => r.proname).join(", "));
     else pass("No functions callable when signed out");
 
+    // What the agent runner does with the service role (src/server/agents/supabase-intake-store.ts).
     const runner = await db.query(
-      "select t, has_table_privilege('service_role', 'public.' || t, 'insert') as ok from unnest($1::text[]) t",
-      [["agent_runs", "agent_proposals", "activity_events"]],
+      `select need from (values
+         ('agent_runs', 'select', null), ('agent_runs', 'insert', null), ('agent_runs', 'update', 'status'),
+         ('agent_runs', 'update', 'finished_at'), ('agent_proposals', 'select', null), ('agent_proposals', 'insert', null),
+         ('agent_proposals', 'update', 'status'), ('activity_events', 'insert', null), ('clients', 'select', 'studio_id')
+       ) as v(t, privilege, col), lateral (select t || ' ' || privilege || coalesce(' ' || col, '') as need) n
+       where not case when col is null then has_table_privilege('service_role', 'public.' || t, privilege)
+                      else has_column_privilege('service_role', 'public.' || t, col, privilege) end`,
     );
-    const blocked = runner.rows.filter((r) => !r.ok).map((r) => r.t);
-    if (blocked.length) fail("Agent runner can record runs", `service_role cannot insert into ${blocked.join(", ")}`);
+    if (runner.rows.length) fail("Agent runner can record runs", `service_role lacks: ${runner.rows.map((r) => r.need).join(", ")}`);
     else pass("Agent runner can record runs");
   } finally {
     await db.end();
