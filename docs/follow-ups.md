@@ -32,3 +32,11 @@ For a quiet project, only events made by a person count. Agent and system
 events never keep a project "alive". The same rule applies to client activity
 for retention; the quiet-client follow-ups planned next reuse that one
 definition instead of adding another.
+
+## Related: starting a project
+
+"New project" offers the usual tasks for the project type
+(`PLAYBOOKS` in `src/lib/domain/playbooks.ts`), grouped by stage. The person
+unticks what does not apply; the project and the ticked tasks are created
+in one transaction. Playbook titles are generic, so no client detail is
+copied into tasks.

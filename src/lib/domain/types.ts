@@ -347,6 +347,8 @@ export interface NewSourceInput {
 export interface NewProjectInput {
   name: string;
   projectType?: ProjectType;
+  /** Task titles to create with the project, usually from its playbook. */
+  tasks?: string[];
 }
 
 export interface ProjectUpdateInput {

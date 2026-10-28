@@ -167,8 +167,8 @@ export class LocalDemoRepository implements StudioRepository {
 
   createProject(clientId: string, input: NewProjectInput): Promise<Project> {
     return this.mutate((s) => {
-      const { project, event } = buildProject(find(s.clients, clientId, "client"), input, this.deps);
-      return [{ ...s, projects: [project, ...s.projects] }, project, [event]];
+      const { project, tasks, event } = buildProject(find(s.clients, clientId, "client"), input, this.deps);
+      return [{ ...s, projects: [project, ...s.projects], tasks: [...s.tasks, ...tasks] }, project, [event]];
     });
   }
 
