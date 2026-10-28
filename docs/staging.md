@@ -294,6 +294,24 @@ needs setup that only a person with access to the dashboards can do. Use
    `STUDIO_OS_INQUIRY_URL=https://<studio-os staging URL>/api/inquiries`,
    `STUDIO_OS_INQUIRY_KEY_ID=axivo-staging-1`, `STUDIO_OS_INQUIRY_SECRET=<signing secret>`
    (and `STUDIO_OS_BYPASS_TOKEN` if step 5 needed one). Never in Production.
+11. **Client retention.** Apply `20261029000200_client_retention.sql` the same
+   way. Then, in the Supabase SQL editor of the staging project:
+   - `select private.run_client_retention(true);` is a dry run. It should list
+     no clients (`"anonymised": []`): every staging client is younger than 12
+     months.
+   - Paste and run `scripts/sql/client-retention-staging-check.sql`. Inside
+     one block that is rolled back at the end, it adds eleven dated test
+     clients (each with a unique "Retcheck…" marker in every text it owns),
+     runs the job as a dry run, for real and again, and checks per client
+     whether it was anonymised, how many rows anywhere still contain its
+     marker, and that what it keeps is unchanged. Nothing is kept: the last
+     row checks every column of every table it touched. Every result should be
+     PASS (17 rows).
+   - `select jobname, schedule, active from cron.job;` also shows
+     `client-retention`, `27 3 * * *`, active.
+
+   `npm run staging:check` confirms only the owner can run it, nobody can
+   write the hold log, and that it is scheduled. See [retention.md](retention.md).
 
 ## Cleaning up
 

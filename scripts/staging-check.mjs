@@ -300,6 +300,27 @@ async function checkDatabase() {
     if (!job) fail("Retention is scheduled daily", "no inquiry-retention job in cron.job");
     else if (!job.active) fail("Retention is scheduled daily", "the inquiry-retention job is not active");
     else pass("Retention is scheduled daily", job.schedule);
+
+    // Client retention: the same, plus holds only through the owner-only function.
+    const clientRetention = await db.query(
+      `select f, r from unnest(array['private.run_client_retention(boolean)', 'private.anonymise_client(uuid, boolean)']) f,
+              unnest(array['anon', 'authenticated', 'service_role']) r
+         where has_function_privilege(r, f, 'execute')
+       union all
+       select 'public.client_retention_holds (write)', r from unnest(array['anon', 'authenticated', 'service_role']) r
+         where has_table_privilege(r, 'public.client_retention_holds', 'insert, update, delete')`,
+    ).catch(() => null);
+    if (!clientRetention) fail("Client retention runs only as the owner", "client retention functions do not exist (apply 20261029000200_client_retention.sql)");
+    else if (clientRetention.rows.length) fail("Client retention runs only as the owner", clientRetention.rows.map((r) => `${r.r} can run ${r.f}`).join(", "));
+    else pass("Client retention runs only as the owner");
+
+    const clientJob = await db
+      .query("select schedule, active from cron.job where jobname = 'client-retention'")
+      .then((r) => r.rows[0])
+      .catch(() => null);
+    if (!clientJob) fail("Client retention is scheduled daily", "no client-retention job in cron.job");
+    else if (!clientJob.active) fail("Client retention is scheduled daily", "the client-retention job is not active");
+    else pass("Client retention is scheduled daily", clientJob.schedule);
   } finally {
     await db.end();
   }
