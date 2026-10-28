@@ -120,7 +120,7 @@ export class SupabaseRepository implements StudioRepository {
     const [studio, onboardings, inquiries] = await Promise.all([
       this.client.rpc("load_studio", { p_studio: this.studioId }),
       this.client.from("client_onboardings").select("*").eq("studio_id", this.studioId),
-      this.client.from("inquiries").select(INQUIRY_COLUMNS).eq("studio_id", this.studioId).order("received_at", { ascending: false }).limit(500),
+      this.client.from("inquiries").select(INQUIRY_COLUMNS).eq("studio_id", this.studioId).is("anonymised_at", null).order("received_at", { ascending: false }).limit(500),
     ]);
     if (studio.error) throw toRepositoryError(studio.error);
     if (onboardings.error) throw toRepositoryError(onboardings.error);
