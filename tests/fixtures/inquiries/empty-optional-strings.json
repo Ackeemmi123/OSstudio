@@ -1,0 +1,21 @@
+{
+  "version": 1,
+  "source": "axivo_website",
+  "submissionId": "5b2d8c41-0e3f-4a5b-9c6d-7e8f9a0b1c2d",
+  "submittedAt": "2026-10-30T08:10:00.000Z",
+  "test": true,
+  "locale": "en",
+  "contact": {
+    "name": "Empty Strings (TEST)",
+    "email": "dryrun.empty@example.com",
+    "company": "",
+    "website": ""
+  },
+  "service": "websites",
+  "projectType": "",
+  "budget": "",
+  "timeline": "",
+  "desiredDate": "",
+  "message": "TEST INQUIRY. Optional fields sent as empty strings, which the contract refuses: they must be left out.",
+  "privacyNoticeVersion": "unpublished"
+}

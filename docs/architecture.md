@@ -37,10 +37,11 @@ tests/e2e/             Playwright journeys
 | Data access | `StudioRepository`: `LocalDemoRepository`, `SupabaseRepository` | Both working; Supabase tested against a local stack |
 | Database rules | `supabase/migrations` | Row-level security and triggers, database tests in `tests/db` |
 | Agent contract and permissions | `src/lib/agents` | Enforced in code and in the database |
-| Intake agent | `src/server/agents`, `/api/agents/intake` | Working with the test provider; the Anthropic provider is built but has not been called with a real key |
+| Intake agent | `src/server/agents`, `/api/agents/intake` | Person-started only. The test provider runs in tests and the local demo; the Anthropic provider was called on staging with test data (smoke test, 28 Oct 2026). Spend is capped monthly ([ai.md](ai.md)). Not for real client data until the conditions in [production.md](production.md#ai-on-real-client-data) are met |
+| Task suggestions | `src/server/agents/plan-runner.ts`, `/api/agents/plan` | Person-started, when starting a project; same budget and data conditions as the intake agent ([ai.md](ai.md#task-suggestions-for-a-new-project)) |
 | Follow-ups | `src/lib/domain/followups.ts` | Computed on Today and per client, stores nothing ([follow-ups.md](follow-ups.md)) |
 | Website inquiries | `src/lib/inquiries`, `src/server/inquiries`, `/api/inquiries` | Receiving, review (approve, add to a client, reject, spam) and the daily 12-month retention job, verified on staging with test inquiries; repeat submissions grouped with the first inquiry ([inquiries.md](inquiries.md)) |
-| Client retention | `supabase/migrations/20261029000200_client_retention.sql`, `src/lib/domain/retention.ts` | Daily job, owner holds and Today warnings, built and tested locally; periods provisional until an adviser's review ([retention.md](retention.md)) |
+| Client retention | `supabase/migrations/20261029000200_client_retention.sql`, `src/lib/domain/retention.ts` | Daily job, owner holds and Today warnings; migration applied to staging and checked there with the rolled-back staging check; periods provisional until an adviser's review ([retention.md](retention.md)) |
 
 ## Rules
 

@@ -53,12 +53,12 @@ They drop nothing. Review what will run first:
 npx supabase db push --db-url "$STAGING_DATABASE_URL" --dry-run
 ```
 
-On a new project, exactly these six should be listed, in this order:
-`20261027000100_core_schema`, `…000200_agents`, `…000300_security`,
-`…000400_functions`, `…000500_onboarding`, `20261028000100_service_role_grants`.
-On a project that already has the first five, only the last one should be
-listed. If anything else is listed, stop: the database is not the staging
-project you think it is. Then:
+On a new project, every file in `supabase/migrations` should be listed, in
+file-name order (12 on 29 Oct 2026, from `20261027000100_core_schema` to
+`20261030000100_ai_budget`). On a project that already has some of them, only
+the newer files should be listed; the existing staging project had all 12 on
+29 Oct 2026. If anything else is listed, or an older file you know was applied,
+stop: the database is not the staging project you think it is. Then:
 
 ```bash
 npx supabase db push --db-url "$STAGING_DATABASE_URL"

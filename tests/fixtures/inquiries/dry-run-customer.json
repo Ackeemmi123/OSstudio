@@ -1,0 +1,22 @@
+{
+  "version": 1,
+  "source": "axivo_website",
+  "submissionId": "7d0c5c3e-2f4b-4c1a-9e8d-0a1b2c3d4e5f",
+  "submittedAt": "2026-10-30T08:00:00.000Z",
+  "test": true,
+  "locale": "en",
+  "contact": {
+    "name": "Testi Testinen (TEST)",
+    "email": "dryrun.bakery@example.com",
+    "company": "Dry Run Bakery (TEST)",
+    "website": "dryrun-bakery.example.com"
+  },
+  "service": "websites",
+  "projectType": "website",
+  "budget": "3k_5k",
+  "timeline": "within_3_months",
+  "desiredDate": "2027-01-15",
+  "message": "TEST INQUIRY, invented for a dry run. We are a small bakery and want a new website with our menu, opening hours, a contact form and a page for cake orders. Our current site is old and hard to update on a phone.",
+  "privacyNoticeVersion": "unpublished",
+  "meta": { "ip": "192.0.2.50" }
+}

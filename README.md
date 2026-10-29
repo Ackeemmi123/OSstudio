@@ -58,7 +58,11 @@ To stand up and check a hosted staging copy, see [docs/staging.md](docs/staging.
   - *Source material* and *Activity* alongside.
 - **Search** (⌘K / Ctrl+K) across clients and projects.
 - **Settings**: where data is stored, a reset for the demo data, what is
-  connected, and the planned agents.
+  connected, the AI budget, and the agents (available and planned).
+- **Follow up** on Today: work that has waited too long, computed when the page
+  opens ([docs/follow-ups.md](docs/follow-ups.md)). Nothing is sent.
+- **Projects from a playbook**: starting a project offers the usual tasks for
+  its type; tasks have an owner, a due date and a blocked reason.
 
 Old links to `/projects`, `/tasks`, `/approvals` and `/agents` redirect to Today
 or Settings.
@@ -75,20 +79,41 @@ or Settings.
   source material and proposes brief values, each with the quote it came
   from, plus what is missing or unclear and questions to ask. Nothing changes
   until a person accepts it. It does no web research. It needs
-  `ANTHROPIC_API_KEY` on the server; see [docs/architecture.md](docs/architecture.md).
+  `ANTHROPIC_API_KEY` on the server and runs only when a person starts it,
+  within a monthly budget; see [docs/ai.md](docs/ai.md). Test data only until
+  the conditions in [docs/production.md](docs/production.md#ai-on-real-client-data) are met.
+- **Task suggestions**: when starting a project, a person can ask the
+  coordination agent for tasks based on the brief (same rules).
 
 ## Website inquiries
 
 The Axivo website forwards contact-form inquiries to a signed endpoint,
 `POST /api/inquiries`, which stores each one once and confirms with `202`.
-Studio members can read them; nobody can edit them. Reviewing and approving
-inquiries is not built yet. See [docs/inquiries.md](docs/inquiries.md).
+Owners and members review each one on Today: approve it as a new client (with
+a draft onboarding), add it to an existing client, reject it or mark it as
+spam. Nothing is sent to the customer. Inquiries that never became clients are
+anonymised after 12 months. See [docs/inquiries.md](docs/inquiries.md). The
+website and Studio OS are connected on staging only; there is no production
+Studio OS yet ([docs/production.md](docs/production.md)).
+
+## How the studio uses it
+
+- [docs/workflow.md](docs/workflow.md): inquiry to finished project, as built,
+  and what happens outside Studio OS.
+- [docs/operations.md](docs/operations.md): the daily check, decisions, data
+  requests, and what to do when the website handoff fails.
+- [docs/dry-run.md](docs/dry-run.md): a rehearsal with a fictional customer.
+- [docs/production.md](docs/production.md): environments, the go-live gate and
+  the restore test.
 
 ## Not built
 
-- File uploads, email intake, notifications, invoicing.
-- Other agents (design, development, QA, sales, coordination) are listed in
-  Settings as planned.
+- File uploads, email intake, notifications and sending email, invoicing and
+  any money fields, consultation and proposal records, password reset and
+  invites, data export.
+- Other agents (design, development, QA, sales) are listed in Settings as
+  planned.
+- A production environment.
 
 ## Brand
 
