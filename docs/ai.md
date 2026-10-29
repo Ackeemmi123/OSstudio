@@ -19,16 +19,26 @@ All agents share one monthly budget: `STUDIO_AI_MONTHLY_BUDGET_USD`, $25 when
 unset (the amount Alexander approved on 28 Oct 2026). An invalid value turns
 the agents off rather than running uncapped. Months are calendar months in UTC.
 
-Before a model call the server reserves the most the call could cost (every
-input character counted as a token, the full output allowance, doubled in case
-a fallback model answers after a refusal, at the highest listed price). After
+Before a model call the server reserves the most the call could cost: every
+byte of the request (instructions, the whole message with client details,
+brief and sources, and the answer format) counted as a token, plus 4 000 tokens
+of framing, the full output allowance, all doubled in case a fallback model
+answers after a refusal, at the highest listed price. A token is never shorter
+than a byte, so text in any script or with emoji cannot be under-counted. After
 the call it settles the reservation to the real cost:
 
-- the provider reported usage: that cost;
+- the provider reported usage: that cost. After a fallback the API lists every
+  attempt in `usage.iterations`, including the one that declined; each is
+  charged at the price of the model that ran it (the top-level usage covers
+  only the answer);
 - the provider refused the request before doing any work (bad key, bad
   request, rate limit): nothing;
 - unknown (timeout, lost connection, a server that stopped mid-call): the
   whole reservation. A reservation left open for 15 minutes is charged in full.
+
+The real cost is recorded even when it is higher than the reservation (only
+possible if the provider tried more than two models in one call), so the
+month can end slightly over the cap; the next run is then refused.
 
 A reservation that would take the month over the cap is refused, and once the
 month is at the cap no agent runs at all. The run is recorded as failed with a
@@ -36,7 +46,10 @@ plain explanation, and nothing is sent to the model. The month's row is locked
 while a reservation is checked and made, so concurrent requests cannot pass the
 cap together (`tests/db/ai-budget.test.ts`).
 
-Owners see the month's spend in Settings. The ledger lives in
+Owners see the month's spend in Settings. The budget is one per deployment,
+so the total covers every studio on it: with more than one studio, each owner
+would see the combined spend. That is fine while the deployment serves one
+studio; a per-studio budget is needed before opening sign-ups. The ledger lives in
 `private.ai_budget_months` and `private.ai_budget_reservations` and is used
 only through `public.ai_budget_reserve`, `ai_budget_settle` and
 `ai_budget_month`, which only the service role may call.

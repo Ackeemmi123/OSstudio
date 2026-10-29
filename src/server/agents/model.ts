@@ -4,15 +4,21 @@
  * evidence checks happen afterwards, the same for every provider.
  */
 import type { IntakeInput } from "@/lib/agents/intake";
-import type { TokenUsage } from "@/lib/agents/pricing";
+import type { CallAttempt, TokenUsage } from "@/lib/agents/pricing";
 
-export interface ModelAnswer {
-  /** The raw structured output, not yet validated. */
-  output: unknown;
-  /** Tokens the provider reports for the call. */
+/** What a call used, as the provider reported it. */
+export interface Spent {
+  /** Tokens across every attempt. */
   usage: TokenUsage;
   /** The model that answered, which can differ from the one asked after a fallback. */
   servedBy: string | null;
+  /** Each attempt, when the provider reports them separately (after a fallback). */
+  attempts?: CallAttempt[];
+}
+
+export interface ModelAnswer extends Spent {
+  /** The raw structured output, not yet validated. */
+  output: unknown;
 }
 
 export interface IntakeModel {
@@ -35,7 +41,7 @@ export class ModelError extends Error {
      * What the failed call cost, when the provider said. Null when unknown,
      * for example after a timeout: the call may still have been billed.
      */
-    readonly spent: { usage: TokenUsage; servedBy: string | null } | "nothing" | null = null,
+    readonly spent: Spent | "nothing" | null = null,
   ) {
     super(message);
     this.name = "ModelError";

@@ -9,9 +9,9 @@
  */
 import { intakeIdempotencyKey, type AgentRunRecord, type EntityRef, type IntakeResult } from "@/lib/agents/contract";
 import { checkIntakeInput, intakeFingerprint, normalizeIntakeOutput, type IntakeInput, type IntakeSource, type ProposalDraft } from "@/lib/agents/intake";
-import { INTAKE_PROMPT_VERSION } from "@/lib/agents/intake-prompt";
+import { INTAKE_PROMPT_VERSION, intakeRequestBytes } from "@/lib/agents/intake-prompt";
 import { authorize } from "@/lib/agents/permissions";
-import { costMicros, formatUsd, worstCaseMicros, type TokenUsage } from "@/lib/agents/pricing";
+import { formatUsd, spentMicros, worstCaseMicros, type TokenUsage } from "@/lib/agents/pricing";
 import { currentValueFor } from "@/lib/domain/intake";
 import { CONTEXT_FIELD_KEYS, PROPOSAL_TARGETS, type Client, type SourceDocument } from "@/lib/domain/types";
 import { ModelError, type IntakeModel } from "./model";
@@ -136,8 +136,7 @@ export async function runIntakeAnalysis(options: {
   }
   if (!check.ok) return { status: 200, body: { run } };
 
-  const characters = input.sources.reduce((sum, source) => sum + source.content.length, 0);
-  const needed = worstCaseMicros(model.model ?? "", characters, model.maxOutputTokens)!;
+  const needed = worstCaseMicros(model.model ?? "", intakeRequestBytes(input), model.maxOutputTokens)!;
   const reservation = await store.reserveBudget(run.id, needed, capMicros);
   if (!reservation.ok) {
     const finished = await store.finishRun(run.id, { status: "failed", error: { message: budgetMessage(reservation, capMicros, needed, now()), retryable: true } });
@@ -150,7 +149,7 @@ export async function runIntakeAnalysis(options: {
   let spend: RunPatch["spend"];
   try {
     const answer = await model.analyze(input, AbortSignal.timeout(timeoutMs));
-    spend = { usage: answer.usage, servedBy: answer.servedBy, costMicros: costMicros(answer.usage, answer.servedBy) };
+    spend = { usage: answer.usage, servedBy: answer.servedBy, costMicros: spentMicros(answer) };
     await store.settleBudget(run.id, spend.costMicros);
     let normalized;
     try {
@@ -180,7 +179,7 @@ export async function runIntakeAnalysis(options: {
       // refused before doing any work, and the whole reservation when unknown.
       if (failure.spent === "nothing") await store.settleBudget(run.id, 0);
       else if (failure.spent) {
-        spend = { ...failure.spent, costMicros: costMicros(failure.spent.usage, failure.spent.servedBy) };
+        spend = { usage: failure.spent.usage, servedBy: failure.spent.servedBy, costMicros: spentMicros(failure.spent) };
         await store.settleBudget(run.id, spend.costMicros);
       } else await store.settleBudget(run.id, null);
     }

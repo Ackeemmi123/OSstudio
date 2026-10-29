@@ -63,21 +63,37 @@ export function costMicros(usage: TokenUsage, servedBy: string | null): number {
 }
 
 /**
+ * What a call cost across every attempt the provider made. After a fallback
+ * the provider reports each attempt separately, including the declined one,
+ * and each is charged at the price of the model that ran it.
+ */
+export function spentMicros(spent: { usage: TokenUsage; servedBy: string | null; attempts?: readonly CallAttempt[] }): number {
+  if (!spent.attempts?.length) return costMicros(spent.usage, spent.servedBy);
+  return spent.attempts.reduce((sum, attempt) => sum + costMicros(attempt.usage, attempt.model), 0);
+}
+
+/** One model attempt within a call. A null model is charged at the highest listed price. */
+export interface CallAttempt {
+  usage: TokenUsage;
+  model: string | null;
+}
+
+/**
  * The most one call could cost, reserved before it starts. Deliberately
- * pessimistic: every input character counted as a token, the full output
+ * pessimistic: every byte of input counted as a token, the full output
  * allowance used, and the whole call paid twice in case the provider declines
  * and a fallback model answers. A price at least as high as any fallback's is
  * used for both.
  */
-export function worstCaseMicros(model: string, inputCharacters: number, maxOutputTokens: number): number | null {
+export function worstCaseMicros(model: string, inputBytes: number, maxOutputTokens: number): number | null {
   const price = priceFor(model);
   if (!price) return null;
   if (price.input === 0 && price.output === 0) return 0;
-  const once = (inputCharacters + PROMPT_OVERHEAD_TOKENS) * HIGHEST_PRICE.input + maxOutputTokens * HIGHEST_PRICE.output;
+  const once = (inputBytes + PROMPT_OVERHEAD_TOKENS) * HIGHEST_PRICE.input + maxOutputTokens * HIGHEST_PRICE.output;
   return Math.ceil(once * 2);
 }
 
-/** Room for the system prompt and message framing, in tokens. */
+/** Room for message framing and the provider's own instructions, in tokens. */
 const PROMPT_OVERHEAD_TOKENS = 4_000;
 
 export function formatUsd(micros: number): string {

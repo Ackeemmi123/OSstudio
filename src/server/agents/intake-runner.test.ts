@@ -7,9 +7,9 @@ import type { Client, SourceDocument } from "@/lib/domain/types";
 import { FixtureIntakeModel } from "./fixture-model";
 import { INTAKE_PROMPT_VERSION } from "@/lib/agents/intake-prompt";
 import { costMicros, worstCaseMicros } from "@/lib/agents/pricing";
-import { buildIntakeMessage } from "@/lib/agents/intake-prompt";
+import { buildIntakeMessage, INTAKE_SYSTEM_PROMPT, intakeRequestBytes } from "@/lib/agents/intake-prompt";
 import { buildIntakeInput, MAX_RUNS_PER_HOUR, STALE_RUN_MS, runIntakeAnalysis, type IntakeStore, type NewRun, type RunPatch } from "./intake-runner";
-import { ModelError, type IntakeModel, type ModelAnswer } from "./model";
+import { ModelError, type IntakeModel, type ModelAnswer, type Spent } from "./model";
 
 const NOW = Date.parse("2026-10-27T12:00:00.000Z");
 
@@ -149,10 +149,13 @@ class CountingModel implements IntakeModel {
   readonly test = true;
   readonly maxOutputTokens = 16_000;
   calls = 0;
-  constructor(private readonly behaviour: (input: IntakeInput, signal: AbortSignal) => Promise<unknown>) {}
+  constructor(
+    private readonly behaviour: (input: IntakeInput, signal: AbortSignal) => Promise<unknown>,
+    private readonly spent: Spent = { usage: USAGE, servedBy: "claude-opus-5-5" },
+  ) {}
   async analyze(input: IntakeInput, signal: AbortSignal): Promise<ModelAnswer> {
     this.calls++;
-    return { output: await this.behaviour(input, signal), usage: USAGE, servedBy: this.model };
+    return { output: await this.behaviour(input, signal), ...this.spent };
   }
 }
 
@@ -289,7 +292,51 @@ describe("runIntakeAnalysis", () => {
 
 describe("the monthly AI budget", () => {
   const CAP = 25_000_000;
-  const reserveFor = (store: MemoryStore) => worstCaseMicros("claude-opus-5-5", [...(store.client?.source.initialNotes ?? "")].length, 16_000)!;
+  const reserveFor = (store: MemoryStore) => worstCaseMicros("claude-opus-5-5", intakeRequestBytes(buildIntakeInput(store.client!, store.sources)), 16_000)!;
+
+  it("reserves for everything the call sends, counted in bytes so no script or emoji is under-counted", async () => {
+    const notes = "予算は四万クローナ、締め切りは夏前です。🌿".repeat(400);
+    const store = new MemoryStore(makeClient(notes), [source("Brief: " + "ありがとう".repeat(500))]);
+    store.client!.name = "Ω".repeat(2_000);
+    const input = buildIntakeInput(store.client!, store.sources);
+    const encoder = new TextEncoder();
+    const bytes = intakeRequestBytes(input);
+    // Instructions, the whole message (brief and client fields included) and the answer format.
+    expect(bytes).toBeGreaterThan(encoder.encode(INTAKE_SYSTEM_PROMPT).length + encoder.encode(buildIntakeMessage(input)).length);
+    // Counting source characters alone, as before, reserved far less.
+    const sourceCharacters = input.sources.reduce((sum, s) => sum + s.content.length, 0);
+    expect(bytes).toBeGreaterThan(2.5 * sourceCharacters);
+
+    const model = new CountingModel(answer);
+    await run(store, { model });
+    expect(model.calls).toBe(1);
+    expect(store.reservations.get(store.runs[0].id)?.reserved).toBe(worstCaseMicros("claude-opus-5-5", bytes, 16_000));
+  });
+
+  it("charges every attempt after a fallback, the declined one included, each at its own model's price", async () => {
+    const declined = { inputTokens: 5_000, outputTokens: 1_200, cacheReadTokens: 0, cacheWriteTokens: 0 };
+    const served = { inputTokens: 5_000, outputTokens: 3_000, cacheReadTokens: 0, cacheWriteTokens: 0 };
+    const spent: Spent = {
+      usage: { inputTokens: 10_000, outputTokens: 4_200, cacheReadTokens: 0, cacheWriteTokens: 0 },
+      servedBy: "claude-opus-4-8",
+      attempts: [
+        { usage: declined, model: "claude-opus-5-5" },
+        { usage: served, model: "claude-opus-4-8" },
+      ],
+    };
+    const expected = costMicros(declined, "claude-opus-5-5") + costMicros(served, "claude-opus-4-8");
+    // Pricing only the answer, as before, would have missed the declined attempt.
+    expect(expected).toBeGreaterThan(costMicros(served, "claude-opus-4-8"));
+
+    const store = new MemoryStore(makeClient());
+    const outcome = await run(store, { model: new CountingModel(answer, spent) });
+    expect(outcome.body.run).toMatchObject({ status: "needs_approval", servedBy: "claude-opus-4-8", costMicros: expected, usage: spent.usage });
+    expect(store.spentMicros).toBe(expected);
+
+    const refused = new MemoryStore(makeClient());
+    await run(refused, { model: new CountingModel(async () => { throw new ModelError("The model declined.", false, spent); }) });
+    expect(refused.spentMicros).toBe(expected);
+  });
 
   it("records tokens, the model that answered, the cost and the prompt version, and charges what the call cost", async () => {
     const store = new MemoryStore(makeClient());
@@ -346,7 +393,9 @@ describe("the monthly AI budget", () => {
     });
     const pending = ids.map((clientId) => run(store, { model, clientId }));
     await new Promise((resolve) => setTimeout(resolve, 10));
-    expect(store.reservedMicros).toBe(reserveFor(store));
+    // Exactly one reservation is open, whichever client won.
+    const each = [store.client!, ...store.otherClients].map((client) => worstCaseMicros("claude-opus-5-5", intakeRequestBytes(buildIntakeInput(client, [])), 16_000));
+    expect(each).toContain(store.reservedMicros);
     release();
     const outcomes = await Promise.all(pending);
     const statuses = outcomes.map((o) => o.body.run?.status).sort();

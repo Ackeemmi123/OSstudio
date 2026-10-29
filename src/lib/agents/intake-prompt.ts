@@ -2,10 +2,11 @@
  * The instructions and input the intake agent receives. Kept separate from
  * any provider so another model can be used with the same prompt.
  */
+import { z } from "zod";
 import { SALES_CHANNEL_LABELS, SALES_CHANNELS } from "@/lib/domain/brief";
 import { CONFIDENCE_LABELS, PROPOSAL_TARGET_LABELS } from "@/lib/domain/labels";
 import { PROPOSAL_TARGETS } from "@/lib/domain/types";
-import type { IntakeInput } from "./intake";
+import { intakeModelOutput, type IntakeInput } from "./intake";
 
 /**
  * Recorded on every run. Change it whenever the instructions or the message
@@ -56,4 +57,18 @@ export function buildIntakeMessage(input: IntakeInput): string {
 
 function escapeAttribute(value: string): string {
   return value.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;");
+}
+
+/**
+ * The size in UTF-8 bytes of everything a call sends: instructions, message
+ * and answer format. A token is never shorter than one byte, so this is an
+ * upper bound on the input tokens whatever the language or script.
+ */
+export function intakeRequestBytes(input: IntakeInput): number {
+  const encoder = new TextEncoder();
+  return (
+    encoder.encode(INTAKE_SYSTEM_PROMPT).length +
+    encoder.encode(buildIntakeMessage(input)).length +
+    encoder.encode(JSON.stringify(z.toJSONSchema(intakeModelOutput))).length
+  );
 }

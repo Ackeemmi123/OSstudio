@@ -2,8 +2,8 @@ import Anthropic from "@anthropic-ai/sdk";
 import { betaZodOutputFormat } from "@anthropic-ai/sdk/helpers/beta/zod";
 import { intakeModelOutput, type IntakeInput } from "@/lib/agents/intake";
 import { buildIntakeMessage, INTAKE_SYSTEM_PROMPT } from "@/lib/agents/intake-prompt";
-import type { TokenUsage } from "@/lib/agents/pricing";
-import { ModelError, type IntakeModel, type ModelAnswer } from "./model";
+import type { CallAttempt, TokenUsage } from "@/lib/agents/pricing";
+import { ModelError, type IntakeModel, type ModelAnswer, type Spent } from "./model";
 
 /** Where the API key is sent. Never taken from ANTHROPIC_BASE_URL implicitly. */
 export const ANTHROPIC_API_URL = "https://api.anthropic.com";
@@ -48,7 +48,7 @@ export class AnthropicIntakeModel implements IntakeModel {
       throw toModelError(error);
     }
 
-    const spent = { usage: toUsage(response.usage), servedBy: response.model ?? null };
+    const spent = toSpent(response);
     if (response.stop_reason === "refusal") {
       throw new ModelError("The model declined to analyze this material.", false, spent);
     }
@@ -62,7 +62,36 @@ export class AnthropicIntakeModel implements IntakeModel {
   }
 }
 
-function toUsage(usage: { input_tokens: number; output_tokens: number; cache_read_input_tokens?: number | null; cache_creation_input_tokens?: number | null }): TokenUsage {
+interface ReportedUsage {
+  input_tokens: number;
+  output_tokens: number;
+  cache_read_input_tokens?: number | null;
+  cache_creation_input_tokens?: number | null;
+}
+
+/**
+ * What the call used. The top-level usage covers only the attempt that
+ * produced the answer; after a fallback, `usage.iterations` lists every
+ * attempt, including the one that declined, so the cost is taken from there.
+ */
+export function toSpent(response: { model?: string | null; usage: ReportedUsage & { iterations?: ReadonlyArray<ReportedUsage & { model?: string | null }> | null } }): Spent {
+  const servedBy = response.model ?? null;
+  const iterations = response.usage.iterations ?? [];
+  if (!iterations.length) return { usage: toUsage(response.usage), servedBy };
+  const attempts: CallAttempt[] = iterations.map((entry) => ({ usage: toUsage(entry), model: entry.model ?? null }));
+  const usage = attempts.reduce<TokenUsage>(
+    (sum, { usage: u }) => ({
+      inputTokens: sum.inputTokens + u.inputTokens,
+      outputTokens: sum.outputTokens + u.outputTokens,
+      cacheReadTokens: sum.cacheReadTokens + u.cacheReadTokens,
+      cacheWriteTokens: sum.cacheWriteTokens + u.cacheWriteTokens,
+    }),
+    { inputTokens: 0, outputTokens: 0, cacheReadTokens: 0, cacheWriteTokens: 0 },
+  );
+  return { usage, servedBy, attempts };
+}
+
+function toUsage(usage: ReportedUsage): TokenUsage {
   return {
     inputTokens: usage.input_tokens,
     outputTokens: usage.output_tokens,
