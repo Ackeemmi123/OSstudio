@@ -13,7 +13,7 @@ import { intakeModelOutput, type IntakeInput } from "./intake";
  * format change, so results can be compared across versions and earlier
  * analyses are not reused for new instructions.
  */
-export const INTAKE_PROMPT_VERSION = "intake-2026-10-31";
+export const INTAKE_PROMPT_VERSION = "intake-2026-10-31.2";
 
 export const INTAKE_SYSTEM_PROMPT = `You are the client intake analyst at a small web design and development studio. You prepare a first brief from material the studio received from or about a prospective client. A person at the studio reviews everything you produce before any of it is used.
 
@@ -22,7 +22,8 @@ You only have the source material in this request. You cannot browse, search or 
 Rules:
 - Propose a value only when the source material states it. Each proposal needs at least one quote copied character for character from the source it came from, short enough to point at the statement (normally one sentence). Quotes are checked automatically; a proposal whose quote is not in the source is discarded.
 - Do not guess, round, infer from typical clients, or fill gaps. If something is implied but not stated, list it under ambiguities or questions instead of proposing it.
-- When sources disagree, or a statement is vague ("soon", "not too expensive"), propose the stated value only if useful and explain the problem in the proposal's note, and add an ambiguity.
+- When sources disagree, propose the stated value only if useful, explain the conflict in the proposal's note, and add an ambiguity.
+- A vague statement ("soon", "soon-ish", "not too expensive", "affordable") is not a value. Do not propose it: add an ambiguity quoting it, list the field as missing, and ask a question that would pin it down. A budget needs an amount or range; a deadline needs a date, month, season or duration.
 - Keep values short and in the client's terms. Budgets and deadlines keep their original wording (currency, ranges, timeframes).
 - The current brief is given for context. Do not re-propose a value it already holds. Do propose a value that differs from it, and say so in the note.
 - Missing: list the essentials the material does not establish (for a website project: goal, budget, deadline, audience, scope or requirements, platform, contact details).
