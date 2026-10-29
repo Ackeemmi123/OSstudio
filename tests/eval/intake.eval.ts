@@ -4,15 +4,16 @@
  * By default it uses the free test provider, which checks the harness and the
  * safety rules but not the model's quality. Running it against Claude costs
  * money, so it needs all of: EVAL_PROVIDER=anthropic, ANTHROPIC_API_KEY, and
- * EVAL_SPEND_APPROVED=yes (only after Alexander approves the spend). It stops
- * before starting if the worst case for the whole set is over EVAL_MAX_USD
- * (default 2).
+ * EVAL_SPEND_APPROVED=yes (only after Alexander approves the spend). Before
+ * each case it stops if that case's worst cost could take the run past
+ * EVAL_MAX_USD (default 2), so the run never spends more than the limit.
  */
 import { describe, expect, it, vi } from "vitest";
 import { normalizeIntakeOutput } from "@/lib/agents/intake";
 import { gradeIntake, type CheckResult } from "@/lib/agents/eval/grade";
 import { INTAKE_EVAL_CASES } from "@/lib/agents/eval/intake-cases";
-import { costMicros, formatUsd, worstCaseMicros } from "@/lib/agents/pricing";
+import { intakeRequestBytes } from "@/lib/agents/intake-prompt";
+import { formatUsd, spentMicros, worstCaseMicros } from "@/lib/agents/pricing";
 import { DEFAULT_INTAKE_MODEL } from "@/server/config";
 import { AnthropicIntakeModel } from "@/server/agents/anthropic-model";
 import { FixtureIntakeModel } from "@/server/agents/fixture-model";
@@ -31,18 +32,15 @@ function provider(): IntakeModel {
 describe("intake evaluation set", () => {
   it("analyzes every case without breaking a safety rule", async () => {
     const model = provider();
-    const worst = INTAKE_EVAL_CASES.reduce(
-      (sum, c) => sum + worstCaseMicros(model.model ?? "", c.input.sources.reduce((n, s) => n + s.content.length, 0), model.maxOutputTokens)!,
-      0,
-    );
     const limit = Number(process.env.EVAL_MAX_USD ?? 2) * 1_000_000;
-    if (!model.test && worst > limit) throw new Error(`The worst case for this run is ${formatUsd(worst)}, over the ${formatUsd(limit)} limit.`);
-
     let spent = 0;
     const report: { id: string; results: CheckResult[] }[] = [];
     for (const testCase of INTAKE_EVAL_CASES) {
+      // Never start a case whose worst case could take the run past the limit.
+      const worst = worstCaseMicros(model.model ?? "", intakeRequestBytes(testCase.input), model.maxOutputTokens)!;
+      if (!model.test && spent + worst > limit) throw new Error(`Stopped before ${testCase.id}: ${formatUsd(spent)} spent, and its worst case of ${formatUsd(worst)} could pass the ${formatUsd(limit)} limit.`);
       const answer = await model.analyze(testCase.input, AbortSignal.timeout(110_000));
-      spent += costMicros(answer.usage, answer.servedBy);
+      spent += spentMicros(answer);
       report.push({ id: testCase.id, results: gradeIntake(testCase, normalizeIntakeOutput(answer.output, testCase.input)) });
     }
 

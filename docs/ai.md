@@ -95,8 +95,11 @@ the way a person would see it:
 It uses the free test provider by default, which proves the harness and the
 safety rules but says nothing about the model's quality. A run against Claude
 costs about $1 and needs `EVAL_PROVIDER=anthropic`, `ANTHROPIC_API_KEY` and
-`EVAL_SPEND_APPROVED=yes`, set only after Alexander approves the spend. It
-refuses to start when the worst case is over `EVAL_MAX_USD` (default 2).
+`EVAL_SPEND_APPROVED=yes`, set only after Alexander approves the spend. Before
+each case it stops if that case's worst cost could take the run past
+`EVAL_MAX_USD` (default 2), so it never spends more than the limit. These runs
+are not recorded in the studio's monthly budget: they use the evaluator's own
+key and limit, and are counted in the Anthropic console.
 
 ## Questions per brief field
 
