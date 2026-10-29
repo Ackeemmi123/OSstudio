@@ -11,9 +11,10 @@ limits, and the review screen: staff approve an inquiry as a new client (with
 a draft onboarding), add it to an existing client, reject it or mark it as
 spam (see [Reviewing an inquiry](#reviewing-an-inquiry)), and the daily
 retention job (see [Retention](#retention)).
-**Not built yet:** grouping repeat submissions from one address (the `merged`
-status), and AI suggestions run from the inquiry page (the intake agent can be
-run from the new client's workspace). Until the retention job has passed its
+Repeat submissions from one address are grouped (see
+[Repeat submissions](#repeat-submissions)).
+**Not built yet:** AI suggestions run from the inquiry page (the intake agent
+can be run from the new client's workspace). Until the retention job has passed its
 staging checks and real inquiries are explicitly approved, **only test
 inquiries may be sent to Studio OS.**
 
@@ -138,10 +139,37 @@ server does, then a retry, a changed-content conflict and a forged signature,
 and reports each answer. Run it from your own machine with the secret in your
 shell only. See [staging.md](staging.md#8-website-inquiries).
 
+## Repeat submissions
+
+`supabase/migrations/20261029000100_inquiry_repeats.sql`. When an inquiry
+arrives while an earlier one from the same email address (compared trimmed and
+lower-case, test and real inquiries kept apart) is still waiting for a
+decision and was received within the last 30 days, it is stored with
+`repeat_of` pointing to that first inquiry. The link is set once, when the row
+is stored, and nobody can change it.
+
+- Today and Clients list only the first inquiry ("Sent 2 times"). Its page
+  shows the later messages under "Sent again".
+- Deciding the first inquiry resolves its open repeats as `merged`, in the same
+  transaction and in the same person's name. Approving or adding to a client
+  adds every message as source material and gives the repeats the same client;
+  budget and timing come from the first inquiry.
+- A repeat cannot be decided on its own while its first inquiry is open (the
+  app hides the buttons and `decide_inquiry` refuses with SO409). Once the
+  first inquiry is no longer open, a repeat that is still new is listed and
+  decided on its own.
+- Retention: a repeat merged into an approved inquiry is kept with the client.
+  One merged into a rejected or spam inquiry is anonymised 12 months after
+  that decision.
+
+Tests: `tests/db/inquiry-repeats.test.ts`, `src/lib/domain/inquiries.test.ts`,
+`tests/e2e/inquiries.spec.ts`.
+
 ## Retention
 
 `supabase/migrations/20261028000400_inquiry_retention.sql`. Inquiries that did
-not become clients (`new`, `rejected`, `spam`) are kept for 12 months, counted
+not become clients (`new`, `rejected`, `spam`, and repeats merged into a
+rejected or spam inquiry) are kept for 12 months, counted
 from the decision, or from when the inquiry arrived if nobody decided it. Then
 they are **anonymised**: name, email, company, website, message, content hash,
 custom amount, desired date, privacy notice version and the rejection reason

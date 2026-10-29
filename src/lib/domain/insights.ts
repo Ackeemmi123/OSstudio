@@ -4,7 +4,7 @@
  */
 import { formatContextValue } from "@/lib/format";
 import { getMissingEssentials } from "./clients";
-import { describeInquiry, getOpenInquiries } from "./inquiries";
+import { describeInquiry, getOpenInquiries, getRepeats } from "./inquiries";
 import { actorLabel, CLIENT_STATUS_LABELS, CONFIDENCE_LABELS, CONTEXT_FIELD_LABELS, ONBOARDING_STEP_LABELS, PROJECT_STAGE_LABELS } from "./labels";
 import {
   CONTEXT_FIELD_KEYS,
@@ -162,11 +162,14 @@ export function getDecisions(snapshot: StudioSnapshot): DecisionItem[] {
   const items: DecisionItem[] = [];
 
   for (const inquiry of getOpenInquiries(snapshot)) {
+    const repeats = getRepeats(inquiry, snapshot.inquiries).length;
     items.push({
       id: `inquiry-${inquiry.id}`,
       kind: "inquiry",
       title: `New inquiry from ${inquiry.company ?? inquiry.contactName}`,
-      where: `${inquiry.isTest ? "Test inquiry" : "Website inquiry"} · ${describeInquiry(inquiry)}`,
+      where: [inquiry.isTest ? "Test inquiry" : "Website inquiry", describeInquiry(inquiry), repeats ? `Sent ${repeats + 1} times` : null]
+        .filter(Boolean)
+        .join(" · "),
       clientId: null,
       href: `/inquiries/${encodeURIComponent(inquiry.id)}`,
     });

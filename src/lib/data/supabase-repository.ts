@@ -2,7 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { AgentRunRecord } from "@/lib/agents/contract";
 import { buildNewClient, DomainConflictError, DomainError, setContextField, updateClientDetails, type DomainDeps } from "@/lib/domain/clients";
 import { addContextItem, buildSource, reviewProposal } from "@/lib/domain/intake";
-import { approveInquiry, assertDecidable, cleanRejectionReason, linkInquiry } from "@/lib/domain/inquiries";
+import { approveInquiry, assertDecidable, cleanRejectionReason, getRepeats, linkInquiry, openFirstInquiry } from "@/lib/domain/inquiries";
 import { buildOnboarding, completeOnboarding, findOnboarding, saveOnboardingStep } from "@/lib/domain/onboarding";
 import { buildProject, buildTask, setTaskStatus, updateProject, updateTaskDetails } from "@/lib/domain/projects";
 import {
@@ -303,9 +303,13 @@ export class SupabaseRepository implements StudioRepository {
   async decideInquiry(inquiryId: string, decision: InquiryDecision): Promise<Inquiry> {
     await this.write<Inquiry>((s, deps) => {
       const inquiry = find(s.inquiries, inquiryId, "inquiry");
+      if (openFirstInquiry(inquiry, s.inquiries)) {
+        throw new DomainConflictError("This inquiry was sent again by the same address. Decide the first inquiry; this one is resolved with it.");
+      }
+      const repeats = getRepeats(inquiry, s.inquiries);
       const decided = { ...inquiry, decidedBy: deps.actor, decidedAt: deps.now() };
       if (decision.action === "approve") {
-        const approval = approveInquiry(inquiry, decision.name, deps);
+        const approval = approveInquiry(inquiry, decision.name, deps, repeats);
         const { client } = approval;
         return [
           { ...decided, status: "approved", clientId: client.id, createdClient: true },
@@ -313,7 +317,7 @@ export class SupabaseRepository implements StudioRepository {
             clients: [{ op: "insert", row: clientRow(client) }],
             context_fields: CONTEXT_FIELD_KEYS.map((key) => ({ op: "insert", row: contextFieldRow(client.id, key, client.context[key]) })),
             context_items: approval.items.map((item) => ({ op: "insert" as const, row: contextItemRow(client.id, item) })),
-            sources: [{ op: "insert", row: sourceRow(approval.source) }],
+            sources: [approval.source, ...approval.repeatSources].map((source) => ({ op: "insert" as const, row: sourceRow(source) })),
             events: approval.events.map(eventRow),
           },
           { op: "insert", row: onboardingRow(approval.onboarding) },
@@ -322,8 +326,11 @@ export class SupabaseRepository implements StudioRepository {
       }
       if (decision.action === "link") {
         const before = find(s.clients, decision.clientId, "client");
-        const link = linkInquiry(inquiry, before, deps);
-        const changes: Changes = { sources: [{ op: "insert", row: sourceRow(link.source) }], events: link.events.map(eventRow) };
+        const link = linkInquiry(inquiry, before, deps, repeats);
+        const changes: Changes = {
+          sources: [link.source, ...link.repeatSources].map((source) => ({ op: "insert" as const, row: sourceRow(source) })),
+          events: link.events.map(eventRow),
+        };
         if (link.detailsChanged) changes.clients = [update(clientRow(link.client), before.updatedAt)];
         if (link.changedFields.length) {
           changes.context_fields = link.changedFields.map((key) => fieldUpdate(link.client, key, before.context[key].updatedAt));
