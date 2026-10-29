@@ -1,16 +1,17 @@
 "use client";
 
 import { Check, Pencil, Plus } from "lucide-react";
-import { useId, useState, type FormEvent } from "react";
+import { useEffect, useId, useState, type FormEvent } from "react";
 import { useCanEdit, useStudio } from "@/components/providers/studio-provider";
 import { useStudioAction } from "@/components/providers/use-studio-action";
 import { Button } from "@/components/ui/button";
 import { Section, Surface } from "@/components/ui/surface";
 import { cn } from "@/lib/cn";
 import { helsinkiDate } from "@/lib/domain/followups";
-import { PLAYBOOKS } from "@/lib/domain/playbooks";
+import { openQuestionsTaskTitle, PLAYBOOKS } from "@/lib/domain/playbooks";
 import { getClientProjects, getProjectTasks } from "@/lib/domain/insights";
 import { PROJECT_STAGE_LABELS, PROJECT_STATUS_LABELS, PROJECT_TYPE_LABELS, TASK_STATUS_LABELS } from "@/lib/domain/labels";
+import { toClientDetailsInput } from "@/lib/domain/clients";
 import { BLOCKED_REASON_MAX_LENGTH, OWNER_NAME_MAX_LENGTH, suggestProjectName } from "@/lib/domain/projects";
 import {
   PROJECT_STAGES,
@@ -42,7 +43,18 @@ function useOwnerOptions(snapshot: StudioSnapshot): { name: string; userId?: str
 export function ProjectsSection({ client, snapshot }: { client: Client; snapshot: StudioSnapshot }) {
   const projects = getClientProjects(client.id, snapshot.projects);
   const owners = useOwnerOptions(snapshot);
-  const [creating, setCreating] = useState(false);
+  // A link to #new-project (from onboarding or a follow-up) opens the form, as does #projects for a client with no project yet.
+  // The workspace renders only in the browser, once data has loaded, so reading the hash here is safe.
+  const opensForm = (hash: string) => hash === "#new-project" || (hash === "#projects" && projects.length === 0);
+  const [creating, setCreating] = useState(() => typeof window !== "undefined" && opensForm(window.location.hash));
+  useEffect(() => {
+    // Links on the same page (What's next) change only the hash.
+    const onHashChange = () => {
+      if (opensForm(window.location.hash)) setCreating(true);
+    };
+    window.addEventListener("hashchange", onHashChange);
+    return () => window.removeEventListener("hashchange", onHashChange);
+  });
   const canEdit = useCanEdit();
 
   return (
@@ -61,9 +73,9 @@ export function ProjectsSection({ client, snapshot }: { client: Client; snapshot
     >
       <div className="flex flex-col gap-4">
         {creating || projects.length === 0 ? (
-          <Surface className={projects.length === 0 && !creating ? "border-dashed" : undefined}>
+          <Surface id={creating ? "new-project" : undefined} className={cn("scroll-mt-24", projects.length === 0 && !creating ? "border-dashed" : undefined)}>
             {creating ? (
-              <NewProjectForm client={client} onDone={() => setCreating(false)} />
+              <NewProjectForm client={client} firstProject={projects.length === 0} onDone={() => setCreating(false)} />
             ) : (
               <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-4">
                 <p className="text-[13.5px] text-ink-muted">No projects yet. Start one when the work is agreed, or earlier to plan it.</p>
@@ -326,20 +338,32 @@ function NewTaskInput({ projectId }: { projectId: string }) {
   );
 }
 
-function NewProjectForm({ client, onDone }: { client: Client; onDone: () => void }) {
+function NewProjectForm({ client, firstProject, onDone }: { client: Client; firstProject: boolean; onDone: () => void }) {
   const formId = useId();
   const [name, setName] = useState(suggestProjectName(client));
   const [projectType, setProjectType] = useState<ProjectType>(client.projectType ?? "website");
   const playbook = PLAYBOOKS[projectType];
   // Titles the person unticked; everything else in the playbook is created.
   const [skipped, setSkipped] = useState<Set<string>>(new Set());
-  const chosen = playbook.filter((task) => !skipped.has(task.title)).map((task) => task.title);
+  const openQuestions = client.contextItems.filter((item) => item.kind === "question" && item.confidence !== "superseded").length;
+  const [askQuestions, setAskQuestions] = useState(openQuestions > 0);
+  // Starting the first project is when a lead usually becomes an active client; the person decides.
+  const canActivate = firstProject && (client.status === "lead" || client.status === "onboarding");
+  const [activate, setActivate] = useState(canActivate);
+  const chosen = [
+    ...playbook.filter((task) => !skipped.has(task.title)).map((task) => task.title),
+    ...(askQuestions && openQuestions > 0 ? [openQuestionsTaskTitle(openQuestions)] : []),
+  ];
   const { run, pending } = useStudioAction();
 
   async function create(event: FormEvent) {
     event.preventDefault();
     const project = await run((r) => r.createProject(client.id, { name, projectType, tasks: chosen }), "The project was not created.");
-    if (project) onDone();
+    if (!project) return;
+    if (canActivate && activate) {
+      await run((r) => r.updateClient(client.id, { ...toClientDetailsInput(client), status: "active" }), "The project was created, but the client was not marked active.");
+    }
+    onDone();
   }
 
   function toggle(title: string) {
@@ -405,6 +429,22 @@ function NewProjectForm({ client, onDone }: { client: Client; onDone: () => void
           </div>
         ))}
       </fieldset>
+      {openQuestions > 0 || canActivate ? (
+        <div className="flex flex-col gap-1.5">
+          {openQuestions > 0 ? (
+            <label className="flex items-center gap-2 text-[13.5px] text-ink">
+              <input type="checkbox" checked={askQuestions} onChange={(event) => setAskQuestions(event.target.checked)} className="size-4 accent-[var(--color-primary)]" />
+              Add a task to ask the client the {openQuestions === 1 ? "open question" : `${openQuestions} open questions`}
+            </label>
+          ) : null}
+          {canActivate ? (
+            <label className="flex items-center gap-2 text-[13.5px] text-ink">
+              <input type="checkbox" checked={activate} onChange={(event) => setActivate(event.target.checked)} className="size-4 accent-[var(--color-primary)]" />
+              Mark {client.name} as an active client
+            </label>
+          ) : null}
+        </div>
+      ) : null}
       <p className="text-[12px] text-ink-subtle">Starts as planned, at intake. Move it forward when work begins.</p>
       <div className="flex gap-2">
         <Button type="submit" size="sm" variant="primary" disabled={pending || !name.trim()}>

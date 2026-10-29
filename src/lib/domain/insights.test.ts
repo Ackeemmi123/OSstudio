@@ -65,6 +65,16 @@ describe("getNextActions", () => {
   });
 });
 
+describe("getNextActions after onboarding", () => {
+  it("offers to start the project once the brief is ready, even with gaps", () => {
+    const onboarding = { ...snapshot.onboardings[0], id: "onb-lumen", clientId: "demo-lumen", status: "ready_for_review" as const, completedAt: snapshot.onboardings[0].updatedAt };
+    const ready = { ...snapshot, onboardings: [...snapshot.onboardings, onboarding] };
+    const [action] = getNextActions(ready, "demo-lumen");
+    expect(action).toMatchObject({ kind: "start_project", id: "start-demo-lumen" });
+    expect(action.detail).toMatch(/^Brief ready, still unknown: /);
+  });
+});
+
 describe("client rows", () => {
   it("uses the latest related event as last activity", () => {
     const henrik = getClientRows(snapshot).find((row) => row.client.id === "demo-atelje-henrik");

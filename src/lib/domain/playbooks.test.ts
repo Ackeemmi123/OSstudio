@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { buildNewClient } from "./clients";
-import { PLAYBOOK_MAX_TASKS, PLAYBOOKS } from "./playbooks";
+import { openQuestionsTaskTitle, PLAYBOOK_MAX_TASKS, PLAYBOOKS } from "./playbooks";
 import { buildProject, TITLE_MAX_LENGTH } from "./projects";
 import { testDeps } from "./test-helpers";
 import { PROJECT_STAGES, PROJECT_TYPES } from "./types";
@@ -50,5 +50,12 @@ describe("buildProject with tasks", () => {
     expect(() => buildProject(client, { name: "Website", tasks: ["  "] }, testDeps())).toThrow(/task/);
     const many = Array.from({ length: PLAYBOOK_MAX_TASKS + 1 }, (_, i) => `Task ${i}`);
     expect(() => buildProject(client, { name: "Website", tasks: many }, testDeps())).toThrow(/at most/);
+  });
+});
+
+describe("openQuestionsTaskTitle", () => {
+  it("names the count, never the questions", () => {
+    expect(openQuestionsTaskTitle(1)).toBe("Ask the client the open question");
+    expect(openQuestionsTaskTitle(3)).toBe("Ask the client the 3 open questions");
   });
 });

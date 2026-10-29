@@ -102,3 +102,34 @@ test("shows invalid input inline and does not move on", async ({ page }) => {
   await expect(page.getByText(/valid email/)).toBeVisible();
   await step(page, "1. Business");
 });
+
+test("goes from a finished onboarding to a started project with its tasks", async ({ page }) => {
+  await startOnboarding(page, "Handoff Studio", "Website");
+  await page.getByRole("navigation", { name: "Onboarding steps" }).getByRole("button", { name: "Budget & timing" }).click();
+  await step(page, "5. Budget & timing");
+  await page.getByLabel("Anything to ask the client?").fill("Who writes the copy?");
+  await page.getByRole("button", { name: "Add", exact: true }).click();
+  await page.getByRole("button", { name: "Review brief" }).click();
+  await step(page, "6. Review");
+  await page.getByRole("button", { name: /Mark ready/ }).click();
+  await expect(page).toHaveURL(/#brief$/);
+
+  // The brief has gaps, but the guided pass is done: the next step is the project.
+  const next = page.locator("section#next").getByRole("link", { name: "Start the first project for Handoff Studio" });
+  await expect(next).toBeVisible();
+  await next.click();
+  const projects = page.locator("section#projects");
+  await expect(projects.getByLabel("Project name")).toBeVisible();
+  await expect(page.locator("header, main").getByText(/^(Lead|Onboarding|Active)$/).first()).not.toHaveText("Active");
+  await expect(projects.getByLabel("Kickoff call with the client")).toBeChecked();
+  await expect(projects.getByLabel("Add a task to ask the client the open question")).toBeChecked();
+  await expect(projects.getByLabel("Mark Handoff Studio as an active client")).toBeChecked();
+  await projects.getByRole("button", { name: /^Create project with \d+ tasks$/ }).click();
+
+  await expect(projects.getByText("Ask the client the open question", { exact: true })).toBeVisible();
+  await expect(projects.getByText("Kickoff call with the client", { exact: true })).toBeVisible();
+  const status = page.locator("header, main").getByText(/^(Lead|Onboarding|Active)$/).first();
+  await expect(status).toHaveText("Active");
+  await page.reload();
+  await expect(projects.getByText("Ask the client the open question", { exact: true })).toBeVisible();
+});
