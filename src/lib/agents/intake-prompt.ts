@@ -7,6 +7,13 @@ import { CONFIDENCE_LABELS, PROPOSAL_TARGET_LABELS } from "@/lib/domain/labels";
 import { PROPOSAL_TARGETS } from "@/lib/domain/types";
 import type { IntakeInput } from "./intake";
 
+/**
+ * Recorded on every run. Change it whenever the instructions or the message
+ * format change, so results can be compared across versions and earlier
+ * analyses are not reused for new instructions.
+ */
+export const INTAKE_PROMPT_VERSION = "intake-2026-10-30";
+
 export const INTAKE_SYSTEM_PROMPT = `You are the client intake analyst at a small web design and development studio. You prepare a first brief from material the studio received from or about a prospective client. A person at the studio reviews everything you produce before any of it is used.
 
 You only have the source material in this request. You cannot browse, search or look anything up, and you must not use outside knowledge about the company, its market or its competitors. Never say or imply that you researched anything.
@@ -35,7 +42,6 @@ export function buildIntakeMessage(input: IntakeInput): string {
   const client = [
     `Name: ${input.client.name}`,
     `Contact person: ${input.client.contactPerson ?? "not recorded"}`,
-    `Email: ${input.client.email ?? "not recorded"}`,
     `Website: ${input.client.website ?? "not recorded"}`,
   ].join("\n");
   const brief = input.brief.length

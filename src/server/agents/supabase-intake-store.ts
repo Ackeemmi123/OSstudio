@@ -2,7 +2,7 @@ import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { AgentRunRecord } from "@/lib/agents/contract";
 import { toAgentRun, toSnapshot, type StudioPayload } from "@/lib/data/supabase-rows";
-import type { IntakeStore, NewRun, RunPatch } from "./intake-runner";
+import type { BudgetReservation, IntakeStore, NewRun, RunPatch } from "./intake-runner";
 
 const AGENT_ACTOR = { kind: "agent", agentId: "research" } as const;
 
@@ -94,6 +94,7 @@ export class SupabaseIntakeStore implements IntakeStore {
         inputs: run.inputs,
         runner: run.runner,
         model: run.model,
+        prompt_version: run.promptVersion,
         blocker: run.blocker,
         requested_by: run.requestedBy,
         started_at: now,
@@ -115,6 +116,16 @@ export class SupabaseIntakeStore implements IntakeStore {
         outputs: patch.outputs ?? [],
         error: patch.error ?? null,
         finished_at: new Date().toISOString(),
+        ...(patch.spend
+          ? {
+              served_by: patch.spend.servedBy,
+              input_tokens: patch.spend.usage.inputTokens,
+              output_tokens: patch.spend.usage.outputTokens,
+              cache_read_tokens: patch.spend.usage.cacheReadTokens,
+              cache_write_tokens: patch.spend.usage.cacheWriteTokens,
+              cost_micros: patch.spend.costMicros,
+            }
+          : {}),
       })
       .eq("studio_id", this.studioId)
       .eq("id", runId)
@@ -154,6 +165,18 @@ export class SupabaseIntakeStore implements IntakeStore {
       description,
       actor: AGENT_ACTOR,
     });
+    if (error) throw error;
+  }
+
+  async reserveBudget(runId: string, amountMicros: number, capMicros: number): Promise<BudgetReservation> {
+    const { data, error } = await this.asRunner.rpc("ai_budget_reserve", { p_run: runId, p_amount: amountMicros, p_cap: capMicros });
+    if (error) throw error;
+    const result = data as { ok: boolean; spent?: number; reserved?: number };
+    return result.ok ? { ok: true } : { ok: false, spentMicros: Number(result.spent ?? 0), reservedMicros: Number(result.reserved ?? 0) };
+  }
+
+  async settleBudget(runId: string, chargedMicros: number | null): Promise<void> {
+    const { error } = await this.asRunner.rpc("ai_budget_settle", { p_run: runId, p_charged: chargedMicros });
     if (error) throw error;
   }
 }

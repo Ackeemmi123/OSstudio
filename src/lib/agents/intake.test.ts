@@ -3,7 +3,7 @@ import { checkIntakeInput, containsQuote, intakeFingerprint, normalizeIntakeOutp
 import { buildIntakeMessage } from "./intake-prompt";
 
 const input: IntakeInput = {
-  client: { name: "Lumen Yoga", contactPerson: null, email: null, website: null },
+  client: { name: "Lumen Yoga", contactPerson: null, website: null },
   brief: [{ target: "goal", value: "More bookings", confidence: "observed" }],
   sources: [
     { id: "s1", label: "Contact form", type: "contact_form", content: "Hi! We’re Lumen Yoga.\nOur budget is around 40 000 SEK and we would love to launch before the summer term." },

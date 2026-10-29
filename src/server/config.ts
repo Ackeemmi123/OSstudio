@@ -129,6 +129,27 @@ export function inquiryConfig(env: Env = process.env): InquiryConfigResult {
   return { ok: true, value: { supabase: { url, anonKey, serviceRoleKey }, signingKeys, studioId: studioId.toLowerCase(), hashKey } };
 }
 
+/** The monthly AI budget Alexander approved for every agent together, in USD. */
+export const DEFAULT_AI_MONTHLY_BUDGET_USD = 25;
+const MAX_AI_MONTHLY_BUDGET_USD = 1000;
+
+export type AiBudgetConfig = { ok: true; capMicros: number } | { ok: false; reason: string };
+
+/**
+ * The monthly cap on AI spend across all agents: STUDIO_AI_MONTHLY_BUDGET_USD,
+ * $25 when unset. A value that is not a positive number of dollars stops
+ * every agent instead of running uncapped.
+ */
+export function aiMonthlyBudget(env: Env = process.env): AiBudgetConfig {
+  const raw = clean(env.STUDIO_AI_MONTHLY_BUDGET_USD);
+  if (raw === undefined) return { ok: true, capMicros: DEFAULT_AI_MONTHLY_BUDGET_USD * 1_000_000 };
+  const usd = /^\d+(\.\d{1,2})?$/.test(raw) ? Number(raw) : NaN;
+  if (!(usd > 0 && usd <= MAX_AI_MONTHLY_BUDGET_USD)) {
+    return { ok: false, reason: `STUDIO_AI_MONTHLY_BUDGET_USD must be an amount in dollars above 0 and at most ${MAX_AI_MONTHLY_BUDGET_USD}. AI analysis is off until it is fixed.` };
+  }
+  return { ok: true, capMicros: Math.round(usd * 1_000_000) };
+}
+
 export function intakeTimeoutMs(env: Env = process.env): number {
   return clamp(Number(env.STUDIO_AGENT_TIMEOUT_MS) || 90_000, 10_000, 110_000);
 }

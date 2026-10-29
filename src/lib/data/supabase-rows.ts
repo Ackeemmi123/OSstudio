@@ -240,6 +240,18 @@ export function toAgentRun(row: Row): AgentRunRecord {
     error: (row.error as AgentRunRecord["error"]) ?? null,
     runner: opt(row.runner),
     model: opt(row.model),
+    promptVersion: opt(row.prompt_version),
+    servedBy: opt(row.served_by),
+    usage:
+      row.input_tokens == null || row.output_tokens == null
+        ? null
+        : {
+            inputTokens: Number(row.input_tokens),
+            outputTokens: Number(row.output_tokens),
+            cacheReadTokens: Number(row.cache_read_tokens ?? 0),
+            cacheWriteTokens: Number(row.cache_write_tokens ?? 0),
+          },
+    costMicros: row.cost_micros == null ? null : Number(row.cost_micros),
     createdAt: str(row.created_at),
     startedAt: opt(row.started_at),
     finishedAt: opt(row.finished_at),

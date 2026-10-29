@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { RelativeTime } from "@/components/ui/relative-time";
 import { Section, Surface } from "@/components/ui/surface";
 import { isFinished, type AgentRunRecord } from "@/lib/agents/contract";
+import { formatUsd } from "@/lib/agents/pricing";
 import { currentValueFor, describeTarget, isContextFieldKey } from "@/lib/domain/intake";
 import { getLatestIntakeRun } from "@/lib/domain/insights";
 import type { AgentProposal, Client, ProposalDecision, StudioSnapshot } from "@/lib/domain/types";
@@ -158,6 +159,7 @@ function RunResult({
         Read {result.analyzedSources.map((s) => s.label).join(", ") || "no sources"} · <RelativeTime iso={run.finishedAt ?? run.createdAt} />. No external research was performed.
         {result.discardedProposals ? ` ${result.discardedProposals} proposed ${result.discardedProposals === 1 ? "value was" : "values were"} left out because the quoted text was not found in the source.` : ""}
         {run.runner === "fixture" ? " Produced by the test provider, not by an AI model." : ""}
+        {run.costMicros !== null && run.runner !== "fixture" ? ` Estimated cost ${formatUsd(run.costMicros)}.` : ""}
       </p>
     </div>
   );

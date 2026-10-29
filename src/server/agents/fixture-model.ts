@@ -1,6 +1,6 @@
 import type { IntakeInput, IntakeModelOutput } from "@/lib/agents/intake";
 import { CONTEXT_FIELD_KEYS, type ProposalTarget } from "@/lib/domain/types";
-import { ModelError, type IntakeModel } from "./model";
+import { ModelError, type IntakeModel, type ModelAnswer } from "./model";
 
 /**
  * A deterministic stand-in for a model, for automated tests only. It uses no
@@ -8,18 +8,31 @@ import { ModelError, type IntakeModel } from "./model";
  * quoting the line. It is enabled only when explicitly configured, and runs
  * it produces are labeled as coming from a test provider.
  *
- * A source containing "FIXTURE_FAIL" makes it fail, to test error handling.
+ * A source containing "FIXTURE_FAIL" makes it fail, and one containing
+ * "FIXTURE_MALFORMED" makes it answer in the wrong shape, to test error
+ * handling. It reports token usage like a provider would (about four
+ * characters a token), priced at nothing.
  */
 export class FixtureIntakeModel implements IntakeModel {
   readonly runner = "fixture";
   readonly model = "test-fixture";
   readonly test = true;
+  readonly maxOutputTokens = 16000;
 
-  async analyze(input: IntakeInput, signal: AbortSignal): Promise<IntakeModelOutput> {
-    if (signal.aborted) throw new ModelError("The analysis took too long and was stopped.", true);
+  async analyze(input: IntakeInput, signal: AbortSignal): Promise<ModelAnswer> {
+    if (signal.aborted) throw new ModelError("The analysis took too long and was stopped.", true, "nothing");
     if (input.sources.some((source) => source.content.includes("FIXTURE_FAIL"))) {
-      throw new ModelError("The test provider was asked to fail.", true);
+      throw new ModelError("The test provider was asked to fail.", true, "nothing");
     }
+    const characters = input.sources.reduce((sum, source) => sum + source.content.length, 0);
+    const usage = { inputTokens: Math.ceil(characters / 4) + 1500, outputTokens: 600, cacheReadTokens: 0, cacheWriteTokens: 0 };
+    if (input.sources.some((source) => source.content.includes("FIXTURE_MALFORMED"))) {
+      return { output: { proposals: "not a list", summary: 42 }, usage, servedBy: this.model };
+    }
+    return { output: this.answer(input), usage, servedBy: this.model };
+  }
+
+  private answer(input: IntakeInput): IntakeModelOutput {
     const proposals: IntakeModelOutput["proposals"] = [];
     for (const source of input.sources) {
       for (const line of source.content.split(/\r?\n/)) {

@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { createClientNamed, section, signIn, uniqueName } from "./helpers";
-import { fixture } from "./supabase";
+import { fixture, signedInClient } from "./supabase";
 
 /**
  * The intake agent, with the server's deterministic test provider (no AI).
@@ -74,4 +74,19 @@ test("shows a failed analysis and lets the person try again", async ({ page }) =
   await expect(analysis.getByText("The analysis did not finish.", { exact: false })).toBeVisible();
   await expect(analysis.getByRole("button", { name: "Try again" })).toBeVisible();
   await expect(analysis.getByTestId("proposal")).toHaveCount(0);
+});
+
+test("shows owners this month's AI spend against the cap, and nobody else", async ({ page, request }) => {
+  await signIn(page, fixture().owner);
+  await page.goto("/settings");
+  const spend = page.getByTestId("ai-spend");
+  // The test provider costs nothing, so the local stack never spends.
+  await expect(spend).toContainText(/AI spend in \w+: \$0\.00 of \$25\.00/);
+
+  const member = await signedInClient(fixture().member);
+  const token = (await member.auth.getSession()).data.session!.access_token;
+  const asMember = await request.get(`/api/agents/budget?studioId=${fixture().studioA}`, { headers: { authorization: `Bearer ${token}` } });
+  expect(asMember.status()).toBe(403);
+  const anonymous = await request.get(`/api/agents/budget?studioId=${fixture().studioA}`);
+  expect(anonymous.status()).toBe(401);
 });

@@ -259,7 +259,7 @@ export type EntityType = "client" | "project" | "task";
 
 /**
  * The activity log doubles as the workflow event stream: future automations
- * subscribe to these types (see `src/lib/agents/triggers.ts`).
+ * subscribe to these types through `src/lib/agents/triggers.ts`.
  */
 export type ActivityEventType =
   | "client.created"

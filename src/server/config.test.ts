@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
 
-const { inquiryConfig, intakeModel, intakeTimeoutMs, isLocalSupabase, serverSupabase } = await import("./config");
+const { aiMonthlyBudget, inquiryConfig, intakeModel, intakeTimeoutMs, isLocalSupabase, serverSupabase } = await import("./config");
 
 /** A legacy Supabase key: an unsigned JWT is enough to carry the role claim. */
 function jwt(role: string) {
@@ -146,5 +146,19 @@ describe("inquiryConfig", () => {
     expect(config.ok).toBe(false);
     // The reason names settings, never their values.
     if (!config.ok) expect(config.reason).not.toContain(secret);
+  });
+});
+
+describe("aiMonthlyBudget", () => {
+  it("caps AI spend at $25 a month when nothing is set", () => {
+    expect(aiMonthlyBudget({})).toEqual({ ok: true, capMicros: 25_000_000 });
+  });
+
+  it.each([["10", 10_000_000], ["12.50", 12_500_000], [" 5 ", 5_000_000]])("reads %s dollars", (raw, micros) => {
+    expect(aiMonthlyBudget({ STUDIO_AI_MONTHLY_BUDGET_USD: raw })).toEqual({ ok: true, capMicros: micros });
+  });
+
+  it.each(["0", "-5", "abc", "1e3", "25.001", "Infinity", "1001"])("turns agents off instead of running uncapped for %s", (raw) => {
+    expect(aiMonthlyBudget({ STUDIO_AI_MONTHLY_BUDGET_USD: raw })).toEqual({ ok: false, reason: expect.stringContaining("AI analysis is off") });
   });
 });

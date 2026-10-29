@@ -2,7 +2,7 @@ import { createClient } from "@supabase/supabase-js";
 import { z } from "zod";
 import { SupabaseIntakeStore } from "@/server/agents/supabase-intake-store";
 import { runIntakeAnalysis } from "@/server/agents/intake-runner";
-import { intakeModel, intakeTimeoutMs, serverSupabase } from "@/server/config";
+import { aiMonthlyBudget, intakeModel, intakeTimeoutMs, serverSupabase } from "@/server/config";
 
 // One model call per request, bounded by STUDIO_AGENT_TIMEOUT_MS (at most 110 s).
 export const maxDuration = 120;
@@ -41,6 +41,8 @@ export async function POST(request: Request) {
 
   const model = intakeModel();
   if (!model.ok) return json(503, model.reason);
+  const budget = aiMonthlyBudget();
+  if (!budget.ok) return json(503, budget.reason);
 
   const asRunner = createClient(supabase.url, supabase.serviceRoleKey, options);
   try {
@@ -51,10 +53,14 @@ export async function POST(request: Request) {
       requestedBy: auth.user.id,
       force,
       timeoutMs: intakeTimeoutMs(),
+      capMicros: budget.capMicros,
     });
     return Response.json(outcome.body, { status: outcome.status });
   } catch (error) {
-    console.error("Intake analysis failed", error);
+    // Only the error's code and message: a database error's details can quote
+    // the row, which holds client material.
+    const { code, message } = (error ?? {}) as { code?: unknown; message?: unknown };
+    console.error("Intake analysis failed", { code: String(code ?? "unknown"), message: String(message ?? error) });
     return json(500, "The analysis could not be recorded. Try again.");
   }
 }

@@ -2,7 +2,8 @@ import Anthropic from "@anthropic-ai/sdk";
 import { betaZodOutputFormat } from "@anthropic-ai/sdk/helpers/beta/zod";
 import { intakeModelOutput, type IntakeInput } from "@/lib/agents/intake";
 import { buildIntakeMessage, INTAKE_SYSTEM_PROMPT } from "@/lib/agents/intake-prompt";
-import { ModelError, type IntakeModel } from "./model";
+import type { TokenUsage } from "@/lib/agents/pricing";
+import { ModelError, type IntakeModel, type ModelAnswer } from "./model";
 
 /** Where the API key is sent. Never taken from ANTHROPIC_BASE_URL implicitly. */
 export const ANTHROPIC_API_URL = "https://api.anthropic.com";
@@ -14,6 +15,7 @@ export const ANTHROPIC_API_URL = "https://api.anthropic.com";
 export class AnthropicIntakeModel implements IntakeModel {
   readonly runner = "anthropic";
   readonly test = false;
+  readonly maxOutputTokens = 16000;
   private readonly client: Anthropic;
 
   constructor(
@@ -26,13 +28,13 @@ export class AnthropicIntakeModel implements IntakeModel {
     this.client = new Anthropic({ apiKey, baseURL: ANTHROPIC_API_URL, maxRetries: 1, timeout: timeoutMs });
   }
 
-  async analyze(input: IntakeInput, signal: AbortSignal): Promise<unknown> {
+  async analyze(input: IntakeInput, signal: AbortSignal): Promise<ModelAnswer> {
     let response;
     try {
       response = await this.client.beta.messages.parse(
         {
           model: this.model,
-          max_tokens: 16000,
+          max_tokens: this.maxOutputTokens,
           system: INTAKE_SYSTEM_PROMPT,
           messages: [{ role: "user", content: buildIntakeMessage(input) }],
           output_config: { effort: "medium", format: betaZodOutputFormat(intakeModelOutput) },
@@ -46,31 +48,42 @@ export class AnthropicIntakeModel implements IntakeModel {
       throw toModelError(error);
     }
 
+    const spent = { usage: toUsage(response.usage), servedBy: response.model ?? null };
     if (response.stop_reason === "refusal") {
-      throw new ModelError("The model declined to analyze this material.", false);
+      throw new ModelError("The model declined to analyze this material.", false, spent);
     }
     if (response.stop_reason === "max_tokens") {
-      throw new ModelError("The model's answer was cut off before it finished.", true);
+      throw new ModelError("The model's answer was cut off before it finished.", true, spent);
     }
     if (!response.parsed_output) {
-      throw new ModelError("The model did not return a valid analysis.", true);
+      throw new ModelError("The model did not return a valid analysis.", true, spent);
     }
-    return response.parsed_output;
+    return { output: response.parsed_output, ...spent };
   }
+}
+
+function toUsage(usage: { input_tokens: number; output_tokens: number; cache_read_input_tokens?: number | null; cache_creation_input_tokens?: number | null }): TokenUsage {
+  return {
+    inputTokens: usage.input_tokens,
+    outputTokens: usage.output_tokens,
+    cacheReadTokens: usage.cache_read_input_tokens ?? 0,
+    cacheWriteTokens: usage.cache_creation_input_tokens ?? 0,
+  };
 }
 
 function toModelError(error: unknown): ModelError {
   if (error instanceof Anthropic.APIUserAbortError || (error instanceof Error && error.name === "AbortError")) {
-    return new ModelError("The analysis took too long and was stopped.", true);
+    // The provider may have started and billed the call.
+    return new ModelError("The analysis took too long and was stopped.", true, null);
   }
   if (error instanceof Anthropic.AuthenticationError || error instanceof Anthropic.PermissionDeniedError) {
-    return new ModelError("The AI provider rejected the server's credentials. An administrator needs to check the configuration.", false);
+    return new ModelError("The AI provider rejected the server's credentials. An administrator needs to check the configuration.", false, "nothing");
   }
   if (error instanceof Anthropic.BadRequestError || error instanceof Anthropic.NotFoundError) {
-    return new ModelError("The AI provider rejected the request. An administrator needs to check the model configuration.", false);
+    return new ModelError("The AI provider rejected the request. An administrator needs to check the model configuration.", false, "nothing");
   }
   if (error instanceof Anthropic.RateLimitError) {
-    return new ModelError("The AI provider is busy. Try again in a minute.", true);
+    return new ModelError("The AI provider is busy. Try again in a minute.", true, "nothing");
   }
   if (error instanceof Anthropic.APIConnectionError || error instanceof Anthropic.InternalServerError) {
     return new ModelError("The AI provider could not be reached. Try again in a minute.", true);
