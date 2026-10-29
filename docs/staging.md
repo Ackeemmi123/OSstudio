@@ -226,7 +226,7 @@ These need a person in a browser:
 
 Receiving inquiries from the Axivo website ([inquiries.md](inquiries.md))
 needs setup that only a person with access to the dashboards can do. Use
-**test inquiries only**: the retention job does not exist yet.
+**test inquiries only** until real inquiries are explicitly approved.
 
 1. **Studio.** Sign in to the staging app as the owner and create a studio
    named "Axivo (staging)" (or choose an existing one). Copy its id from the
@@ -264,7 +264,27 @@ needs setup that only a person with access to the dashboards can do. Use
    reject or mark it as spam. Approving creates a client with a draft
    onboarding. `npm run staging:check` confirms only signed-in people can
    decide.
-7. **Axivo preview only.** In the Axivo Vercel project, **Preview scope only**:
+8. **Retention.** Apply `20261028000400_inquiry_retention.sql` the same way
+   (the dry run should list only that migration). Then, in the Supabase SQL
+   editor of the staging project:
+   - `select private.run_inquiry_retention(true);` is a dry run. It should
+     list no inquiries (`"anonymised": []`), because every staging inquiry is
+     younger than 12 months.
+   - Paste and run `scripts/sql/retention-staging-check.sql`. Inside one
+     block that is rolled back at the end, it adds dated test inquiries and a
+     temporary test client (for the approved case), runs the job as a dry run,
+     for real and again, and compares every column of every test row and of
+     every other inquiry. Nothing is kept: the last row checks that every
+     column of every inquiry, client, rate-limit row and run record is as
+     before. Every result (11 rows) should be PASS.
+   - `select jobname, schedule, active from cron.job;` shows
+     `inquiry-retention`, `17 3 * * *`, active. After 03:17 UTC,
+     `select * from private.inquiry_retention_runs order by id desc;` shows
+     the scheduled run.
+
+   `npm run staging:check` confirms only the owner can run the retention and
+   that it is scheduled.
+9. **Axivo preview only.** In the Axivo Vercel project, **Preview scope only**:
    `STUDIO_OS_INQUIRY_URL=https://<studio-os staging URL>/api/inquiries`,
    `STUDIO_OS_INQUIRY_KEY_ID=axivo-staging-1`, `STUDIO_OS_INQUIRY_SECRET=<signing secret>`
    (and `STUDIO_OS_BYPASS_TOKEN` if step 5 needed one). Never in Production.

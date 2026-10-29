@@ -115,8 +115,8 @@ function Review({ inquiry, snapshot }: { inquiry: Inquiry; snapshot: StudioSnaps
           {inquiry.status === "new" ? <Matches matches={matches} /> : null}
           <Related related={related} />
           <p className="text-[12.5px] leading-relaxed text-ink-subtle">
-            Inquiries that do not become clients are to be kept for 12 months and then anonymised. That job is not built
-            yet, so only test inquiries may be sent to Studio OS.
+            Inquiries that do not become clients are kept for 12 months after the decision, then anonymised
+            automatically. Until real inquiries are switched on, only test inquiries may be sent to Studio OS.
           </p>
         </aside>
       </div>
