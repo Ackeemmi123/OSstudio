@@ -33,6 +33,20 @@ events never keep a project "alive". The same rule applies to client activity
 for retention; the quiet-client follow-ups planned next reuse that one
 definition instead of adding another.
 
+## Drafting a message to the client
+
+Follow-ups that wait on the client (an unfinished or unstarted brief, and a
+project that has gone quiet) show "Draft message" in the client's "What's
+next". It opens an editable draft built from fixed wording
+(`src/lib/domain/chase.ts`): for a brief, the open questions and the missing
+goal, budget and deadline, at most five; for a quiet project, a short
+check-in. No AI is involved and nothing is stored.
+
+Studio OS never sends it. The person edits the text, then copies it or opens
+it in their own email app ("Open in email", only when an address is recorded)
+and sends it themselves. Approvals, reviews, blocked and overdue tasks are the
+studio's own work and get no draft. Viewers do not see the button.
+
 ## Related: starting a project
 
 "New project" offers the usual tasks for the project type
