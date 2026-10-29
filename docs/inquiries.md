@@ -175,8 +175,8 @@ they are **anonymised**: name, email, company, website, message, content hash,
 custom amount, desired date, privacy notice version and the rejection reason
 are cleared, and `anonymised_at` is set. The row stays (status, service,
 budget range, dates, `is_test`), so counts and audits still add up. Approved
-inquiries became clients and are never touched; client retention is a separate
-decision. Rate-limit rows (keyed IP hashes) are deleted after 24 hours.
+inquiries became clients and follow the client's retention
+([retention.md](retention.md)). Rate-limit rows (keyed IP hashes) are deleted after 24 hours.
 
 - `private.run_inquiry_retention(dry_run boolean default false)` does the
   daily run and returns `{"dryRun", "anonymised": [{"id", "status", "isTest",

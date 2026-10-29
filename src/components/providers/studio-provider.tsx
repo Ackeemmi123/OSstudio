@@ -44,3 +44,9 @@ export function useCanEdit(): boolean {
   const state = useStudio();
   return state.status === "ready" && state.info.canWrite;
 }
+
+/** Whether the current person owns the studio. Only owners place retention holds. */
+export function useIsOwner(): boolean {
+  const state = useStudio();
+  return state.status === "ready" && state.info.kind === "supabase" && state.info.role === "owner";
+}
