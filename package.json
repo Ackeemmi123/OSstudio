@@ -18,7 +18,8 @@
     "staging:e2e": "playwright test -c playwright.staging.config.ts",
     "db:start": "sh scripts/supabase-start.sh",
     "db:stop": "supabase stop",
-    "db:reset": "supabase db reset"
+    "db:reset": "supabase db reset",
+    "eval:intake": "vitest run -c vitest.eval.config.mts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^1.3.0",

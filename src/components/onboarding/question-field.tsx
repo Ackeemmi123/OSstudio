@@ -39,6 +39,8 @@ export function QuestionField({
   draft,
   error,
   proposals,
+  ask = [],
+  missingInMaterial = false,
   disabled,
   onChange,
 }: {
@@ -50,6 +52,10 @@ export function QuestionField({
   draft: QuestionDraft;
   error?: string;
   proposals: AgentProposal[];
+  /** Questions the intake analysis suggests asking the client about this field. */
+  ask?: { question: string; queued: boolean; onAsk: () => void }[];
+  /** The intake analysis found nothing about this field in the material. */
+  missingInMaterial?: boolean;
   disabled?: boolean;
   onChange: (next: Partial<QuestionDraft>) => void;
 }) {
@@ -79,6 +85,10 @@ export function QuestionField({
       {proposals.map((proposal) => (
         <ProposalRow key={proposal.id} proposal={proposal} />
       ))}
+
+      {(state === "ask" || state === "skipped") && (ask.length || missingInMaterial) ? (
+        <AskClient ask={ask} missingInMaterial={missingInMaterial} disabled={disabled} />
+      ) : null}
 
       {state === "ask" && draft.skipping ? (
         <SkippedNote onUndo={() => onChange({ skipping: false })} disabled={disabled} label="Marked as not known yet. It stays on the list of open details." />
@@ -197,6 +207,31 @@ function SkippedNote({ label, action = "Undo", onUndo, disabled }: { label: stri
         {action}
       </button>
     </p>
+  );
+}
+
+/** What the intake analysis says is not in the material, and what it suggests asking. Nothing is added until a person chooses to. */
+function AskClient({ ask, missingInMaterial, disabled }: { ask: { question: string; queued: boolean; onAsk: () => void }[]; missingInMaterial: boolean; disabled?: boolean }) {
+  return (
+    <div className="flex flex-col gap-1.5 text-[12.5px] text-ink-muted" data-testid="ask-client">
+      {missingInMaterial ? <p>Intake analysis found nothing about this in the material.</p> : null}
+      {ask.map((item) => (
+        <div key={item.question} className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+          <p>
+            <span className="text-ink-subtle">Suggested question for the client: </span>
+            <span className="text-ink">{item.question}</span>
+          </p>
+          {item.queued ? (
+            <span className="text-ink-subtle">Added to open questions when you continue</span>
+          ) : (
+            <button type="button" disabled={disabled} onClick={item.onAsk} className="inline-flex items-center gap-1 rounded-sm text-ink-subtle hover:text-ink disabled:opacity-50">
+              <CircleHelp aria-hidden className="size-3.5" />
+              Ask the client
+            </button>
+          )}
+        </div>
+      ))}
+    </div>
   );
 }
 

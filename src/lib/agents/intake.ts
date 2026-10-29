@@ -56,7 +56,7 @@ export const intakeModelOutput = z.object({
   ),
   missing: z.array(z.object({ target: z.enum(PROPOSAL_TARGETS).nullable(), description: z.string() })),
   ambiguities: z.array(z.object({ description: z.string(), sourceId: z.string().nullable(), quote: z.string().nullable() })),
-  questions: z.array(z.string()),
+  questions: z.array(z.object({ question: z.string(), target: z.enum(PROPOSAL_TARGETS).nullable() })),
   summary: z.string(),
   nextSteps: z.array(z.string()),
 });
@@ -150,13 +150,22 @@ export function normalizeIntakeOutput(raw: unknown, input: IntakeInput): Normali
           const verified = source && quote && containsQuote(source.content, quote) ? quote : null;
           return { description: clip(item.description.trim(), 500)!, sourceId: verified ? source!.id : null, quote: verified };
         }),
-      questions: list(output.questions).slice(0, INTAKE_LIMITS.maxQuestions),
+      ...questions(output.questions),
       nextSteps: list(output.nextSteps),
       analyzedSources: input.sources.map((source) => ({ id: source.id, label: source.label, characters: source.content.length })),
       discardedProposals: discarded,
       externalResearch: false,
     },
   };
+}
+
+/** Questions, and the brief field each would fill, in the same order. */
+function questions(items: IntakeModelOutput["questions"]): Pick<IntakeResult, "questions" | "questionTargets"> {
+  const kept = items
+    .map((item) => ({ text: clip(item.question.trim(), 500), target: item.target }))
+    .filter((item): item is { text: string; target: ProposalTarget | null } => Boolean(item.text))
+    .slice(0, INTAKE_LIMITS.maxQuestions);
+  return { questions: kept.map((item) => item.text), questionTargets: kept.map((item) => item.target) };
 }
 
 /** Whether `quote` appears in `text`, ignoring case, spacing and quote-mark style. */
