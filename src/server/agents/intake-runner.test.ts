@@ -159,6 +159,15 @@ class CountingModel implements IntakeModel {
   }
 }
 
+/** Waits for a condition instead of a fixed delay, which is too short on a busy machine. */
+async function until(condition: () => boolean, timeoutMs = 2_000) {
+  const deadline = Date.now() + timeoutMs;
+  while (!condition()) {
+    if (Date.now() > deadline) throw new Error("Timed out waiting for the test condition.");
+    await new Promise((resolve) => setTimeout(resolve, 5));
+  }
+}
+
 const answer = (input: IntakeInput, signal: AbortSignal) => new FixtureIntakeModel().analyze(input, signal).then((a) => a.output);
 
 describe("runIntakeAnalysis", () => {
@@ -392,7 +401,7 @@ describe("the monthly AI budget", () => {
       return answer(input, signal);
     });
     const pending = ids.map((clientId) => run(store, { model, clientId }));
-    await new Promise((resolve) => setTimeout(resolve, 10));
+    await until(() => model.calls === 1);
     // Exactly one reservation is open, whichever client won.
     const each = [store.client!, ...store.otherClients].map((client) => worstCaseMicros("claude-opus-5-5", intakeRequestBytes(buildIntakeInput(client, [])), 16_000));
     expect(each).toContain(store.reservedMicros);
@@ -436,7 +445,7 @@ describe("the monthly AI budget", () => {
     const store = new MemoryStore(makeClient());
     const model = new CountingModel(() => new Promise(() => {}));
     void run(store, { model, timeoutMs: 60_000 });
-    await new Promise((resolve) => setTimeout(resolve, 10));
+    await until(() => model.calls === 1);
     expect(store.reservedMicros).toBe(reserveFor(store));
     await run(store, { now: () => NOW + STALE_RUN_MS + 1 });
     expect(store.runs[0]).toMatchObject({ status: "failed" });
