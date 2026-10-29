@@ -9,6 +9,7 @@
  */
 import { z } from "zod";
 import type { IntakeResult } from "./contract";
+import { INTAKE_PROMPT_VERSION } from "./intake-prompt";
 import { PROPOSAL_TARGETS, type Evidence, type FieldConfidence, type ProposalTarget, type SourceType } from "@/lib/domain/types";
 
 /** Hard limits per run, so a run stays fast, cheap and reviewable. */
@@ -31,9 +32,13 @@ export interface IntakeSource {
   content: string;
 }
 
-/** Everything the agent is given. It sees nothing else: no database, no tools, no web. */
+/**
+ * Everything the agent is given. It sees nothing else: no database, no tools,
+ * no web. Only what the analysis needs: the contact's email address, for
+ * example, is left out.
+ */
 export interface IntakeInput {
-  client: { name: string; contactPerson: string | null; email: string | null; website: string | null };
+  client: { name: string; contactPerson: string | null; website: string | null };
   /** What the brief already says, so the agent can spot conflicts and gaps. */
   brief: { target: ProposalTarget; value: string; confidence: FieldConfidence }[];
   sources: IntakeSource[];
@@ -185,7 +190,8 @@ function clip(text: string | null, max: number): string | null {
  */
 export async function intakeFingerprint(input: IntakeInput): Promise<string> {
   const material = JSON.stringify({
-    v: 1,
+    v: 2,
+    prompt: INTAKE_PROMPT_VERSION,
     client: input.client,
     brief: [...input.brief].sort((a, b) => a.target.localeCompare(b.target)),
     sources: [...input.sources].sort((a, b) => a.id.localeCompare(b.id)).map((s) => [s.id, s.label, s.type, s.content]),

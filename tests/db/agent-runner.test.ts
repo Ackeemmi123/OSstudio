@@ -8,6 +8,7 @@
  */
 import { randomUUID } from "node:crypto";
 import { beforeAll, describe, expect, it, vi } from "vitest";
+import { INTAKE_PROMPT_VERSION } from "@/lib/agents/intake-prompt";
 import { SupabaseIntakeStore } from "@/server/agents/supabase-intake-store";
 import { admin, asDatabaseOwner, createStudio, createUser, repositoryFor, type TestUser } from "./helpers";
 
@@ -21,7 +22,7 @@ const RUNNER_PRIVILEGES = [
   "agent_proposals UPDATE (status)",
   "agent_runs INSERT",
   "agent_runs SELECT",
-  "agent_runs UPDATE (error, finished_at, outputs, result, status)",
+  "agent_runs UPDATE (cache_read_tokens, cache_write_tokens, cost_micros, error, finished_at, input_tokens, output_tokens, outputs, result, served_by, status)",
   // The activity guard checks the client is in the same studio.
   "clients SELECT (id, studio_id)",
 ];
@@ -66,7 +67,7 @@ describe("the agent runner", () => {
     expect(await store.loadClient(clientId)).toMatchObject({ client: { id: clientId } });
     const run = await store.insertRun({
       clientId, idempotencyKey: key, attempt: 1, status: "running", requestedBy: owner.id,
-      inputs: [], runner: "fixture", model: null, blocker: null,
+      inputs: [], runner: "fixture", model: null, promptVersion: INTAKE_PROMPT_VERSION, blocker: null,
     });
     expect(run).toMatchObject({ status: "running" });
     expect(await store.activeRun(clientId)).toMatchObject({ id: run!.id });

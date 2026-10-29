@@ -9,6 +9,7 @@
  */
 import type { ActivityEventType, AgentId, ISODateString, ProposalTarget } from "@/lib/domain/types";
 import type { AgentAction } from "./permissions";
+import type { TokenUsage } from "./pricing";
 
 /** A pointer to a record in the shared studio data. Agents never keep their own copy of client context. */
 export type EntityRef =
@@ -71,6 +72,14 @@ export interface AgentRunRecord {
   /** Which implementation ran it, e.g. "anthropic". Never a credential. */
   runner: string | null;
   model: string | null;
+  /** Which version of the agent's instructions the run used. */
+  promptVersion: string | null;
+  /** The model that answered, which can differ from `model` after a provider fallback. */
+  servedBy: string | null;
+  /** Tokens the provider reported. Null when no call was made or the provider did not say. */
+  usage: TokenUsage | null;
+  /** Estimated cost in micro-dollars (see pricing.ts). Null when unknown. */
+  costMicros: number | null;
   createdAt: ISODateString;
   startedAt: ISODateString | null;
   finishedAt: ISODateString | null;

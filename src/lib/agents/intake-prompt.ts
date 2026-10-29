@@ -2,10 +2,18 @@
  * The instructions and input the intake agent receives. Kept separate from
  * any provider so another model can be used with the same prompt.
  */
+import { z } from "zod";
 import { SALES_CHANNEL_LABELS, SALES_CHANNELS } from "@/lib/domain/brief";
 import { CONFIDENCE_LABELS, PROPOSAL_TARGET_LABELS } from "@/lib/domain/labels";
 import { PROPOSAL_TARGETS } from "@/lib/domain/types";
-import type { IntakeInput } from "./intake";
+import { intakeModelOutput, type IntakeInput } from "./intake";
+
+/**
+ * Recorded on every run. Change it whenever the instructions or the message
+ * format change, so results can be compared across versions and earlier
+ * analyses are not reused for new instructions.
+ */
+export const INTAKE_PROMPT_VERSION = "intake-2026-10-30";
 
 export const INTAKE_SYSTEM_PROMPT = `You are the client intake analyst at a small web design and development studio. You prepare a first brief from material the studio received from or about a prospective client. A person at the studio reviews everything you produce before any of it is used.
 
@@ -35,7 +43,6 @@ export function buildIntakeMessage(input: IntakeInput): string {
   const client = [
     `Name: ${input.client.name}`,
     `Contact person: ${input.client.contactPerson ?? "not recorded"}`,
-    `Email: ${input.client.email ?? "not recorded"}`,
     `Website: ${input.client.website ?? "not recorded"}`,
   ].join("\n");
   const brief = input.brief.length
@@ -50,4 +57,18 @@ export function buildIntakeMessage(input: IntakeInput): string {
 
 function escapeAttribute(value: string): string {
   return value.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;");
+}
+
+/**
+ * The size in UTF-8 bytes of everything a call sends: instructions, message
+ * and answer format. A token is never shorter than one byte, so this is an
+ * upper bound on the input tokens whatever the language or script.
+ */
+export function intakeRequestBytes(input: IntakeInput): number {
+  const encoder = new TextEncoder();
+  return (
+    encoder.encode(INTAKE_SYSTEM_PROMPT).length +
+    encoder.encode(buildIntakeMessage(input)).length +
+    encoder.encode(JSON.stringify(z.toJSONSchema(intakeModelOutput))).length
+  );
 }

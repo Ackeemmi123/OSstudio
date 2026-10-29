@@ -66,6 +66,16 @@ export class StudioStore {
     return result;
   }
 
+  /** Reads something that is not part of the snapshot, without reloading it. */
+  async read<T>(query: (repository: StudioRepository) => Promise<T>): Promise<T> {
+    try {
+      return await query(this.repo());
+    } catch (error) {
+      this.notice(error);
+      throw error;
+    }
+  }
+
   /** Reloads from the repository, for example after a background change. */
   reload(): Promise<void> {
     return this.refresh().catch((error: unknown) => {

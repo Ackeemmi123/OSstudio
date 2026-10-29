@@ -1,7 +1,7 @@
 "use client";
 
 import { LogOut, RotateCcw } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useAgentStatus } from "@/components/agents/use-agent-status";
 import { useSession } from "@/components/providers/session-provider";
 import { useStudio, useStudioStore } from "@/components/providers/studio-provider";
@@ -9,7 +9,9 @@ import { Button } from "@/components/ui/button";
 import { Modal, ModalBody, ModalFooter } from "@/components/ui/modal";
 import { PageHeader, Section, Skeleton, Surface } from "@/components/ui/surface";
 import { useToast } from "@/components/ui/toast";
+import { formatUsd } from "@/lib/agents/pricing";
 import { AGENTS } from "@/lib/agents/registry";
+import type { AiSpend } from "@/lib/data/repository";
 import { BRAND } from "@/lib/brand";
 import { errorMessage } from "@/lib/data/studio-store";
 import { ImportSection } from "./import-section";
@@ -89,7 +91,7 @@ export function SettingsView() {
           </Surface>
         </Section>
 
-        <AgentsSection serverAvailable={Boolean(supabase)} />
+        <AgentsSection serverAvailable={Boolean(supabase)} owner={supabase?.role === "owner"} />
 
         <Section id="brand" title="Brand">
           <p className="text-[13.5px] leading-relaxed text-ink-muted">
@@ -168,8 +170,9 @@ function LocalDataSection() {
   );
 }
 
-function AgentsSection({ serverAvailable }: { serverAvailable: boolean }) {
+function AgentsSection({ serverAvailable, owner }: { serverAvailable: boolean; owner: boolean }) {
   const status = useAgentStatus(serverAvailable);
+  const spend = useAiSpend(serverAvailable && owner);
   const intake =
     status.state === "loading"
       ? "Checking…"
@@ -182,10 +185,11 @@ function AgentsSection({ serverAvailable }: { serverAvailable: boolean }) {
   return (
     <Section id="agents" title="AI agents">
       <p className="mb-3 text-[13.5px] leading-relaxed text-ink-muted">
-        Agents work from the same client records you see here. They propose; a person decides. Sending proposals, purchases, production
-        changes, scope changes and launches always need a person&apos;s approval.
+        Agents work from the same client records you see here. They read, propose and draft; a person decides. No agent can send
+        anything to a client, spend money, change a live site or approve work, and none starts on its own.
       </p>
       {status.state === "unavailable" ? <p className="mb-3 text-[12.5px] text-ink-subtle">{status.reason}</p> : null}
+      {spend ? <AiSpendLine spend={spend} /> : null}
       <Surface>
         <ul className="divide-y divide-line">
           {Object.values(AGENTS).map((agent) => (
@@ -198,5 +202,35 @@ function AgentsSection({ serverAvailable }: { serverAvailable: boolean }) {
         </ul>
       </Surface>
     </Section>
+  );
+}
+
+function useAiSpend(enabled: boolean): AiSpend | "error" | null {
+  const store = useStudioStore();
+  const [spend, setSpend] = useState<AiSpend | "error" | null>(null);
+  useEffect(() => {
+    if (!enabled) return;
+    let active = true;
+    store
+      .read((repository) => (repository.aiSpend ? repository.aiSpend() : Promise.reject(new Error("No AI spend here."))))
+      .then((next) => active && setSpend(next))
+      .catch(() => active && setSpend("error"));
+    return () => {
+      active = false;
+    };
+  }, [enabled, store]);
+  return enabled ? spend : null;
+}
+
+function AiSpendLine({ spend }: { spend: AiSpend | "error" }) {
+  if (spend === "error") return <p className="mb-3 text-[12.5px] text-ink-subtle">This month&apos;s AI spend could not be loaded.</p>;
+  const month = new Date(`${spend.month}T00:00:00Z`).toLocaleDateString("en-GB", { month: "long", timeZone: "UTC" });
+  const used = spend.spentMicros + spend.reservedMicros;
+  return (
+    <p className="mb-3 text-[13px] text-ink-muted" data-testid="ai-spend">
+      AI spend in {month}: <span className="text-ink tabular-nums">{formatUsd(spend.spentMicros)}</span> of {formatUsd(spend.capMicros)}
+      {spend.reservedMicros > 0 ? ` (${formatUsd(spend.reservedMicros)} held for analyses in progress)` : ""}.
+      {used >= spend.capMicros ? " The limit is reached; agents will not run until next month." : " Estimated from list prices; agents stop when the limit is reached."}
+    </p>
   );
 }

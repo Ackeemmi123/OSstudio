@@ -54,6 +54,8 @@ export interface StudioRepository {
   reviewProposal(proposalId: string, decision: ProposalDecision): Promise<AgentProposal>;
   /** Asks the server to run the intake agent on this client's source material. */
   requestIntakeAnalysis(clientId: string, options?: { force?: boolean }): Promise<AgentRunRecord>;
+  /** This month's AI spend across all agents, for owners. Only server workspaces have one. */
+  aiSpend?(): Promise<AiSpend>;
   /**
    * A person decides a new website inquiry: approve it as a new client (with
    * a draft onboarding), add it to an existing client, reject it or mark it
@@ -118,4 +120,14 @@ export class RepositoryError extends Error {
     super(message);
     this.name = "RepositoryError";
   }
+}
+
+/** Amounts in micro-dollars (see src/lib/agents/pricing.ts). */
+export interface AiSpend {
+  /** First day of the month, YYYY-MM-DD (UTC). */
+  month: string;
+  spentMicros: number;
+  /** Held for analyses still running. */
+  reservedMicros: number;
+  capMicros: number;
 }

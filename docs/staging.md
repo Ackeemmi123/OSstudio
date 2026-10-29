@@ -16,6 +16,7 @@ the smoke test writes test data.
 | `ANTHROPIC_API_KEY` | App host, **server only** | The intake agent. Without it, "Analyze client information" is shown as unavailable |
 | `STUDIO_AGENT_MODEL` | App host, optional | Defaults to `claude-opus-5-5` |
 | `STUDIO_AGENT_TIMEOUT_MS` | App host, optional | 10000–110000, default 90000 |
+| `STUDIO_AI_MONTHLY_BUDGET_USD` | App host, optional | Monthly cap on AI spend across all agents, default 25. See docs/ai.md |
 
 Leave `NEXT_PUBLIC_STUDIO_DATA_MODE` empty (or `supabase`). Never set
 `STUDIO_AGENT_PROVIDER=fixture` or `STUDIO_ALLOW_TEST_PROVIDER`: the test

@@ -33,7 +33,7 @@ import {
   type TaskStatus,
 } from "@/lib/domain/types";
 import { validateIdentity } from "./local-repository";
-import { RepositoryError, type RepositoryInfo, type StudioRepository } from "./repository";
+import { RepositoryError, type AiSpend, type RepositoryInfo, type StudioRepository } from "./repository";
 import { toRepositoryError } from "./supabase-errors";
 import {
   clientRow,
@@ -349,6 +349,21 @@ export class SupabaseRepository implements StudioRepository {
       return [{ ...decided, status, decisionReason: reason }, null, undefined, { status, reason, decided_by: deps.actor }];
     }, inquiryId);
     return find((await this.load()).inquiries, inquiryId, "inquiry");
+  }
+
+  async aiSpend(): Promise<AiSpend> {
+    const { data } = await this.client.auth.getSession();
+    const token = data.session?.access_token;
+    if (!token) throw new RepositoryError("Your session has ended. Sign in again to continue.", "session");
+    let response: Response;
+    try {
+      response = await this.fetchImpl(`/api/agents/budget?studioId=${encodeURIComponent(this.studioId)}`, { headers: { authorization: `Bearer ${token}` } });
+    } catch {
+      throw new RepositoryError("Studio OS could not reach the server. Check your connection and try again.", "network");
+    }
+    const body = (await response.json().catch(() => null)) as (AiSpend & { error?: string }) | null;
+    if (!response.ok || !body || body.error) throw new RepositoryError(body?.error ?? "AI spend could not be loaded.", response.status === 403 ? "permission" : "unavailable");
+    return { month: body.month, spentMicros: body.spentMicros, reservedMicros: body.reservedMicros, capMicros: body.capMicros };
   }
 
   async setRetentionHold(clientId: string, reason: string | null): Promise<Client> {
