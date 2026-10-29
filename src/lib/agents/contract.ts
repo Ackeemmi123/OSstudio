@@ -7,7 +7,7 @@
  * asked for it, so that a person can always see what an agent worked on and
  * what needs their decision.
  */
-import type { ActivityEventType, AgentId, ISODateString, ProposalTarget } from "@/lib/domain/types";
+import type { ActivityEventType, AgentId, ContextFieldKey, ISODateString, ProjectStage, ProjectType, ProposalTarget } from "@/lib/domain/types";
 import type { AgentAction } from "./permissions";
 import type { TokenUsage } from "./pricing";
 
@@ -65,7 +65,8 @@ export interface AgentRunRecord {
   trigger: AgentTrigger;
   inputs: EntityRef[];
   outputs: EntityRef[];
-  result: IntakeResult | null;
+  /** An intake run's result, or a coordination run's task suggestions (see `intakeResultOf`). */
+  result: IntakeResult | PlanResult | null;
   /** Why the run stopped, in plain language. */
   blocker: string | null;
   error: { message: string; retryable: boolean } | null;
@@ -83,6 +84,16 @@ export interface AgentRunRecord {
   createdAt: ISODateString;
   startedAt: ISODateString | null;
   finishedAt: ISODateString | null;
+}
+
+/** The intake result of a run, or null for any other kind of run. */
+export function intakeResultOf(run: AgentRunRecord | undefined): IntakeResult | null {
+  return run?.taskType === "research.intake" ? (run.result as IntakeResult | null) : null;
+}
+
+/** The task suggestions of a run, or null for any other kind of run. */
+export function planResultOf(run: AgentRunRecord | undefined): PlanResult | null {
+  return run?.taskType === "coordination.plan" && run.result && "kind" in run.result ? run.result : null;
 }
 
 /** Statuses after which a run will not change again. */
@@ -119,6 +130,26 @@ export interface IntakeResult {
   /** Proposals dropped because their quoted evidence was not found in the source. */
   discardedProposals: number;
   /** Always false for this agent; shown so nobody assumes otherwise. */
+  externalResearch: false;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Project coordination                                                        */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Suggested changes to a project's starting tasks. Each is offered unticked
+ * when a person starts the project; none is created unless they tick it.
+ */
+export interface PlanResult {
+  kind: "plan";
+  projectType: ProjectType;
+  /** Tasks the playbook lacks, each tied to the brief value that calls for it. */
+  add: { stage: ProjectStage; title: string; reason: string; basedOn: ContextFieldKey }[];
+  /** Playbook tasks the brief makes unnecessary. Titles match the playbook exactly. */
+  remove: { title: string; reason: string }[];
+  /** Suggestions dropped by the checks (unknown basis, duplicates, client names, over the limit). */
+  discarded: number;
   externalResearch: false;
 }
 

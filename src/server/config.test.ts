@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
 
-const { aiMonthlyBudget, inquiryConfig, intakeModel, intakeTimeoutMs, isLocalSupabase, serverSupabase } = await import("./config");
+const { aiMonthlyBudget, inquiryConfig, agentModel, intakeTimeoutMs, isLocalSupabase, serverSupabase } = await import("./config");
 
 /** A legacy Supabase key: an unsigned JWT is enough to carry the role claim. */
 function jwt(role: string) {
@@ -47,38 +47,38 @@ describe("serverSupabase", () => {
   });
 });
 
-describe("intakeModel", () => {
+describe("agentModel", () => {
   it("uses Claude when an API key is set, with the default model", () => {
-    const config = intakeModel({ ...hosted, ANTHROPIC_API_KEY: "sk-ant-test" });
+    const config = agentModel({ ...hosted, ANTHROPIC_API_KEY: "sk-ant-test" });
     expect(config.ok && { runner: config.model.runner, model: config.model.model, test: config.model.test }).toEqual({ runner: "anthropic", model: "claude-opus-5-5", test: false });
   });
 
   it("sends the key only to the Anthropic API, whatever ANTHROPIC_BASE_URL says", () => {
-    const config = intakeModel({ ...hosted, ANTHROPIC_API_KEY: "sk-ant-test", ANTHROPIC_BASE_URL: "https://proxy.example.com" });
+    const config = agentModel({ ...hosted, ANTHROPIC_API_KEY: "sk-ant-test", ANTHROPIC_BASE_URL: "https://proxy.example.com" });
     expect(config.ok && (config.model as unknown as { client: { baseURL: string } }).client.baseURL).toBe("https://api.anthropic.com");
   });
 
   it("is unavailable without a model provider", () => {
-    expect(intakeModel(hosted)).toEqual({ ok: false, reason: expect.stringContaining("No AI model") });
+    expect(agentModel(hosted)).toEqual({ ok: false, reason: expect.stringContaining("No AI model") });
   });
 
   it("is unavailable when Supabase is not configured on the server", () => {
-    expect(intakeModel({ ANTHROPIC_API_KEY: "sk-ant-test" })).toMatchObject({ ok: false });
+    expect(agentModel({ ANTHROPIC_API_KEY: "sk-ant-test" })).toMatchObject({ ok: false });
   });
 
   it("needs an explicit allowance for the test provider", () => {
-    expect(intakeModel({ ...local, STUDIO_AGENT_PROVIDER: "fixture" })).toEqual({ ok: false, reason: expect.stringContaining("not allowed") });
-    const allowed = intakeModel({ ...local, STUDIO_AGENT_PROVIDER: "fixture", STUDIO_ALLOW_TEST_PROVIDER: "1" });
+    expect(agentModel({ ...local, STUDIO_AGENT_PROVIDER: "fixture" })).toEqual({ ok: false, reason: expect.stringContaining("not allowed") });
+    const allowed = agentModel({ ...local, STUDIO_AGENT_PROVIDER: "fixture", STUDIO_ALLOW_TEST_PROVIDER: "1" });
     expect(allowed.ok && allowed.model.test).toBe(true);
   });
 
   it("never runs the test provider against a hosted project", () => {
-    const config = intakeModel({ ...hosted, STUDIO_AGENT_PROVIDER: "fixture", STUDIO_ALLOW_TEST_PROVIDER: "1" });
+    const config = agentModel({ ...hosted, STUDIO_AGENT_PROVIDER: "fixture", STUDIO_ALLOW_TEST_PROVIDER: "1" });
     expect(config).toEqual({ ok: false, reason: expect.stringContaining("local Supabase") });
   });
 
   it("rejects an unknown provider", () => {
-    expect(intakeModel({ ...hosted, STUDIO_AGENT_PROVIDER: "openai" })).toEqual({ ok: false, reason: expect.stringContaining("Unknown") });
+    expect(agentModel({ ...hosted, STUDIO_AGENT_PROVIDER: "openai" })).toEqual({ ok: false, reason: expect.stringContaining("Unknown") });
   });
 });
 

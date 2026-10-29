@@ -134,6 +134,10 @@ export class LocalDemoRepository implements StudioRepository {
     );
   }
 
+  async suggestTasks(): Promise<AgentRunRecord> {
+    throw new RepositoryError("Suggestions come from the server and need a signed-in workspace. The local demo cannot run agents.", "unavailable");
+  }
+
   startOnboarding(clientId: string): Promise<Onboarding> {
     return this.mutate((s) => {
       const client = find(s.clients, clientId, "client");

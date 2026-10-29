@@ -4,6 +4,7 @@ import { questionsFor, reportedMissing } from "./suggestions";
 
 function runWith(result: Partial<IntakeResult>): AgentRunRecord {
   return {
+    taskType: "research.intake",
     result: { summary: "", missing: [], ambiguities: [], questions: [], nextSteps: [], analyzedSources: [], discardedProposals: 0, externalResearch: false, ...result },
   } as unknown as AgentRunRecord;
 }

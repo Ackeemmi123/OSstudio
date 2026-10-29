@@ -7,14 +7,17 @@
  * stores the result as proposals for a person to review. Every run is
  * recorded with its inputs, outputs, status and errors.
  */
-import { intakeIdempotencyKey, type AgentRunRecord, type EntityRef, type IntakeResult } from "@/lib/agents/contract";
+import { intakeIdempotencyKey, type AgentRunRecord, type EntityRef, type IntakeResult, type PlanResult } from "@/lib/agents/contract";
 import { checkIntakeInput, intakeFingerprint, normalizeIntakeOutput, type IntakeInput, type IntakeSource, type ProposalDraft } from "@/lib/agents/intake";
 import { INTAKE_PROMPT_VERSION, intakeRequestBytes } from "@/lib/agents/intake-prompt";
 import { authorize } from "@/lib/agents/permissions";
-import { formatUsd, spentMicros, worstCaseMicros, type TokenUsage } from "@/lib/agents/pricing";
+import { worstCaseMicros } from "@/lib/agents/pricing";
 import { currentValueFor } from "@/lib/domain/intake";
 import { CONTEXT_FIELD_KEYS, PROPOSAL_TARGETS, type Client, type SourceDocument } from "@/lib/domain/types";
-import { ModelError, type IntakeModel } from "./model";
+import { callWithinBudget, type BudgetStore, type Spend } from "./budgeted-call";
+import type { AgentModel } from "./model";
+
+export type { BudgetReservation } from "./budgeted-call";
 
 /** A run still "running" after this long is treated as failed. */
 export const STALE_RUN_MS = 3 * 60_000;
@@ -36,17 +39,15 @@ export interface NewRun {
 
 export interface RunPatch {
   status: AgentRunRecord["status"];
-  result?: IntakeResult | null;
+  result?: IntakeResult | PlanResult | null;
   outputs?: EntityRef[];
   error?: { message: string; retryable: boolean } | null;
   /** What the model call used, when one was made and the provider said. */
-  spend?: { usage: TokenUsage; servedBy: string | null; costMicros: number };
+  spend?: Spend;
 }
 
-export type BudgetReservation = { ok: true } | { ok: false; spentMicros: number; reservedMicros: number };
-
 /** What the runner needs from storage. Reads run as the requesting person; writes as the runner. */
-export interface IntakeStore {
+export interface IntakeStore extends BudgetStore {
   loadClient(clientId: string): Promise<{ client: Client; sources: SourceDocument[] } | null>;
   runsFor(idempotencyKey: string): Promise<AgentRunRecord[]>;
   activeRun(clientId: string): Promise<AgentRunRecord | null>;
@@ -58,17 +59,13 @@ export interface IntakeStore {
   supersedePending(clientId: string): Promise<void>;
   insertProposals(runId: string, clientId: string, proposals: ProposalDraft[]): Promise<string[]>;
   recordEvent(clientId: string, eventType: "agent.run_started" | "agent.run_completed" | "agent.run_failed", description: string): Promise<void>;
-  /** Holds `amountMicros` of this month's AI budget for a running run, unless that would pass `capMicros`. */
-  reserveBudget(runId: string, amountMicros: number, capMicros: number): Promise<BudgetReservation>;
-  /** Settles a run's reservation at what it cost; null charges the whole reservation. Settling twice changes nothing. */
-  settleBudget(runId: string, chargedMicros: number | null): Promise<void>;
 }
 
 export type RunOutcome = { status: number; body: { run?: AgentRunRecord; reused?: boolean; error?: string } };
 
 export async function runIntakeAnalysis(options: {
   store: IntakeStore;
-  model: IntakeModel;
+  model: AgentModel;
   clientId: string;
   requestedBy: string;
   force?: boolean;
@@ -85,7 +82,7 @@ export async function runIntakeAnalysis(options: {
     if (!permission.allowed) return { status: 503, body: { error: permission.reason } };
   }
   // A model without a known price could not be kept within the budget.
-  if (worstCaseMicros(model.model ?? "", 0, model.maxOutputTokens) === null) {
+  if (worstCaseMicros(model.model ?? "", 0, model.maxOutputTokens.intake) === null) {
     return { status: 503, body: { error: `The configured model (${model.model ?? "none"}) has no known price, so its cost cannot be capped. An administrator needs to choose a listed model.` } };
   }
 
@@ -136,27 +133,27 @@ export async function runIntakeAnalysis(options: {
   }
   if (!check.ok) return { status: 200, body: { run } };
 
-  const needed = worstCaseMicros(model.model ?? "", intakeRequestBytes(input), model.maxOutputTokens)!;
-  const reservation = await store.reserveBudget(run.id, needed, capMicros);
-  if (!reservation.ok) {
-    const finished = await store.finishRun(run.id, { status: "failed", error: { message: budgetMessage(reservation, capMicros, needed, now()), retryable: true } });
+  const needed = worstCaseMicros(model.model ?? "", intakeRequestBytes(input), model.maxOutputTokens.intake)!;
+  const call = await callWithinBudget(store, { runId: run.id, neededMicros: needed, capMicros, nowMs: now() }, async () => {
+    await store.recordEvent(clientId, "agent.run_started", `Intake analysis started on ${plural(input.sources.length, "source")}`);
+    return model.analyze(input, AbortSignal.timeout(timeoutMs));
+  });
+  if (call.kind === "refused") {
+    const finished = await store.finishRun(run.id, { status: "failed", error: { message: call.message, retryable: true } });
     await store.recordEvent(clientId, "agent.run_failed", "Intake analysis not run: the monthly AI budget is used up");
     return { status: 200, body: { run: finished } };
   }
+  if (call.kind === "failed") {
+    const finished = await store.finishRun(run.id, { status: "failed", error: { message: call.error.message, retryable: call.error.retryable }, spend: call.spend });
+    await store.recordEvent(clientId, "agent.run_failed", `Intake analysis failed: ${call.error.message}`);
+    return { status: 200, body: { run: finished } };
+  }
 
-  await store.recordEvent(clientId, "agent.run_started", `Intake analysis started on ${plural(input.sources.length, "source")}`);
-
-  let spend: RunPatch["spend"];
+  const { answer, spend } = call;
+  let message = "The model's answer did not match the expected format.";
   try {
-    const answer = await model.analyze(input, AbortSignal.timeout(timeoutMs));
-    spend = { usage: answer.usage, servedBy: answer.servedBy, costMicros: spentMicros(answer) };
-    await store.settleBudget(run.id, spend.costMicros);
-    let normalized;
-    try {
-      normalized = normalizeIntakeOutput(answer.output, input);
-    } catch {
-      throw new ModelError("The model's answer did not match the expected format.", true);
-    }
+    const normalized = normalizeIntakeOutput(answer.output, input);
+    message = "The analysis failed unexpectedly.";
     await store.supersedePending(clientId);
     const ids = await store.insertProposals(run.id, clientId, normalized.proposals);
     const needsReview = ids.length > 0 || normalized.result.questions.length > 0;
@@ -172,19 +169,9 @@ export async function runIntakeAnalysis(options: {
       ids.length ? `Intake analysis proposed ${plural(ids.length, "value")} for review` : "Intake analysis found no new values",
     );
     return { status: 200, body: { run: finished } };
-  } catch (error) {
-    const failure = error instanceof ModelError ? error : new ModelError("The analysis failed unexpectedly.", true);
-    if (!spend) {
-      // The call failed. Charge what the provider reported, nothing when it
-      // refused before doing any work, and the whole reservation when unknown.
-      if (failure.spent === "nothing") await store.settleBudget(run.id, 0);
-      else if (failure.spent) {
-        spend = { usage: failure.spent.usage, servedBy: failure.spent.servedBy, costMicros: spentMicros(failure.spent) };
-        await store.settleBudget(run.id, spend.costMicros);
-      } else await store.settleBudget(run.id, null);
-    }
-    const finished = await store.finishRun(run.id, { status: "failed", error: { message: failure.message, retryable: failure.retryable }, spend });
-    await store.recordEvent(clientId, "agent.run_failed", `Intake analysis failed: ${failure.message}`);
+  } catch {
+    const finished = await store.finishRun(run.id, { status: "failed", error: { message, retryable: true }, spend });
+    await store.recordEvent(clientId, "agent.run_failed", `Intake analysis failed: ${message}`);
     return { status: 200, body: { run: finished } };
   }
 }
@@ -216,19 +203,6 @@ export function buildIntakeInput(client: Client, sources: SourceDocument[]): Int
     brief,
     sources: material,
   };
-}
-
-function budgetMessage(reservation: { spentMicros: number; reservedMicros: number }, capMicros: number, neededMicros: number, nowMs: number) {
-  const today = new Date(nowMs);
-  const resets = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth() + 1, 1)).toLocaleDateString("en-GB", { day: "numeric", month: "long", timeZone: "UTC" });
-  const cap = formatUsd(capMicros);
-  const spent = formatUsd(reservation.spentMicros);
-  const after = `Analyses can run again from ${resets}, or sooner if an administrator raises the limit.`;
-  if (reservation.spentMicros >= capMicros) return `This month's AI budget of ${cap} is used up (${spent} spent). ${after}`;
-  if (reservation.reservedMicros > 0) {
-    return `This month's AI budget of ${cap} has no room for another analysis while others are running (${spent} spent, ${formatUsd(reservation.reservedMicros)} held for analyses in progress). Try again in a few minutes.`;
-  }
-  return `This month's AI budget of ${cap} is almost used up (${spent} spent), and one analysis can cost up to ${formatUsd(neededMicros)}. ${after}`;
 }
 
 function plural(n: number, word: string) {

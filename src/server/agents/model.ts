@@ -1,9 +1,10 @@
 /**
- * The seam between the intake agent and a model provider. A provider gets
- * the prepared input and returns raw structured output; validation and
- * evidence checks happen afterwards, the same for every provider.
+ * The seam between the agents and a model provider. A provider gets the
+ * prepared input and returns raw structured output; validation and evidence
+ * checks happen afterwards, the same for every provider.
  */
 import type { IntakeInput } from "@/lib/agents/intake";
+import type { PlanInput } from "@/lib/agents/plan";
 import type { CallAttempt, TokenUsage } from "@/lib/agents/pricing";
 
 /** What a call used, as the provider reported it. */
@@ -21,15 +22,18 @@ export interface ModelAnswer extends Spent {
   output: unknown;
 }
 
-export interface IntakeModel {
+export interface AgentModel {
   /** Recorded on the run, e.g. "anthropic". Never a credential. */
   readonly runner: string;
   readonly model: string | null;
   /** True for the deterministic test provider, which uses no AI. */
   readonly test: boolean;
-  /** The output allowance per call, used to reserve the most a call could cost. */
-  readonly maxOutputTokens: number;
+  /** The output allowance per call of each kind, used to reserve the most a call could cost. */
+  readonly maxOutputTokens: { intake: number; plan: number };
+  /** Client intake: proposes brief values from source material. */
   analyze(input: IntakeInput, signal: AbortSignal): Promise<ModelAnswer>;
+  /** Project coordination: suggests changes to a new project's starting tasks. */
+  suggestTasks(input: PlanInput, signal: AbortSignal): Promise<ModelAnswer>;
 }
 
 export class ModelError extends Error {

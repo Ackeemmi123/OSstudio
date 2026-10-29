@@ -24,6 +24,7 @@ import {
   type Onboarding,
   type OnboardingStepInput,
   type Project,
+  type ProjectType,
   type ProjectUpdateInput,
   type ProposalDecision,
   type SourceDocument,
@@ -45,7 +46,6 @@ import {
   projectRow,
   sourceRow,
   taskRow,
-  toAgentRun,
   toSnapshot,
   type StudioPayload,
 } from "./supabase-rows";
@@ -71,7 +71,7 @@ export interface SupabaseRepositoryOptions {
   client: SupabaseClient;
   studioId: string;
   user: { id: string; email: string | null };
-  /** Where the server-side agent endpoint lives. */
+  /** Where the server-side intake endpoint lives. The other agent endpoints sit beside it. */
   agentEndpoint?: string;
   fetch?: typeof fetch;
   createId?: () => string;
@@ -388,24 +388,33 @@ export class SupabaseRepository implements StudioRepository {
     return find((await this.load()).clients, clientId, "client");
   }
 
-  async requestIntakeAnalysis(clientId: string, options: { force?: boolean } = {}): Promise<AgentRunRecord> {
+  requestIntakeAnalysis(clientId: string, options: { force?: boolean } = {}): Promise<AgentRunRecord> {
+    return this.runAgent(this.agentEndpoint, { clientId, force: options.force ?? false }, "The analysis could not be started.");
+  }
+
+  suggestTasks(clientId: string, projectType: ProjectType): Promise<AgentRunRecord> {
+    return this.runAgent(this.agentEndpoint.replace(/\/intake$/, "/plan"), { clientId, projectType }, "Suggestions could not be requested.");
+  }
+
+  private async runAgent(endpoint: string, request: Record<string, unknown>, fallback: string): Promise<AgentRunRecord> {
     const { data } = await this.client.auth.getSession();
     const token = data.session?.access_token;
     if (!token) throw new RepositoryError("Your session has ended. Sign in again to continue.", "session");
 
     let response: Response;
     try {
-      response = await this.fetchImpl(this.agentEndpoint, {
+      response = await this.fetchImpl(endpoint, {
         method: "POST",
         headers: { "content-type": "application/json", authorization: `Bearer ${token}` },
-        body: JSON.stringify({ studioId: this.studioId, clientId, force: options.force ?? false }),
+        body: JSON.stringify({ studioId: this.studioId, ...request }),
       });
     } catch {
       throw new RepositoryError("Studio OS could not reach the server. Check your connection and try again.", "network");
     }
-    const body = (await response.json().catch(() => null)) as { run?: Record<string, unknown>; error?: string } | null;
-    if (body?.run) return toAgentRun(body.run);
-    const message = body?.error ?? "The analysis could not be started.";
+    // The server answers with the run as the runner returns it, already mapped from its row.
+    const body = (await response.json().catch(() => null)) as { run?: AgentRunRecord; error?: string } | null;
+    if (body?.run) return body.run;
+    const message = body?.error ?? fallback;
     const code =
       response.status === 401 ? "session"
       : response.status === 403 ? "permission"

@@ -2,20 +2,22 @@ import Anthropic from "@anthropic-ai/sdk";
 import { betaZodOutputFormat } from "@anthropic-ai/sdk/helpers/beta/zod";
 import { intakeModelOutput, type IntakeInput } from "@/lib/agents/intake";
 import { buildIntakeMessage, INTAKE_SYSTEM_PROMPT } from "@/lib/agents/intake-prompt";
+import { planModelOutput, type PlanInput } from "@/lib/agents/plan";
+import { buildPlanMessage, PLAN_SYSTEM_PROMPT } from "@/lib/agents/plan-prompt";
 import type { CallAttempt, TokenUsage } from "@/lib/agents/pricing";
-import { ModelError, type IntakeModel, type ModelAnswer, type Spent } from "./model";
+import { ModelError, type AgentModel, type ModelAnswer, type Spent } from "./model";
 
 /** Where the API key is sent. Never taken from ANTHROPIC_BASE_URL implicitly. */
 export const ANTHROPIC_API_URL = "https://api.anthropic.com";
 
 /**
  * Claude, through the Anthropic API, with structured output. One request per
- * run, no tools: the model only reads the material it is given.
+ * run, no tools: the model only reads what it is given.
  */
-export class AnthropicIntakeModel implements IntakeModel {
+export class AnthropicModel implements AgentModel {
   readonly runner = "anthropic";
   readonly test = false;
-  readonly maxOutputTokens = 16000;
+  readonly maxOutputTokens = { intake: 16000, plan: 4000 };
   private readonly client: Anthropic;
 
   constructor(
@@ -28,16 +30,33 @@ export class AnthropicIntakeModel implements IntakeModel {
     this.client = new Anthropic({ apiKey, baseURL: ANTHROPIC_API_URL, maxRetries: 1, timeout: timeoutMs });
   }
 
-  async analyze(input: IntakeInput, signal: AbortSignal): Promise<ModelAnswer> {
+  analyze(input: IntakeInput, signal: AbortSignal): Promise<ModelAnswer> {
+    return this.call(
+      { system: INTAKE_SYSTEM_PROMPT, message: buildIntakeMessage(input), schema: intakeModelOutput, maxTokens: this.maxOutputTokens.intake, effort: "medium" },
+      signal,
+    );
+  }
+
+  suggestTasks(input: PlanInput, signal: AbortSignal): Promise<ModelAnswer> {
+    return this.call(
+      { system: PLAN_SYSTEM_PROMPT, message: buildPlanMessage(input), schema: planModelOutput, maxTokens: this.maxOutputTokens.plan, effort: "low" },
+      signal,
+    );
+  }
+
+  private async call(
+    request: { system: string; message: string; schema: typeof intakeModelOutput | typeof planModelOutput; maxTokens: number; effort: "low" | "medium" },
+    signal: AbortSignal,
+  ): Promise<ModelAnswer> {
     let response;
     try {
       response = await this.client.beta.messages.parse(
         {
           model: this.model,
-          max_tokens: this.maxOutputTokens,
-          system: INTAKE_SYSTEM_PROMPT,
-          messages: [{ role: "user", content: buildIntakeMessage(input) }],
-          output_config: { effort: "medium", format: betaZodOutputFormat(intakeModelOutput) },
+          max_tokens: request.maxTokens,
+          system: request.system,
+          messages: [{ role: "user", content: request.message }],
+          output_config: { effort: request.effort, format: betaZodOutputFormat(request.schema) },
           // If the model declines, the API retries on a fallback model it chooses.
           betas: ["server-side-fallback-2026-07-01"],
           fallbacks: "default",
@@ -50,13 +69,13 @@ export class AnthropicIntakeModel implements IntakeModel {
 
     const spent = toSpent(response);
     if (response.stop_reason === "refusal") {
-      throw new ModelError("The model declined to analyze this material.", false, spent);
+      throw new ModelError("The model declined this request.", false, spent);
     }
     if (response.stop_reason === "max_tokens") {
       throw new ModelError("The model's answer was cut off before it finished.", true, spent);
     }
     if (!response.parsed_output) {
-      throw new ModelError("The model did not return a valid analysis.", true, spent);
+      throw new ModelError("The model did not return a valid answer.", true, spent);
     }
     return { output: response.parsed_output, ...spent };
   }
@@ -103,7 +122,7 @@ function toUsage(usage: ReportedUsage): TokenUsage {
 function toModelError(error: unknown): ModelError {
   if (error instanceof Anthropic.APIUserAbortError || (error instanceof Error && error.name === "AbortError")) {
     // The provider may have started and billed the call.
-    return new ModelError("The analysis took too long and was stopped.", true, null);
+    return new ModelError("The request took too long and was stopped.", true, null);
   }
   if (error instanceof Anthropic.AuthenticationError || error instanceof Anthropic.PermissionDeniedError) {
     return new ModelError("The AI provider rejected the server's credentials. An administrator needs to check the configuration.", false, "nothing");
@@ -120,5 +139,5 @@ function toModelError(error: unknown): ModelError {
   if (error instanceof Anthropic.APIError) {
     return new ModelError(`The AI provider returned an error (${error.status ?? "unknown"}).`, (error.status ?? 500) >= 500);
   }
-  return new ModelError("The analysis failed unexpectedly.", true);
+  return new ModelError("The request failed unexpectedly.", true);
 }

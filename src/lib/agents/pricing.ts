@@ -96,6 +96,15 @@ export function worstCaseMicros(model: string, inputBytes: number, maxOutputToke
 /** Room for message framing and the provider's own instructions, in tokens. */
 const PROMPT_OVERHEAD_TOKENS = 4_000;
 
+/**
+ * The size in UTF-8 bytes of the text a call sends. A token is never shorter
+ * than one byte, so this is an upper bound on input tokens in any script.
+ */
+export function utf8Bytes(...texts: string[]): number {
+  const encoder = new TextEncoder();
+  return texts.reduce((sum, text) => sum + encoder.encode(text).length, 0);
+}
+
 export function formatUsd(micros: number): string {
   const usd = micros / 1_000_000;
   if (micros > 0 && usd < 0.01) return "under $0.01";

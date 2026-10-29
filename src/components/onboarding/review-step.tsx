@@ -9,6 +9,7 @@ import { useStudioAction } from "@/components/providers/use-studio-action";
 import { Button, ButtonLink } from "@/components/ui/button";
 import { Surface } from "@/components/ui/surface";
 import { useToast } from "@/components/ui/toast";
+import { intakeResultOf } from "@/lib/agents/contract";
 import { BRIEF_FIELD, briefConditions, fieldApplies, getBriefGaps } from "@/lib/domain/brief";
 import { getLatestIntakeRun } from "@/lib/domain/insights";
 import { CONTEXT_FIELD_LABELS, ONBOARDING_STEP_LABELS } from "@/lib/domain/labels";
@@ -47,7 +48,7 @@ export function ReviewStep({
   const hasProject = snapshot.projects.some((project) => project.clientId === client.id && project.status !== "completed");
 
   const latestRun = getLatestIntakeRun(snapshot, client.id);
-  const suggested = (latestRun?.result?.questions ?? []).filter(
+  const suggested = (intakeResultOf(latestRun)?.questions ?? []).filter(
     (q) => !questions.some((item) => item.text.toLocaleLowerCase() === q.toLocaleLowerCase()),
   );
 
