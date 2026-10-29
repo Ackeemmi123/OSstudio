@@ -9,12 +9,14 @@ contract v1, revision 3 (https://claude.ai/artifact/SS53XHpDBTYpWeWngFaK6M).
 **Built:** the signed endpoint, storage, duplicate and conflict handling, rate
 limits, and the review screen: staff approve an inquiry as a new client (with
 a draft onboarding), add it to an existing client, reject it or mark it as
-spam (see [Reviewing an inquiry](#reviewing-an-inquiry)).
-**Not built yet:** grouping repeat submissions from one address (the `merged`
-status), the retention job, and AI suggestions run from the inquiry page
-(the intake agent can be run from the new client's workspace). Until the
-retention job exists and is tested, **only test inquiries may be sent to
-Studio OS.**
+spam (see [Reviewing an inquiry](#reviewing-an-inquiry)), and the daily
+retention job (see [Retention](#retention)).
+Repeat submissions from one address are grouped (see
+[Repeat submissions](#repeat-submissions)).
+**Not built yet:** AI suggestions run from the inquiry page (the intake agent
+can be run from the new client's workspace). Until the retention job has passed its
+staging checks and real inquiries are explicitly approved, **only test
+inquiries may be sent to Studio OS.**
 
 ## How a request is handled
 
@@ -136,6 +138,72 @@ if any reaches the browser bundle.
 server does, then a retry, a changed-content conflict and a forged signature,
 and reports each answer. Run it from your own machine with the secret in your
 shell only. See [staging.md](staging.md#8-website-inquiries).
+
+## Repeat submissions
+
+`supabase/migrations/20261029000100_inquiry_repeats.sql`. When an inquiry
+arrives while an earlier one from the same email address (compared trimmed and
+lower-case, test and real inquiries kept apart) is still waiting for a
+decision and was received within the last 30 days, it is stored with
+`repeat_of` pointing to that first inquiry. The link is set once, when the row
+is stored, and nobody can change it.
+
+- Today and Clients list only the first inquiry ("Sent 2 times"). Its page
+  shows the later messages under "Sent again".
+- Deciding the first inquiry resolves its open repeats as `merged`, in the same
+  transaction and in the same person's name. Approving or adding to a client
+  adds every message as source material and gives the repeats the same client;
+  budget and timing come from the first inquiry.
+- A repeat cannot be decided on its own while its first inquiry is open (the
+  app hides the buttons and `decide_inquiry` refuses with SO409). Once the
+  first inquiry is no longer open, a repeat that is still new is listed and
+  decided on its own.
+- Retention: a repeat merged into an approved inquiry is kept with the client.
+  One merged into a rejected or spam inquiry is anonymised 12 months after
+  that decision.
+
+Tests: `tests/db/inquiry-repeats.test.ts`, `src/lib/domain/inquiries.test.ts`,
+`tests/e2e/inquiries.spec.ts`.
+
+## Retention
+
+`supabase/migrations/20261028000400_inquiry_retention.sql`. Inquiries that did
+not become clients (`new`, `rejected`, `spam`, and repeats merged into a
+rejected or spam inquiry) are kept for 12 months, counted
+from the decision, or from when the inquiry arrived if nobody decided it. Then
+they are **anonymised**: name, email, company, website, message, content hash,
+custom amount, desired date, privacy notice version and the rejection reason
+are cleared, and `anonymised_at` is set. The row stays (status, service,
+budget range, dates, `is_test`), so counts and audits still add up. Approved
+inquiries became clients and are never touched; client retention is a separate
+decision. Rate-limit rows (keyed IP hashes) are deleted after 24 hours.
+
+- `private.run_inquiry_retention(dry_run boolean default false)` does the
+  daily run and returns `{"dryRun", "anonymised": [{"id", "status", "isTest",
+  "retentionEnded"}], "rateLimitsDeleted"}`. With `true` it changes nothing
+  and lists what it would do. Every run, dry runs included, is recorded in
+  `private.inquiry_retention_runs` (ids only).
+- `private.anonymise_inquiry(id, force boolean default false)` clears one
+  inquiry. It refuses approved inquiries, one already anonymised, and one
+  younger than 12 months unless `force` (for an erasure request).
+- **Who can run them:** only the database owner (`postgres`), which is what
+  pg_cron and the Supabase SQL editor use. `anon`, `authenticated` and
+  `service_role` have no execute on either, and the `private` schema is not
+  exposed by the API. The guard trigger refuses any other way of clearing or
+  changing what a customer sent.
+- **Schedule:** pg_cron job `inquiry-retention`, daily at 03:17 UTC, as
+  `postgres`. Ordinary roles have no access to the `cron` schema.
+- **Safe to retry:** a run selects only rows not anonymised yet, locks and
+  checks each again before clearing it (a decision made a moment earlier
+  wins), and an advisory lock makes an overlapping run return
+  `{"skipped": "another run is in progress"}`.
+- Anonymised inquiries are not loaded into the app and cannot be decided.
+
+Tests: `tests/db/inquiry-retention.test.ts`. On staging,
+`scripts/sql/retention-staging-check.sql` adds dated test inquiries, runs the
+job three times (dry run, run, retry), rolls all of it back and shows PASS or
+FAIL per case (see
+[staging.md](staging.md) §8).
 
 ## AI suggestions on inquiries: checks before real data
 

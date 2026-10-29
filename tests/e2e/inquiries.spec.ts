@@ -158,3 +158,34 @@ test("an inquiry left undecided for 2 working days moves to Follow up", async ({
   await expect(followUp).toContainText("Decide");
   await expect(page.locator("section#decisions").getByRole("link", { name: new RegExp(`New inquiry from ${escape(company)}`) })).toHaveCount(0);
 });
+
+test("a repeat from the same address is shown and decided with the first inquiry", async ({ page }) => {
+  const company = uniqueName("Repeat Yoga (test)");
+  const email = `repeat-${randomUUID().slice(0, 8)}@example.test`;
+  const contact = { name: "Maja Lind", email, company, website: `${randomUUID().slice(0, 8)}.example` };
+  const first = await receiveInquiry(company, { contact });
+  const repeat = await receiveInquiry(company, { contact, message: "Glömde nämna: vi behöver också en webbutik för presentkort." });
+  await signIn(page, fixture().member);
+
+  await page.goto("/");
+  const items = page.locator("section#decisions").getByRole("link", { name: new RegExp(`New inquiry from ${escape(company)}`) });
+  await expect(items).toHaveCount(1);
+  await expect(items).toContainText("Sent 2 times");
+
+  await page.goto(`/inquiries/${repeat}`);
+  await expect(page.getByText("It is decided together with that one.", { exact: false })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Approve as new client" })).toHaveCount(0);
+  await page.getByRole("link", { name: "Open the first inquiry" }).click();
+  await expect(page).toHaveURL(new RegExp(`/inquiries/${first}$`));
+
+  await expect(section(page, "sent-again").getByTestId("repeat")).toContainText("presentkort");
+  const approvedName = company.replace(" (test)", "");
+  await page.getByLabel("Client name").fill(approvedName);
+  await page.getByRole("button", { name: "Approve as new client" }).click();
+  await expect(page.getByRole("heading", { level: 1, name: approvedName })).toBeVisible();
+  await expect(section(page, "sources").getByTestId("source")).toHaveCount(2);
+
+  await page.goto(`/inquiries/${repeat}`);
+  await expect(page.getByText(/decided the first inquiry from this address/)).toBeVisible();
+  await expect(page.getByRole("link", { name: `Open ${approvedName}` })).toBeVisible();
+});

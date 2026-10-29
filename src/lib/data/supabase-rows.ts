@@ -49,7 +49,7 @@ export interface StudioPayload {
 /** The inquiry columns the app reads. The content hash and submission id stay in the database. */
 export const INQUIRY_COLUMNS =
   "id, status, is_test, locale, contact_name, email, company, website, service, project_type, budget_range, budget_amount_eur, " +
-  "timeline, desired_date, message, received_at, client_id, created_client, decided_by, decided_at, decision_reason";
+  "timeline, desired_date, message, received_at, client_id, created_client, decided_by, decided_at, decision_reason, repeat_of";
 
 const str = (value: unknown): string => String(value);
 const opt = (value: unknown): string | null => (value == null ? null : String(value));
@@ -109,6 +109,7 @@ export function toInquiry(row: Row): Inquiry {
     decidedBy: actor(row.decided_by) ?? null,
     decidedAt: opt(row.decided_at),
     decisionReason: opt(row.decision_reason),
+    repeatOf: opt(row.repeat_of),
   };
 }
 

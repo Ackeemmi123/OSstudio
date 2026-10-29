@@ -282,6 +282,24 @@ async function checkDatabase() {
     if (!decideRow) fail("Inquiries are decided only by people", "function decide_inquiry does not exist (apply 20261028000300_inquiry_review.sql)");
     else if (!decideRow.people || decideRow.service || decideRow.visitors) fail("Inquiries are decided only by people", "decide_inquiry must be executable by authenticated only");
     else pass("Inquiries are decided only by people");
+
+    // Retention runs only as the database owner, daily, through pg_cron.
+    const retention = await db.query(
+      `select f, r from unnest(array['private.run_inquiry_retention(boolean)', 'private.anonymise_inquiry(uuid, boolean)']) f,
+              unnest(array['anon', 'authenticated', 'service_role']) r
+         where has_function_privilege(r, f, 'execute')`,
+    ).catch(() => null);
+    if (!retention) fail("Retention runs only as the owner", "retention functions do not exist (apply 20261028000400_inquiry_retention.sql)");
+    else if (retention.rows.length) fail("Retention runs only as the owner", retention.rows.map((r) => `${r.r} can run ${r.f}`).join(", "));
+    else pass("Retention runs only as the owner");
+
+    const job = await db
+      .query("select schedule, active from cron.job where jobname = 'inquiry-retention'")
+      .then((r) => r.rows[0])
+      .catch(() => null);
+    if (!job) fail("Retention is scheduled daily", "no inquiry-retention job in cron.job");
+    else if (!job.active) fail("Retention is scheduled daily", "the inquiry-retention job is not active");
+    else pass("Retention is scheduled daily", job.schedule);
   } finally {
     await db.end();
   }

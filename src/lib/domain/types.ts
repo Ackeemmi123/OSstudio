@@ -519,6 +519,11 @@ export interface Inquiry {
   decidedAt: ISODateString | null;
   /** Internal reason for a rejection. Never shown to the customer. */
   decisionReason: string | null;
+  /**
+   * The first inquiry from the same address, when this one arrived while that
+   * one was still open. A repeat is decided together with its first inquiry.
+   */
+  repeatOf: string | null;
 }
 
 /** A person's decision on a new inquiry. */

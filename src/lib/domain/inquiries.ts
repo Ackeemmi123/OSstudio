@@ -110,9 +110,28 @@ export function inquirySourceLabel(inquiry: Inquiry): string {
 /* Lists                                                                      */
 /* -------------------------------------------------------------------------- */
 
-/** Inquiries waiting for a decision, newest first. Never sorted or filtered by budget. */
+/**
+ * Inquiries waiting for a decision, newest first. Never sorted or filtered by
+ * budget. A repeat whose first inquiry is still open is not listed: it is
+ * decided together with that one.
+ */
 export function getOpenInquiries(snapshot: StudioSnapshot): Inquiry[] {
-  return snapshot.inquiries.filter((i) => i.status === "new").sort((a, b) => b.receivedAt.localeCompare(a.receivedAt));
+  return snapshot.inquiries
+    .filter((i) => i.status === "new" && !openFirstInquiry(i, snapshot.inquiries))
+    .sort((a, b) => b.receivedAt.localeCompare(a.receivedAt));
+}
+
+/** The open first inquiry this one repeats, if any. Anonymised inquiries are not loaded, so they never count. */
+export function openFirstInquiry(inquiry: Inquiry, inquiries: Inquiry[]): Inquiry | null {
+  if (!inquiry.repeatOf) return null;
+  return inquiries.find((other) => other.id === inquiry.repeatOf && other.status === "new") ?? null;
+}
+
+/** Open repeats of an inquiry, oldest first: they are resolved with it. */
+export function getRepeats(inquiry: Inquiry, inquiries: Inquiry[]): Inquiry[] {
+  return inquiries
+    .filter((other) => other.repeatOf === inquiry.id && other.status === "new")
+    .sort((a, b) => a.receivedAt.localeCompare(b.receivedAt));
 }
 
 /** One short line under the sender's name: service, project type and timing. */
@@ -230,6 +249,8 @@ export const DISCUSS_BUDGET_QUESTION = "Discuss budget with the customer";
 export interface InquiryApproval {
   client: Client;
   source: SourceDocument;
+  /** One source per repeat, with its own message. */
+  repeatSources: SourceDocument[];
   onboarding: Onboarding;
   /** Open questions added to the new client. */
   items: ContextItem[];
@@ -239,9 +260,11 @@ export interface InquiryApproval {
 /**
  * Approves an inquiry as a new client: contact details, budget and timing as
  * observed values, the message as source material, and a draft onboarding in
- * which those values show as "verify" rather than being asked again.
+ * which those values show as "verify" rather than being asked again. Each
+ * open repeat adds its message as source material too; the values come from
+ * the first inquiry.
  */
-export function approveInquiry(inquiry: Inquiry, name: string, deps: DomainDeps): InquiryApproval {
+export function approveInquiry(inquiry: Inquiry, name: string, deps: DomainDeps, repeats: Inquiry[] = []): InquiryApproval {
   assertDecidable(inquiry, deps);
   const errors = validateClientIdentity({ name, email: inquiry.email, website: inquiry.website ?? undefined });
   if (hasErrors(errors)) throw new DomainError(Object.values(errors)[0] ?? "Check the client details.");
@@ -287,15 +310,26 @@ export function approveInquiry(inquiry: Inquiry, name: string, deps: DomainDeps)
 
   const material = buildSource(client, { type: "contact_form", label: source.label!, content: inquirySourceContent(inquiry) }, at);
   events.push(material.event);
+  const repeatSources = repeatMaterial(client, repeats, at, events);
   const started = buildOnboarding(client, at);
   events.push(started.event);
 
-  return { client, source: material.source, onboarding: started.onboarding, items, events };
+  return { client, source: material.source, repeatSources, onboarding: started.onboarding, items, events };
+}
+
+function repeatMaterial(client: Client, repeats: Inquiry[], at: DomainDeps, events: ActivityEvent[]): SourceDocument[] {
+  return repeats.map((repeat) => {
+    const added = buildSource(client, { type: "contact_form", label: inquirySourceLabel(repeat), content: inquirySourceContent(repeat) }, at);
+    events.push(added.event);
+    return added.source;
+  });
 }
 
 export interface InquiryLink {
   client: Client;
   source: SourceDocument;
+  /** One source per repeat, with its own message. */
+  repeatSources: SourceDocument[];
   /** Whether empty contact details were filled in. */
   detailsChanged: boolean;
   /** Brief values that were unknown and are now filled in. */
@@ -328,9 +362,10 @@ export function compareInquiryToClient(inquiry: Inquiry, client: Client): Inquir
 /**
  * Adds an inquiry to an existing client: the message as source material, and
  * contact details and budget or timing only where the client has none yet.
- * Creates no client and no onboarding, and changes no existing value.
+ * Creates no client and no onboarding, and changes no existing value. Each
+ * open repeat adds its message as source material too.
  */
-export function linkInquiry(inquiry: Inquiry, client: Client, deps: DomainDeps): InquiryLink {
+export function linkInquiry(inquiry: Inquiry, client: Client, deps: DomainDeps, repeats: Inquiry[] = []): InquiryLink {
   assertDecidable(inquiry, deps);
   const now = deps.now();
   const at: DomainDeps = { ...deps, now: () => now };
@@ -360,7 +395,8 @@ export function linkInquiry(inquiry: Inquiry, client: Client, deps: DomainDeps):
 
   const material = buildSource(next, { type: "contact_form", label: source.label!, content: inquirySourceContent(inquiry) }, at);
   events.push(material.event);
-  return { client: next, source: material.source, detailsChanged: updated.events.length > 0, changedFields, events };
+  const repeatSources = repeatMaterial(next, repeats, at, events);
+  return { client: next, source: material.source, repeatSources, detailsChanged: updated.events.length > 0, changedFields, events };
 }
 
 export const REJECTION_REASON_MAX_LENGTH = 1000;

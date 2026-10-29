@@ -35,11 +35,11 @@ tests/e2e/             Playwright journeys
 | ------- | ----- | ------ |
 | Domain model and rules | `src/lib/domain` | Working, unit tested |
 | Data access | `StudioRepository`: `LocalDemoRepository`, `SupabaseRepository` | Both working; Supabase tested against a local stack |
-| Database rules | `supabase/migrations` | Row-level security and triggers, 22 database tests |
+| Database rules | `supabase/migrations` | Row-level security and triggers, database tests in `tests/db` |
 | Agent contract and permissions | `src/lib/agents` | Enforced in code and in the database |
 | Intake agent | `src/server/agents`, `/api/agents/intake` | Working with the test provider; the Anthropic provider is built but has not been called with a real key |
 | Follow-ups | `src/lib/domain/followups.ts` | Computed on Today and per client, stores nothing ([follow-ups.md](follow-ups.md)) |
-| Website inquiries | `src/lib/inquiries`, `src/server/inquiries`, `/api/inquiries` | Receiving and storage working against a local stack; review and approval not built ([inquiries.md](inquiries.md)) |
+| Website inquiries | `src/lib/inquiries`, `src/server/inquiries`, `/api/inquiries` | Receiving, review (approve, add to a client, reject, spam) and the daily 12-month retention job, verified on staging with test inquiries; repeat submissions grouped with the first inquiry ([inquiries.md](inquiries.md)) |
 
 ## Rules
 

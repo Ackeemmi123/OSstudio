@@ -19,6 +19,7 @@ import {
   compareInquiryToClient,
   findInquiryMatches,
   getRelatedInquiries,
+  getRepeats,
   inquiryBudgetLabel,
   inquiryClientName,
   inquiryTimingLabel,
@@ -26,6 +27,7 @@ import {
   INQUIRY_PROJECT_TYPE_LABELS,
   INQUIRY_SERVICE_LABELS,
   INQUIRY_STATUS_LABELS,
+  openFirstInquiry,
   REJECTION_REASON_MAX_LENGTH,
   type ClientMatch,
   type MatchReason,
@@ -68,8 +70,11 @@ const STATUS_TONE: Record<InquiryStatus, Tone> = { new: "caution", approved: "po
 
 function Review({ inquiry, snapshot }: { inquiry: Inquiry; snapshot: StudioSnapshot }) {
   const canEdit = useCanEdit();
-  const related = getRelatedInquiries(inquiry, snapshot.inquiries);
-  const previouslyRejected = related.some((other) => other.status === "rejected" || other.status === "spam");
+  const repeats = getRepeats(inquiry, snapshot.inquiries);
+  const first = openFirstInquiry(inquiry, snapshot.inquiries);
+  const allRelated = getRelatedInquiries(inquiry, snapshot.inquiries);
+  const related = allRelated.filter((other) => !repeats.includes(other));
+  const previouslyRejected = allRelated.some((other) => other.status === "rejected" || other.status === "spam");
   const matches = findInquiryMatches(inquiry, snapshot.clients);
 
   return (
@@ -85,6 +90,7 @@ function Review({ inquiry, snapshot }: { inquiry: Inquiry; snapshot: StudioSnaps
           <h1 className="text-[26px] leading-tight font-medium tracking-[-0.032em] text-ink">{inquiry.company ?? inquiry.contactName}</h1>
           {inquiry.isTest ? <Tag tone="info" title="Sent as a test, not by a real customer">Test</Tag> : null}
           {previouslyRejected ? <Tag tone="caution">Previously rejected</Tag> : null}
+          {first ? <Tag tone="neutral">Sent again</Tag> : null}
         </div>
         <p className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[13.5px] text-ink-muted">
           <StatusLabel tone={STATUS_TONE[inquiry.status]}>{INQUIRY_STATUS_LABELS[inquiry.status]}</StatusLabel>
@@ -100,8 +106,10 @@ function Review({ inquiry, snapshot }: { inquiry: Inquiry; snapshot: StudioSnaps
           <Section id="decision" title={inquiry.status === "new" ? "Decision" : "Outcome"}>
             {inquiry.status !== "new" ? (
               <Outcome inquiry={inquiry} snapshot={snapshot} />
+            ) : first ? (
+              <DecidedWithFirst first={first} />
             ) : canEdit ? (
-              <Decide inquiry={inquiry} matches={matches} clients={snapshot.clients} />
+              <Decide inquiry={inquiry} repeats={repeats} matches={matches} clients={snapshot.clients} />
             ) : (
               <p className="rounded-[var(--radius-surface)] border border-dashed border-line-strong px-5 py-4 text-[13.5px] text-ink-subtle">
                 You have read-only access. An owner or member of the studio decides inquiries.
@@ -109,14 +117,15 @@ function Review({ inquiry, snapshot }: { inquiry: Inquiry; snapshot: StudioSnaps
             )}
           </Section>
           <Submitted inquiry={inquiry} />
+          <SentAgain repeats={repeats} />
         </div>
 
         <aside className="flex min-w-0 flex-col gap-10">
-          {inquiry.status === "new" ? <Matches matches={matches} /> : null}
+          {inquiry.status === "new" && !first ? <Matches matches={matches} /> : null}
           <Related related={related} />
           <p className="text-[12.5px] leading-relaxed text-ink-subtle">
-            Inquiries that do not become clients are to be kept for 12 months and then anonymised. That job is not built
-            yet, so only test inquiries may be sent to Studio OS.
+            Inquiries that do not become clients are kept for 12 months after the decision, then anonymised
+            automatically. Until real inquiries are switched on, only test inquiries may be sent to Studio OS.
           </p>
         </aside>
       </div>
@@ -174,13 +183,54 @@ function Item({ label, hint, children }: { label: string; hint?: string; childre
   );
 }
 
+/** Later inquiries from the same address, sent while this one was open. */
+function SentAgain({ repeats }: { repeats: Inquiry[] }) {
+  if (!repeats.length) return null;
+  return (
+    <Section id="sent-again" title="Sent again" count={repeats.length}>
+      <Surface>
+        <p className="border-b border-line px-5 py-3 text-[12.5px] text-ink-subtle">
+          The same address sent {repeats.length === 1 ? "another inquiry" : `${repeats.length} more inquiries`} while this one was
+          open. They are resolved with this decision, and approving adds each message as source material.
+        </p>
+        <ul className="divide-y divide-line">
+          {repeats.map((repeat) => (
+            <li key={repeat.id} data-testid="repeat" className="px-5 py-4">
+              <p className="mb-1.5 text-[12.5px] text-ink-subtle">
+                <Link href={`/inquiries/${encodeURIComponent(repeat.id)}`} className="underline decoration-line-strong underline-offset-2 hover:decoration-ink">
+                  Received {formatDateTime(repeat.receivedAt)}
+                </Link>
+              </p>
+              <p className="text-[14px] leading-relaxed whitespace-pre-wrap text-ink">{repeat.message}</p>
+            </li>
+          ))}
+        </ul>
+      </Surface>
+    </Section>
+  );
+}
+
+function DecidedWithFirst({ first }: { first: Inquiry }) {
+  return (
+    <Surface className="flex flex-col gap-3 px-5 py-4">
+      <p className="text-[14px] text-ink">
+        The same address sent this while their first inquiry was still open. It is decided together with that one.
+      </p>
+      <ButtonLink href={`/inquiries/${encodeURIComponent(first.id)}`} size="sm" className="self-start">
+        Open the first inquiry
+        <ArrowRight aria-hidden />
+      </ButtonLink>
+    </Surface>
+  );
+}
+
 /* -------------------------------------------------------------------------- */
 /* Deciding                                                                   */
 /* -------------------------------------------------------------------------- */
 
 type Dialog = { kind: "link"; client: Client } | { kind: "reject" } | { kind: "spam" } | null;
 
-function Decide({ inquiry, matches, clients }: { inquiry: Inquiry; matches: ClientMatch[]; clients: Client[] }) {
+function Decide({ inquiry, repeats, matches, clients }: { inquiry: Inquiry; repeats: Inquiry[]; matches: ClientMatch[]; clients: Client[] }) {
   const store = useStudioStore();
   const toast = useToast();
   const router = useRouter();
@@ -224,6 +274,12 @@ function Decide({ inquiry, matches, clients }: { inquiry: Inquiry; matches: Clie
 
   return (
     <Surface>
+      {repeats.length ? (
+        <p className="border-b border-line px-5 py-3 text-[12.5px] text-ink-subtle">
+          This decision also resolves {repeats.length === 1 ? "the later inquiry" : `the ${repeats.length} later inquiries`} from this
+          address, shown under “Sent again”.
+        </p>
+      ) : null}
       <form onSubmit={approve} noValidate className="flex flex-col gap-3 px-5 py-4">
         <div>
           <h3 className="text-[14px] font-medium text-ink">Approve as a new client</h3>
@@ -436,7 +492,7 @@ function Outcome({ inquiry, snapshot }: { inquiry: Inquiry; snapshot: StudioSnap
         ? `${who} rejected it`
         : inquiry.status === "spam"
           ? `${who} marked it as spam`
-          : "It was resolved together with an earlier inquiry";
+          : `${who} decided the first inquiry from this address, and this one was resolved with it`;
   return (
     <Surface className="flex flex-col gap-3 px-5 py-4">
       <p className="flex items-start gap-2.5 text-[14px] text-ink">
@@ -454,6 +510,11 @@ function Outcome({ inquiry, snapshot }: { inquiry: Inquiry; snapshot: StudioSnap
       {client ? (
         <ButtonLink href={`/clients/${encodeURIComponent(client.id)}`} size="sm" className="self-start">
           Open {client.name}
+          <ArrowRight aria-hidden />
+        </ButtonLink>
+      ) : inquiry.status === "merged" && inquiry.repeatOf ? (
+        <ButtonLink href={`/inquiries/${encodeURIComponent(inquiry.repeatOf)}`} size="sm" className="self-start">
+          Open the first inquiry
           <ArrowRight aria-hidden />
         </ButtonLink>
       ) : null}
