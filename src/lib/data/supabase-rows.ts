@@ -19,6 +19,7 @@ import {
   type Inquiry,
   type Onboarding,
   type Project,
+  type RetentionHoldEntry,
   type SourceDocument,
   type StudioSnapshot,
   type Task,
@@ -44,6 +45,9 @@ export interface StudioPayload {
   onboardings?: Row[];
   /** Read from inquiries next to load_studio. */
   inquiries?: Row[];
+  /** Each client's retention dates (client retention migration). */
+  retention?: Row[];
+  retention_holds?: Row[];
 }
 
 /** The inquiry columns the app reads. The content hash and submission id stay in the database. */
@@ -73,8 +77,30 @@ export function toSnapshot(payload: StudioPayload): StudioSnapshot {
     items.set(str(row.client_id), list);
   }
 
+  const retention = new Map((payload.retention ?? []).map((row) => [str(row.clientId), row]));
+  const holds = new Map<string, RetentionHoldEntry[]>();
+  for (const row of payload.retention_holds ?? []) {
+    const list = holds.get(str(row.client_id)) ?? [];
+    list.push({ action: row.action as RetentionHoldEntry["action"], reason: opt(row.reason), actor: row.actor as Actor, at: str(row.created_at) });
+    holds.set(str(row.client_id), list);
+  }
+
   return {
-    clients: payload.clients.map((row) => toClient(row, fields.get(str(row.id)) ?? [], items.get(str(row.id)) ?? [])),
+    clients: payload.clients.map((row) => {
+      const client = toClient(row, fields.get(str(row.id)) ?? [], items.get(str(row.id)) ?? []);
+      const dates = retention.get(client.id);
+      if (!dates) return client;
+      return {
+        ...client,
+        retention: {
+          customer: Boolean(dates.customer),
+          lastActivityAt: str(dates.lastActivityAt),
+          endsAt: opt(dates.endsAt),
+          hold: row.retention_hold_reason == null ? null : { reason: str(row.retention_hold_reason), by: row.retention_hold_by as Actor, at: str(row.retention_held_at) },
+          log: holds.get(client.id) ?? [],
+        },
+      };
+    }),
     projects: payload.projects.map(toProject),
     tasks: payload.tasks.map(toTask),
     activity: payload.activity.map(toEvent),

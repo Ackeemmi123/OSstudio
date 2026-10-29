@@ -62,6 +62,11 @@ export interface StudioRepository {
    * as spam. Each inquiry is decided once.
    */
   decideInquiry(inquiryId: string, decision: InquiryDecision): Promise<Inquiry>;
+  /**
+   * An owner pauses the client's retention with a reason (an open dispute, a
+   * legal requirement), or releases it with null. Every change is logged.
+   */
+  setRetentionHold(clientId: string, reason: string | null): Promise<Client>;
   /** Restores the demonstration workspace. Only meaningful for demo repositories. */
   resetDemoData(): Promise<StudioSnapshot>;
 }

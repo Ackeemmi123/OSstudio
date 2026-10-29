@@ -5,6 +5,7 @@ import { addContextItem, buildSource, reviewProposal } from "@/lib/domain/intake
 import { approveInquiry, assertDecidable, cleanRejectionReason, getRepeats, linkInquiry, openFirstInquiry } from "@/lib/domain/inquiries";
 import { buildOnboarding, completeOnboarding, findOnboarding, saveOnboardingStep } from "@/lib/domain/onboarding";
 import { buildProject, buildTask, setTaskStatus, updateProject, updateTaskDetails } from "@/lib/domain/projects";
+import { cleanHoldReason } from "@/lib/domain/retention";
 import {
   CONTEXT_FIELD_KEYS,
   type ActivityEvent,
@@ -363,6 +364,28 @@ export class SupabaseRepository implements StudioRepository {
     const body = (await response.json().catch(() => null)) as (AiSpend & { error?: string }) | null;
     if (!response.ok || !body || body.error) throw new RepositoryError(body?.error ?? "AI spend could not be loaded.", response.status === 403 ? "permission" : "unavailable");
     return { month: body.month, spentMicros: body.spentMicros, reservedMicros: body.reservedMicros, capMicros: body.capMicros };
+  }
+
+  async setRetentionHold(clientId: string, reason: string | null): Promise<Client> {
+    if (this.current.kind !== "supabase" || this.current.role !== "owner") {
+      throw new RepositoryError("Only an owner can place or release a retention hold.", "permission");
+    }
+    let cleaned: string | null;
+    try {
+      cleaned = reason === null ? null : cleanHoldReason(reason);
+    } catch (error) {
+      if (error instanceof DomainError) throw new RepositoryError(error.message, "validation");
+      throw error;
+    }
+    const { error } = await this.client.rpc("set_client_retention_hold", {
+      p_studio: this.studioId,
+      p_client: clientId,
+      p_reason: cleaned,
+      p_actor: this.actor(),
+    });
+    if (error) throw toRepositoryError(error);
+    this.snapshot = null;
+    return find((await this.load()).clients, clientId, "client");
   }
 
   async requestIntakeAnalysis(clientId: string, options: { force?: boolean } = {}): Promise<AgentRunRecord> {

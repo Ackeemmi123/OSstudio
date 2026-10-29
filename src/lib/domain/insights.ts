@@ -6,6 +6,7 @@ import { formatContextValue } from "@/lib/format";
 import { getMissingEssentials } from "./clients";
 import { describeInquiry, getOpenInquiries, getRepeats } from "./inquiries";
 import { actorLabel, CLIENT_STATUS_LABELS, CONFIDENCE_LABELS, CONTEXT_FIELD_LABELS, ONBOARDING_STEP_LABELS, PROJECT_STAGE_LABELS } from "./labels";
+import { describeDaysLeft, getRetentionWarnings } from "./retention";
 import {
   CONTEXT_FIELD_KEYS,
   type ActivityEvent,
@@ -139,7 +140,7 @@ export function matchesClientQuery(row: ClientRow, query: string): boolean {
 /* Decisions: what only a person can resolve                                  */
 /* -------------------------------------------------------------------------- */
 
-export type DecisionKind = "inquiry" | "approval" | "review" | "analysis" | "proposal";
+export type DecisionKind = "inquiry" | "retention" | "approval" | "review" | "analysis" | "proposal";
 
 export interface DecisionItem {
   id: string;
@@ -152,13 +153,14 @@ export interface DecisionItem {
   href: string;
 }
 
-const DECISION_ORDER: Record<DecisionKind, number> = { inquiry: 0, approval: 1, review: 2, analysis: 3, proposal: 4 };
+const DECISION_ORDER: Record<DecisionKind, number> = { inquiry: 0, retention: 1, approval: 2, review: 3, analysis: 4, proposal: 5 };
 
 /**
- * New website inquiries, approvals, reviews and proposed client facts. These
- * wait for a person; no automation or agent may resolve them.
+ * New website inquiries, clients about to be anonymised, approvals, reviews
+ * and proposed client facts. These wait for a person; no automation or agent
+ * may resolve them.
  */
-export function getDecisions(snapshot: StudioSnapshot): DecisionItem[] {
+export function getDecisions(snapshot: StudioSnapshot, nowMs = Date.now()): DecisionItem[] {
   const items: DecisionItem[] = [];
 
   for (const inquiry of getOpenInquiries(snapshot)) {
@@ -174,6 +176,18 @@ export function getDecisions(snapshot: StudioSnapshot): DecisionItem[] {
       href: `/inquiries/${encodeURIComponent(inquiry.id)}`,
     });
   }
+  // Clients the retention job will anonymise soon: archive, hold or let it run.
+  for (const { client, days } of getRetentionWarnings(snapshot.clients, nowMs)) {
+    items.push({
+      id: `retention-${client.id}`,
+      kind: "retention",
+      title: `${client.name}: client data will be anonymised`,
+      where: describeDaysLeft(days),
+      clientId: client.id,
+      href: clientHref(client.id, "retention"),
+    });
+  }
+
   const projectById = new Map(snapshot.projects.map((project) => [project.id, project]));
   const clientById = new Map(snapshot.clients.map((client) => [client.id, client]));
 
