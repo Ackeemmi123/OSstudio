@@ -300,7 +300,7 @@ export function getNextActions(snapshot: StudioSnapshot, clientId?: string): Nex
               clientId: client.id,
               href: `/clients/${encodeURIComponent(client.id)}/onboarding`,
             }
-          : missing.length > 0
+          : missing.length > 0 && onboarding?.status !== "ready_for_review"
           ? {
               id: `collect-${client.id}`,
               kind: "collect",
@@ -313,7 +313,8 @@ export function getNextActions(snapshot: StudioSnapshot, clientId?: string): Nex
               id: `start-${client.id}`,
               kind: "start_project",
               title: `Start the first project for ${client.name}`,
-              detail: "The essentials are recorded.",
+              // After onboarding the brief is ready even with gaps; they stay listed in the brief.
+              detail: missing.length > 0 ? `Brief ready, still unknown: ${missing.map((m) => m.label.toLowerCase()).join(", ")}` : "The essentials are recorded.",
               clientId: client.id,
               href: clientHref(client.id, "projects"),
             },

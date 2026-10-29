@@ -44,6 +44,7 @@ export function ReviewStep({
   const unknown = [...gaps.missing, ...gaps.skipped];
   const questions = client.contextItems.filter((item) => item.kind === "question" && item.confidence !== "superseded");
   const workspace = `/clients/${encodeURIComponent(client.id)}`;
+  const hasProject = snapshot.projects.some((project) => project.clientId === client.id && project.status !== "completed");
 
   const latestRun = getLatestIntakeRun(snapshot, client.id);
   const suggested = (latestRun?.result?.questions ?? []).filter(
@@ -183,9 +184,22 @@ export function ReviewStep({
           {onboarding.status === "ready_for_review" ? (
             <>
               <span className="text-[13px] text-ink-subtle">Ready for review since {formatDate(onboarding.completedAt ?? onboarding.updatedAt)}</span>
-              <ButtonLink href={`${workspace}#brief`} variant="primary">
-                Open the brief
-              </ButtonLink>
+              {hasProject ? (
+                <ButtonLink href={`${workspace}#brief`} variant="primary">
+                  Open the brief
+                </ButtonLink>
+              ) : (
+                <>
+                  <ButtonLink href={`${workspace}#brief`} variant="ghost">
+                    Open the brief
+                  </ButtonLink>
+                  {canEdit ? (
+                    <ButtonLink href={`${workspace}#new-project`} variant="primary">
+                      Start the project
+                    </ButtonLink>
+                  ) : null}
+                </>
+              )}
             </>
           ) : canEdit ? (
             <Button variant="primary" onClick={finish} disabled={pending} aria-busy={pending}>

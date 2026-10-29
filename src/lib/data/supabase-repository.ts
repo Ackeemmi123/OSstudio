@@ -4,7 +4,7 @@ import { buildNewClient, DomainConflictError, DomainError, setContextField, upda
 import { addContextItem, buildSource, reviewProposal } from "@/lib/domain/intake";
 import { approveInquiry, assertDecidable, cleanRejectionReason, linkInquiry } from "@/lib/domain/inquiries";
 import { buildOnboarding, completeOnboarding, findOnboarding, saveOnboardingStep } from "@/lib/domain/onboarding";
-import { buildProject, buildTask, setTaskStatus, updateProject } from "@/lib/domain/projects";
+import { buildProject, buildTask, setTaskStatus, updateProject, updateTaskDetails } from "@/lib/domain/projects";
 import {
   CONTEXT_FIELD_KEYS,
   type ActivityEvent,
@@ -28,6 +28,7 @@ import {
   type SourceDocument,
   type StudioSnapshot,
   type Task,
+  type TaskDetailsInput,
   type TaskStatus,
 } from "@/lib/domain/types";
 import { validateIdentity } from "./local-repository";
@@ -239,8 +240,12 @@ export class SupabaseRepository implements StudioRepository {
 
   createProject(clientId: string, input: NewProjectInput): Promise<Project> {
     return this.write((s, deps) => {
-      const { project, event } = buildProject(find(s.clients, clientId, "client"), input, deps);
-      return [project, { projects: [{ op: "insert", row: projectRow(project) }], events: [eventRow(event)] }];
+      const { project, tasks, event } = buildProject(find(s.clients, clientId, "client"), input, deps);
+      // One transaction: the project and its tasks are created together or not at all.
+      return [
+        project,
+        { projects: [{ op: "insert", row: projectRow(project) }], tasks: tasks.map((task) => ({ op: "insert", row: taskRow(task) })), events: [eventRow(event)] },
+      ];
     });
   }
 
@@ -259,10 +264,18 @@ export class SupabaseRepository implements StudioRepository {
     });
   }
 
-  setTaskStatus(taskId: string, status: TaskStatus): Promise<Task> {
+  setTaskStatus(taskId: string, status: TaskStatus, options?: { blockedReason?: string }): Promise<Task> {
     return this.write((s, deps) => {
       const before = find(s.tasks, taskId, "task");
-      const { task, events } = setTaskStatus(before, status, deps);
+      const { task, events } = setTaskStatus(before, status, deps, options);
+      return [task, events.length ? { tasks: [update(taskRow(task), before.updatedAt)], events: events.map(eventRow) } : null];
+    });
+  }
+
+  updateTask(taskId: string, input: TaskDetailsInput): Promise<Task> {
+    return this.write((s, deps) => {
+      const before = find(s.tasks, taskId, "task");
+      const { task, events } = updateTaskDetails(before, input, deps);
       return [task, events.length ? { tasks: [update(taskRow(task), before.updatedAt)], events: events.map(eventRow) } : null];
     });
   }

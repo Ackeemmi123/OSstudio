@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft, CircleSlash, Pencil, SearchX } from "lucide-react";
+import { ArrowLeft, CircleSlash, Clock, Pencil, SearchX } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { LoadError } from "@/components/load-error";
@@ -9,9 +9,11 @@ import { Avatar } from "@/components/ui/avatar";
 import { Button, ButtonLink } from "@/components/ui/button";
 import { EmptyState, Section, Skeleton, Surface } from "@/components/ui/surface";
 import { cn } from "@/lib/cn";
+import { describeWait, FOLLOW_UP_RULES, getFollowUps } from "@/lib/domain/followups";
 import { getDecisions, getNextActions } from "@/lib/domain/insights";
 import { findOnboarding } from "@/lib/domain/onboarding";
 import type { Client, StudioSnapshot } from "@/lib/domain/types";
+import { useNow } from "@/lib/use-now";
 import { BriefSection } from "./brief-section";
 import { ClientAside, ExternalLink } from "./client-aside";
 import { EditDetailsDialog } from "./edit-details-dialog";
@@ -108,17 +110,22 @@ function Detail({ value, missing }: { value: string | null; missing: string }) {
 
 /** The one or two things to do for this client right now. */
 function NextUp({ client, snapshot }: { client: Client; snapshot: StudioSnapshot }) {
-  const decisions = getDecisions(snapshot).filter((item) => item.clientId === client.id);
+  const now = useNow();
+  // Work that has waited too long comes first, and is not listed a second time below.
+  const followUps = now ? getFollowUps(snapshot, now, client.id) : [];
+  const shown = new Set(followUps.flatMap((item) => item.relatedIds));
+  const decisions = getDecisions(snapshot).filter((item) => item.clientId === client.id && !shown.has(item.id));
   // Routine tasks are listed under Projects; only surface what is stuck or missing.
   // The brief already shows onboarding in progress, with its own Continue button.
   const onboarding = findOnboarding(snapshot.onboardings, client.id);
   const onboardingOpen = onboarding && onboarding.status !== "ready_for_review";
   const actions = getNextActions(snapshot, client.id).filter(
-    (action) => action.kind !== "task" && !(action.kind === "collect" && onboardingOpen),
+    (action) => action.kind !== "task" && !(action.kind === "collect" && onboardingOpen) && !shown.has(action.id),
   );
-  if (decisions.length === 0 && actions.length === 0) return null;
+  if (followUps.length === 0 && decisions.length === 0 && actions.length === 0) return null;
 
   const items = [
+    ...followUps.map((f) => ({ id: f.id, href: f.href, title: f.title, tag: FOLLOW_UP_RULES[f.kind].action, critical: f.kind === "blocked", waiting: true, detail: `${describeWait(f)} · ${f.detail}` })),
     ...decisions.map((d) => ({ id: d.id, href: d.href, title: d.title, tag: d.kind === "approval" ? "Approve" : d.kind === "proposal" ? "Confirm" : "Review", critical: false })),
     ...actions.map((a) => ({ id: a.id, href: a.href, title: a.title, tag: a.kind === "blocked" ? "Blocked" : null, critical: a.kind === "blocked", detail: a.kind === "blocked" || a.kind === "collect" ? a.detail : undefined })),
   ];
@@ -129,7 +136,9 @@ function NextUp({ client, snapshot }: { client: Client; snapshot: StudioSnapshot
         {items.map((item) => (
           <li key={item.id}>
             <a href={item.href.includes("#") ? item.href.slice(item.href.indexOf("#")) : item.href} className="group flex items-start gap-3 rounded-[var(--radius-control)] border border-line bg-surface px-4 py-3 transition-colors hover:border-line-strong">
-              {item.critical ? (
+              {"waiting" in item ? (
+                <Clock aria-hidden strokeWidth={1.75} className={cn("mt-0.5 size-4 shrink-0", item.critical ? "text-critical" : "text-caution")} />
+              ) : item.critical ? (
                 <CircleSlash aria-hidden strokeWidth={1.75} className="mt-0.5 size-4 shrink-0 text-critical" />
               ) : (
                 <span aria-hidden className="mt-[7px] size-1.5 shrink-0 rounded-full bg-accent" />

@@ -1,7 +1,7 @@
 import { buildNewClient, DomainConflictError, DomainError, setContextField, updateClientDetails, type DomainDeps } from "@/lib/domain/clients";
 import { addContextItem, buildSource, reviewProposal } from "@/lib/domain/intake";
 import { buildOnboarding, completeOnboarding, findOnboarding, saveOnboardingStep } from "@/lib/domain/onboarding";
-import { buildProject, buildTask, setTaskStatus, updateProject } from "@/lib/domain/projects";
+import { buildProject, buildTask, setTaskStatus, updateProject, updateTaskDetails } from "@/lib/domain/projects";
 import type { AgentRunRecord } from "@/lib/agents/contract";
 import type {
   ActivityEvent,
@@ -24,6 +24,7 @@ import type {
   SourceDocument,
   StudioSnapshot,
   Task,
+  TaskDetailsInput,
   TaskStatus,
 } from "@/lib/domain/types";
 import { hasErrors, validateClientIdentity, type ClientIdentityValues } from "@/lib/domain/validation";
@@ -166,8 +167,8 @@ export class LocalDemoRepository implements StudioRepository {
 
   createProject(clientId: string, input: NewProjectInput): Promise<Project> {
     return this.mutate((s) => {
-      const { project, event } = buildProject(find(s.clients, clientId, "client"), input, this.deps);
-      return [{ ...s, projects: [project, ...s.projects] }, project, [event]];
+      const { project, tasks, event } = buildProject(find(s.clients, clientId, "client"), input, this.deps);
+      return [{ ...s, projects: [project, ...s.projects], tasks: [...s.tasks, ...tasks] }, project, [event]];
     });
   }
 
@@ -185,9 +186,16 @@ export class LocalDemoRepository implements StudioRepository {
     });
   }
 
-  setTaskStatus(taskId: string, status: TaskStatus): Promise<Task> {
+  setTaskStatus(taskId: string, status: TaskStatus, options?: { blockedReason?: string }): Promise<Task> {
     return this.mutate((s) => {
-      const { task, events } = setTaskStatus(find(s.tasks, taskId, "task"), status, this.deps);
+      const { task, events } = setTaskStatus(find(s.tasks, taskId, "task"), status, this.deps, options);
+      return [{ ...s, tasks: replace(s.tasks, task) }, task, events];
+    });
+  }
+
+  updateTask(taskId: string, input: TaskDetailsInput): Promise<Task> {
+    return this.mutate((s) => {
+      const { task, events } = updateTaskDetails(find(s.tasks, taskId, "task"), input, this.deps);
       return [{ ...s, tasks: replace(s.tasks, task) }, task, events];
     });
   }
