@@ -39,3 +39,32 @@ test("work that has waited too long moves to Follow up, once", async ({ page }) 
   await expect(page.getByRole("heading", { level: 1, name: "Ateljé Henrik" })).toBeVisible();
   await expect(page.locator("section#next").getByRole("link", { name: /Product data import template/ })).toContainText(/Blocked for 5 days/);
 });
+
+test("drafts a message to a client the studio is waiting on, without sending anything", async ({ page }) => {
+  await page.clock.install();
+  await page.goto("/");
+  await expect(page.getByText("Local demo")).toBeVisible();
+  await page.clock.setSystemTime(Date.now() + 30 * 24 * 60 * 60 * 1000);
+
+  // A blocked task is the studio's own work: no message to draft.
+  await page.goto("/clients");
+  await page.getByRole("link", { name: /Ateljé Henrik/ }).first().click();
+  await expect(page.locator("section#next").getByRole("link", { name: /Product data import template/ })).toContainText(/Blocked for/);
+  await expect(page.locator("section#next").getByRole("button", { name: "Draft message" })).toHaveCount(0);
+
+  // A lead whose brief was never started: draft the questions that are still open.
+  await page.goto("/clients");
+  await page.getByRole("link", { name: /Lumen Dental Studio/ }).first().click();
+  await expect(page.getByRole("heading", { level: 1, name: "Lumen Dental Studio" })).toBeVisible();
+  await page.locator("section#next").getByRole("button", { name: "Draft message" }).click();
+  const dialog = page.getByRole("dialog", { name: "Draft message" });
+  await expect(dialog).toContainText("Nothing is sent from Studio OS.");
+  await expect(dialog).toContainText("To: no email address recorded");
+  await expect(dialog.getByLabel("Subject")).toHaveValue("A few questions before we start");
+  await expect(dialog.getByLabel("Message")).toHaveValue(/^Hi there,[\s\S]*- Do you have a budget range in mind\?/);
+  // Without an address there is nothing to open; the person copies the text instead.
+  await expect(dialog.getByRole("link", { name: "Open in email" })).toHaveCount(0);
+  await expect(dialog.getByRole("button", { name: "Copy" })).toBeVisible();
+  await dialog.getByRole("button", { name: "Close" }).first().click();
+  await expect(dialog).toHaveCount(0);
+});

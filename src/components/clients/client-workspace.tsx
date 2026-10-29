@@ -15,6 +15,7 @@ import { findOnboarding } from "@/lib/domain/onboarding";
 import type { Client, StudioSnapshot } from "@/lib/domain/types";
 import { useNow } from "@/lib/use-now";
 import { BriefSection } from "./brief-section";
+import { ChaseDraftButton } from "./chase-draft";
 import { ClientAside, ExternalLink } from "./client-aside";
 import { EditDetailsDialog } from "./edit-details-dialog";
 import { IntakeReview } from "./intake-review";
@@ -149,6 +150,7 @@ function NextUp({ client, snapshot }: { client: Client; snapshot: StudioSnapshot
               </span>
               {item.tag ? <span className={cn("shrink-0 text-[12px] font-medium", item.critical ? "text-critical" : "text-ink-muted group-hover:text-ink")}>{item.tag}</span> : null}
             </a>
+            {"waiting" in item ? <ChaseDraftButton followUp={followUps.find((f) => f.id === item.id)!} snapshot={snapshot} /> : null}
           </li>
         ))}
       </ul>
