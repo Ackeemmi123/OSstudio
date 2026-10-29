@@ -49,7 +49,7 @@ export class FixtureIntakeModel implements IntakeModel {
       proposals,
       missing: missing.map((target) => ({ target, description: `The material does not say anything about ${target}.` })),
       ambiguities: [],
-      questions: missing.slice(0, 3).map((target) => `What is the ${target} for this project?`),
+      questions: missing.slice(0, 3).map((target) => ({ question: `What is the ${target} for this project?`, target })),
       summary: `Test analysis of ${input.sources.length} source(s) for ${input.client.name}. ${proposals.length} value(s) found as labeled lines.`,
       nextSteps: ["Review the proposed values."],
     };

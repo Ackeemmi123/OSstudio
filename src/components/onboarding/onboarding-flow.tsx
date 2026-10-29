@@ -29,6 +29,8 @@ import {
   type StudioSnapshot,
 } from "@/lib/domain/types";
 import { type FieldErrors } from "@/lib/domain/validation";
+import { questionsFor, reportedMissing } from "@/lib/agents/suggestions";
+import { getLatestIntakeRun } from "@/lib/domain/insights";
 import { OpenQuestions } from "./open-questions";
 import { QuestionField, type QuestionDraft } from "./question-field";
 import { ReviewStep } from "./review-step";
@@ -398,6 +400,14 @@ function StepForm({
     setDetails((current) => ({ ...current, [key]: event.target.value }));
   const proposalsFor = (key: ContextFieldKey) =>
     snapshot.proposals.filter((p) => p.clientId === client.id && p.status === "pending" && p.target === key);
+  const latestRun = getLatestIntakeRun(snapshot, client.id);
+  const openQuestions = client.contextItems.filter((item) => item.kind === "question" && item.confidence !== "superseded").map((item) => item.text);
+  const askFor = (key: ContextFieldKey) =>
+    questionsFor(latestRun, key, openQuestions).map((question) => ({
+      question,
+      queued: questions.some((q) => q.trim().toLocaleLowerCase() === question.trim().toLocaleLowerCase()),
+      onAsk: () => setQuestions((current) => [...current, question]),
+    }));
   const typedAnything = fields.some((d) => {
     const draft = drafts[d.key]!;
     return (questionState(seenContext[d.key], d.key, onboarding) === "ask" || draft.editing) && clean(draft.value) && clean(draft.value) !== seenContext[d.key].value;
@@ -459,6 +469,8 @@ function StepForm({
               draft={drafts[definition.key]!}
               error={errors[definition.key]}
               proposals={proposalsFor(definition.key)}
+              ask={askFor(definition.key)}
+              missingInMaterial={reportedMissing(latestRun, definition.key)}
               disabled={saving || !canEdit}
               onChange={(next) => setDrafts((current) => ({ ...current, [definition.key]: { ...current[definition.key]!, ...next } }))}
             />

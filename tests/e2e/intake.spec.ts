@@ -90,3 +90,24 @@ test("shows owners this month's AI spend against the cap, and nobody else", asyn
   const anonymous = await request.get(`/api/agents/budget?studioId=${fixture().studioA}`);
   expect(anonymous.status()).toBe(401);
 });
+
+test("offers the analysis's questions on the onboarding question they belong to", async ({ page }) => {
+  await signIn(page, fixture().member);
+  const workspace = await createClientNamed(page, uniqueName("Ask client"), { notes: "Budget: 30 000 SEK" });
+  await section(page, "analysis").getByRole("button", { name: "Analyze client information" }).click();
+  await expect(section(page, "analysis").getByTestId("proposal")).toHaveCount(1);
+
+  await page.goto(`${workspace}/onboarding`);
+  await expect(page.getByRole("heading", { name: "1. Business" })).toBeVisible();
+  const industry = page.locator('[data-question="industry"]').getByTestId("ask-client");
+  await expect(industry).toContainText("Intake analysis found nothing about this in the material.");
+  await expect(industry).toContainText("Suggested question for the client: What is the industry for this project?");
+  await industry.getByRole("button", { name: "Ask the client" }).click();
+  await expect(industry).toContainText("Added to open questions when you continue");
+  // A field the material did answer gets a suggested value instead, not a question.
+  await page.getByRole("button", { name: "Continue" }).click();
+  await expect(page.getByRole("heading", { name: "2. Current setup" })).toBeVisible();
+
+  await page.goto(workspace);
+  await expect(section(page, "brief").getByText("What is the industry for this project?")).toBeVisible();
+});

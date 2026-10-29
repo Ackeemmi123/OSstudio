@@ -73,7 +73,7 @@ describe("intake output checks", () => {
           { description: "“Before the summer term” is not a date.", sourceId: "s1", quote: "before the summer term" },
           { description: "Invented quote", sourceId: "s1", quote: "by Christmas" },
         ],
-        questions: Array.from({ length: 20 }, (_, i) => `Question ${i}?`),
+        questions: Array.from({ length: 20 }, (_, i) => ({ question: i === 0 ? "  " : `Question ${i}?`, target: i === 1 ? ("budget" as const) : null })),
       }),
       input,
     );
@@ -82,6 +82,9 @@ describe("intake output checks", () => {
       { description: "Invented quote", sourceId: null, quote: null },
     ]);
     expect(result.result.questions).toHaveLength(INTAKE_LIMITS.maxQuestions);
+    // Blank questions are dropped and every question keeps its own field.
+    expect(result.result.questions[0]).toBe("Question 1?");
+    expect(result.result.questionTargets?.slice(0, 2)).toEqual(["budget", null]);
     expect(result.result.externalResearch).toBe(false);
     expect(result.result.analyzedSources.map((s) => s.id)).toEqual(["s1", "s2"]);
   });

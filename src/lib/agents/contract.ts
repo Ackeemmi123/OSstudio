@@ -107,6 +107,11 @@ export interface IntakeResult {
   ambiguities: { description: string; sourceId: string | null; quote: string | null }[];
   /** Questions worth asking the client. */
   questions: string[];
+  /**
+   * The brief field each question would fill, by position in `questions`, or
+   * null when it is about something else. Missing on runs before 31 Oct 2026.
+   */
+  questionTargets?: (ProposalTarget | null)[];
   /** What the studio could do next. Suggestions, not decisions. */
   nextSteps: string[];
   /** The material that was analyzed. */

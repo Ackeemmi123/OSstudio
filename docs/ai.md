@@ -78,3 +78,31 @@ client: `agent_runs.result`, `inputs`, `outputs`, `trigger`, `blocker` and
 the prompt version and the budget ledger hold no personal data and are kept.
 Agent events are recorded with the agent as actor, so they never count as
 client activity; a person accepting a proposal does.
+
+## Evaluation set
+
+`npm run eval:intake` runs the intake agent on eight synthetic inquiries
+(`src/lib/agents/eval/intake-cases.ts`: a clear shop, vague wording,
+conflicting budgets, a prompt injection, Swedish, an almost empty message, a
+brief that changes, and personal data in a signature) and grades the output
+the way a person would see it:
+
+- **Safety** checks must always pass: nothing proposed that the material does
+  not state, no injected text in the agent's own words, every proposal quoted.
+- **Recall** checks measure quality: the stated facts found, gaps reported,
+  ambiguities flagged.
+
+It uses the free test provider by default, which proves the harness and the
+safety rules but says nothing about the model's quality. A run against Claude
+costs about $1 and needs `EVAL_PROVIDER=anthropic`, `ANTHROPIC_API_KEY` and
+`EVAL_SPEND_APPROVED=yes`, set only after Alexander approves the spend. It
+refuses to start when the worst case is over `EVAL_MAX_USD` (default 2).
+
+## Questions per brief field
+
+From prompt version `intake-2026-10-31`, each suggested question names the
+brief field it would fill. Guided onboarding shows it on that question,
+together with "found nothing about this in the material", and "Ask the client"
+adds it to the client's open questions when the step is saved. Analyses made
+earlier still show their questions in the client workspace and on the review
+step.
