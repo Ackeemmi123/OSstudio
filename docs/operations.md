@@ -159,7 +159,8 @@ successfully. A `429` tells the visitor to wait a few minutes.
 5. Write down what happened (time, cause, how many visitors may have been
    affected).
 
-A proposed improvement (an email fallback with a "not recorded in Studio OS"
-warning, so no inquiry is lost silently) is described in
-[production.md](production.md#inquiry-handoff-failure-fallback). It is not
-built or deployed.
+A proposed improvement (an email fallback marked "Not in Studio OS" or
+"Unconfirmed in Studio OS", so no inquiry is lost silently) and the rules for
+not entering one inquiry twice are in
+[production.md](production.md#timeouts-and-duplicates). It is not built or
+deployed.

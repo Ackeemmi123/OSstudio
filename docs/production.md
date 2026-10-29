@@ -103,38 +103,55 @@ visitor "not sent" and sends **no email**, and nobody is alerted (Axivo
 inquiries unless visitors retry.
 
 **Proposed (not applied; needs the owner's approval and a change to the Axivo
-repository):** when forwarding fails on the Studio OS side (`unavailable`:
-timeout, network error or 5xx after the one retry; `not_configured`: 503;
-`unauthorized`: 401, a key mismatch), send the notification email anyway,
-subject prefixed "[Not in Studio OS]", with the line "NOT recorded in Studio
-OS (<reason>). Enter this enquiry by hand.", and tell the visitor the message
-was sent only if that email was accepted. Log
-`[contact] Fallback email sent (<reason>)` so a log search or alert finds it.
-Refusals of the enquiry itself (`invalid` 400/413, `conflict` 409) and
-`rate_limited` keep today's behaviour: "not sent", no email.
+repository):** when forwarding fails on the Studio OS side, send the
+notification email anyway, tell the visitor the message was sent only if that
+email was accepted, and log `[contact] Fallback email sent (<reason>)` so a log
+search or alert finds it. The email says how sure we are that Studio OS does
+not have it:
 
-- No duplicate success: the visitor sees success once, after a `202` or an
-  accepted fallback email. Without email configured, or if the fallback email
-  fails, the visitor sees "not sent" as today.
-- One misleading case remains: if Studio OS stored the inquiry but its answer
-  was lost (a timeout after the commit, then a failed retry), the email says
-  "NOT recorded" although it is. So before entering a fallback inquiry by hand,
-  search Studio OS (Clients and the inquiry list) for the sender's email.
-- Observable: the subject prefix and warning line, the log line, and the
-  inquiry missing from Studio OS.
-- Recovery: the inquiry owner creates the client by hand from the email
-  (Clients → New client, source type Contact form, paste the message) after
-  the search above.
+| Forwarding result | Stored in Studio OS? | Email subject and line |
+| --- | --- | --- |
+| `not_configured` (503), `unauthorized` (401) | No: refused before anything is stored | "[Not in Studio OS]", "NOT recorded in Studio OS (<reason>). Enter this enquiry by hand." |
+| `unavailable` (timeout, network error or 5xx, after the one retry) | **Maybe**: Studio OS may have stored it and the answer was lost | "[Unconfirmed in Studio OS]", "Studio OS did not confirm this enquiry (unavailable). It may already be recorded: search Studio OS for the sender's email before entering it by hand." |
+| `invalid` (400/413), `conflict` (409), `rate_limited` (429) | No | No email; the visitor sees "not sent", as today |
 
-A related gap today: when the first attempt times out after Studio OS stored
-the inquiry and the retry gets `202 duplicate`, the website sends **no
-notification email** (duplicates are never emailed). The inquiry is in Studio
-OS, so the daily check of Today still finds it.
+### Timeouts and duplicates
 
-The patch and its tests are in the project files
-(`readiness/axivo-fallback.patch`, against Axivo commit `05777f4`; its 126
-tests, typecheck and lint pass in a scratch copy). It is not applied to the
-Axivo repository.
+The website keeps one submission id while the form is unchanged (a second
+press of Send after a failure reuses it; editing the form makes a new one), and
+Studio OS stores a submission id at most once. The server's one automatic
+retry re-sends the same bytes.
+
+| Scenario | Today | With the fallback |
+| --- | --- | --- |
+| 1st attempt stored, answer lost; retry gets `202 duplicate` | Visitor: sent. **No email** (duplicates are never emailed). In Studio OS. | Same |
+| 1st attempt stored, answer lost; retry also times out | Visitor: not sent, no email. **In Studio OS anyway.** If the visitor presses Send again without editing, the form reuses the submission id and gets `202 duplicate` (sent, no email); if they edit first, it is a new submission, shown as a repeat with the first. | Visitor: sent. "Unconfirmed" email. In Studio OS. Risk: someone enters it by hand a second time. |
+| Studio OS down, nothing stored | Visitor: not sent, no email. **Lost** unless the visitor retries. | Visitor: sent. "Unconfirmed" email. Not in Studio OS. |
+| Key mismatch or missing config | Every enquiry: not sent, no email. **All lost.** | Every enquiry: "Not in Studio OS" email; log line on each. |
+| Fallback email also fails | – | Visitor: not sent (as today). |
+| Studio OS recovers later | Nothing re-sends; there is no queue. | Same. The email is the only copy. |
+
+Safeguards against handling one enquiry twice:
+
+1. **Search first.** Before entering any fallback email by hand, search
+   Clients for the sender's email; open **New inquiries** too. If it is there,
+   decide that inquiry and file the email.
+2. **Enter by hand only as a client, never as an inquiry.** If the stored
+   inquiry turns up afterwards, its review page lists the hand-made client
+   under "Possible existing clients" (same email). Choose **Add to an existing
+   client**: no second client, only the message is added.
+3. **One owner per day** handles fallback emails, so two people do not enter
+   the same one.
+4. **Reply once.** Before replying, check the client's activity for an
+   earlier reply note.
+5. Every fallback is logged; review the log line count against the emails
+   weekly.
+
+The patch and its tests are in the project files:
+`readiness/axivo-fallback-v2.patch` (with the "unconfirmed" wording; 127
+tests, typecheck and lint pass in a scratch copy of Axivo commit `05777f4`).
+`readiness/axivo-fallback.patch` is the first version and is superseded.
+Neither is applied to the Axivo repository.
 
 **Free alerting options** (owner decision; each is a new service account):
 an uptime monitor that POSTs `{}` to `/api/inquiries` and expects `401`; or

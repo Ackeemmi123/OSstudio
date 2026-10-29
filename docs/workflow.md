@@ -108,7 +108,7 @@ build, copy and images, forms/analytics/SEO, review with the client, launch
 checklist, launch and handover. Untick what does not apply. Open questions can
 become one task. "Mark the client active" is ticked for the first project.
 
-A person may instead use "Suggest tasks from the brief" (AI, person-started;
+A person may instead use "Suggest changes from the brief" (AI, person-started;
 same conditions as the intake agent).
 
 ## 7. Delivery
