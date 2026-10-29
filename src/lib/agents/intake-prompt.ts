@@ -7,6 +7,7 @@ import { SALES_CHANNEL_LABELS, SALES_CHANNELS } from "@/lib/domain/brief";
 import { CONFIDENCE_LABELS, PROPOSAL_TARGET_LABELS } from "@/lib/domain/labels";
 import { PROPOSAL_TARGETS } from "@/lib/domain/types";
 import { intakeModelOutput, type IntakeInput } from "./intake";
+import { utf8Bytes } from "./pricing";
 
 /**
  * Recorded on every run. Change it whenever the instructions or the message
@@ -60,16 +61,7 @@ function escapeAttribute(value: string): string {
   return value.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;");
 }
 
-/**
- * The size in UTF-8 bytes of everything a call sends: instructions, message
- * and answer format. A token is never shorter than one byte, so this is an
- * upper bound on the input tokens whatever the language or script.
- */
+/** Everything a call sends (instructions, message, answer format), in bytes, for reserving its worst cost. */
 export function intakeRequestBytes(input: IntakeInput): number {
-  const encoder = new TextEncoder();
-  return (
-    encoder.encode(INTAKE_SYSTEM_PROMPT).length +
-    encoder.encode(buildIntakeMessage(input)).length +
-    encoder.encode(JSON.stringify(z.toJSONSchema(intakeModelOutput))).length
-  );
+  return utf8Bytes(INTAKE_SYSTEM_PROMPT, buildIntakeMessage(input), JSON.stringify(z.toJSONSchema(intakeModelOutput)));
 }

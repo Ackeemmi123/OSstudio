@@ -8,7 +8,7 @@ import { useStudioAction } from "@/components/providers/use-studio-action";
 import { Button } from "@/components/ui/button";
 import { RelativeTime } from "@/components/ui/relative-time";
 import { Section, Surface } from "@/components/ui/surface";
-import { isFinished, type AgentRunRecord } from "@/lib/agents/contract";
+import { intakeResultOf, isFinished, type AgentRunRecord } from "@/lib/agents/contract";
 import { formatUsd } from "@/lib/agents/pricing";
 import { currentValueFor, describeTarget, isContextFieldKey } from "@/lib/domain/intake";
 import { getLatestIntakeRun } from "@/lib/domain/insights";
@@ -92,7 +92,7 @@ function RunResult({
       </div>
     );
   }
-  const result = run.result;
+  const result = intakeResultOf(run);
   if (!result) return <p className="text-ink-muted">The analysis finished without a result.</p>;
   const asked = new Set(client.contextItems.map((item) => item.text.trim().toLowerCase()));
 

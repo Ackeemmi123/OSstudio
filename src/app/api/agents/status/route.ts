@@ -1,10 +1,10 @@
 import { connection } from "next/server";
-import { aiMonthlyBudget, intakeModel } from "@/server/config";
+import { aiMonthlyBudget, agentModel } from "@/server/config";
 
 /** Whether the intake agent can run on this server. Reports configuration only, never credentials or spend. */
 export async function GET() {
   await connection();
-  const config = intakeModel();
+  const config = agentModel();
   const budget = aiMonthlyBudget();
   const unavailable = !config.ok ? config.reason : !budget.ok ? budget.reason : null;
   return Response.json(

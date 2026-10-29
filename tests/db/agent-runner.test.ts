@@ -8,7 +8,9 @@
  */
 import { randomUUID } from "node:crypto";
 import { beforeAll, describe, expect, it, vi } from "vitest";
+import { planResultOf, type PlanResult } from "@/lib/agents/contract";
 import { INTAKE_PROMPT_VERSION } from "@/lib/agents/intake-prompt";
+import { PLAN_PROMPT_VERSION } from "@/lib/agents/plan-prompt";
 import { SupabaseIntakeStore } from "@/server/agents/supabase-intake-store";
 import { admin, asDatabaseOwner, createStudio, createUser, repositoryFor, type TestUser } from "./helpers";
 
@@ -87,6 +89,36 @@ describe("the agent runner", () => {
     const snapshot = await repositoryFor(owner, studio).load();
     expect(snapshot.proposals.find((p) => p.id === ids[0])?.status).toBe("superseded");
     expect(snapshot.activity.some((e) => e.eventType === "agent.run_started" && e.actor?.kind === "agent")).toBe(true);
+  });
+
+  it("records task suggestions as a coordination run, beside an intake run", async () => {
+    const intake = new SupabaseIntakeStore(owner.client, admin, studio);
+    const plan = new SupabaseIntakeStore(owner.client, admin, studio, { id: "coordination", taskType: "coordination.plan" });
+    const newRun = (key: string, promptVersion: string) => ({
+      clientId, idempotencyKey: key, attempt: 1, status: "running" as const, requestedBy: owner.id,
+      inputs: [], runner: "fixture", model: "test-fixture", promptVersion, blocker: null,
+    });
+    const analysis = await intake.insertRun(newRun(`runner-test:${randomUUID()}`, INTAKE_PROMPT_VERSION));
+    const suggestions = await plan.insertRun(newRun(`coordination.plan:${randomUUID()}`, PLAN_PROMPT_VERSION));
+    expect(analysis).not.toBeNull();
+    expect(suggestions).toMatchObject({ agentId: "coordination", taskType: "coordination.plan", status: "running" });
+    // One active run per client and agent.
+    expect(await plan.insertRun(newRun(`coordination.plan:${randomUUID()}`, PLAN_PROMPT_VERSION))).toBeNull();
+    expect(await plan.activeRun(clientId)).toMatchObject({ id: suggestions!.id });
+
+    const result: PlanResult = {
+      kind: "plan", projectType: "website",
+      add: [{ stage: "development", title: "Connect the booking system", reason: "The brief names one.", basedOn: "integrations" }],
+      remove: [], discarded: 0, externalResearch: false,
+    };
+    await plan.finishRun(suggestions!.id, { status: "needs_approval", result });
+    await intake.finishRun(analysis!.id, { status: "succeeded" });
+
+    const snapshot = await repositoryFor(owner, studio).load();
+    expect(planResultOf(snapshot.agentRuns.find((run) => run.id === suggestions!.id))).toEqual(result);
+    // A coordination run creates no tasks and no proposals.
+    expect(snapshot.tasks.filter((task) => task.title === "Connect the booking system")).toEqual([]);
+    expect(snapshot.proposals.filter((p) => p.runId === suggestions!.id)).toEqual([]);
   });
 
   it("cannot read or change anything else", async () => {

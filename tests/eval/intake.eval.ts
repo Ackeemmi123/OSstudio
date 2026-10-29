@@ -15,19 +15,19 @@ import { INTAKE_EVAL_CASES } from "@/lib/agents/eval/intake-cases";
 import { intakeRequestBytes } from "@/lib/agents/intake-prompt";
 import { formatUsd, spentMicros, worstCaseMicros } from "@/lib/agents/pricing";
 import { DEFAULT_INTAKE_MODEL } from "@/server/config";
-import { AnthropicIntakeModel } from "@/server/agents/anthropic-model";
-import { FixtureIntakeModel } from "@/server/agents/fixture-model";
-import type { IntakeModel } from "@/server/agents/model";
+import { AnthropicModel } from "@/server/agents/anthropic-model";
+import { FixtureModel } from "@/server/agents/fixture-model";
+import type { AgentModel } from "@/server/agents/model";
 
 vi.mock("server-only", () => ({}));
 
-function provider(): IntakeModel {
-  if (process.env.EVAL_PROVIDER !== "anthropic") return new FixtureIntakeModel();
+function provider(): AgentModel {
+  if (process.env.EVAL_PROVIDER !== "anthropic") return new FixtureModel();
   if (process.env.EVAL_SPEND_APPROVED !== "yes") throw new Error("Running the evaluation against Claude costs money. Set EVAL_SPEND_APPROVED=yes only after the spend is approved.");
   // Cloud sessions reserve ANTHROPIC_API_KEY for Claude Code, so the key may be stored under the staging name.
   const key = process.env.ANTHROPIC_API_KEY || process.env.STAGING_ANTHROPIC_API_KEY;
   if (!key) throw new Error("Neither ANTHROPIC_API_KEY nor STAGING_ANTHROPIC_API_KEY is set.");
-  return new AnthropicIntakeModel(key, process.env.STUDIO_AGENT_MODEL ?? DEFAULT_INTAKE_MODEL, 110_000);
+  return new AnthropicModel(key, process.env.STUDIO_AGENT_MODEL ?? DEFAULT_INTAKE_MODEL, 110_000);
 }
 
 describe("intake evaluation set", () => {
@@ -38,7 +38,7 @@ describe("intake evaluation set", () => {
     const report: { id: string; results: CheckResult[]; proposals: string[] }[] = [];
     for (const testCase of INTAKE_EVAL_CASES) {
       // Never start a case whose worst case could take the run past the limit.
-      const worst = worstCaseMicros(model.model ?? "", intakeRequestBytes(testCase.input), model.maxOutputTokens)!;
+      const worst = worstCaseMicros(model.model ?? "", intakeRequestBytes(testCase.input), model.maxOutputTokens.intake)!;
       if (!model.test && spent + worst > limit) throw new Error(`Stopped before ${testCase.id}: ${formatUsd(spent)} spent, and its worst case of ${formatUsd(worst)} could pass the ${formatUsd(limit)} limit.`);
       const answer = await model.analyze(testCase.input, AbortSignal.timeout(110_000));
       spent += spentMicros(answer);

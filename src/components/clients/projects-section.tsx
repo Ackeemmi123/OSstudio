@@ -6,6 +6,7 @@ import { useCanEdit, useStudio } from "@/components/providers/studio-provider";
 import { useStudioAction } from "@/components/providers/use-studio-action";
 import { Button } from "@/components/ui/button";
 import { Section, Surface } from "@/components/ui/surface";
+import { planResultOf, type AgentRunRecord } from "@/lib/agents/contract";
 import { cn } from "@/lib/cn";
 import { helsinkiDate } from "@/lib/domain/followups";
 import { openQuestionsTaskTitle, PLAYBOOKS } from "@/lib/domain/playbooks";
@@ -27,6 +28,7 @@ import {
 } from "@/lib/domain/types";
 import { useNow } from "@/lib/use-now";
 import { AssigneeLabel } from "./status";
+import { removalFor, TaskSuggestions } from "./task-suggestions";
 
 /** People a task can go to: studio members, plus names already used on tasks. */
 function useOwnerOptions(snapshot: StudioSnapshot): { name: string; userId?: string }[] {
@@ -350,11 +352,25 @@ function NewProjectForm({ client, firstProject, onDone }: { client: Client; firs
   // Starting the first project is when a lead usually becomes an active client; the person decides.
   const canActivate = firstProject && (client.status === "lead" || client.status === "onboarding");
   const [activate, setActivate] = useState(canActivate);
+  // AI suggestions for this project type, and the suggested tasks the person ticked.
+  const [plan, setPlan] = useState<AgentRunRecord | null>(null);
+  const [picked, setPicked] = useState<Set<string>>(new Set());
+  const suggestions = planResultOf(plan ?? undefined);
   const chosen = [
     ...playbook.filter((task) => !skipped.has(task.title)).map((task) => task.title),
+    ...(suggestions?.add.filter((task) => picked.has(task.title)).map((task) => task.title) ?? []),
     ...(askQuestions && openQuestions > 0 ? [openQuestionsTaskTitle(openQuestions)] : []),
   ];
-  const { run, pending } = useStudioAction();
+  const { run, pending, canEdit } = useStudioAction();
+  const suggest = useStudioAction();
+
+  async function askForSuggestions() {
+    const requested = await suggest.run((r) => r.suggestTasks(client.id, projectType), "Suggestions could not be requested.");
+    if (requested) {
+      setPlan(requested);
+      setPicked(new Set());
+    }
+  }
 
   async function create(event: FormEvent) {
     event.preventDefault();
@@ -367,12 +383,7 @@ function NewProjectForm({ client, firstProject, onDone }: { client: Client; firs
   }
 
   function toggle(title: string) {
-    setSkipped((current) => {
-      const next = new Set(current);
-      if (next.has(title)) next.delete(title);
-      else next.add(title);
-      return next;
-    });
+    setSkipped((current) => toggled(current, title));
   }
 
   return (
@@ -401,6 +412,9 @@ function NewProjectForm({ client, firstProject, onDone }: { client: Client; firs
             onChange={(event) => {
               setProjectType(event.target.value as ProjectType);
               setSkipped(new Set());
+              // Suggestions were for the other type's playbook.
+              setPlan(null);
+              setPicked(new Set());
             }}
             className="h-9 rounded-[var(--radius-control)] border border-control bg-surface px-2.5 text-sm text-ink focus:border-focus focus:ring-2 focus:ring-focus/15 focus:outline-none"
           >
@@ -420,14 +434,28 @@ function NewProjectForm({ client, firstProject, onDone }: { client: Client; firs
             <p className="text-[11.5px] font-medium tracking-[0.04em] text-ink-subtle uppercase">{PROJECT_STAGE_LABELS[stage]}</p>
             {playbook
               .filter((task) => task.stage === stage)
-              .map((task) => (
-                <label key={task.title} className="flex items-center gap-2 text-[13.5px] text-ink">
-                  <input type="checkbox" checked={!skipped.has(task.title)} onChange={() => toggle(task.title)} className="size-4 accent-[var(--color-primary)]" />
-                  {task.title}
-                </label>
-              ))}
+              .map((task) => {
+                const leaveOut = removalFor(suggestions, task.title);
+                return (
+                  <label key={task.title} className="flex items-start gap-2 text-[13.5px] text-ink">
+                    <input type="checkbox" checked={!skipped.has(task.title)} onChange={() => toggle(task.title)} className="mt-0.5 size-4 accent-[var(--color-primary)]" />
+                    <span>
+                      {task.title}
+                      {leaveOut ? <span className="block text-[12px] text-ink-subtle">Suggested to leave out: {leaveOut}</span> : null}
+                    </span>
+                  </label>
+                );
+              })}
           </div>
         ))}
+        <TaskSuggestions
+          run={plan}
+          pending={suggest.pending}
+          canAsk={canEdit}
+          picked={picked}
+          onAsk={askForSuggestions}
+          onToggle={(title) => setPicked((current) => toggled(current, title))}
+        />
       </fieldset>
       {openQuestions > 0 || canActivate ? (
         <div className="flex flex-col gap-1.5">
@@ -456,6 +484,13 @@ function NewProjectForm({ client, firstProject, onDone }: { client: Client; firs
       </div>
     </form>
   );
+}
+
+function toggled(set: ReadonlySet<string>, item: string): Set<string> {
+  const next = new Set(set);
+  if (next.has(item)) next.delete(item);
+  else next.add(item);
+  return next;
 }
 
 /** A small native select: accessible, keyboard-friendly, and quiet until used. */

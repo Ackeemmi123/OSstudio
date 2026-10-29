@@ -1,7 +1,8 @@
 /**
- * The agents the studio runs or plans to run. Only Client Intake & Research
- * has a runner ("available"); the rest are planned and the UI says so. An
- * available agent still needs a model provider configured on the server.
+ * The agents the studio runs or plans to run. Client Intake & Research and
+ * Project Coordination (task suggestions only) have runners ("available");
+ * the rest are planned and the UI says so. An available agent still needs a
+ * model provider configured on the server.
  */
 import { AGENT_LABELS } from "@/lib/domain/labels";
 import type { AgentId } from "@/lib/domain/types";
@@ -68,9 +69,9 @@ export const AGENTS: Record<AgentId, AgentDefinition> = {
   coordination: {
     id: "coordination",
     label: AGENT_LABELS.coordination,
-    purpose: "Proposes tasks, owners and next steps across projects for a person to accept.",
-    status: "planned",
+    purpose: "Suggests tasks to add to or leave out of a new project's starting list, from the brief. You tick the ones you want; nothing is created otherwise.",
+    status: "available",
     taskTypes: ["coordination.plan"],
-    allowedActions: READ_AND_PROPOSE,
+    allowedActions: ["read_context", "propose_context"],
   },
 };

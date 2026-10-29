@@ -1,8 +1,8 @@
-import { createClient } from "@supabase/supabase-js";
 import { z } from "zod";
-import { SupabaseIntakeStore } from "@/server/agents/supabase-intake-store";
+import { agentError, agentRequest, logAgentError } from "@/server/agents/agent-request";
 import { runIntakeAnalysis } from "@/server/agents/intake-runner";
-import { aiMonthlyBudget, intakeModel, intakeTimeoutMs, serverSupabase } from "@/server/config";
+import { SupabaseIntakeStore } from "@/server/agents/supabase-intake-store";
+import { intakeTimeoutMs } from "@/server/config";
 
 // One model call per request, bounded by STUDIO_AGENT_TIMEOUT_MS (at most 110 s).
 export const maxDuration = 120;
@@ -15,56 +15,22 @@ const body = z.object({ studioId: z.uuid(), clientId: z.uuid(), force: z.boolean
  * that a person reviews in the client workspace.
  */
 export async function POST(request: Request) {
-  const supabase = serverSupabase();
-  if (!supabase.ok) return json(503, supabase.reason);
-  const token = request.headers.get("authorization")?.match(/^Bearer (.+)$/)?.[1];
-  if (!token) return json(401, "Sign in to run an analysis.");
-
-  const parsed = body.safeParse(await request.json().catch(() => null));
-  if (!parsed.success) return json(400, "The request was not understood.");
-  const { studioId, clientId, force } = parsed.data;
-
-  const options = { auth: { persistSession: false, autoRefreshToken: false } };
-  const asUser = createClient(supabase.url, supabase.anonKey, { ...options, global: { headers: { Authorization: `Bearer ${token}` } } });
-  const { data: auth, error: authError } = await asUser.auth.getUser(token);
-  if (authError || !auth.user) return json(401, "Your session has ended. Sign in again to continue.");
-
-  const { data: membership, error: membershipError } = await asUser
-    .from("studio_members")
-    .select("role")
-    .eq("studio_id", studioId)
-    .eq("user_id", auth.user.id)
-    .maybeSingle();
-  if (membershipError) return json(500, "Your access could not be checked. Try again.");
-  if (!membership) return json(404, "This client does not exist, or you do not have access to it.");
-  if (membership.role === "viewer") return json(403, "Viewers cannot run analyses. Ask an owner for member access.");
-
-  const model = intakeModel();
-  if (!model.ok) return json(503, model.reason);
-  const budget = aiMonthlyBudget();
-  if (!budget.ok) return json(503, budget.reason);
-
-  const asRunner = createClient(supabase.url, supabase.serviceRoleKey, options);
+  const checked = await agentRequest(request, body, "run analyses");
+  if (!checked.ok) return checked.response;
+  const { data, userId, asUser, asRunner, model, capMicros } = checked;
   try {
     const outcome = await runIntakeAnalysis({
-      store: new SupabaseIntakeStore(asUser, asRunner, studioId),
-      model: model.model,
-      clientId,
-      requestedBy: auth.user.id,
-      force,
+      store: new SupabaseIntakeStore(asUser, asRunner, data.studioId),
+      model,
+      clientId: data.clientId,
+      requestedBy: userId,
+      force: data.force,
       timeoutMs: intakeTimeoutMs(),
-      capMicros: budget.capMicros,
+      capMicros,
     });
     return Response.json(outcome.body, { status: outcome.status });
   } catch (error) {
-    // Only the error's code and message: a database error's details can quote
-    // the row, which holds client material.
-    const { code, message } = (error ?? {}) as { code?: unknown; message?: unknown };
-    console.error("Intake analysis failed", { code: String(code ?? "unknown"), message: String(message ?? error) });
-    return json(500, "The analysis could not be recorded. Try again.");
+    logAgentError("Intake analysis failed", error);
+    return agentError(500, "The analysis could not be recorded. Try again.");
   }
-}
-
-function json(status: number, error: string) {
-  return Response.json({ error }, { status });
 }

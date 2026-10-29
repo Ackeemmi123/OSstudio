@@ -1,123 +1,15 @@
 import { describe, expect, it } from "vitest";
-import type { AgentRunRecord } from "@/lib/agents/contract";
 import type { IntakeInput } from "@/lib/agents/intake";
 import { buildNewClient } from "@/lib/domain/clients";
 import { testDeps } from "@/lib/domain/test-helpers";
-import type { Client, SourceDocument } from "@/lib/domain/types";
-import { FixtureIntakeModel } from "./fixture-model";
+import type { SourceDocument } from "@/lib/domain/types";
+import { FixtureModel } from "./fixture-model";
 import { INTAKE_PROMPT_VERSION } from "@/lib/agents/intake-prompt";
 import { costMicros, worstCaseMicros } from "@/lib/agents/pricing";
 import { buildIntakeMessage, INTAKE_SYSTEM_PROMPT, intakeRequestBytes } from "@/lib/agents/intake-prompt";
-import { buildIntakeInput, MAX_RUNS_PER_HOUR, STALE_RUN_MS, runIntakeAnalysis, type IntakeStore, type NewRun, type RunPatch } from "./intake-runner";
-import { ModelError, type IntakeModel, type ModelAnswer, type Spent } from "./model";
-
-const NOW = Date.parse("2026-10-27T12:00:00.000Z");
-
-/** An in-memory store that behaves like the database: one active run per client. */
-class MemoryStore implements IntakeStore {
-  runs: AgentRunRecord[] = [];
-  proposals: { id: string; runId: string; target: string; value: string; status: string }[] = [];
-  events: string[] = [];
-  extraRunsThisHour = 0;
-  /** The month's ledger, with the same rules as public.ai_budget_reserve and ai_budget_settle. */
-  spentMicros = 0;
-  reservedMicros = 0;
-  reservations = new Map<string, { reserved: number; charged: number | null }>();
-
-  constructor(
-    public client: Client | null,
-    public sources: SourceDocument[] = [],
-  ) {}
-
-  /** More clients in the same studio, without sources. */
-  otherClients: Client[] = [];
-
-  async loadClient(clientId: string) {
-    if (this.client && this.client.id === clientId) return { client: this.client, sources: this.sources };
-    const other = this.otherClients.find((client) => client.id === clientId);
-    return other ? { client: other, sources: [] } : null;
-  }
-  async runsFor(key: string) {
-    return this.runs.filter((run) => run.idempotencyKey === key).sort((a, b) => a.attempt - b.attempt);
-  }
-  async activeRun(clientId: string) {
-    return this.runs.find((run) => run.clientId === clientId && (run.status === "running" || run.status === "queued")) ?? null;
-  }
-  async runsSince() {
-    return this.runs.length + this.extraRunsThisHour;
-  }
-  async insertRun(run: NewRun) {
-    if (run.status === "running" && (await this.activeRun(run.clientId))) return null;
-    const stamp = new Date(NOW).toISOString();
-    const record: AgentRunRecord = {
-      id: `run-${this.runs.length + 1}`,
-      agentId: "research",
-      taskType: "research.intake",
-      clientId: run.clientId,
-      projectId: null,
-      taskId: null,
-      idempotencyKey: run.idempotencyKey,
-      attempt: run.attempt,
-      status: run.status,
-      trigger: { kind: "manual", requestedBy: run.requestedBy },
-      inputs: run.inputs,
-      outputs: [],
-      result: null,
-      blocker: run.blocker,
-      error: null,
-      runner: run.runner,
-      model: run.model,
-      promptVersion: run.promptVersion,
-      servedBy: null,
-      usage: null,
-      costMicros: null,
-      createdAt: stamp,
-      startedAt: stamp,
-      finishedAt: run.status === "running" ? null : stamp,
-    };
-    this.runs.push(record);
-    return record;
-  }
-  async finishRun(runId: string, patch: RunPatch) {
-    const run = this.runs.find((r) => r.id === runId)!;
-    Object.assign(run, { status: patch.status, result: patch.result ?? null, outputs: patch.outputs ?? [], error: patch.error ?? null, finishedAt: new Date(NOW).toISOString() });
-    if (patch.spend) Object.assign(run, { usage: patch.spend.usage, servedBy: patch.spend.servedBy, costMicros: patch.spend.costMicros });
-    return run;
-  }
-  async reserveBudget(runId: string, amount: number, cap: number) {
-    if (this.runs.find((r) => r.id === runId)?.status !== "running") throw new Error("Only a running agent run can reserve budget.");
-    if (this.reservations.has(runId)) return { ok: true as const };
-    if (this.spentMicros + this.reservedMicros >= cap || this.spentMicros + this.reservedMicros + amount > cap) {
-      return { ok: false as const, spentMicros: this.spentMicros, reservedMicros: this.reservedMicros };
-    }
-    this.reservations.set(runId, { reserved: amount, charged: null });
-    this.reservedMicros += amount;
-    return { ok: true as const };
-  }
-  async settleBudget(runId: string, charged: number | null) {
-    const reservation = this.reservations.get(runId);
-    if (!reservation || reservation.charged !== null) return;
-    reservation.charged = charged ?? reservation.reserved;
-    this.reservedMicros -= reservation.reserved;
-    this.spentMicros += reservation.charged;
-  }
-  async supersedePending(clientId: string) {
-    for (const proposal of this.proposals) {
-      const run = this.runs.find((r) => r.id === proposal.runId);
-      if (run?.clientId === clientId && proposal.status === "pending") proposal.status = "superseded";
-    }
-  }
-  async insertProposals(runId: string, _clientId: string, drafts: { target: string; value: string }[]) {
-    return drafts.map((draft) => {
-      const id = `proposal-${this.proposals.length + 1}`;
-      this.proposals.push({ id, runId, target: draft.target, value: draft.value, status: "pending" });
-      return id;
-    });
-  }
-  async recordEvent(_clientId: string, eventType: string) {
-    this.events.push(eventType);
-  }
-}
+import { buildIntakeInput, MAX_RUNS_PER_HOUR, STALE_RUN_MS, runIntakeAnalysis } from "./intake-runner";
+import { ModelError, type AgentModel, type ModelAnswer, type Spent } from "./model";
+import { MemoryStore, NOW } from "./testing/memory-store";
 
 function makeClient(initialNotes: string | null = "Budget: 40 000 SEK\nDeadline: before summer") {
   return buildNewClient({ name: "Lumen Yoga", sourceType: "email", initialNotes: initialNotes ?? undefined }, testDeps()).client;
@@ -130,7 +22,7 @@ function source(content: string, id = "s1"): SourceDocument {
 function run(store: MemoryStore, overrides: Partial<Parameters<typeof runIntakeAnalysis>[0]> = {}) {
   return runIntakeAnalysis({
     store,
-    model: new FixtureIntakeModel(),
+    model: new FixtureModel(),
     clientId: store.client?.id ?? "missing",
     requestedBy: "user-1",
     timeoutMs: 5_000,
@@ -143,11 +35,11 @@ function run(store: MemoryStore, overrides: Partial<Parameters<typeof runIntakeA
 const USAGE = { inputTokens: 3_000, outputTokens: 4_000, cacheReadTokens: 0, cacheWriteTokens: 0 };
 
 /** A model priced like Claude Opus 5.5 whose answers the test decides. */
-class CountingModel implements IntakeModel {
+class CountingModel implements AgentModel {
   readonly runner = "counting";
   readonly model = "claude-opus-5-5";
   readonly test = true;
-  readonly maxOutputTokens = 16_000;
+  readonly maxOutputTokens = { intake: 16_000, plan: 4_000 };
   calls = 0;
   constructor(
     private readonly behaviour: (input: IntakeInput, signal: AbortSignal) => Promise<unknown>,
@@ -156,6 +48,9 @@ class CountingModel implements IntakeModel {
   async analyze(input: IntakeInput, signal: AbortSignal): Promise<ModelAnswer> {
     this.calls++;
     return { output: await this.behaviour(input, signal), ...this.spent };
+  }
+  async suggestTasks(): Promise<ModelAnswer> {
+    throw new Error("Not used by the intake runner.");
   }
 }
 
@@ -168,7 +63,7 @@ async function until(condition: () => boolean, timeoutMs = 2_000) {
   }
 }
 
-const answer = (input: IntakeInput, signal: AbortSignal) => new FixtureIntakeModel().analyze(input, signal).then((a) => a.output);
+const answer = (input: IntakeInput, signal: AbortSignal) => new FixtureModel().analyze(input, signal).then((a) => a.output);
 
 describe("runIntakeAnalysis", () => {
   it("stores proposals with evidence for review and never changes the brief itself", async () => {

@@ -229,7 +229,7 @@ function AiSpendLine({ spend }: { spend: AiSpend | "error" }) {
   return (
     <p className="mb-3 text-[13px] text-ink-muted" data-testid="ai-spend">
       AI spend in {month}: <span className="text-ink tabular-nums">{formatUsd(spend.spentMicros)}</span> of {formatUsd(spend.capMicros)}
-      {spend.reservedMicros > 0 ? ` (${formatUsd(spend.reservedMicros)} held for analyses in progress)` : ""}.
+      {spend.reservedMicros > 0 ? ` (${formatUsd(spend.reservedMicros)} held for requests in progress)` : ""}.
       {used >= spend.capMicros ? " The limit is reached; agents will not run until next month." : " Estimated from list prices; agents stop when the limit is reached."}
     </p>
   );

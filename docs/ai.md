@@ -67,14 +67,19 @@ current brief (without the email address) and the source material. Nothing
 else: no tools, no database access, no web. Anthropic processes this as a
 provider; copies it holds are outside Studio OS's anonymisation.
 
-Server logs for a failed analysis record only an error code and message, never
+Task suggestions (the coordination agent) are sent less: the project type, the
+playbook's task titles and the brief's values, without the company or contact
+name, email, website or store address, and without any source material.
+
+Server logs for a failed run record only an error code and message, never
 database details, which can quote client material.
 
 ## Retention
 
 Client anonymisation (the client-retention work) clears what AI stores about a
 client: `agent_runs.result`, `inputs`, `outputs`, `trigger`, `blocker` and
-`error`, and deletes the client's `agent_proposals`. Usage and cost columns,
+`error` on every run for the client, whichever agent made it, and deletes the
+client's `agent_proposals`. Usage and cost columns,
 the prompt version and the budget ledger hold no personal data and are kept.
 Agent events are recorded with the agent as actor, so they never count as
 client activity; a person accepting a proposal does.
@@ -109,3 +114,23 @@ together with "found nothing about this in the material", and "Ask the client"
 adds it to the client's open questions when the step is saved. Analyses made
 earlier still show their questions in the client workspace and on the review
 step.
+
+## Task suggestions for a new project
+
+In the start-project form, "Suggest changes from the brief" asks the
+coordination agent (`POST /api/agents/plan`, `src/server/agents/plan-runner.ts`)
+how this client's starting tasks should differ from the playbook. Owners and
+members can ask; viewers cannot.
+
+- Suggested tasks appear unticked, each with the brief field it is based on and
+  a one-line reason. Suggestions to leave out a usual task appear on that task,
+  which stays ticked. Nothing is created until the person creates the project,
+  and only what they ticked.
+- The answer is checked before it is shown (`src/lib/agents/plan.ts`): a task
+  must be based on a brief value the agent was given, must not repeat a
+  playbook task, and must not name the client or contact; a task to leave out
+  must be one of the playbook's own. At most 6 additions and 4 removals.
+- The run is stored as an agent run (`coordination.plan`) with its cost, under
+  the same monthly cap as intake. Asking again with the same brief and project
+  type reuses the stored answer at no cost.
+- An empty brief is refused before any model call.

@@ -1,13 +1,13 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { AgentRunRecord } from "@/lib/agents/contract";
+import type { AgentRunRecord, AgentTaskType } from "@/lib/agents/contract";
+import type { AgentId } from "@/lib/domain/types";
 import { toAgentRun, toSnapshot, type StudioPayload } from "@/lib/data/supabase-rows";
 import type { BudgetReservation, IntakeStore, NewRun, RunPatch } from "./intake-runner";
 
-const AGENT_ACTOR = { kind: "agent", agentId: "research" } as const;
-
 /**
- * Storage for the intake runner.
+ * Storage for the agent runners: intake by default, or another agent and
+ * task type (task suggestions are coordination.plan).
  *
  * Reads use the requesting person's session, so row-level security decides
  * what the agent may see. Writes use the service role, restricted here to
@@ -19,6 +19,7 @@ export class SupabaseIntakeStore implements IntakeStore {
     private readonly asUser: SupabaseClient,
     private readonly asRunner: SupabaseClient,
     private readonly studioId: string,
+    private readonly agent: { id: AgentId; taskType: AgentTaskType } = { id: "research", taskType: "research.intake" },
   ) {}
 
   async loadClient(clientId: string) {
@@ -61,7 +62,7 @@ export class SupabaseIntakeStore implements IntakeStore {
       .select("*")
       .eq("studio_id", this.studioId)
       .eq("client_id", clientId)
-      .eq("agent", "research")
+      .eq("agent", this.agent.id)
       .in("status", ["queued", "running"])
       .maybeSingle();
     if (error) throw error;
@@ -85,8 +86,8 @@ export class SupabaseIntakeStore implements IntakeStore {
       .insert({
         studio_id: this.studioId,
         client_id: run.clientId,
-        agent: "research",
-        task_type: "research.intake",
+        agent: this.agent.id,
+        task_type: this.agent.taskType,
         idempotency_key: run.idempotencyKey,
         attempt: run.attempt,
         status: run.status,
@@ -163,7 +164,7 @@ export class SupabaseIntakeStore implements IntakeStore {
       entity_id: clientId,
       event_type: eventType,
       description,
-      actor: AGENT_ACTOR,
+      actor: { kind: "agent", agentId: this.agent.id },
     });
     if (error) throw error;
   }

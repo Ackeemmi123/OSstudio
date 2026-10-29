@@ -1,7 +1,7 @@
 import "server-only";
-import { AnthropicIntakeModel } from "./agents/anthropic-model";
-import { FixtureIntakeModel } from "./agents/fixture-model";
-import type { IntakeModel } from "./agents/model";
+import { AnthropicModel } from "./agents/anthropic-model";
+import { FixtureModel } from "./agents/fixture-model";
+import type { AgentModel } from "./agents/model";
 
 /**
  * Server-only configuration. Privileged values (the service-role key, model
@@ -47,7 +47,7 @@ export function isLocalSupabase(url: string): boolean {
 
 export const DEFAULT_INTAKE_MODEL = "claude-opus-5-5";
 
-export type IntakeModelConfig = { ok: true; model: IntakeModel } | { ok: false; reason: string };
+export type AgentModelConfig = { ok: true; model: AgentModel } | { ok: false; reason: string };
 
 /**
  * Which provider runs the intake agent:
@@ -56,7 +56,7 @@ export type IntakeModelConfig = { ok: true; model: IntakeModel } | { ok: false; 
  * - STUDIO_AGENT_PROVIDER=fixture, a deterministic test provider without AI,
  *   which additionally requires STUDIO_ALLOW_TEST_PROVIDER=1.
  */
-export function intakeModel(env: Env = process.env): IntakeModelConfig {
+export function agentModel(env: Env = process.env): AgentModelConfig {
   const supabase = serverSupabase(env);
   if (!supabase.ok) return supabase;
   const apiKey = clean(env.ANTHROPIC_API_KEY);
@@ -64,13 +64,13 @@ export function intakeModel(env: Env = process.env): IntakeModelConfig {
 
   if (provider === "anthropic") {
     if (!apiKey) return { ok: false, reason: "ANTHROPIC_API_KEY is not set on the server." };
-    return { ok: true, model: new AnthropicIntakeModel(apiKey, clean(env.STUDIO_AGENT_MODEL) ?? DEFAULT_INTAKE_MODEL, intakeTimeoutMs(env)) };
+    return { ok: true, model: new AnthropicModel(apiKey, clean(env.STUDIO_AGENT_MODEL) ?? DEFAULT_INTAKE_MODEL, intakeTimeoutMs(env)) };
   }
   if (provider === "fixture") {
     if (env.STUDIO_ALLOW_TEST_PROVIDER !== "1") return { ok: false, reason: "The test provider is configured but not allowed (STUDIO_ALLOW_TEST_PROVIDER is not 1)." };
     // A provider without AI must never answer for a shared environment.
     if (!isLocalSupabase(supabase.url)) return { ok: false, reason: "The test provider only runs against a local Supabase stack." };
-    return { ok: true, model: new FixtureIntakeModel() };
+    return { ok: true, model: new FixtureModel() };
   }
   if (provider) return { ok: false, reason: `Unknown STUDIO_AGENT_PROVIDER "${provider}".` };
   return { ok: false, reason: "No AI model is configured on the server. Set ANTHROPIC_API_KEY to enable client analysis." };

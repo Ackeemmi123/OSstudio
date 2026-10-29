@@ -4,14 +4,14 @@
  * question, so the gap and the way to close it sit together.
  */
 import type { ProposalTarget } from "@/lib/domain/types";
-import type { AgentRunRecord } from "./contract";
+import { intakeResultOf, type AgentRunRecord } from "./contract";
 
 /**
  * The analysis's questions for one brief field that are not already open
  * questions (compared ignoring case and surrounding space).
  */
 export function questionsFor(run: AgentRunRecord | undefined, target: ProposalTarget, alreadyAsked: readonly string[]): string[] {
-  const result = run?.result;
+  const result = intakeResultOf(run);
   if (!result?.questionTargets) return [];
   const asked = new Set(alreadyAsked.map(normalize));
   return result.questions.filter((question, i) => result.questionTargets?.[i] === target && !asked.has(normalize(question)));
@@ -19,7 +19,7 @@ export function questionsFor(run: AgentRunRecord | undefined, target: ProposalTa
 
 /** Whether the analysis found nothing about this field in the material. */
 export function reportedMissing(run: AgentRunRecord | undefined, target: ProposalTarget): boolean {
-  return Boolean(run?.result?.missing.some((item) => item.target === target));
+  return Boolean(intakeResultOf(run)?.missing.some((item) => item.target === target));
 }
 
 function normalize(text: string) {
