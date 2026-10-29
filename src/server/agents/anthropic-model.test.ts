@@ -21,7 +21,7 @@ describe("what an Anthropic call used", () => {
           { type: "fallback_message", model: "claude-opus-4-8", ...reported(5_000, 3_000) },
         ],
       },
-    } as Parameters<typeof toSpent>[0]);
+    });
     expect(spent.usage).toEqual({ inputTokens: 10_000, outputTokens: 4_200, cacheReadTokens: 0, cacheWriteTokens: 0 });
     expect(spent.servedBy).toBe("claude-opus-4-8");
     expect(spentMicros(spent)).toBe(5_000 * 4 + 1_200 * 20 + 5_000 * 5 + 3_000 * 25);

@@ -74,7 +74,7 @@ interface ReportedUsage {
  * produced the answer; after a fallback, `usage.iterations` lists every
  * attempt, including the one that declined, so the cost is taken from there.
  */
-export function toSpent(response: { model?: string | null; usage: ReportedUsage & { iterations?: ReadonlyArray<ReportedUsage & { model?: string | null }> | null } }): Spent {
+export function toSpent(response: { model?: string | null; usage: ReportedUsage & { iterations?: ReadonlyArray<ReportedUsage & { type?: string; model?: string | null }> | null } }): Spent {
   const servedBy = response.model ?? null;
   const iterations = response.usage.iterations ?? [];
   if (!iterations.length) return { usage: toUsage(response.usage), servedBy };
