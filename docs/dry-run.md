@@ -31,8 +31,8 @@ address or email anywhere in the dry run, including in notes.
 | **Open in email** / **Draft message** on a client | Opens your mail app with the client's address | You may open the draft; **never press Send**. The test addresses are `@example.com` (reserved, undeliverable), but a hand-typed address would be real. |
 | Route B, the Axivo **preview** form | With Resend configured, it emails the Axivo inbox (a real notification, internal) and leaves the test details in Resend's logs | Only if you decide that is fine. **Never use the live axivo.fi form**: it is not connected to Studio OS and emails the real inbox. |
 | Typing names or notes | Real personal data in staging | Only the invented names below; no real people, phone numbers or logins, also not your own clients. Owners of tasks may be studio members (internal). |
-| `STAGING_APP_URL` | Pointing at the wrong deployment | Must be https://studio-os-staging-kappa.vercel.app. The script refuses axivo.fi. There is no production Studio OS to hit by mistake. |
-| Rate limits | 5 stored inquiries per IP address per hour | The three fixture commands store two. Do not also run the full `staging:inquiry` check in the same hour. |
+| `STAGING_APP_URL` | Pointing at the wrong deployment | Must be the staging domain of the Vercel project `studio-os-staging` (in the team's password manager). The script refuses axivo.fi. There is no production Studio OS to hit by mistake. |
+| Rate limits | 5 stored inquiries per IP address per hour | The three fixture commands store two. `dry-run-customer` always sends the same documentation address (`192.0.2.50`), so everyone running it shares that limit: one person runs step 1 A per hour. Do not also run the full `staging:inquiry` check in the same hour. |
 | Cleanup option 3 (anonymise) | Irreversible | Only with the owner's explicit go-ahead, staging only. |
 
 Nothing in steps 1–11 changes production, sends an email from Studio OS (it
@@ -40,8 +40,8 @@ cannot send any), or deletes anything.
 
 ## Before you start (owner, 10 minutes)
 
-1. **Where:** the staging app, https://studio-os-staging-kappa.vercel.app.
-   Never the Axivo production site or a production Studio OS.
+1. **Where:** the staging app (the `studio-os-staging` domain from the team's
+   password manager). Never the Axivo production site or a production Studio OS.
 2. **Who:** sign in with an account that is an **owner or member of "Axivo
    (staging)"**, the studio that receives staging inquiries
    (`INQUIRY_STUDIO_ID`). The automated smoke-test accounts are not members of
@@ -62,28 +62,16 @@ note it and continue with the fallback in the step.
 
 ### 1. The inquiry arrives
 
-**A. Signed test request (recommended).** The `--fixture` option is on the
-branch `claude/project-thread-tlcewf` until it is merged. The script uses only
-Node's built-in modules, so it runs from a second copy of the folder without
-`npm install`, and your usual folder stays exactly as it is. In Terminal, one
-line at a time:
+**A. Signed test request (recommended).** From an up-to-date checkout of
+`main`, one line at a time:
 
 ```bash
-cd ~/osstudio                      # your usual folder; adjust the path
-git fetch origin claude/project-thread-tlcewf
-git worktree add ../osstudio-dryrun origin/claude/project-thread-tlcewf
-cp .env.inquiry.local ../osstudio-dryrun/
-cd ../osstudio-dryrun
-node scripts/staging-inquiry.mjs --fixture dry-run-customer
-node scripts/staging-inquiry.mjs --fixture dry-run-minimal
-node scripts/staging-inquiry.mjs --fixture empty-optional-strings
+npm run staging:inquiry -- --fixture dry-run-customer
+npm run staging:inquiry -- --fixture dry-run-minimal
+npm run staging:inquiry -- --fixture empty-optional-strings
 ```
 
-`git worktree add` makes a separate folder and does not touch your branch,
-uncommitted changes or settings file. Afterwards: `cd ../osstudio` and
-`git worktree remove ../osstudio-dryrun` (this also removes the copied
-settings file). `STAGING_APP_URL` in `.env.inquiry.local` must be the staging
-domain above.
+`STAGING_APP_URL` in `.env.inquiry.local` must be the staging domain above.
 
 Expected: `Reached Studio OS, and website inquiries are configured.`, then
 `PASS  Test inquiry "dry-run-customer" is confirmed (202)` with a reference

@@ -123,7 +123,7 @@ email address on record.
 | ------- | --------- | ------- |
 | Access (what do you hold) | Open the client: details, brief, source material, projects. Copy into a reply. There is no export button. | Mailbox, documents, accounting |
 | Correction | Edit the details or brief value (history is kept) | Same in other tools |
-| Erasure | Owner: check for a retention hold, then in the Supabase SQL editor `select private.anonymise_client('<id>', true);` for a client, or `select private.anonymise_inquiry('<id>', true);` for an inquiry that never became a client. Then search for the name and email in other clients' notes ([retention.md](retention.md#what-studio-os-cannot-anonymise-or-delete-by-itself)). Irreversible. | Delete the inbox emails, documents; accounting records follow their legal retention |
+| Erasure | Owner: check for a retention hold first. `anonymise_client` refuses a client on hold, even with `true`. A hold usually means the data must be kept (a dispute, a legal claim): decide with the adviser whether erasure still applies, and tell the requester if it does not. Only then release the hold on the client page and, in the Supabase SQL editor, `select private.anonymise_client('<id>', true);` for a client, or `select private.anonymise_inquiry('<id>', true);` for an inquiry that never became a client. Then search for the name and email in other clients' notes ([retention.md](retention.md#what-studio-os-cannot-anonymise-or-delete-by-itself)). Irreversible. | Delete the inbox emails, documents; accounting records follow their legal retention |
 
 Keep a short log of each request (date, type, what was done), outside Studio
 OS and without the personal data itself.

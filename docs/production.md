@@ -1,8 +1,9 @@
 # Production: setup, gate and runbook (draft)
 
 **Status on 29 Oct 2026: there is no production Studio OS.** Only staging
-exists (Vercel project `studio-os-staging`, Supabase project
-`szibblhsntvsefennmzq`), and it must hold test data only. The Axivo website's
+exists (Vercel project `studio-os-staging` and its own Supabase project; the
+addresses are in the team's password manager, not in this public repository),
+and it must hold test data only. The Axivo website's
 production deployment does not forward to Studio OS. Nothing in this document
 has been set up; it is the plan and the checklist for doing so.
 
@@ -17,8 +18,8 @@ Each item below is marked:
 
 | | Local | Staging | Production |
 | --- | --- | --- | --- |
-| App | `npm run dev` / local stack | Vercel `studio-os-staging`, https://studio-os-staging-kappa.vercel.app | Not created |
-| Database | Docker Supabase | Supabase `szibblhsntvsefennmzq` | Not created |
+| App | `npm run dev` / local stack | Vercel `studio-os-staging` (its staging domain) | Not created |
+| Database | Docker Supabase | The staging Supabase project | Not created |
 | Data | Invented | **Test data only** | Real clients |
 | Inquiries from | `tests/fixtures/inquiries`, e2e tests | `npm run staging:inquiry`; Axivo **Preview** (if its variables are set) | Axivo production site (not connected) |
 | AI | Test provider, no API calls | Real Anthropic key, person-started only, test data | Off at launch |
@@ -39,7 +40,7 @@ values, never the staging ones.
 | 5 | Backups on a plan that has them, and a documented **restore test** | Owner action | See [Restore test](#restore-test). Not done for staging either. |
 | 6 | Access control: no public sign-up, owners named, two owners | Verified (staging) for sign-up off (staging:check 29 Oct); Owner action for production | `npm run staging:check` style check against production before launch. |
 | 7 | Account recovery | Not built in the app | No password reset or invite flow. Recovery = dashboard (Authentication → Users → send recovery / set password). Needs two people with dashboard access. |
-| 8 | Secret separation and rotation | Verified (code); Owner action for values | No secrets in git (scan 29 Oct: only CI canaries and test placeholders); CI fails if a server secret reaches the browser bundle (`scripts/check-bundle-secrets.mjs`). New production values for `SUPABASE_SERVICE_ROLE_KEY`, `INQUIRY_SIGNING_KEYS`, `INQUIRY_HASH_KEY`. The staging bypass token that was exposed on 28 Oct should be rotated. |
+| 8 | Secret separation and rotation | Verified (code); Owner action for values | No secrets in git (scan 29 Oct: only CI canaries and test placeholders); CI fails if a server secret reaches the browser bundle (`scripts/check-bundle-secrets.mjs`). New production values for `SUPABASE_SERVICE_ROLE_KEY`, `INQUIRY_SIGNING_KEYS`, `INQUIRY_HASH_KEY`. Rotate every staging secret and bypass token that has been shared outside a password manager. |
 | 9 | Monitoring and alert for failed inquiry delivery | Not built | Today a failed handoff alerts no one ([below](#inquiry-handoff-failure-fallback)). |
 | 10 | Safe recovery path when the handoff fails | Not built (proposal ready) | Fallback patch for the Axivo site, not applied. |
 | 11 | Retention jobs scheduled and checked | Verified (staging) by the owner 29 Oct (migrations applied, cron jobs listed); Verified (code) `tests/db/*retention*.test.ts` | Repeat the staging checks in production. |
@@ -49,8 +50,10 @@ values, never the staging ones.
 | 15 | AI on real client data | Off at launch (decision) | [Conditions](#ai-on-real-client-data). |
 | 16 | Daily inquiry owner and backup named | Owner action | [operations.md](operations.md#roles). |
 
-**Do not call production ready until items 1–5, 7–10, 14 and 16 are done
-and checked.** A green build or a passing staging test is not that check.
+**Do not call production ready until items 1–11, 14 and 16 are done
+and checked.** Items 6 and 11 must be checked on production itself, not only
+on staging: sign-up off and two named owners, and both retention jobs listed
+in `cron.job`. A green build or a passing staging test is not that check.
 
 ## Setup order (when approved)
 
@@ -204,7 +207,8 @@ Owner actions before real clients:
 - [ ] Privacy notice updated and published (adviser)
 - [ ] Backups on and one restore test written down
 - [ ] Two owners with dashboard access and 2FA; recovery tested
+- [ ] Production checked: sign-up off, owners named, `inquiry-retention` and `client-retention` in `cron.job`
 - [ ] Inquiry owner and backup named; daily check started
 - [ ] Decision on the handoff fallback and alerting (patch ready)
-- [ ] Rotate the staging bypass token exposed on 28 Oct
+- [ ] Staging secrets and bypass tokens rotated where they were shared outside a password manager
 - [ ] Dry run completed ([dry-run.md](dry-run.md)) and its notes reviewed
