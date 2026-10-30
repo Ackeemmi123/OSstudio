@@ -7,6 +7,7 @@
  */
 
 import type { AgentRunRecord } from "@/lib/agents/contract";
+import type { ImageProvenance } from "@/lib/site-assets/limits";
 import type { SiteSpec } from "@/lib/site-spec/schema";
 
 export type ISODateString = string;
@@ -315,7 +316,11 @@ export type ActivityEventType =
   | "site_spec.updated"
   | "site_spec.submitted"
   | "site_spec.changes_requested"
-  | "site_spec.approved";
+  | "site_spec.approved"
+  | "site_asset.uploaded"
+  | "site_asset.approved"
+  | "site_asset.rejected"
+  | "site_asset.deleted";
 
 export interface ActivityEvent {
   id: string;
@@ -550,6 +555,36 @@ export interface SiteSpecRecord {
   approvedBy: Actor | null;
   approvedAt: ISODateString | null;
   /** Why a reviewer sent it back, when they did. */
+  reviewNote: string | null;
+  createdAt: ISODateString;
+  updatedAt: ISODateString;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Website images                                                             */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * uploading: begun, file not checked yet (never readable). pending_review:
+ * checked by the server, waiting for a person's rights decision. approved,
+ * rejected: decided. deleted: hidden, the file is purged within a day.
+ */
+export const SITE_ASSET_STATUSES = ["uploading", "pending_review", "approved", "rejected", "deleted"] as const;
+export type SiteAssetStatus = (typeof SITE_ASSET_STATUSES)[number];
+
+/** One stored image of a client (src/lib/site-assets), with its provenance and rights decision. */
+export interface SiteAssetRecord extends ImageProvenance {
+  id: string;
+  clientId: string;
+  storagePath: string;
+  mimeType: string;
+  byteSize: number;
+  width: number;
+  height: number;
+  status: SiteAssetStatus;
+  uploadedBy: Actor;
+  reviewedBy: Actor | null;
+  reviewedAt: ISODateString | null;
   reviewNote: string | null;
   createdAt: ISODateString;
   updatedAt: ISODateString;

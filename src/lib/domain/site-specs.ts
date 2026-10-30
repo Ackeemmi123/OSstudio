@@ -9,7 +9,7 @@
  * approve it.
  */
 import { startingSpec } from "@/lib/site-spec/from-brief";
-import { approvalBlockers, parseSiteSpec, type SpecIssue } from "@/lib/site-spec/validate";
+import { approvalBlockers, parseSiteSpec, type ImageFileStatus, type SpecIssue } from "@/lib/site-spec/validate";
 import { clean, DomainError, type DomainDeps } from "./clients";
 import { WEBSITE_PROJECT_TYPES, type ActivityEvent, type Client, type Project, type SiteSpecRecord } from "./types";
 
@@ -49,8 +49,8 @@ function specEvent(record: SiteSpecRecord, eventType: ActivityEvent["eventType"]
   return { id: deps.createId(), entityType: "project", entityId: record.projectId, eventType, description, actor: deps.actor, timestamp: now };
 }
 
-function refuseBlocked(spec: SiteSpecRecord["spec"], client: Client, what: string) {
-  const blockers = approvalBlockers(spec, client);
+function refuseBlocked(spec: SiteSpecRecord["spec"], client: Client, what: string, files: readonly ImageFileStatus[]) {
+  const blockers = approvalBlockers(spec, client, files);
   if (blockers.length) {
     throw new DomainError(`${blockers.length === 1 ? "1 thing needs" : `${blockers.length} things need`} fixing before it can be ${what}: ${blockers[0].message}`);
   }
@@ -111,11 +111,11 @@ export function saveSiteSpecDraft(record: SiteSpecRecord, value: unknown, deps: 
   return { record: next, event: specEvent(next, "site_spec.updated", `Edited website spec v${record.version}`, deps, now) };
 }
 
-/** Sends the draft for approval. Only a version with nothing blocking approval can be submitted. */
-export function submitSiteSpec(record: SiteSpecRecord, client: Client, deps: DomainDeps): { record: SiteSpecRecord; event: ActivityEvent } {
+/** Sends the draft for approval. Only a version with nothing blocking approval can be submitted. `files`: the client's stored images. */
+export function submitSiteSpec(record: SiteSpecRecord, client: Client, deps: DomainDeps, files: readonly ImageFileStatus[] = []): { record: SiteSpecRecord; event: ActivityEvent } {
   requirePerson(deps, "submit a website spec");
   if (record.status !== "draft") throw new DomainError("Only a draft can be submitted for approval.");
-  refuseBlocked(record.spec, client, "submitted");
+  refuseBlocked(record.spec, client, "submitted", files);
   const now = deps.now();
   const next: SiteSpecRecord = { ...record, status: "in_review", submittedBy: deps.actor, submittedAt: now, reviewNote: null, updatedAt: now };
   return { record: next, event: specEvent(next, "site_spec.submitted", `Submitted website spec v${record.version} for approval`, deps, now) };
@@ -142,11 +142,12 @@ export function approveSiteSpec(
   client: Client,
   current: SiteSpecRecord | null,
   deps: DomainDeps,
+  files: readonly ImageFileStatus[] = [],
 ): { record: SiteSpecRecord; superseded: SiteSpecRecord | null; event: ActivityEvent } {
   requirePerson(deps, "approve a website spec");
   if (record.status !== "in_review") throw new DomainError("Only a version waiting for approval can be approved.");
   if (current && (current.projectId !== record.projectId || current.status !== "approved")) throw new DomainError("The approved version to replace is not this project's.");
-  refuseBlocked(record.spec, client, "approved");
+  refuseBlocked(record.spec, client, "approved", files);
   const now = deps.now();
   const next: SiteSpecRecord = { ...record, status: "approved", approvedBy: deps.actor, approvedAt: now, updatedAt: now };
   const superseded: SiteSpecRecord | null = current ? { ...current, status: "superseded", updatedAt: now } : null;

@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { setContextField } from "@/lib/domain/clients";
 import { testDeps } from "@/lib/domain/test-helpers";
 import { SECTION_KINDS } from "./catalog";
-import { freshId, move, newForm, newItem, newPage, newPlaceholderImage, newSection, refreshFromBrief, slugify } from "./edit";
+import { attachFile, freshId, move, newForm, newImageFromFile, newItem, newPage, newPlaceholderImage, newSection, refreshFromBrief, slugify } from "./edit";
 import { briefClient, completeSpec } from "./test-helpers";
 import { approvalBlockers, parseSiteSpec } from "./validate";
 
@@ -66,5 +66,20 @@ describe("editing helpers", () => {
   it("moves entries without leaving the list", () => {
     expect(move([1, 2, 3], 0, 1)).toEqual([2, 1, 3]);
     expect(move([1, 2, 3], 0, -1)).toEqual([1, 2, 3]);
+  });
+});
+
+describe("stored images in a spec", () => {
+  it("replaces a placeholder with a stored image, keeping the alternative text, and the spec stays valid", () => {
+    const spec = completeSpec(briefClient());
+    const placeholder = newPlaceholderImage(spec, "Shop front");
+    placeholder.alt.en = "The bakery's shop front";
+    spec.assets.push(placeholder);
+    const file = { id: "5b2d8c41-0e3f-4a5b-9c6d-7e8f9a0b1c2d", description: "Front of the shop", rightsBasis: "studio_created" as const };
+    attachFile(spec, placeholder.id, file);
+    expect(spec.assets[0]).toMatchObject({ fileId: file.id, origin: "studio_photo", description: "Shop front", alt: { en: "The bakery's shop front" } });
+    spec.assets.push(newImageFromFile(spec, { ...file, rightsBasis: "licensed" }));
+    expect(spec.assets[1]).toMatchObject({ origin: "licensed", description: "Front of the shop", alt: {} });
+    expect(parseSiteSpec(spec).ok).toBe(true);
   });
 });

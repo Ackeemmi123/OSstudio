@@ -113,7 +113,8 @@ of the site to build (pages, sections, copy, brand, search texts), versioned
 and approved by a person, built only on confirmed brief values. Signed-in
 workspaces only; no AI or publishing yet. Any saved version can be previewed
 as a working website inside Studio OS. See [docs/site-spec.md](docs/site-spec.md)
-and [docs/site-preview.md](docs/site-preview.md).
+and [docs/site-preview.md](docs/site-preview.md). Images are uploaded per client,
+checked on the server, and approved for use by a person ([docs/site-images.md](docs/site-images.md)).
 
 ## Not built
 

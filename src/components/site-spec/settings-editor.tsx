@@ -1,8 +1,7 @@
 "use client";
 
-import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Field, Select, TextInput } from "@/components/ui/field";
+import { Field, Select } from "@/components/ui/field";
 import {
   FORM_FIELD_LABELS,
   FORM_FIELDS,
@@ -14,16 +13,16 @@ import {
   SITE_LOCALES,
   STRUCTURED_DATA_TYPES,
 } from "@/lib/site-spec/catalog";
-import { newForm, newPlaceholderImage } from "@/lib/site-spec/edit";
+import { newForm } from "@/lib/site-spec/edit";
 import type { SiteSpec } from "@/lib/site-spec/schema";
+import { ImagesEditor, type ImageLibrary } from "./images-editor";
 import { LocalizedInput } from "./localized-input";
 import type { SpecEditing } from "./site-spec-editor";
 
-/** Languages, site-wide search texts, images, forms and integrations. */
-export function SettingsEditor({ spec, editing }: { spec: SiteSpec; editing: SpecEditing }) {
+/** Languages, site-wide search texts, images (with the client's image library), forms and integrations. */
+export function SettingsEditor({ spec, clientId, editing, library }: { spec: SiteSpec; clientId: string; editing: SpecEditing; library: ImageLibrary }) {
   const { editable, change } = editing;
   const locales = spec.locales.available;
-  const [imageDescription, setImageDescription] = useState("");
 
   return (
     <div className="flex flex-col gap-6">
@@ -78,39 +77,7 @@ export function SettingsEditor({ spec, editing }: { spec: SiteSpec; editing: Spe
 
       <fieldset className="flex flex-col gap-3">
         <legend className="mb-2 text-[13px] font-medium text-ink">Images</legend>
-        <p className="text-[12.5px] text-ink-subtle">
-          Files cannot be uploaded yet. Describe each image the site needs; it stays a placeholder, and blocks approval, until image storage is added.
-        </p>
-        {spec.assets.map((asset, a) => (
-          <div key={asset.id} className="flex flex-col gap-3 rounded-[var(--radius-control)] border border-line p-3">
-            <Field id={`asset-${asset.id}`} label="What the image shows">
-              <TextInput id={`asset-${asset.id}`} value={asset.description} maxLength={500} disabled={!editable} onChange={(e) => change((s) => void (s.assets[a].description = e.target.value))} />
-            </Field>
-            <LocalizedInput label="Alternative text" hint="Read aloud to people who cannot see the image." value={asset.alt} locales={locales} maxLength={150} disabled={!editable} onChange={(alt) => change((s) => void (s.assets[a].alt = alt))} />
-            {editable ? (
-              <Button size="xs" variant="ghost" className="self-start" onClick={() => change((s) => void s.assets.splice(a, 1))}>
-                Remove image
-              </Button>
-            ) : null}
-          </div>
-        ))}
-        {editable ? (
-          <div className="flex items-end gap-2">
-            <Field id="new-image" label="New image" className="max-w-sm flex-1">
-              <TextInput id="new-image" value={imageDescription} placeholder="For example: shop front in the morning" maxLength={500} onChange={(e) => setImageDescription(e.target.value)} />
-            </Field>
-            <Button
-              disabled={!imageDescription.trim()}
-              onClick={() => {
-                const asset = newPlaceholderImage(spec, imageDescription.trim());
-                change((s) => void s.assets.push(asset));
-                setImageDescription("");
-              }}
-            >
-              Add image
-            </Button>
-          </div>
-        ) : null}
+        <ImagesEditor spec={spec} clientId={clientId} editing={editing} library={library} />
       </fieldset>
 
       <fieldset className="flex flex-col gap-3">

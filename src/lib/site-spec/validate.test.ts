@@ -76,6 +76,23 @@ describe("approval blockers", () => {
     expect(found).toContainEqual(expect.stringMatching(/Cake on the counter: the alternative text is missing/));
   });
 
+  it("accepts an image only when it is an approved image of the same client", () => {
+    const client = briefClient();
+    const spec = completeSpec(client);
+    const fileId = "5b2d8c41-0e3f-4a5b-9c6d-7e8f9a0b1c2d";
+    spec.assets.push({ id: "hero-photo", kind: "photo", alt: { en: "Cake" }, origin: "client_supplied", description: "Cake", fileId });
+    const message = (status: "approved" | "pending_review" | "rejected" | "deleted", clientId = client.id) =>
+      messages(spec, client, [{ id: fileId, clientId, status }]).join(" ");
+    expect(message("approved")).toBe("");
+    expect(message("pending_review")).toMatch(/rights for this image are not approved yet/);
+    expect(message("rejected")).toMatch(/rights for this image were rejected/);
+    expect(message("deleted")).toMatch(/image was deleted/);
+    expect(message("approved", "another-client")).toMatch(/not available for this client/);
+    expect(messages(spec, client).join(" ")).toMatch(/not available for this client/);
+    delete spec.assets[0].fileId;
+    expect(messages(spec, client).join(" ")).toMatch(/has no image file/);
+  });
+
   it("needs content in sections that list things", () => {
     const client = briefClient();
     const spec = completeSpec(client);

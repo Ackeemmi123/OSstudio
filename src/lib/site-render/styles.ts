@@ -54,6 +54,8 @@ p{margin:0 0 calc(1rem * var(--sp-space))}
 .sp-cta--card{background:transparent;color:inherit}
 .sp-image{display:flex;align-items:center;justify-content:center;min-height:14rem;background:repeating-linear-gradient(45deg,var(--sp-surface),var(--sp-surface) 12px,var(--sp-bg) 12px,var(--sp-bg) 24px);border:1px dashed var(--sp-border);border-radius:var(--sp-radius);color:var(--sp-muted);font-size:.9rem;text-align:center;padding:1rem}
 .sp-image--small{min-height:6rem}
+.sp-figure{margin:0}.sp-figure img{display:block;width:100%;height:auto;border-radius:var(--sp-radius);object-fit:cover}
+.sp-figure--small img{aspect-ratio:4/3}
 .sp-form{display:grid;gap:calc(.9rem * var(--sp-space));max-width:36rem;margin-top:calc(1.5rem * var(--sp-space))}
 .sp-form label{display:grid;gap:.3rem;font-size:.95rem}
 .sp-form input,.sp-form textarea{font:inherit;padding:.6rem .75rem;border:1px solid var(--sp-border);border-radius:var(--sp-radius);background:var(--sp-bg);color:var(--sp-text)}

@@ -67,3 +67,20 @@ describe("preview document", () => {
     expect(html).toContain("Missing: Cake on the counter: image file");
   });
 });
+
+describe("preview document with stored images", () => {
+  it("shows a stored image from its signed link, with its alternative text and size, and nothing else from outside", () => {
+    const url = "https://abc.supabase.co/storage/v1/object/sign/site-assets/s/c/f.webp?token=t";
+    const spec = completeSpec(briefClient());
+    const fileId = "5b2d8c41-0e3f-4a5b-9c6d-7e8f9a0b1c2d";
+    spec.assets.push({ id: "hero-photo", kind: "photo", alt: { en: "Strawberry cake" }, origin: "client_supplied", description: "Cake", fileId });
+    const hero = spec.pages[0].sections[0];
+    if (hero.kind === "hero") hero.mediaAssetId = "hero-photo";
+    const html = renderPreviewDocument(spec, buildRenderModel(spec, { showMissing: false, imageFiles: { [fileId]: { url, width: 1600, height: 1200 } } }));
+    expect(html).toContain('alt="Strawberry cake"');
+    expect(html).toContain('width="1600" height="1200"');
+    expect(html).toMatch(/referrerpolicy="no-referrer"/i);
+    expect(html.match(/https?:\/\/[^"\s]+/g)?.every((found) => found.startsWith("https://abc.supabase.co/storage/v1/object/sign/"))).toBe(true);
+    expect(html).not.toMatch(/<script/i);
+  });
+});

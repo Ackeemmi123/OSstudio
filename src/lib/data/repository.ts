@@ -1,4 +1,5 @@
 import type { AgentRunRecord } from "@/lib/agents/contract";
+import type { ImageProvenance } from "@/lib/site-assets/limits";
 import type {
   AgentProposal,
   Client,
@@ -18,6 +19,7 @@ import type {
   ProjectType,
   ProjectUpdateInput,
   ProposalDecision,
+  SiteAssetRecord,
   SiteSpecRecord,
   SourceDocument,
   StudioSnapshot,
@@ -88,6 +90,19 @@ export interface StudioRepository {
   requestSiteSpecChanges?(expected: SiteSpecRecord, note?: string): Promise<SiteSpecRecord>;
   /** Approves the version and supersedes the project's earlier approved version. */
   approveSiteSpec?(expected: SiteSpecRecord): Promise<SiteSpecRecord>;
+  /**
+   * Website images (src/lib/site-assets). The client's stored images, not
+   * deleted, newest first. Only server workspaces have them.
+   */
+  listSiteAssets?(clientId: string): Promise<SiteAssetRecord[]>;
+  /** Sends one processed image to the server, which checks its bytes before storing it. Returns the stored (or reused) image. */
+  uploadSiteAsset?(clientId: string, file: Blob, provenance: ImageProvenance): Promise<{ asset: SiteAssetRecord; existing: boolean }>;
+  /** A person's rights decision, with the answers it rests on. */
+  reviewSiteAsset?(asset: SiteAssetRecord, decision: "approve" | "reject", provenance: ImageProvenance, note?: string): Promise<SiteAssetRecord>;
+  /** Hides the image at once; the file is purged from Storage within a day. */
+  deleteSiteAsset?(asset: SiteAssetRecord): Promise<void>;
+  /** Signed links (at most 15 minutes) for the given images, by image id. Images that cannot be read are left out. */
+  imageLinks?(assets: Pick<SiteAssetRecord, "id" | "storagePath">[]): Promise<Record<string, string>>;
   /** Restores the demonstration workspace. Only meaningful for demo repositories. */
   resetDemoData(): Promise<StudioSnapshot>;
 }

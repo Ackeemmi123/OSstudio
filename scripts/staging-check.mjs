@@ -37,9 +37,9 @@ const skip = (label, detail) => record("skip", label, detail);
 const TABLES = [
   "studios", "studio_members", "clients", "client_context_fields", "client_context_items", "client_sources",
   "projects", "tasks", "import_batches", "activity_events", "agent_runs", "agent_proposals", "client_onboardings",
-  "inquiries", "inquiry_rate_limits", "site_specs",
+  "inquiries", "inquiry_rate_limits", "site_specs", "site_assets",
 ];
-const FUNCTIONS = ["my_studios", "create_studio", "load_studio", "apply_changes", "apply_onboarding_changes", "import_browser_data", "receive_inquiry", "decide_inquiry", "apply_site_spec_changes"];
+const FUNCTIONS = ["my_studios", "create_studio", "load_studio", "apply_changes", "apply_onboarding_changes", "import_browser_data", "receive_inquiry", "decide_inquiry", "apply_site_spec_changes", "begin_site_asset_upload", "review_site_asset", "delete_site_asset"];
 
 checkConfiguration();
 if (config.url && config.anonKey) await checkSupabase();
@@ -175,6 +175,9 @@ async function checkTestAccounts(anonHeaders) {
       apply_onboarding_changes: { p_studio: nobody, p_changes: {}, p_onboarding: {} },
       import_browser_data: { p_studio: nobody, p_hash: "staging-check", p_data: {} },
       apply_site_spec_changes: { p_studio: nobody, p_changes: {}, p_spec: {}, p_supersede: null },
+      begin_site_asset_upload: { p_studio: nobody, p_client: nobody, p_asset: {}, p_actor: {} },
+      review_site_asset: { p_studio: nobody, p_asset: nobody, p_decision: "reject", p_details: {}, p_note: null, p_actor: {} },
+      delete_site_asset: { p_studio: nobody, p_asset: nobody, p_actor: {} },
     };
     const problems = [];
     for (const [name, args] of Object.entries(calls)) {

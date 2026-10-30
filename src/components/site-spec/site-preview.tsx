@@ -15,7 +15,7 @@ import { SITE_SPEC_STATUS_LABELS } from "@/lib/domain/labels";
 import { isWebsiteProject, openSiteSpec } from "@/lib/domain/site-specs";
 import type { SiteSpecRecord } from "@/lib/domain/types";
 import { renderPreviewDocument } from "@/lib/site-render/document";
-import { buildRenderModel } from "@/lib/site-render/model";
+import { buildRenderModel, type RenderImageFile } from "@/lib/site-render/model";
 import { parseSiteSpec } from "@/lib/site-spec/validate";
 import { STATUS_TONES } from "./site-spec-editor";
 import { SiteSpecSkeleton } from "./site-spec-route";
@@ -131,7 +131,34 @@ function Preview({
   const [viewport, setViewport] = useState<Viewport>("desktop");
   const [showMissing, setShowMissing] = useState(record.status === "draft" || record.status === "in_review");
   const [available, setAvailable] = useState(0);
+  const [imageFiles, setImageFiles] = useState<Record<string, RenderImageFile>>({});
+  const [linkRound, setLinkRound] = useState(0);
   const frameBox = useRef<HTMLDivElement>(null);
+  const store = useStudioStore();
+
+  // Signed links (15 minutes) to the stored images this version uses, renewed every 10 minutes.
+  useEffect(() => {
+    const used = new Set(record.spec.assets.flatMap((a) => (a.fileId ? [a.fileId] : [])));
+    if (!used.size) return;
+    let active = true;
+    store
+      .read(async (r) => {
+        const assets = (r.listSiteAssets ? await r.listSiteAssets(record.clientId) : []).filter((a) => used.has(a.id));
+        const links = r.imageLinks ? await r.imageLinks(assets) : {};
+        return Object.fromEntries(assets.flatMap((a) => (links[a.id] ? [[a.id, { url: links[a.id], width: a.width, height: a.height }]] : [])));
+      })
+      .then(
+        (files) => active && setImageFiles(files),
+        () => undefined,
+      );
+    return () => {
+      active = false;
+    };
+  }, [store, record.spec.assets, record.clientId, linkRound]);
+  useEffect(() => {
+    const timer = setInterval(() => setLinkRound((n) => n + 1), 10 * 60 * 1000);
+    return () => clearInterval(timer);
+  }, []);
 
   // The space for the frame, so a wide preview can be scaled down to fit.
   useEffect(() => {
@@ -145,9 +172,9 @@ function Preview({
   const parsed = useMemo(() => parseSiteSpec(record.spec), [record.spec]);
   const rendered = useMemo(() => {
     if (!parsed.ok) return null;
-    const model = buildRenderModel(parsed.spec, { pageId, locale, showMissing });
+    const model = buildRenderModel(parsed.spec, { pageId, locale, showMissing, imageFiles });
     return { model, html: renderPreviewDocument(parsed.spec, model) };
-  }, [parsed, pageId, locale, showMissing]);
+  }, [parsed, pageId, locale, showMissing, imageFiles]);
 
   const width = VIEWPORTS[viewport].width;
   const scale = available > 0 ? Math.min(1, available / width) : 1;
@@ -163,7 +190,7 @@ function Preview({
         <div className="flex flex-wrap items-center gap-3 text-[13px] text-ink-subtle">
           <span>{title}</span>
           <StatusLabel tone={STATUS_TONES[record.status]}>{record.status === "approved" ? "Approved" : `${SITE_SPEC_STATUS_LABELS[record.status]} · not published`}</StatusLabel>
-          <span>Internal preview. Fonts use system fallbacks; links don&apos;t navigate, so choose pages here.</span>
+          <span>Internal preview. Fonts use system fallbacks; images load through links that expire after 15 minutes; links don&apos;t navigate, so choose pages here.</span>
         </div>
       </div>
 

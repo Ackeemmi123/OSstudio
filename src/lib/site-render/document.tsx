@@ -44,9 +44,19 @@ function Buttons({ links }: { links: RenderLink[] }) {
   );
 }
 
-/** Images have no files yet (asset storage comes later): each is a labelled box with its alternative text. */
+/** A stored image, or, while there is no file, a labelled box with its alternative text. */
 function ImageBox({ image, small }: { image: RenderImage | null; small?: boolean }) {
   if (!image) return null;
+  if (image.file) {
+    return (
+      <figure className={small ? "sp-figure sp-figure--small" : "sp-figure"}>
+        {/* Static markup for the sandboxed preview frame: next/image needs the app's runtime. */}
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={image.file.url} alt={image.alt} width={image.file.width} height={image.file.height} loading="lazy" decoding="async" referrerPolicy="no-referrer" />
+        {image.missing ? <span className="sp-missing">Missing: {image.missing}</span> : null}
+      </figure>
+    );
+  }
   return (
     <div className={small ? "sp-image sp-image--small" : "sp-image"} role="img" aria-label={image.alt || image.description || "Image"}>
       <span>

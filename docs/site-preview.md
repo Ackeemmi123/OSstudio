@@ -22,7 +22,8 @@ read with row-level security, like the editor).
   a real responsive layout at each width.
 - On drafts, "Show what's missing" marks every empty text and every image
   that is still a placeholder (on by default for drafts, off for approved
-  versions). Images have no files yet (WF-2), so each is a labelled box.
+  versions). Stored images are shown through signed links that last 15
+  minutes (renewed every 10); placeholders are labelled boxes ([site-images.md](site-images.md)).
 
 Links and buttons inside the preview don't navigate; choose pages above it.
 
@@ -37,9 +38,10 @@ Links and buttons inside the preview don't navigate; choose pages above it.
 
 The frame's `sandbox` attribute grants nothing: no scripts, no forms, and a
 unique origin, so the preview cannot reach the app or the signed-in session,
-and loads nothing from elsewhere.
+and loads nothing from elsewhere except the studio's own stored images, through
+short-lived signed links to its Supabase Storage.
 
 ## Not in WF-3
 
-Image files, shareable client links, publishing, and any external renderer.
+Shareable client links, publishing, and any external renderer.
 Build jobs and renderer adapters arrive with the first external renderer.

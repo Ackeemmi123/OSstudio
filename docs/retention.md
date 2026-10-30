@@ -49,6 +49,7 @@ Active), `archived_at` (set when archived, cleared when reopened) and
 | Inquiries approved into the client, and repeats merged into them | Anonymised like unconverted inquiries, marked `anonymised_with_client` |
 | Agent proposals (they quote the sources) | Deleted |
 | Website specs, every version (they hold client copy) | Deleted (`20261030000200_site_specs.sql`) |
+| Website images | Marked deleted at once (no new links; existing links expire within 15 minutes); files purged from Storage within 24 hours ([site-images.md](site-images.md)) |
 | Agent runs | Trigger, inputs, outputs, result, blocker and error emptied; agent, status and timing kept |
 | Projects and tasks | Titles replaced ("Former project", "Task"), blocked reasons cleared; status, stage and dates kept |
 | Activity | Every summary replaced with "Details removed when the client was anonymised."; type, time and the team member kept |

@@ -6,8 +6,8 @@ forms, search texts and the features it needs. It is **platform-neutral**:
 nothing in it is specific to Duda, Webflow or any renderer. Studio OS owns it;
 a renderer (or a person) will later build the site from an approved version.
 
-This is Website Factory phase WF-1, with the internal preview from WF-3. There is no external renderer, AI,
-image upload or publishing yet.
+This is Website Factory phase WF-1, with the internal preview (WF-3) and
+images (WF-2). There is no external renderer, AI or publishing yet.
 
 ## Where it lives
 
@@ -58,8 +58,8 @@ service role have no access.
 - **a brief value that is not confirmed, or was confirmed again since it was
   used** (its `confirmedAt` differs);
 - a suggestion (`proposal` source) that no person accepted;
-- placeholder images. Image upload arrives with asset storage (WF-2), so in
-  WF-1 a spec with images cannot be approved yet.
+- images that are placeholders, or whose stored image is not an approved
+  image of this client ([site-images.md](site-images.md)).
 
 When a brief value the spec copied was confirmed again since, "Before approval"
 offers **Use the current values from the brief**: it brings the new wording
@@ -120,6 +120,6 @@ Any saved version opens as a working website with **Preview**: see
 
 ## Not in WF-1
 
-Duda or any external renderer, a job queue, AI suggestions, image upload,
+Duda or any external renderer, a job queue, AI suggestions,
 client access and publishing. The local demo does not keep website specs; its
 page says so.

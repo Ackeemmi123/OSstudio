@@ -9,7 +9,7 @@
  *   database repeats the brief check when a version is approved.
  */
 import { CONTEXT_FIELD_LABELS } from "@/lib/domain/labels";
-import type { Client } from "@/lib/domain/types";
+import type { Client, SiteAssetRecord } from "@/lib/domain/types";
 import { SECTION_LABELS, SITE_LOCALE_LABELS, SITE_LOCALES, SPEC_LIMITS, type SiteLocale } from "./catalog";
 import { siteSpecSchema, type LocalizedText, type SiteSpec, type SiteSpecButton, type SiteSpecPage, type SiteSpecSection } from "./schema";
 
@@ -170,11 +170,16 @@ function pageName(spec: SiteSpec, page: SiteSpecPage, index: number): string {
   return page.title[spec.locales.default]?.trim() || page.title.en?.trim() || (index === 0 ? "Home page" : `Page ${index + 1}`);
 }
 
+/** What the spec's approval needs to know about a stored image. */
+export type ImageFileStatus = Pick<SiteAssetRecord, "id" | "clientId" | "status">;
+
 /**
  * What stops this version from being approved, in plain language. Empty
- * when it can be approved. `client` is the brief as it is now.
+ * when it can be approved. `client` is the brief as it is now; `files` are
+ * the client's stored images (an image the spec uses must be one of them,
+ * with its rights approved).
  */
-export function approvalBlockers(spec: SiteSpec, client: Pick<Client, "context">): SpecIssue[] {
+export function approvalBlockers(spec: SiteSpec, client: Pick<Client, "id" | "context">, files: readonly ImageFileStatus[] = []): SpecIssue[] {
   const blockers: SpecIssue[] = [];
   const locales = spec.locales.available;
   const require = (value: LocalizedText, path: string, what: string) => {
@@ -219,7 +224,18 @@ export function approvalBlockers(spec: SiteSpec, client: Pick<Client, "context">
 
   spec.assets.forEach((asset, a) => {
     const name = asset.description.trim() || `Image ${a + 1}`;
-    if (asset.origin === "placeholder") blockers.push({ path: `assets.${a}`, message: `${name}: still a placeholder. Add the real image first.` });
+    const path = `assets.${a}`;
+    if (asset.origin === "placeholder" && !asset.fileId) {
+      blockers.push({ path, message: `${name}: still a placeholder. Upload the image or choose one of the client's images.` });
+    } else if (!asset.fileId) {
+      blockers.push({ path, message: `${name}: has no image file. Upload the image or choose one of the client's images.` });
+    } else {
+      const file = files.find((f) => f.id === asset.fileId);
+      if (!file || file.clientId !== client.id) blockers.push({ path, message: `${name}: the image file is not available for this client.` });
+      else if (file.status === "deleted") blockers.push({ path, message: `${name}: the image was deleted. Choose another one.` });
+      else if (file.status === "rejected") blockers.push({ path, message: `${name}: the rights for this image were rejected. Choose another one.` });
+      else if (file.status !== "approved") blockers.push({ path, message: `${name}: the rights for this image are not approved yet.` });
+    }
     require(asset.alt, `assets.${a}.alt`, `${name}: the alternative text`);
   });
   spec.forms.forEach((form, f) => require(form.consentText, `forms.${f}.consentText`, "A form's consent text"));
