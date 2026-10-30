@@ -11,6 +11,7 @@ import type {
   ProjectStage,
   ProjectStatus,
   ProjectType,
+  SiteAssetStatus,
   SiteSpecStatus,
   SourceType,
   TaskStatus,
@@ -119,6 +120,14 @@ export const ONBOARDING_STATUS_LABELS: Record<OnboardingStatus, string> = {
   draft: "Not started",
   in_progress: "In progress",
   ready_for_review: "Ready for review",
+};
+
+export const SITE_ASSET_STATUS_LABELS: Record<SiteAssetStatus, string> = {
+  uploading: "Uploading",
+  pending_review: "Rights not decided yet",
+  approved: "Rights approved",
+  rejected: "Rights rejected",
+  deleted: "Deleted",
 };
 
 export const SITE_SPEC_STATUS_LABELS: Record<SiteSpecStatus, string> = {

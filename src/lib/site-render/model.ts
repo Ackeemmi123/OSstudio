@@ -24,6 +24,17 @@ export interface RenderOptions {
   locale?: string;
   /** Mark empty texts and placeholder images visibly, for drafts. */
   showMissing: boolean;
+  /**
+   * Stored images the page may show, by file id: a short-lived signed link
+   * and the size. An image whose file is not here is drawn as a labelled box.
+   */
+  imageFiles?: Readonly<Record<string, RenderImageFile>>;
+}
+
+export interface RenderImageFile {
+  url: string;
+  width: number;
+  height: number;
 }
 
 /** A text in the chosen language. `missing` names what is empty, when missing texts are shown. */
@@ -53,6 +64,8 @@ export interface RenderImage {
   description: string;
   placeholder: boolean;
   missing: string | null;
+  /** The stored file, when there is one to show. */
+  file: RenderImageFile | null;
 }
 
 export interface RenderItem {
@@ -144,7 +157,8 @@ export function buildRenderModel(spec: SiteSpec, options: RenderOptions): Render
     const asset = id ? spec.assets.find((a) => a.id === id) : undefined;
     if (!asset) return null;
     const alt = asset.alt[locale]?.trim() ?? "";
-    const placeholder = asset.origin === "placeholder";
+    const file = asset.fileId ? (options.imageFiles?.[asset.fileId] ?? null) : null;
+    const placeholder = !file;
     const missingParts = [placeholder ? "image file" : null, alt ? null : `alternative text (${language})`].filter(Boolean);
     if (missingParts.length) missingCount++;
     return {
@@ -153,6 +167,7 @@ export function buildRenderModel(spec: SiteSpec, options: RenderOptions): Render
       description: asset.description,
       placeholder,
       missing: options.showMissing && missingParts.length ? `${asset.description || "Image"}: ${missingParts.join(", ")}` : null,
+      file,
     };
   };
 

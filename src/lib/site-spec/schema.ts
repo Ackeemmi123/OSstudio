@@ -114,9 +114,11 @@ export const assetSchema = z.strictObject({
   id: idSchema,
   kind: z.enum(ASSET_KINDS),
   alt: localized(150),
-  /** `placeholder`: no file yet, only a description of what is needed. Files arrive with asset storage (WF-2). */
+  /** `placeholder`: no file yet, only a description of what is needed. */
   origin: z.enum(ASSET_ORIGINS),
   description: text(500, true),
+  /** The stored image (site_assets) this asset shows. Only approved images of the same client can be approved in a spec. */
+  fileId: z.uuid().optional(),
 });
 
 export const formSchema = z.strictObject({

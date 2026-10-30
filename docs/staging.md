@@ -223,6 +223,15 @@ These need a person in a browser:
 6. Sign out, and let a session expire (or revoke it in Supabase): the app asks
    to sign in again rather than failing silently.
 
+## Website images: the purge
+
+Image files are deleted from Storage by a daily purge ([site-images.md](site-images.md#the-purge)).
+`vercel.json` schedules `GET /api/storage/purge`; it does nothing (`503`)
+until the owner sets **`CRON_SECRET`** (at least 32 characters, from
+`openssl rand -hex 32`) in the Vercel project `studio-os-staging`, server only,
+and redeploys. Until then, run `npm run storage:purge` by hand after deleting
+images or anonymising a client.
+
 ## 8. Website inquiries
 
 Receiving inquiries from the Axivo website ([inquiries.md](inquiries.md))

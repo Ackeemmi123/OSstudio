@@ -20,6 +20,7 @@ import {
   type Onboarding,
   type Project,
   type RetentionHoldEntry,
+  type SiteAssetRecord,
   type SiteSpecRecord,
   type SourceDocument,
   type StudioSnapshot,
@@ -151,6 +152,39 @@ export function toOnboarding(row: Row): Onboarding {
     createdAt: str(row.created_at),
     updatedAt: str(row.updated_at),
     completedAt: opt(row.completed_at),
+  };
+}
+
+/** The site_assets columns the app reads (not the checksum or purge time). */
+export const SITE_ASSET_COLUMNS =
+  "id, client_id, storage_path, mime_type, byte_size, width, height, description, source_note, rights_basis, licence_note, use_permitted, use_permission_note, " +
+  "identifiable_people, people_basis, people_basis_note, status, uploaded_by, reviewed_by, reviewed_at, review_note, created_at, updated_at";
+
+export function toSiteAssetRecord(row: Row): SiteAssetRecord {
+  return {
+    id: str(row.id),
+    clientId: str(row.client_id),
+    storagePath: str(row.storage_path),
+    mimeType: str(row.mime_type),
+    byteSize: Number(row.byte_size),
+    width: Number(row.width),
+    height: Number(row.height),
+    description: str(row.description ?? ""),
+    sourceNote: str(row.source_note ?? ""),
+    rightsBasis: (row.rights_basis ?? null) as SiteAssetRecord["rightsBasis"],
+    licenceNote: str(row.licence_note ?? ""),
+    usePermitted: row.use_permitted === true,
+    usePermissionNote: str(row.use_permission_note ?? ""),
+    identifiablePeople: row.identifiable_people === true,
+    peopleBasis: (row.people_basis ?? null) as SiteAssetRecord["peopleBasis"],
+    peopleBasisNote: str(row.people_basis_note ?? ""),
+    status: row.status as SiteAssetRecord["status"],
+    uploadedBy: row.uploaded_by as Actor,
+    reviewedBy: actor(row.reviewed_by) ?? null,
+    reviewedAt: opt(row.reviewed_at),
+    reviewNote: opt(row.review_note),
+    createdAt: str(row.created_at),
+    updatedAt: str(row.updated_at),
   };
 }
 

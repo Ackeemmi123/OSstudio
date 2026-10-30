@@ -3,7 +3,7 @@
  * sections, images and forms with every required field present, and
  * addresses made from titles.
  */
-import type { Client, ContextFieldKey } from "@/lib/domain/types";
+import type { Client, ContextFieldKey, SiteAssetRecord } from "@/lib/domain/types";
 import { SECTION_VARIANTS, type SectionKind } from "./catalog";
 import type { SiteSpec, SiteSpecAsset, SiteSpecForm, SiteSpecPage, SiteSpecSection, SiteSpecSource } from "./schema";
 
@@ -154,4 +154,25 @@ export function refreshFromBrief(spec: SiteSpec, client: Pick<Client, "context">
     });
   }
   return { spec: next, refreshed: [...refreshed] };
+}
+
+/** The SiteSpec origin for a stored image, from who holds its rights. */
+export function originFor(file: Pick<SiteAssetRecord, "rightsBasis">): SiteSpecAsset["origin"] {
+  if (file.rightsBasis === "studio_created") return "studio_photo";
+  if (file.rightsBasis === "licensed" || file.rightsBasis === "other") return "licensed";
+  return "client_supplied";
+}
+
+/** Shows a stored image in an existing image entry (replacing a placeholder). Keeps the alternative texts. */
+export function attachFile(spec: SiteSpec, assetId: string, file: Pick<SiteAssetRecord, "id" | "description" | "rightsBasis">): void {
+  const asset = spec.assets.find((a) => a.id === assetId);
+  if (!asset) return;
+  asset.fileId = file.id;
+  asset.origin = originFor(file);
+  if (!asset.description.trim()) asset.description = file.description.slice(0, 500);
+}
+
+/** A new image entry showing a stored image. Alternative texts are written by a person. */
+export function newImageFromFile(spec: SiteSpec, file: Pick<SiteAssetRecord, "id" | "description" | "rightsBasis">): SiteSpecAsset {
+  return { id: freshId(spec, "image"), kind: "photo", alt: {}, origin: originFor(file), description: file.description.slice(0, 500), fileId: file.id };
 }

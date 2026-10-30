@@ -6,6 +6,7 @@ import { approveInquiry, assertDecidable, cleanRejectionReason, getRepeats, link
 import { buildOnboarding, completeOnboarding, findOnboarding, saveOnboardingStep } from "@/lib/domain/onboarding";
 import { buildProject, buildTask, setTaskStatus, updateProject, updateTaskDetails } from "@/lib/domain/projects";
 import { cleanHoldReason } from "@/lib/domain/retention";
+import { approvalProblems, SIGNED_URL_TTL_SECONDS, STORAGE_BUCKET, type ImageProvenance } from "@/lib/site-assets/limits";
 import { approvedSiteSpec, approveSiteSpec, requestSiteSpecChanges, saveSiteSpecDraft, startSiteSpec, submitSiteSpec } from "@/lib/domain/site-specs";
 import {
   CONTEXT_FIELD_KEYS,
@@ -28,6 +29,7 @@ import {
   type ProjectType,
   type ProjectUpdateInput,
   type ProposalDecision,
+  type SiteAssetRecord,
   type SiteSpecRecord,
   type SourceDocument,
   type StudioSnapshot,
@@ -46,10 +48,12 @@ import {
   INQUIRY_COLUMNS,
   onboardingRow,
   projectRow,
+  SITE_ASSET_COLUMNS,
   SITE_SPEC_COLUMNS,
   siteSpecRow,
   sourceRow,
   taskRow,
+  toSiteAssetRecord,
   toSiteSpecRecord,
   toSnapshot,
   type StudioPayload,
@@ -80,6 +84,8 @@ export interface SupabaseRepositoryOptions {
   user: { id: string; email: string | null };
   /** Where the server-side intake endpoint lives. The other agent endpoints sit beside it. */
   agentEndpoint?: string;
+  /** Where images are uploaded for checking (POST /api/site-assets/upload). */
+  assetEndpoint?: string;
   fetch?: typeof fetch;
   createId?: () => string;
 }
@@ -99,6 +105,7 @@ export class SupabaseRepository implements StudioRepository {
   private readonly studioId: string;
   private readonly user: { id: string; email: string | null };
   private readonly agentEndpoint: string;
+  private readonly assetEndpoint: string;
   private readonly fetchImpl: typeof fetch;
   private readonly createId: () => string;
 
@@ -107,6 +114,7 @@ export class SupabaseRepository implements StudioRepository {
     this.studioId = options.studioId;
     this.user = options.user;
     this.agentEndpoint = options.agentEndpoint ?? "/api/agents/intake";
+    this.assetEndpoint = options.assetEndpoint ?? "/api/site-assets/upload";
     this.fetchImpl = options.fetch ?? ((...args) => fetch(...args));
     this.createId = options.createId ?? (() => crypto.randomUUID());
     this.current = {
@@ -447,6 +455,85 @@ export class SupabaseRepository implements StudioRepository {
     return (data as unknown as Row[]).map(toSiteSpecRecord);
   }
 
+  async listSiteAssets(clientId: string): Promise<SiteAssetRecord[]> {
+    const { data, error } = await this.client
+      .from("site_assets")
+      .select(SITE_ASSET_COLUMNS)
+      .eq("studio_id", this.studioId)
+      .eq("client_id", clientId)
+      .neq("status", "deleted")
+      .neq("status", "uploading")
+      .order("created_at", { ascending: false });
+    if (error) throw toRepositoryError(error);
+    return (data as unknown as Row[]).map(toSiteAssetRecord);
+  }
+
+  async uploadSiteAsset(clientId: string, file: Blob, provenance: ImageProvenance): Promise<{ asset: SiteAssetRecord; existing: boolean }> {
+    if (!this.current.canWrite) throw new RepositoryError("You have read-only access to this studio. Ask an owner for member access.", "permission");
+    const { data } = await this.client.auth.getSession();
+    const token = data.session?.access_token;
+    if (!token) throw new RepositoryError("Your session has ended. Sign in again to continue.", "session");
+    const form = new FormData();
+    form.set("studioId", this.studioId);
+    form.set("clientId", clientId);
+    form.set("provenance", JSON.stringify(provenance));
+    form.set("file", file);
+    let response: Response;
+    try {
+      response = await this.fetchImpl(this.assetEndpoint, { method: "POST", headers: { authorization: `Bearer ${token}` }, body: form });
+    } catch {
+      throw new RepositoryError("Studio OS could not reach the server. Check your connection and try again.", "network");
+    }
+    const body = (await response.json().catch(() => null)) as { assetId?: string; existing?: boolean; error?: string } | null;
+    if (!response.ok || !body?.assetId) {
+      const code = response.status === 401 ? "session" : response.status === 403 ? "permission" : response.status === 400 || response.status === 409 ? "validation" : "storage";
+      throw new RepositoryError(body?.error ?? "The image could not be uploaded.", code);
+    }
+    this.snapshot = null;
+    const asset = (await this.listSiteAssets(clientId)).find((a) => a.id === body.assetId);
+    if (!asset) throw new RepositoryError("The image was stored but could not be read back. Reload the page.", "storage");
+    return { asset, existing: body.existing === true };
+  }
+
+  async reviewSiteAsset(asset: SiteAssetRecord, decision: "approve" | "reject", provenance: ImageProvenance, note?: string): Promise<SiteAssetRecord> {
+    if (!this.current.canWrite) throw new RepositoryError("You have read-only access to this studio. Ask an owner for member access.", "permission");
+    if (decision === "approve") {
+      const problems = approvalProblems(provenance);
+      if (problems.length) throw new RepositoryError(problems[0], "validation");
+    }
+    const { error } = await this.client.rpc("review_site_asset", {
+      p_studio: this.studioId,
+      p_asset: asset.id,
+      p_decision: decision,
+      p_details: provenance,
+      p_note: note ?? null,
+      p_actor: this.actor(),
+    });
+    if (error) throw toRepositoryError(error);
+    this.snapshot = null;
+    const updated = (await this.listSiteAssets(asset.clientId)).find((a) => a.id === asset.id);
+    if (!updated) throw new RepositoryError("This image no longer exists, or you do not have access to it.", "not_found");
+    return updated;
+  }
+
+  async deleteSiteAsset(asset: SiteAssetRecord): Promise<void> {
+    if (!this.current.canWrite) throw new RepositoryError("You have read-only access to this studio. Ask an owner for member access.", "permission");
+    const { error } = await this.client.rpc("delete_site_asset", { p_studio: this.studioId, p_asset: asset.id, p_actor: this.actor() });
+    if (error) throw toRepositoryError(error);
+    this.snapshot = null;
+  }
+
+  async imageLinks(assets: Pick<SiteAssetRecord, "id" | "storagePath">[]): Promise<Record<string, string>> {
+    if (!assets.length) return {};
+    const { data, error } = await this.client.storage.from(STORAGE_BUCKET).createSignedUrls(
+      assets.map((a) => a.storagePath),
+      SIGNED_URL_TTL_SECONDS,
+    );
+    if (error) throw toRepositoryError(error);
+    const byPath = new Map((data ?? []).filter((d) => d.signedUrl && !d.error).map((d) => [d.path, d.signedUrl]));
+    return Object.fromEntries(assets.flatMap((a) => (byPath.get(a.storagePath) ? [[a.id, byPath.get(a.storagePath)!]] : [])));
+  }
+
   async startSiteSpec(projectId: string): Promise<SiteSpecRecord> {
     const versions = await this.listSiteSpecs(projectId);
     return this.writeSpec((s, deps) => {
@@ -463,9 +550,10 @@ export class SupabaseRepository implements StudioRepository {
     });
   }
 
-  submitSiteSpec(expected: SiteSpecRecord): Promise<SiteSpecRecord> {
+  async submitSiteSpec(expected: SiteSpecRecord): Promise<SiteSpecRecord> {
+    const files = await this.listSiteAssets(expected.clientId);
     return this.writeSpec((s, deps) => {
-      const { record, event } = submitSiteSpec(expected, find(s.clients, expected.clientId, "client"), deps);
+      const { record, event } = submitSiteSpec(expected, find(s.clients, expected.clientId, "client"), deps, files);
       return [record, { events: [eventRow(event)], spec: update(siteSpecRow(record), expected.updatedAt) }];
     });
   }
@@ -479,8 +567,9 @@ export class SupabaseRepository implements StudioRepository {
 
   async approveSiteSpec(expected: SiteSpecRecord): Promise<SiteSpecRecord> {
     const current = approvedSiteSpec(await this.listSiteSpecs(expected.projectId));
+    const files = await this.listSiteAssets(expected.clientId);
     return this.writeSpec((s, deps) => {
-      const { record, superseded, event } = approveSiteSpec(expected, find(s.clients, expected.clientId, "client"), current, deps);
+      const { record, superseded, event } = approveSiteSpec(expected, find(s.clients, expected.clientId, "client"), current, deps, files);
       return [
         record,
         {

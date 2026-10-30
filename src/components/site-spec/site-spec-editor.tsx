@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useStudio } from "@/components/providers/studio-provider";
+import { useStudio, useStudioStore } from "@/components/providers/studio-provider";
 import { useStudioAction } from "@/components/providers/use-studio-action";
 import { Eye } from "lucide-react";
 import { Button, ButtonLink } from "@/components/ui/button";
@@ -14,11 +14,12 @@ import { cn } from "@/lib/cn";
 import { SITE_SPEC_STATUS_LABELS } from "@/lib/domain/labels";
 import { REVIEW_NOTE_MAX_LENGTH } from "@/lib/domain/site-specs";
 import { CONTEXT_FIELD_LABELS } from "@/lib/domain/labels";
-import type { Actor, Client, ContextFieldKey, Project, SiteSpecRecord, SiteSpecStatus } from "@/lib/domain/types";
+import type { Actor, Client, ContextFieldKey, Project, SiteAssetRecord, SiteSpecRecord, SiteSpecStatus } from "@/lib/domain/types";
 import { refreshFromBrief } from "@/lib/site-spec/edit";
 import type { SiteSpec, SiteSpecSource } from "@/lib/site-spec/schema";
 import { approvalBlockers, parseSiteSpec, type SpecIssue } from "@/lib/site-spec/validate";
 import { BrandEditor } from "./brand-editor";
+import type { ImageLibrary } from "./images-editor";
 import { PagesEditor } from "./pages-editor";
 import { SettingsEditor } from "./settings-editor";
 import { StrategyEditor } from "./strategy-editor";
@@ -64,14 +65,40 @@ export function SiteSpecEditor({
   onSelect: (id: string) => void;
 }) {
   const state = useStudio();
+  const store = useStudioStore();
   const { run, pending, canEdit } = useStudioAction();
+  const [library, setLibrary] = useState<{ assets: SiteAssetRecord[]; links: Record<string, string> }>({ assets: [], links: {} });
+  const [libraryRound, setLibraryRound] = useState(0);
+
+  // The client's stored images and signed links to them. Links last 15 minutes, so they are renewed every 10.
+  useEffect(() => {
+    let active = true;
+    store
+      .read(async (r) => {
+        const assets = r.listSiteAssets ? await r.listSiteAssets(client.id) : [];
+        const links = r.imageLinks ? await r.imageLinks(assets) : {};
+        return { assets, links };
+      })
+      .then(
+        (next) => active && setLibrary(next),
+        () => undefined,
+      );
+    return () => {
+      active = false;
+    };
+  }, [store, client.id, libraryRound]);
+  useEffect(() => {
+    const timer = setInterval(() => setLibraryRound((n) => n + 1), 10 * 60 * 1000);
+    return () => clearInterval(timer);
+  }, []);
+  const imageLibrary: ImageLibrary = { ...library, reload: () => setLibraryRound((n) => n + 1) };
   const [draft, setDraft] = useState<SiteSpec>(record.spec);
   const [sendingBack, setSendingBack] = useState(false);
   const [note, setNote] = useState("");
 
   const editable = canEdit && record.status === "draft";
   const parsed = useMemo(() => parseSiteSpec(draft), [draft]);
-  const blockers = useMemo(() => (parsed.ok ? approvalBlockers(parsed.spec, client) : []), [parsed, client]);
+  const blockers = useMemo(() => (parsed.ok ? approvalBlockers(parsed.spec, client, library.assets) : []), [parsed, client, library.assets]);
   const dirty = JSON.stringify(draft) !== JSON.stringify(record.spec);
   const refreshable = useMemo(() => (editable ? refreshFromBrief(draft, client).refreshed : []), [editable, draft, client]);
 
@@ -210,7 +237,7 @@ export function SiteSpecEditor({
             <PagesEditor spec={draft} editing={editing} />
           </Section>
           <Section id="settings" title="Site settings">
-            <SettingsEditor spec={draft} editing={editing} />
+            <SettingsEditor spec={draft} clientId={client.id} editing={editing} library={imageLibrary} />
           </Section>
         </div>
         <aside className="flex flex-col gap-8 lg:sticky lg:top-20 lg:self-start">
