@@ -33,35 +33,36 @@ test("a website spec goes from the brief to an approved second version", async (
   await page.getByRole("button", { name: "Start the website spec" }).click();
 
   await expect(page.getByRole("heading", { level: 1, name: "Website spec v1" })).toBeVisible();
-  await expect(page.getByLabel("Goal of the website")).toHaveValue("More cake pre-orders");
+  await expect(page.getByLabel("Goal of the website", { exact: true })).toHaveValue("More cake pre-orders");
   await expect(page.getByText("From brief: Goal")).toBeVisible();
   await expect(page.getByTestId("spec-blockers")).toContainText("Choose the brand colours and fonts");
 
   // Fill in what blocks approval.
   await page.getByRole("button", { name: "Keep these" }).click();
-  await page.getByLabel("Default description").fill("Celebration cakes baked to order.");
-  await page.getByLabel("Search description").first().fill("Order celebration cakes.");
-  await page.getByLabel("Heading").first().fill("Cakes, made to order");
+  await page.getByLabel("Default description", { exact: true }).fill("Celebration cakes baked to order.");
+  await page.getByLabel("Search description", { exact: true }).first().fill("Order celebration cakes.");
+  // Exact: "Heading font" in the brand would match too.
+  await page.getByLabel("Heading", { exact: true }).first().fill("Cakes, made to order");
   await page.getByRole("button", { name: /Contact/ }).first().click();
-  await page.getByLabel("Search description").last().fill("Ask us anything.");
-  await page.getByLabel("Consent text").fill("We use your details only to answer you.");
+  await page.getByLabel("Search description", { exact: true }).last().fill("Ask us anything.");
+  await page.getByLabel("Consent text", { exact: true }).fill("We use your details only to answer you.");
   await page.getByRole("button", { name: "Save", exact: true }).click();
   await expect(page.getByRole("button", { name: "Saved" })).toBeVisible();
   await expect(page.getByText("Nothing blocks approval")).toBeVisible();
 
   await page.reload();
-  await expect(page.getByLabel("Default description")).toHaveValue("Celebration cakes baked to order.");
+  await expect(page.getByLabel("Default description", { exact: true })).toHaveValue("Celebration cakes baked to order.");
 
   await page.getByRole("button", { name: "Submit for approval" }).click();
   await expect(page.getByText("Waiting for approval").first()).toBeVisible();
   await page.getByRole("button", { name: "Approve" }).click();
   await expect(page.getByText("Approved", { exact: true }).first()).toBeVisible();
-  await expect(page.getByLabel("Goal of the website")).toBeDisabled();
+  await expect(page.getByLabel("Goal of the website", { exact: true })).toBeDisabled();
 
   // Version 2 starts as a copy; approving it replaces version 1.
   await page.getByRole("button", { name: "Start version 2" }).click();
   await expect(page.getByRole("heading", { level: 1, name: "Website spec v2" })).toBeVisible();
-  await page.getByLabel("Tone of voice").fill("Warm");
+  await page.getByLabel("Tone of voice", { exact: true }).fill("Warm");
   await page.getByRole("button", { name: "Save", exact: true }).click();
   await expect(page.getByRole("button", { name: "Saved" })).toBeVisible();
   await page.getByRole("button", { name: "Submit for approval" }).click();
