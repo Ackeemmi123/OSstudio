@@ -3,8 +3,9 @@
  * sections, images and forms with every required field present, and
  * addresses made from titles.
  */
+import type { Client, ContextFieldKey } from "@/lib/domain/types";
 import { SECTION_VARIANTS, type SectionKind } from "./catalog";
-import type { SiteSpec, SiteSpecAsset, SiteSpecForm, SiteSpecPage, SiteSpecSection } from "./schema";
+import type { SiteSpec, SiteSpecAsset, SiteSpecForm, SiteSpecPage, SiteSpecSection, SiteSpecSource } from "./schema";
 
 /** Every id already used in the spec, of any kind. */
 export function usedIds(spec: SiteSpec): Set<string> {
@@ -112,4 +113,45 @@ export function move<T>(list: T[], index: number, by: -1 | 1): T[] {
   const next = [...list];
   [next[index], next[target]] = [next[target], next[index]];
   return next;
+}
+
+/**
+ * Replaces content copied from the brief with the brief's current value,
+ * where a brief value was confirmed again (with a new value or not) after
+ * the spec used it. Studio OS knows where such content lives: the goal, an
+ * audience, or a text section's body, as the first draft put them there.
+ * A text section keeps the default language only, so translations are
+ * written again for the new wording. Other content is left alone and stays
+ * a blocker until a person looks at it.
+ */
+export function refreshFromBrief(spec: SiteSpec, client: Pick<Client, "context">): { spec: SiteSpec; refreshed: ContextFieldKey[] } {
+  const next = structuredClone(spec);
+  const refreshed = new Set<ContextFieldKey>();
+  const current = (source: SiteSpecSource | undefined) => {
+    if (source?.kind !== "brief") return null;
+    const field = client.context[source.field];
+    if (field.confidence !== "confirmed" || !field.value?.trim() || !field.confirmedAt || field.confirmedAt === source.confirmedAt) return null;
+    return { value: field.value.trim(), source: { kind: "brief" as const, field: source.field, confirmedAt: field.confirmedAt } };
+  };
+
+  const goal = current(next.strategy.goal.source);
+  if (goal) {
+    next.strategy.goal = { text: goal.value.slice(0, 1000), source: goal.source };
+    refreshed.add(goal.source.field);
+  }
+  next.strategy.audiences = next.strategy.audiences.map((audience) => {
+    const latest = current(audience.source);
+    if (!latest) return audience;
+    refreshed.add(latest.source.field);
+    return { id: audience.id, text: latest.value.slice(0, 300), source: latest.source };
+  });
+  for (const page of next.pages) {
+    page.sections = page.sections.map((section) => {
+      const latest = section.kind === "text" ? current(section.source) : null;
+      if (!latest || section.kind !== "text") return section;
+      refreshed.add(latest.source.field);
+      return { ...section, body: { [next.locales.default]: latest.value.slice(0, 4000) }, source: latest.source };
+    });
+  }
+  return { spec: next, refreshed: [...refreshed] };
 }

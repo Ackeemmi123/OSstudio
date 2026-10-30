@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useStudio } from "@/components/providers/studio-provider";
 import { useStudioAction } from "@/components/providers/use-studio-action";
 import { Button } from "@/components/ui/button";
@@ -12,7 +12,9 @@ import { StatusLabel, Tag, type Tone } from "@/components/ui/status";
 import { cn } from "@/lib/cn";
 import { SITE_SPEC_STATUS_LABELS } from "@/lib/domain/labels";
 import { REVIEW_NOTE_MAX_LENGTH } from "@/lib/domain/site-specs";
-import type { Actor, Client, Project, SiteSpecRecord, SiteSpecStatus } from "@/lib/domain/types";
+import { CONTEXT_FIELD_LABELS } from "@/lib/domain/labels";
+import type { Actor, Client, ContextFieldKey, Project, SiteSpecRecord, SiteSpecStatus } from "@/lib/domain/types";
+import { refreshFromBrief } from "@/lib/site-spec/edit";
 import type { SiteSpec, SiteSpecSource } from "@/lib/site-spec/schema";
 import { approvalBlockers, parseSiteSpec, type SpecIssue } from "@/lib/site-spec/validate";
 import { BrandEditor } from "./brand-editor";
@@ -28,6 +30,8 @@ export interface SpecEditing {
   /** The source to record on content a person writes now. */
   personSource: () => SiteSpecSource;
 }
+
+const LEAVE_WARNING = "This website spec has changes that are not saved. Leave without saving?";
 
 export const STATUS_TONES: Record<SiteSpecStatus, Tone> = { draft: "neutral", in_review: "caution", approved: "positive", superseded: "neutral" };
 
@@ -68,6 +72,27 @@ export function SiteSpecEditor({
   const parsed = useMemo(() => parseSiteSpec(draft), [draft]);
   const blockers = useMemo(() => (parsed.ok ? approvalBlockers(parsed.spec, client) : []), [parsed, client]);
   const dirty = JSON.stringify(draft) !== JSON.stringify(record.spec);
+  const refreshable = useMemo(() => (editable ? refreshFromBrief(draft, client).refreshed : []), [editable, draft, client]);
+
+  // Unsaved changes: ask before the page is closed or reloaded, or a link leads elsewhere.
+  useEffect(() => {
+    if (!dirty) return;
+    const beforeUnload = (event: BeforeUnloadEvent) => event.preventDefault();
+    const onClick = (event: MouseEvent) => {
+      const link = event.target instanceof Element ? event.target.closest("a[href]") : null;
+      if (!link || link.getAttribute("href")?.startsWith("#") || link.getAttribute("target") === "_blank") return;
+      if (!window.confirm(LEAVE_WARNING)) {
+        event.preventDefault();
+        event.stopPropagation();
+      }
+    };
+    window.addEventListener("beforeunload", beforeUnload);
+    document.addEventListener("click", onClick, true);
+    return () => {
+      window.removeEventListener("beforeunload", beforeUnload);
+      document.removeEventListener("click", onClick, true);
+    };
+  }, [dirty]);
   const latest = versions[0];
   const open = versions.find((v) => v.status === "draft" || v.status === "in_review");
 
@@ -181,8 +206,14 @@ export function SiteSpecEditor({
           </Section>
         </div>
         <aside className="flex flex-col gap-8 lg:sticky lg:top-20 lg:self-start">
-          <IssuesPanel issues={parsed.ok ? [] : parsed.issues} blockers={blockers} status={record.status} />
-          <VersionHistory versions={versions} selected={record.id} onSelect={onSelect} />
+          <IssuesPanel
+            issues={parsed.ok ? [] : parsed.issues}
+            blockers={blockers}
+            status={record.status}
+            refreshable={refreshable}
+            onRefresh={() => editing.change((s) => void Object.assign(s, refreshFromBrief(s, client).spec))}
+          />
+          <VersionHistory versions={versions} selected={record.id} onSelect={(id) => (id === record.id || !dirty || window.confirm(LEAVE_WARNING)) && onSelect(id)} />
         </aside>
       </div>
 
@@ -205,10 +236,34 @@ export function SiteSpecEditor({
   );
 }
 
-function IssuesPanel({ issues, blockers, status }: { issues: SpecIssue[]; blockers: SpecIssue[]; status: SiteSpecStatus }) {
+function IssuesPanel({
+  issues,
+  blockers,
+  status,
+  refreshable,
+  onRefresh,
+}: {
+  issues: SpecIssue[];
+  blockers: SpecIssue[];
+  status: SiteSpecStatus;
+  /** Brief values used here that were confirmed again since, which can be brought in with one click. */
+  refreshable: ContextFieldKey[];
+  onRefresh: () => void;
+}) {
   if (status === "approved" || status === "superseded") return null;
   return (
     <Section id="checks" title="Before approval" count={issues.length + blockers.length}>
+      {refreshable.length ? (
+        <div className="mb-4 flex flex-col items-start gap-2 rounded-[var(--radius-surface)] border border-caution/25 bg-caution/[0.06] px-3 py-2.5">
+          <p className="text-[13px] text-ink">
+            The brief changed since this spec used{" "}
+            {refreshable.map((field) => CONTEXT_FIELD_LABELS[field]).join(", ")}.
+          </p>
+          <Button size="xs" onClick={onRefresh}>
+            Use the current values from the brief
+          </Button>
+        </div>
+      ) : null}
       {issues.length ? (
         <div className="mb-4">
           <p className="mb-2 text-[13px] font-medium text-critical">Cannot be saved yet</p>

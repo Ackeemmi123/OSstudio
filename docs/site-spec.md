@@ -61,9 +61,18 @@ service role have no access.
 - placeholder images. Image upload arrives with asset storage (WF-2), so in
   WF-1 a spec with images cannot be approved yet.
 
+When a brief value the spec copied was confirmed again since, "Before approval"
+offers **Use the current values from the brief**: it brings the new wording
+into the goal, audiences and text sections that came from the brief (a text
+section keeps only the default language, so translations are written again).
+Anything else stays a blocker until a person changes it.
+
 The database repeats the brief check at approval
 (`private.site_spec_brief_confirmed`), so an approval made around the app is
 refused too.
+
+The editor asks before leaving the page, reloading it, or opening another
+version while there are unsaved changes.
 
 ## Sources
 
