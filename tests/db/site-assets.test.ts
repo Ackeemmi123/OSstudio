@@ -162,7 +162,7 @@ describe("website specs and images", () => {
   async function specUsing(clientId: string, fileId: string) {
     const repository = repositoryFor(owner, studio);
     await repository.load();
-    for (const [key, value] of [["goal", "More orders"], ["targetAudience", "Families"]] as const) {
+    for (const [key, value] of [["goal", "More orders"], ["targetAudience", "Families"], ["offering", "Cakes"]] as const) {
       await repository.setContextField(clientId, key, { value, confidence: "confirmed" });
     }
     const project = await repository.createProject(clientId, { name: "Website", projectType: "website" });
@@ -218,7 +218,7 @@ describe("deletion, anonymisation and the purge", () => {
     await approve(owner, used.id);
     const repository = repositoryFor(owner, studio);
     await repository.load();
-    for (const [key, value] of [["goal", "More orders"], ["targetAudience", "Families"]] as const) {
+    for (const [key, value] of [["goal", "More orders"], ["targetAudience", "Families"], ["offering", "Cakes"]] as const) {
       await repository.setContextField(clientId, key, { value, confidence: "confirmed" });
     }
     const project = await repository.createProject(clientId, { name: "Website", projectType: "website" });
