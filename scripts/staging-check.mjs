@@ -37,9 +37,9 @@ const skip = (label, detail) => record("skip", label, detail);
 const TABLES = [
   "studios", "studio_members", "clients", "client_context_fields", "client_context_items", "client_sources",
   "projects", "tasks", "import_batches", "activity_events", "agent_runs", "agent_proposals", "client_onboardings",
-  "inquiries", "inquiry_rate_limits",
+  "inquiries", "inquiry_rate_limits", "site_specs",
 ];
-const FUNCTIONS = ["my_studios", "create_studio", "load_studio", "apply_changes", "apply_onboarding_changes", "import_browser_data", "receive_inquiry", "decide_inquiry"];
+const FUNCTIONS = ["my_studios", "create_studio", "load_studio", "apply_changes", "apply_onboarding_changes", "import_browser_data", "receive_inquiry", "decide_inquiry", "apply_site_spec_changes"];
 
 checkConfiguration();
 if (config.url && config.anonKey) await checkSupabase();
@@ -174,6 +174,7 @@ async function checkTestAccounts(anonHeaders) {
       apply_changes: { p_studio: nobody, p_changes: {} },
       apply_onboarding_changes: { p_studio: nobody, p_changes: {}, p_onboarding: {} },
       import_browser_data: { p_studio: nobody, p_hash: "staging-check", p_data: {} },
+      apply_site_spec_changes: { p_studio: nobody, p_changes: {}, p_spec: {}, p_supersede: null },
     };
     const problems = [];
     for (const [name, args] of Object.entries(calls)) {

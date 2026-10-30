@@ -84,9 +84,9 @@ part of the public URL. It checks that:
   no secret sits in a `NEXT_PUBLIC_` variable, and the test provider is off;
 - the project is reachable, sign-ups are disabled and email sign-in is on;
 - signed out, tables and functions refuse every request;
-- all 13 tables exist: with the service role key if it is set, otherwise
+- every table the app uses exists (`TABLES` in `scripts/staging-check.mjs`): with the service role key if it is set, otherwise
   as the owner test account. Without the service role key it also signs in
-  to all three smoke test accounts, checks that the five app functions
+  to all three smoke test accounts, checks that the app functions that write
   exist and refuse a studio nobody belongs to (so nothing is written), and
   signs the accounts out again;
 - with `STAGING_DATABASE_URL`: the applied migrations match
