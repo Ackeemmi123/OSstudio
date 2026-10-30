@@ -3,7 +3,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { useStudio } from "@/components/providers/studio-provider";
 import { useStudioAction } from "@/components/providers/use-studio-action";
-import { Button } from "@/components/ui/button";
+import { Eye } from "lucide-react";
+import { Button, ButtonLink } from "@/components/ui/button";
 import { Field, TextArea } from "@/components/ui/field";
 import { Modal, ModalBody, ModalFooter } from "@/components/ui/modal";
 import { RelativeTime } from "@/components/ui/relative-time";
@@ -153,35 +154,42 @@ export function SiteSpecEditor({
             {!canEdit ? <Tag>Read only</Tag> : null}
           </div>
         </div>
-        {canEdit ? (
-          <div className="flex shrink-0 flex-wrap items-center gap-2">
-            {record.status === "draft" ? (
-              <>
-                <Button onClick={save} disabled={pending || !dirty || !parsed.ok}>
-                  {pending ? "Saving…" : dirty ? "Save" : "Saved"}
+        <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
+          {dirty ? <span className="text-[12.5px] text-ink-subtle">Save to see your changes in the preview</span> : null}
+          <ButtonLink href={`/clients/${encodeURIComponent(client.id)}/projects/${encodeURIComponent(project.id)}/site/preview?v=${record.version}`}>
+            <Eye aria-hidden />
+            Preview
+          </ButtonLink>
+          {canEdit ? (
+            <>
+              {record.status === "draft" ? (
+                <>
+                  <Button onClick={save} disabled={pending || !dirty || !parsed.ok}>
+                    {pending ? "Saving…" : dirty ? "Save" : "Saved"}
+                  </Button>
+                  <Button variant="primary" onClick={submit} disabled={pending || dirty || blockers.length > 0} title={dirty ? "Save first" : blockers.length ? "Fix what blocks approval first" : undefined}>
+                    Submit for approval
+                  </Button>
+                </>
+              ) : null}
+              {record.status === "in_review" ? (
+                <>
+                  <Button onClick={() => setSendingBack(true)} disabled={pending}>
+                    Ask for changes
+                  </Button>
+                  <Button variant="primary" onClick={approve} disabled={pending || blockers.length > 0}>
+                    Approve
+                  </Button>
+                </>
+              ) : null}
+              {record.status === "approved" && !open && latest?.id === record.id ? (
+                <Button onClick={startNext} disabled={pending}>
+                  Start version {record.version + 1}
                 </Button>
-                <Button variant="primary" onClick={submit} disabled={pending || dirty || blockers.length > 0} title={dirty ? "Save first" : blockers.length ? "Fix what blocks approval first" : undefined}>
-                  Submit for approval
-                </Button>
-              </>
-            ) : null}
-            {record.status === "in_review" ? (
-              <>
-                <Button onClick={() => setSendingBack(true)} disabled={pending}>
-                  Ask for changes
-                </Button>
-                <Button variant="primary" onClick={approve} disabled={pending || blockers.length > 0}>
-                  Approve
-                </Button>
-              </>
-            ) : null}
-            {record.status === "approved" && !open && latest?.id === record.id ? (
-              <Button onClick={startNext} disabled={pending}>
-                Start version {record.version + 1}
-              </Button>
-            ) : null}
-          </div>
-        ) : null}
+              ) : null}
+            </>
+          ) : null}
+        </div>
       </div>
 
       {record.reviewNote && record.status === "draft" ? (
