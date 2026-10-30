@@ -66,8 +66,13 @@ rights by uploading it again.
 
 ## Deleting
 
-- **Delete** on an image (owners and members) hides it at once; refused while
-  a spec that is approved or waiting for approval uses it.
+- **Delete** on an image (owners and members) hides it at once. While a
+  version of this project's spec that is approved or waiting for approval
+  uses it, Delete is disabled and says which version ("Used by approved spec
+  v1"). The database refuses the deletion in any case, including for another
+  project of the same client, and stays the final authority.
+- **Remove from this spec** on a spec's image only takes it out of the draft;
+  the stored image stays in the library.
 - **Anonymising a client** marks all its images deleted.
 - From that moment **no new link can be issued**. Links already handed out
   keep working until they expire, **at most 15 minutes** (Supabase cannot
