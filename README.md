@@ -111,8 +111,9 @@ Studio OS yet ([docs/production.md](docs/production.md)).
 A website project can have a **website spec**: the platform-neutral description
 of the site to build (pages, sections, copy, brand, search texts), versioned
 and approved by a person, built only on confirmed brief values. Signed-in
-workspaces only; no renderer, AI or publishing yet. See
-[docs/site-spec.md](docs/site-spec.md).
+workspaces only; no AI or publishing yet. Any saved version can be previewed
+as a working website inside Studio OS. See [docs/site-spec.md](docs/site-spec.md)
+and [docs/site-preview.md](docs/site-preview.md).
 
 ## Not built
 

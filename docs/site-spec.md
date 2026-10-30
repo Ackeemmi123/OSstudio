@@ -6,7 +6,7 @@ forms, search texts and the features it needs. It is **platform-neutral**:
 nothing in it is specific to Duda, Webflow or any renderer. Studio OS owns it;
 a renderer (or a person) will later build the site from an approved version.
 
-This is Website Factory phase WF-1. There is no renderer, preview, AI,
+This is Website Factory phase WF-1, with the internal preview from WF-3. There is no external renderer, AI,
 image upload or publishing yet.
 
 ## Where it lives
@@ -113,8 +113,13 @@ see [staging.md](staging.md)). Until then `npm run staging:check` with
 `STAGING_DATABASE_URL` reports `20261030000200` as not applied; that is
 expected. There is no production.
 
+## Preview
+
+Any saved version opens as a working website with **Preview**: see
+[site-preview.md](site-preview.md).
+
 ## Not in WF-1
 
-Duda or any renderer, previews, a job queue, AI suggestions, image upload,
+Duda or any external renderer, a job queue, AI suggestions, image upload,
 client access and publishing. The local demo does not keep website specs; its
 page says so.
