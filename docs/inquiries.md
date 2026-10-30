@@ -138,6 +138,8 @@ if any reaches the browser bundle.
 server does, then a retry, a changed-content conflict and a forged signature,
 and reports each answer. Run it from your own machine with the secret in your
 shell only. See [staging.md](staging.md#8-website-inquiries).
+`npm run staging:inquiry -- --fixture <name>` sends just one invented inquiry
+from `tests/fixtures/inquiries/` (used by the [dry run](dry-run.md)).
 
 ## Repeat submissions
 

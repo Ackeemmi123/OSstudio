@@ -1,0 +1,15 @@
+{
+  "version": 1,
+  "source": "axivo_website",
+  "submissionId": "3a9e1f20-6b7c-4d8e-8f90-1a2b3c4d5e6f",
+  "submittedAt": "2026-10-30T08:05:00.000Z",
+  "test": true,
+  "locale": "fi",
+  "contact": {
+    "name": "Minimi Testaaja (TEST)",
+    "email": "dryrun.minimal@example.com"
+  },
+  "service": "other",
+  "message": "TEST INQUIRY, invented for a dry run. Every optional field was left empty on the form.",
+  "privacyNoticeVersion": "unpublished"
+}

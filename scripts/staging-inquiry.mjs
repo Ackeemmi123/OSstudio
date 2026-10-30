@@ -25,11 +25,18 @@
  * test flag and signature time gets 202 with duplicate: true and the same
  * reference; the same id with a changed message gets 409; a wrong signature
  * gets 401. Prints statuses and the reference only, never a secret.
+ *
+ *   npm run staging:inquiry -- --fixture dry-run-customer
+ *
+ * sends only one invented inquiry from tests/fixtures/inquiries instead (for a
+ * dry run of the review workflow), with a fresh submission id, submission
+ * time, desired date and a per-run email address, always marked as a test.
  */
 import { createHmac, randomUUID } from "node:crypto";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
-import { resolve } from "node:path";
+import { basename, resolve } from "node:path";
 
+const FIXTURES = resolve(process.cwd(), "tests/fixtures/inquiries");
 const SETTINGS_FILE = resolve(process.cwd(), ".env.inquiry.local");
 const TEMPLATE = `# Settings for \`npm run staging:inquiry\`. Git ignores this file; never commit it.
 # Paste each value right after the = sign, without quotes or spaces.
@@ -47,6 +54,7 @@ INQUIRY_SIGNING_KEYS=
 STAGING_PROTECTION_BYPASS=
 `;
 
+const fixtureName = fixtureArgument();
 loadSettingsFile();
 
 const env = process.env;
@@ -71,6 +79,8 @@ console.log(`Signing key: ${keyId} (secret of ${secret.length} characters${/^[0-
 console.log(`Protection bypass: ${bypass ? "set" : "not set"}\n`);
 
 await preflight();
+
+if (fixtureName) await sendFixture(fixtureName);
 
 const run = new Date().toISOString().replace(/\D/g, "").slice(0, 12);
 const submissionId = randomUUID();
@@ -126,6 +136,43 @@ if (first.fromStudioOs && first.status === 401) {
   );
 }
 process.exit(results.every((r) => r.ok) ? 0 : 1);
+
+/** Sends one fixture as a new test inquiry and stops. */
+async function sendFixture(name) {
+  const fixture = JSON.parse(readFileSync(resolve(FIXTURES, `${name}.json`), "utf8"));
+  const run = new Date().toISOString().replace(/\D/g, "").slice(0, 12);
+  const [local, domain] = fixture.contact.email.split("@");
+  const payload = {
+    ...fixture,
+    submissionId: randomUUID(),
+    submittedAt: new Date().toISOString(),
+    test: true,
+    contact: { ...fixture.contact, email: `${local}+${run}@${domain}` },
+  };
+  if (payload.desiredDate) payload.desiredDate = new Date(Date.now() + 60 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+  const result = await send(payload);
+  // This fixture shows the mistake the contract refuses; nothing is stored.
+  if (name === "empty-optional-strings") {
+    const refused = result.status === 400 && result.fromStudioOs;
+    console.log(`${refused ? "PASS" : "FAIL"}  Optional fields sent as "" are refused (400)  (${describe(result)})`);
+    process.exit(refused ? 0 : 1);
+  }
+  const ok = result.status === 202 && result.body?.duplicate === false;
+  console.log(`${ok ? "PASS" : "FAIL"}  Test inquiry "${name}" is confirmed (202)  (${describe(result)})`);
+  if (ok) console.log(`\nStored test inquiry ${result.body.reference} from "${payload.contact.name}" <${payload.contact.email}>. It is on Today under "Needs your decision", marked Test.`);
+  process.exit(ok ? 0 : 1);
+}
+
+/** `--fixture <name>`: the name of a file in tests/fixtures/inquiries, without .json. */
+function fixtureArgument() {
+  const at = process.argv.indexOf("--fixture");
+  if (at === -1) return null;
+  const name = process.argv[at + 1];
+  if (!name || name.startsWith("-") || basename(name) !== name || !existsSync(resolve(FIXTURES, `${name.replace(/\.json$/, "")}.json`))) {
+    stop("Name a fixture after --fixture, for example: npm run staging:inquiry -- --fixture dry-run-customer");
+  }
+  return name.replace(/\.json$/, "");
+}
 
 /** An unsigned request: Studio OS answers 401 "unauthorized" when it is reachable and configured. */
 async function preflight() {
