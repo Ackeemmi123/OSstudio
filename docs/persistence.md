@@ -29,6 +29,7 @@ Migrations are in `supabase/migrations`, applied in name order:
 | `…000200_agents` | Agent runs (inputs, outputs, status, errors, idempotency key) and agent proposals (value, quoted evidence, review) |
 | `…000300_security` | Grants, row-level security, and triggers (below) |
 | `…000400_functions` | `load_studio`, `apply_changes`, `import_browser_data`, studio and member management |
+| `20261030000200_site_specs` | Website spec versions per project, their rules, `apply_site_spec_changes`, and anonymisation of specs ([site-spec.md](site-spec.md)) |
 
 Every table carries `studio_id`, and child rows reference their parent by
 `(id, studio_id)`, so a row can never point into another studio.

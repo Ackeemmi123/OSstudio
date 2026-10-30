@@ -1,6 +1,7 @@
 "use client";
 
 import { Check, Pencil, Plus } from "lucide-react";
+import Link from "next/link";
 import { useEffect, useId, useState, type FormEvent } from "react";
 import { useCanEdit, useStudio } from "@/components/providers/studio-provider";
 import { useStudioAction } from "@/components/providers/use-studio-action";
@@ -14,6 +15,7 @@ import { getClientProjects, getProjectTasks } from "@/lib/domain/insights";
 import { PROJECT_STAGE_LABELS, PROJECT_STATUS_LABELS, PROJECT_TYPE_LABELS, TASK_STATUS_LABELS } from "@/lib/domain/labels";
 import { toClientDetailsInput } from "@/lib/domain/clients";
 import { BLOCKED_REASON_MAX_LENGTH, OWNER_NAME_MAX_LENGTH, suggestProjectName } from "@/lib/domain/projects";
+import { isWebsiteProject } from "@/lib/domain/site-specs";
 import {
   PROJECT_STAGES,
   PROJECT_STATUSES,
@@ -107,6 +109,9 @@ function ProjectCard({ project, tasks, owners }: { project: Project; tasks: Task
   const open = tasks.filter((task) => task.status !== "done");
   const done = tasks.filter((task) => task.status === "done");
   const selectId = useId();
+  const state = useStudio();
+  // Website specs are kept on the server only.
+  const server = state.status === "ready" && state.info.kind === "supabase";
 
   return (
     <Surface id={`project-${project.id}`} aria-labelledby={`${selectId}-name`} className="scroll-mt-24">
@@ -117,6 +122,11 @@ function ProjectCard({ project, tasks, owners }: { project: Project; tasks: Task
           </h3>
           {project.name !== PROJECT_TYPE_LABELS[project.projectType] ? (
             <p className="text-[12.5px] text-ink-subtle">{PROJECT_TYPE_LABELS[project.projectType]}</p>
+          ) : null}
+          {server && isWebsiteProject(project) ? (
+            <Link href={`/clients/${encodeURIComponent(project.clientId)}/projects/${encodeURIComponent(project.id)}/site`} className="text-[12.5px] text-ink-muted underline-offset-2 hover:text-ink hover:underline">
+              Website spec
+            </Link>
           ) : null}
         </div>
         <div className="flex items-center gap-2">

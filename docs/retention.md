@@ -48,6 +48,7 @@ Active), `archived_at` (set when archived, cleared when reopened) and
 | Onboarding progress | Deleted (the answers are brief values) |
 | Inquiries approved into the client, and repeats merged into them | Anonymised like unconverted inquiries, marked `anonymised_with_client` |
 | Agent proposals (they quote the sources) | Deleted |
+| Website specs, every version (they hold client copy) | Deleted (`20261030000200_site_specs.sql`) |
 | Agent runs | Trigger, inputs, outputs, result, blocker and error emptied; agent, status and timing kept |
 | Projects and tasks | Titles replaced ("Former project", "Task"), blocked reasons cleared; status, stage and dates kept |
 | Activity | Every summary replaced with "Details removed when the client was anonymised."; type, time and the team member kept |

@@ -20,6 +20,7 @@ import {
   type Onboarding,
   type Project,
   type RetentionHoldEntry,
+  type SiteSpecRecord,
   type SourceDocument,
   type StudioSnapshot,
   type Task,
@@ -150,6 +151,47 @@ export function toOnboarding(row: Row): Onboarding {
     createdAt: str(row.created_at),
     updatedAt: str(row.updated_at),
     completedAt: opt(row.completed_at),
+  };
+}
+
+/** The site_specs columns the app reads. */
+export const SITE_SPEC_COLUMNS =
+  "id, client_id, project_id, version, based_on, status, spec, created_by, submitted_by, submitted_at, approved_by, approved_at, review_note, created_at, updated_at";
+
+export function toSiteSpecRecord(row: Row): SiteSpecRecord {
+  return {
+    id: str(row.id),
+    clientId: str(row.client_id),
+    projectId: str(row.project_id),
+    version: Number(row.version),
+    basedOn: opt(row.based_on),
+    status: row.status as SiteSpecRecord["status"],
+    spec: row.spec as SiteSpecRecord["spec"],
+    createdBy: row.created_by as Actor,
+    submittedBy: actor(row.submitted_by) ?? null,
+    submittedAt: opt(row.submitted_at),
+    approvedBy: actor(row.approved_by) ?? null,
+    approvedAt: opt(row.approved_at),
+    reviewNote: opt(row.review_note),
+    createdAt: str(row.created_at),
+    updatedAt: str(row.updated_at),
+  };
+}
+
+/** What the app writes. Times are set by the database. */
+export function siteSpecRow(record: SiteSpecRecord): Row {
+  return {
+    id: record.id,
+    client_id: record.clientId,
+    project_id: record.projectId,
+    version: record.version,
+    based_on: record.basedOn,
+    status: record.status,
+    spec: record.spec,
+    created_by: record.createdBy,
+    submitted_by: record.submittedBy,
+    approved_by: record.approvedBy,
+    review_note: record.reviewNote,
   };
 }
 

@@ -7,6 +7,7 @@
  */
 
 import type { AgentRunRecord } from "@/lib/agents/contract";
+import type { SiteSpec } from "@/lib/site-spec/schema";
 
 export type ISODateString = string;
 
@@ -309,7 +310,12 @@ export type ActivityEventType =
   | "agent.run_completed"
   | "agent.run_failed"
   | "agent.proposal_accepted"
-  | "agent.proposal_dismissed";
+  | "agent.proposal_dismissed"
+  | "site_spec.created"
+  | "site_spec.updated"
+  | "site_spec.submitted"
+  | "site_spec.changes_requested"
+  | "site_spec.approved";
 
 export interface ActivityEvent {
   id: string;
@@ -506,6 +512,47 @@ export interface OnboardingStepInput {
   skip?: ContextFieldKey[];
   /** Open questions for the client. */
   questions?: string[];
+}
+
+/* -------------------------------------------------------------------------- */
+/* Website specs                                                              */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * draft: being written. in_review: waiting for a person's approval.
+ * approved: the version a renderer may build from (one per project).
+ * superseded: an earlier approved version, kept as history.
+ */
+export const SITE_SPEC_STATUSES = ["draft", "in_review", "approved", "superseded"] as const;
+export type SiteSpecStatus = (typeof SITE_SPEC_STATUSES)[number];
+
+/** Project types that produce a website, and so can have a SiteSpec. */
+export const WEBSITE_PROJECT_TYPES = ["website", "ecommerce", "website_ecommerce", "brand_website"] as const satisfies readonly ProjectType[];
+
+/**
+ * One version of a project's SiteSpec (src/lib/site-spec). Versions are
+ * numbered per project and kept: only a draft's content can change, and an
+ * approved version never changes again.
+ */
+export interface SiteSpecRecord {
+  id: string;
+  clientId: string;
+  projectId: string;
+  version: number;
+  /** The version this one started from. */
+  basedOn: string | null;
+  status: SiteSpecStatus;
+  spec: SiteSpec;
+  createdBy: Actor;
+  submittedBy: Actor | null;
+  submittedAt: ISODateString | null;
+  /** Always a person. */
+  approvedBy: Actor | null;
+  approvedAt: ISODateString | null;
+  /** Why a reviewer sent it back, when they did. */
+  reviewNote: string | null;
+  createdAt: ISODateString;
+  updatedAt: ISODateString;
 }
 
 /* -------------------------------------------------------------------------- */

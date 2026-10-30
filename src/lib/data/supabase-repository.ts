@@ -6,6 +6,7 @@ import { approveInquiry, assertDecidable, cleanRejectionReason, getRepeats, link
 import { buildOnboarding, completeOnboarding, findOnboarding, saveOnboardingStep } from "@/lib/domain/onboarding";
 import { buildProject, buildTask, setTaskStatus, updateProject, updateTaskDetails } from "@/lib/domain/projects";
 import { cleanHoldReason } from "@/lib/domain/retention";
+import { approvedSiteSpec, approveSiteSpec, requestSiteSpecChanges, saveSiteSpecDraft, startSiteSpec, submitSiteSpec } from "@/lib/domain/site-specs";
 import {
   CONTEXT_FIELD_KEYS,
   type ActivityEvent,
@@ -27,6 +28,7 @@ import {
   type ProjectType,
   type ProjectUpdateInput,
   type ProposalDecision,
+  type SiteSpecRecord,
   type SourceDocument,
   type StudioSnapshot,
   type Task,
@@ -44,14 +46,19 @@ import {
   INQUIRY_COLUMNS,
   onboardingRow,
   projectRow,
+  SITE_SPEC_COLUMNS,
+  siteSpecRow,
   sourceRow,
   taskRow,
+  toSiteSpecRecord,
   toSnapshot,
   type StudioPayload,
 } from "./supabase-rows";
 
 type Row = Record<string, unknown>;
 type Write = { op: "insert"; row: Row } | { op: "update"; row: Row; expected: string };
+/** A website spec version and its activity, written by apply_site_spec_changes(). */
+type SpecChange = { events: Row[]; spec: Write; supersede?: { id: string; expected: string } | null };
 /** A decision on a website inquiry, recorded by decide_inquiry() with its changes. */
 type Decision = { status: "approved" | "rejected" | "spam"; client_id?: string; reason?: string | null; decided_by: Row };
 
@@ -427,6 +434,107 @@ export class SupabaseRepository implements StudioRepository {
 
   async resetDemoData(): Promise<StudioSnapshot> {
     throw new RepositoryError("Demo data can only be reset in the local demo.", "unavailable");
+  }
+
+  async listSiteSpecs(projectId: string): Promise<SiteSpecRecord[]> {
+    const { data, error } = await this.client
+      .from("site_specs")
+      .select(SITE_SPEC_COLUMNS)
+      .eq("studio_id", this.studioId)
+      .eq("project_id", projectId)
+      .order("version", { ascending: false });
+    if (error) throw toRepositoryError(error);
+    return (data as unknown as Row[]).map(toSiteSpecRecord);
+  }
+
+  async startSiteSpec(projectId: string): Promise<SiteSpecRecord> {
+    const versions = await this.listSiteSpecs(projectId);
+    return this.writeSpec((s, deps) => {
+      const project = find(s.projects, projectId, "project");
+      const { record, event } = startSiteSpec(find(s.clients, project.clientId, "client"), project, versions, deps);
+      return [record, event && { events: [eventRow(event)], spec: { op: "insert", row: siteSpecRow(record) } }];
+    });
+  }
+
+  saveSiteSpecDraft(expected: SiteSpecRecord, spec: unknown): Promise<SiteSpecRecord> {
+    return this.writeSpec((_, deps) => {
+      const { record, event } = saveSiteSpecDraft(expected, spec, deps);
+      return [record, event && { events: [eventRow(event)], spec: update(siteSpecRow(record), expected.updatedAt) }];
+    });
+  }
+
+  submitSiteSpec(expected: SiteSpecRecord): Promise<SiteSpecRecord> {
+    return this.writeSpec((s, deps) => {
+      const { record, event } = submitSiteSpec(expected, find(s.clients, expected.clientId, "client"), deps);
+      return [record, { events: [eventRow(event)], spec: update(siteSpecRow(record), expected.updatedAt) }];
+    });
+  }
+
+  requestSiteSpecChanges(expected: SiteSpecRecord, note?: string): Promise<SiteSpecRecord> {
+    return this.writeSpec((_, deps) => {
+      const { record, event } = requestSiteSpecChanges(expected, note, deps);
+      return [record, { events: [eventRow(event)], spec: update(siteSpecRow(record), expected.updatedAt) }];
+    });
+  }
+
+  async approveSiteSpec(expected: SiteSpecRecord): Promise<SiteSpecRecord> {
+    const current = approvedSiteSpec(await this.listSiteSpecs(expected.projectId));
+    return this.writeSpec((s, deps) => {
+      const { record, superseded, event } = approveSiteSpec(expected, find(s.clients, expected.clientId, "client"), current, deps);
+      return [
+        record,
+        {
+          events: [eventRow(event)],
+          spec: update(siteSpecRow(record), expected.updatedAt),
+          supersede: superseded && current ? { id: current.id, expected: current.updatedAt } : null,
+        },
+      ];
+    }, { fresh: true });
+  }
+
+  /**
+   * Applies one change to a website spec with its activity, in one
+   * transaction, and returns the version as the database stored it (its
+   * `updated_at` is what the next save must send back). Approving reads the
+   * brief fresh, so the approval is judged on what the client confirmed now.
+   */
+  private async writeSpec(
+    change: (snapshot: StudioSnapshot, deps: DomainDeps) => [SiteSpecRecord, SpecChange | null],
+    options: { fresh?: boolean } = {},
+  ): Promise<SiteSpecRecord> {
+    if (!this.current.canWrite) {
+      throw new RepositoryError("You have read-only access to this studio. Ask an owner for member access.", "permission");
+    }
+    const snapshot = options.fresh || !this.snapshot ? await this.load() : this.snapshot;
+    const deps: DomainDeps = { now: () => new Date().toISOString(), createId: this.createId, actor: this.actor() };
+    let value: SiteSpecRecord;
+    let specChange: SpecChange | null;
+    try {
+      [value, specChange] = change(snapshot, deps);
+    } catch (error) {
+      if (error instanceof DomainConflictError) throw new RepositoryError(error.message, "conflict");
+      if (error instanceof DomainError) throw new RepositoryError(error.message, "validation");
+      throw error;
+    }
+    if (!specChange) return value;
+
+    let failure: unknown;
+    try {
+      const { error } = await this.client.rpc("apply_site_spec_changes", {
+        p_studio: this.studioId,
+        p_changes: { events: specChange.events },
+        p_spec: specChange.spec,
+        p_supersede: specChange.supersede ?? null,
+      });
+      failure = error;
+    } catch (error) {
+      failure = error;
+    }
+    if (failure) throw toRepositoryError(failure);
+    this.snapshot = null;
+    const stored = (await this.listSiteSpecs(value.projectId)).find((r) => r.id === value.id);
+    if (!stored) throw new RepositoryError("This website spec no longer exists, or you do not have access to it.", "not_found");
+    return stored;
   }
 
   /**

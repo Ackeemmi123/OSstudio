@@ -18,6 +18,7 @@ import type {
   ProjectType,
   ProjectUpdateInput,
   ProposalDecision,
+  SiteSpecRecord,
   SourceDocument,
   StudioSnapshot,
   Task,
@@ -73,6 +74,20 @@ export interface StudioRepository {
    * legal requirement), or releases it with null. Every change is logged.
    */
   setRetentionHold(clientId: string, reason: string | null): Promise<Client>;
+  /**
+   * Website specs (src/lib/site-spec). Only server workspaces have them; the
+   * local demo leaves these out. Versions are read per project, newest first,
+   * and are not part of the snapshot.
+   */
+  listSiteSpecs?(projectId: string): Promise<SiteSpecRecord[]>;
+  /** Starts the next version (from the brief, or from the approved one), or returns the open one. */
+  startSiteSpec?(projectId: string): Promise<SiteSpecRecord>;
+  /** Saves the draft's content. `expected` is the version as the person last saw it. */
+  saveSiteSpecDraft?(expected: SiteSpecRecord, spec: unknown): Promise<SiteSpecRecord>;
+  submitSiteSpec?(expected: SiteSpecRecord): Promise<SiteSpecRecord>;
+  requestSiteSpecChanges?(expected: SiteSpecRecord, note?: string): Promise<SiteSpecRecord>;
+  /** Approves the version and supersedes the project's earlier approved version. */
+  approveSiteSpec?(expected: SiteSpecRecord): Promise<SiteSpecRecord>;
   /** Restores the demonstration workspace. Only meaningful for demo repositories. */
   resetDemoData(): Promise<StudioSnapshot>;
 }

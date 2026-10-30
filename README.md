@@ -106,6 +106,14 @@ Studio OS yet ([docs/production.md](docs/production.md)).
 - [docs/production.md](docs/production.md): environments, the go-live gate and
   the restore test.
 
+## Website specs (Website Factory WF-1)
+
+A website project can have a **website spec**: the platform-neutral description
+of the site to build (pages, sections, copy, brand, search texts), versioned
+and approved by a person, built only on confirmed brief values. Signed-in
+workspaces only; no renderer, AI or publishing yet. See
+[docs/site-spec.md](docs/site-spec.md).
+
 ## Not built
 
 - File uploads, email intake, notifications and sending email, invoicing and
