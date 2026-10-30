@@ -154,3 +154,32 @@ export function approveSiteSpec(
   const description = current ? `Approved website spec v${record.version} (replaces v${current.version})` : `Approved website spec v${record.version}`;
   return { record: next, superseded, event: specEvent(next, "site_spec.approved", description, deps, now) };
 }
+
+/** A spec version that relies on a stored image, so the image cannot be deleted. */
+export interface ImageUse {
+  version: number;
+  status: "in_review" | "approved";
+}
+
+/**
+ * Which stored images the given versions rely on: versions that are
+ * approved or waiting for approval, by image id, oldest version first. The
+ * same rule the database applies when an image is deleted (delete_site_asset),
+ * which stays the final authority, for example for another project of the
+ * same client.
+ */
+export function imagesInUse(versions: Pick<SiteSpecRecord, "version" | "status" | "spec">[]): Map<string, ImageUse[]> {
+  const uses = new Map<string, ImageUse[]>();
+  for (const v of [...versions].sort((a, b) => a.version - b.version)) {
+    if (v.status !== "approved" && v.status !== "in_review") continue;
+    for (const fileId of new Set(v.spec.assets.flatMap((a) => (a.fileId ? [a.fileId] : [])))) {
+      uses.set(fileId, [...(uses.get(fileId) ?? []), { version: v.version, status: v.status }]);
+    }
+  }
+  return uses;
+}
+
+/** "approved spec v1", "spec v2 waiting for approval", joined. */
+export function describeImageUse(uses: ImageUse[]): string {
+  return uses.map((u) => (u.status === "approved" ? `approved spec v${u.version}` : `spec v${u.version} waiting for approval`)).join(" and ");
+}
