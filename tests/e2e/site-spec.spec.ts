@@ -43,6 +43,9 @@ test("a website spec goes from the brief to an approved second version", async (
   await page.getByLabel("Search description", { exact: true }).first().fill("Order celebration cakes.");
   // Exact: "Heading font" in the brand would match too.
   await page.getByLabel("Heading", { exact: true }).first().fill("Cakes, made to order");
+  // The offering was not confirmed, so the home page's text section starts empty and would block approval.
+  await page.getByRole("button", { name: "Remove section" }).nth(1).click();
+  await expect(page.getByTestId("spec-section")).toHaveCount(1);
   await page.getByRole("button", { name: /Contact/ }).first().click();
   await page.getByLabel("Search description", { exact: true }).last().fill("Ask us anything.");
   await page.getByLabel("Consent text", { exact: true }).fill("We use your details only to answer you.");
@@ -55,7 +58,7 @@ test("a website spec goes from the brief to an approved second version", async (
 
   await page.getByRole("button", { name: "Submit for approval" }).click();
   await expect(page.getByText("Waiting for approval").first()).toBeVisible();
-  await page.getByRole("button", { name: "Approve" }).click();
+  await page.getByRole("button", { name: "Approve", exact: true }).click();
   await expect(page.getByText("Approved", { exact: true }).first()).toBeVisible();
   await expect(page.getByLabel("Goal of the website", { exact: true })).toBeDisabled();
 
@@ -66,7 +69,7 @@ test("a website spec goes from the brief to an approved second version", async (
   await page.getByRole("button", { name: "Save", exact: true }).click();
   await expect(page.getByRole("button", { name: "Saved" })).toBeVisible();
   await page.getByRole("button", { name: "Submit for approval" }).click();
-  await page.getByRole("button", { name: "Approve" }).click();
+  await page.getByRole("button", { name: "Approve", exact: true }).click();
   const versions = page.getByTestId("spec-versions");
   await expect(versions.getByRole("button", { name: /v1/ })).toContainText("Replaced by a newer version");
   await expect(versions.getByRole("button", { name: /v2/ })).toContainText("Approved");
