@@ -123,7 +123,7 @@ describe("who can see and change specs", () => {
     await viewerRepository.load();
     expect((await viewerRepository.listSiteSpecs(project.id)).map((r) => r.id)).toEqual([approved.id]);
     await expect(viewerRepository.startSiteSpec(project.id)).rejects.toBeInstanceOf(RepositoryError);
-    expect((await rawWrite(viewer, { op: "insert", row: { ...siteSpecRow({ ...approved, id: randomUUID(), version: 2, status: "draft", approvedBy: null, approvedAt: null }), created_by: person(viewer) } })).error).not.toBeNull();
+    expect((await rawWrite(viewer, { op: "insert", row: { ...siteSpecRow({ ...approved, id: randomUUID(), version: 2, basedOn: approved.id, status: "draft", submittedBy: null, submittedAt: null, approvedBy: null, approvedAt: null, reviewNote: null }), created_by: person(viewer) } })).error).not.toBeNull();
 
     expect((await outsider.client.from("site_specs").select("id").eq("project_id", project.id)).data).toEqual([]);
     expect((await anonClient().from("site_specs").select("id")).data ?? []).toEqual([]);
@@ -193,7 +193,20 @@ describe("retention", () => {
       await db.query("select private.anonymise_client($1, true)", [clientId]);
       expect((await db.query("select count(*)::int as n from public.site_specs where client_id = $1", [clientId])).rows[0].n).toBe(0);
     });
-    const row = siteSpecRow({ ...approved, id: randomUUID(), version: 1, status: "draft", approvedBy: null, approvedAt: null, createdBy: person(owner) as SiteSpecRecord["createdBy"] });
+    // A valid new draft in every other respect, so only the anonymisation can refuse it.
+    const row = siteSpecRow({
+      ...approved,
+      id: randomUUID(),
+      version: 1,
+      basedOn: null,
+      status: "draft",
+      submittedBy: null,
+      submittedAt: null,
+      approvedBy: null,
+      approvedAt: null,
+      reviewNote: null,
+      createdBy: person(owner) as SiteSpecRecord["createdBy"],
+    });
     expect((await rawWrite(owner, { op: "insert", row: { ...row, project_id: project.id } })).error?.message).toMatch(/anonymised/);
   });
 });
