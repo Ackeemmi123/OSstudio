@@ -11,6 +11,7 @@ import type {
   ProjectStage,
   ProjectStatus,
   ProjectType,
+  SiteSpecStatus,
   SourceType,
   TaskStatus,
 } from "./types";
@@ -118,6 +119,13 @@ export const ONBOARDING_STATUS_LABELS: Record<OnboardingStatus, string> = {
   draft: "Not started",
   in_progress: "In progress",
   ready_for_review: "Ready for review",
+};
+
+export const SITE_SPEC_STATUS_LABELS: Record<SiteSpecStatus, string> = {
+  draft: "Draft",
+  in_review: "Waiting for approval",
+  approved: "Approved",
+  superseded: "Replaced by a newer version",
 };
 
 export const PROPOSAL_TARGET_LABELS: Record<ProposalTarget, string> = {

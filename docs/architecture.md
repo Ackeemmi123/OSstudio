@@ -41,6 +41,7 @@ tests/e2e/             Playwright journeys
 | Task suggestions | `src/server/agents/plan-runner.ts`, `/api/agents/plan` | Person-started, when starting a project; same budget and data conditions as the intake agent ([ai.md](ai.md#task-suggestions-for-a-new-project)) |
 | Follow-ups | `src/lib/domain/followups.ts` | Computed on Today and per client, stores nothing ([follow-ups.md](follow-ups.md)) |
 | Website inquiries | `src/lib/inquiries`, `src/server/inquiries`, `/api/inquiries` | Receiving, review (approve, add to a client, reject, spam) and the daily 12-month retention job, verified on staging with test inquiries; repeat submissions grouped with the first inquiry ([inquiries.md](inquiries.md)) |
+| Website specs (WF-1) | `src/lib/site-spec`, `src/lib/domain/site-specs.ts`, `site_specs` table | Platform-neutral SiteSpec v1, versioned per project, approved only by a person on confirmed brief values; editor at `/clients/<client>/projects/<project>/site`. Not on staging yet; no renderer ([site-spec.md](site-spec.md)) |
 | Client retention | `supabase/migrations/20261029000200_client_retention.sql`, `src/lib/domain/retention.ts` | Daily job, owner holds and Today warnings; migration applied to staging and checked there with the rolled-back staging check; periods provisional until an adviser's review ([retention.md](retention.md)) |
 
 ## Rules
