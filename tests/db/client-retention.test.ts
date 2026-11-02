@@ -144,6 +144,102 @@ describe("what counts as client activity", () => {
   });
 });
 
+describe("finding a client's activity", () => {
+  /** A client aged 24 months, with a project and a task, and one event added by the case. */
+  async function agedClientWithEvent(entity: "client" | "project" | "task", actor: object | null, happened: Date, recorded: Date) {
+    const id = await newClient();
+    const repository = await loaded(owner);
+    const project = await repository.createProject(id, { name: "Website" });
+    const task = await repository.createTask(project.id, { title: "Collect photos" });
+    await age(id, "24 months");
+    const before = (await dates(id)).last;
+    await asDatabaseOwner(async (db) => {
+      await db.query("begin");
+      await db.query("set local session_replication_role = replica");
+      await db.query(
+        `insert into public.activity_events (id, studio_id, entity_type, entity_id, event_type, description, actor, "timestamp", recorded_at)
+         values (gen_random_uuid(), $1, $2, $3, 'note.added', 'Test event', $4, $5, $6)`,
+        [studio, entity, { client: id, project: project.id, task: task.id }[entity], actor, happened, recorded],
+      );
+      await db.query("commit");
+    });
+    return { id, before };
+  }
+
+  it("counts a person's event on the client, its projects and its tasks, at the earlier of its two dates, and nothing else", async () => {
+    const person = human(owner, "Olivia Owner");
+    const earlier = new Date(Date.now() - 7 * MONTH);
+    const later = new Date(Date.now() - 5 * MONTH);
+    for (const entity of ["client", "project", "task"] as const) {
+      const { id } = await agedClientWithEvent(entity, person, earlier, later);
+      expect((await dates(id)).last).toEqual(earlier);
+    }
+    expect((await dates((await agedClientWithEvent("task", person, later, earlier)).id)).last).toEqual(earlier);
+
+    for (const actor of [{ kind: "agent", agentId: "research" }, { kind: "system" }, null]) {
+      const { id, before } = await agedClientWithEvent("client", actor, later, later);
+      expect((await dates(id)).last).toEqual(before);
+    }
+  }, 60_000);
+
+  it("gives every client the same date as the definition it replaced", async () => {
+    const differing = await asDatabaseOwner(async (db) => {
+      // As in 20261029000200_client_retention.sql.
+      await db.query(`
+        create function pg_temp.previous_last_activity(p_client uuid) returns timestamptz
+          language sql stable set search_path = ''
+          as $$
+            select greatest(
+              (select created_at from public.clients where id = p_client),
+              (select max(least(e."timestamp", e.recorded_at)) from public.activity_events e
+                where e.actor ->> 'kind' = 'human'
+                  and ((e.entity_type = 'client' and e.entity_id = p_client)
+                    or (e.entity_type = 'project' and e.entity_id in (select id from public.projects where client_id = p_client))
+                    or (e.entity_type = 'task' and e.entity_id in (
+                          select t.id from public.tasks t join public.projects p on p.id = t.project_id where p.client_id = p_client)))))
+          $$`);
+      const compared = await db.query<{ clients: number }>("select count(*)::int as clients from public.clients");
+      expect(compared.rows[0].clients).toBeGreaterThan(0);
+      return (await db.query(
+        "select id from public.clients c where private.client_last_activity(c.id) is distinct from pg_temp.previous_last_activity(c.id)",
+      )).rows;
+    });
+    expect(differing).toEqual([]);
+  });
+
+  it("reads through the index as the signed-in person, however many events other studios have", async () => {
+    const id = await newClient();
+    const otherStudio = await createStudio(owner, "Client retention, other studio");
+    const scans = await asDatabaseOwner(async (db) => {
+      await db.query("begin");
+      await db.query("set local session_replication_role = replica");
+      await db.query(
+        `insert into public.activity_events (id, studio_id, entity_type, entity_id, event_type, description, actor)
+         select gen_random_uuid(), $1::uuid, 'client'::public.entity_type, gen_random_uuid(), 'note.added', 'Other studio event', $2::jsonb from generate_series(1, 5000)`,
+        [otherStudio, human(owner, "Olivia Owner")],
+      );
+      await db.query("analyze public.activity_events");
+      const { rows } = await db.query<{ body: string }>("select prosrc as body from pg_proc where oid = 'private.client_last_activity(uuid)'::regprocedure");
+      await db.query("set local role authenticated");
+      await db.query("select set_config('request.jwt.claims', $1, true)", [JSON.stringify({ sub: owner.id, role: "authenticated" })]);
+      // Planned without knowing the client, as a SQL function is.
+      await db.query("set local plan_cache_mode = force_generic_plan");
+      await db.query(`prepare last_activity(uuid) as ${rows[0].body.replaceAll("p_client", "$1")}`);
+      const explained = await db.query<{ "QUERY PLAN": [{ Plan: PlanNode }] }>(`explain (format json) execute last_activity('${id}')`);
+      await db.query("rollback");
+      return activityScans(explained.rows[0]["QUERY PLAN"][0].Plan);
+    });
+    expect(scans.length).toBeGreaterThan(0);
+    expect(scans).not.toContain("Seq Scan");
+  });
+
+  type PlanNode = { "Node Type": string; "Relation Name"?: string; Plans?: PlanNode[] };
+  function activityScans(node: PlanNode): string[] {
+    const own = node["Relation Name"] === "activity_events" ? [node["Node Type"]] : [];
+    return [...own, ...(node.Plans ?? []).flatMap(activityScans)];
+  }
+});
+
 describe("the two clocks", () => {
   it("never a customer: 12 months after the last activity", async () => {
     const id = await newClient();
