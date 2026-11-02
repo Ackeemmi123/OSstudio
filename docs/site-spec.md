@@ -60,7 +60,9 @@ its field (`data-spec-path` in the editors, `src/lib/site-spec/paths.ts`).
 
 - a missing goal, audience or main call to action;
 - the starting brand placeholders (a person must choose the brand);
-- text contrast under 4.5:1, or the primary colour under 3:1, on the background;
+- text or grey text contrast under 4.5:1, or the primary colour under 3:1, on the
+  background, or button text that cannot reach 4.5:1 on the primary colour;
+- leftover draft text: "lorem ipsum", TODO, TBD or FIXME;
 - a missing text in any of the website's languages: page titles, addresses,
   search titles and descriptions (unless a page is hidden from search),
   headings and texts that sections need, button labels, alternative texts,
@@ -113,6 +115,16 @@ Content carries where it came from:
   written as the person. So every rule in "What blocks approval" holds even if
   the app is bypassed; there is no override. The pass holds no client material.
 - No delete, except by client anonymisation. Size up to 512 KB.
+
+## Worth checking
+
+`qualityWarnings()` (`src/lib/site-spec/checks.ts`) lists what deserves a second
+look and stops nothing: test text, text that may not be translated, vague
+alternative texts, duplicate or short search texts, pages nothing leads to, a
+home page without the main call to action, lists without a heading, unused
+images and forms, images too small for their place, and heavy pages. The review
+shows a short reminder of what no check can judge. The preview's templates are
+checked for accessibility in CI (`tests/e2e/preview-accessibility.spec.ts`).
 
 ## Retention
 

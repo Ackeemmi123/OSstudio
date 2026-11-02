@@ -24,6 +24,7 @@ import type { SiteLocale } from "@/lib/site-spec/catalog";
 import { refreshFromBrief } from "@/lib/site-spec/edit";
 import { localeOfPath, pageIndexOfPath, pathCandidates } from "@/lib/site-spec/paths";
 import type { SiteSpec, SiteSpecSource } from "@/lib/site-spec/schema";
+import { qualityWarnings } from "@/lib/site-spec/checks";
 import { approvalBlockers, parseSiteSpec, type SpecIssue } from "@/lib/site-spec/validate";
 import { BrandEditor } from "./brand-editor";
 import type { ImageLibrary } from "./images-editor";
@@ -135,6 +136,7 @@ export function SiteSpecEditor({
   const editable = canEdit && record.status === "draft";
   const parsed = useMemo(() => parseSiteSpec(draft), [draft]);
   const blockers = useMemo(() => (parsed.ok ? approvalBlockers(parsed.spec, client, library.assets) : []), [parsed, client, library.assets]);
+  const warnings = useMemo(() => (parsed.ok ? qualityWarnings(parsed.spec, library.assets) : []), [parsed, library.assets]);
   const router = useRouter();
   const [saveStatus, setSaveStatus] = useState<SaveStatus>({ kind: "saved" });
   const dirty = saveStatus.kind !== "saved";
@@ -387,6 +389,8 @@ export function SiteSpecEditor({
           <IssuesPanel
             issues={parsed.ok ? [] : parsed.issues}
             blockers={blockers}
+            warnings={warnings}
+            reviewing={canEdit && record.status === "in_review"}
             status={record.status}
             refreshable={refreshable}
             onRefresh={() => editing.change((s) => void Object.assign(s, refreshFromBrief(s, client).spec))}
@@ -446,6 +450,8 @@ export function SiteSpecEditor({
 function IssuesPanel({
   issues,
   blockers,
+  warnings,
+  reviewing,
   status,
   refreshable,
   onRefresh,
@@ -453,6 +459,9 @@ function IssuesPanel({
 }: {
   issues: SpecIssue[];
   blockers: SpecIssue[];
+  /** Worth a second look; they stop nothing. */
+  warnings: SpecIssue[];
+  reviewing: boolean;
   status: SiteSpecStatus;
   /** Brief values used here that were confirmed again since, which can be brought in with one click. */
   refreshable: ContextFieldKey[];
@@ -486,16 +495,42 @@ function IssuesPanel({
         </div>
       ) : null}
       {blockers.length ? (
-        <ul className="flex flex-col gap-1.5" data-testid="spec-blockers">
-          {blockers.slice(0, 30).map((b, i) => (
-            <li key={i}>
-              <ProblemLink issue={b} onProblem={onProblem} />
-            </li>
-          ))}
-          {blockers.length > 30 ? <li className="text-[13px] text-ink-subtle">and {blockers.length - 30} more</li> : null}
-        </ul>
+        <div className="mb-4">
+          <p className="mb-2 text-[13px] font-medium text-critical">Fix before approval</p>
+          <ul className="flex flex-col gap-1.5" data-testid="spec-blockers">
+            {blockers.slice(0, 30).map((b, i) => (
+              <li key={i}>
+                <ProblemLink issue={b} onProblem={onProblem} />
+              </li>
+            ))}
+            {blockers.length > 30 ? <li className="text-[13px] text-ink-subtle">and {blockers.length - 30} more</li> : null}
+          </ul>
+        </div>
       ) : !issues.length ? (
-        <StatusLabel tone="positive">Nothing blocks approval</StatusLabel>
+        <div className="mb-4">
+          <StatusLabel tone="positive">Nothing blocks approval</StatusLabel>
+        </div>
+      ) : null}
+      {warnings.length ? (
+        <div className="mb-4">
+          <p className="mb-2 text-[13px] font-medium text-caution">
+            Worth checking <span className="font-normal text-ink-subtle">These don&apos;t stop approval.</span>
+          </p>
+          <ul className="flex flex-col gap-1.5" data-testid="spec-warnings">
+            {warnings.slice(0, 20).map((w, i) => (
+              <li key={i}>
+                <ProblemLink issue={w} onProblem={onProblem} />
+              </li>
+            ))}
+            {warnings.length > 20 ? <li className="text-[13px] text-ink-subtle">and {warnings.length - 20} more</li> : null}
+          </ul>
+        </div>
+      ) : null}
+      {reviewing ? (
+        <div data-testid="review-reminder" className="text-[13px]">
+          <p className="mb-1 font-medium text-ink">The checks can&apos;t judge these, so look yourself</p>
+          <p className="text-ink-muted">Does the copy sound right for this client? Do the images suit their pages? Are the legal and contact details correct? Does it look right at phone width?</p>
+        </div>
       ) : null}
     </Section>
   );
