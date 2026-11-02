@@ -70,7 +70,7 @@ test("a website spec goes from the brief to an approved second version", async (
   await page.getByRole("button", { name: "Submit for approval" }).click();
   await page.getByRole("button", { name: "Approve", exact: true }).click();
   // Approving reloads the page's versions, so wait for that before opening the menu.
-  await expect(page.getByLabel("Tone of voice", { exact: true })).toBeDisabled();
+  await expect(page.getByRole("button", { name: "Start version 3" })).toBeVisible();
   await page.getByTestId("spec-version-menu").locator("summary").click();
   const versions = page.getByTestId("spec-versions");
   await expect(versions.getByRole("button", { name: /v1/ })).toContainText("Replaced by a newer version");
