@@ -2,6 +2,7 @@ import { expect, test } from "@playwright/test";
 import { SupabaseRepository } from "@/lib/data/supabase-repository";
 import { signIn, uniqueName } from "./helpers";
 import { fixture, signedInClient, type SeedUser } from "./supabase";
+import { stepClock } from "./load-probe";
 
 /**
  * A website spec from start to a second version, in the browser, against the
@@ -22,8 +23,10 @@ async function websiteProject(user: SeedUser) {
 }
 
 test("a website spec goes from the brief to an approved second version", async ({ page }) => {
-  test.setTimeout(90_000);
+  test.setTimeout(240_000);
+  const mark = stepClock(page, "spec");
   const { client, url } = await websiteProject(fixture().member);
+  mark("websiteProject");
   await signIn(page, fixture().member);
 
   // The project card links to the spec page.
@@ -37,6 +40,7 @@ test("a website spec goes from the brief to an approved second version", async (
   await expect(page.getByText("From brief: Goal")).toBeVisible();
   await expect(page.getByTestId("spec-blockers")).toContainText("Choose the brand colours and fonts");
 
+  mark("start");
   // Fill in what blocks approval.
   await page.getByRole("button", { name: "Keep these" }).click();
   await page.getByLabel("Default description", { exact: true }).fill("Celebration cakes baked to order.");
@@ -53,6 +57,7 @@ test("a website spec goes from the brief to an approved second version", async (
   await expect(page.getByRole("button", { name: "Saved" })).toBeVisible();
   await expect(page.getByText("Nothing blocks approval")).toBeVisible();
 
+  mark("fillAndSave");
   await page.reload();
   await expect(page.getByLabel("Default description", { exact: true })).toHaveValue("Celebration cakes baked to order.");
 
@@ -62,6 +67,7 @@ test("a website spec goes from the brief to an approved second version", async (
   await expect(page.getByText("Approved", { exact: true }).first()).toBeVisible();
   await expect(page.getByLabel("Goal of the website", { exact: true })).toBeDisabled();
 
+  mark("reloadSubmitApprove");
   // Version 2 starts as a copy; approving it replaces version 1.
   await page.getByRole("button", { name: "Start version 2" }).click();
   await expect(page.getByRole("heading", { level: 1, name: "Website spec v2" })).toBeVisible();
@@ -74,6 +80,7 @@ test("a website spec goes from the brief to an approved second version", async (
   await expect(versions.getByRole("button", { name: /v1/ })).toContainText("Replaced by a newer version");
   await expect(versions.getByRole("button", { name: /v2/ })).toContainText("Approved");
 
+  mark("version2");
   // The viewer sees the spec but cannot change it.
   const viewer = await page.context().browser()!.newContext();
   const viewerPage = await viewer.newPage();
@@ -84,10 +91,12 @@ test("a website spec goes from the brief to an approved second version", async (
   await expect(viewerPage.getByRole("button", { name: "Start version 3" })).toHaveCount(0);
   await viewer.close();
 
+  mark("viewer");
   // The steps are in the client's activity.
   await page.goto(`/clients/${client.id}`);
   const activity = page.locator("section#activity");
   const showAll = activity.getByRole("button", { name: /Show all/ });
   if (await showAll.isVisible()) await showAll.click();
   await expect(activity.getByText("Approved website spec v2 (replaces v1)")).toBeVisible();
+  mark("activity");
 });

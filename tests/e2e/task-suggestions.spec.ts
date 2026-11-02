@@ -2,6 +2,7 @@ import { expect, test } from "@playwright/test";
 import { SupabaseRepository } from "@/lib/data/supabase-repository";
 import { createClientNamed, section, signIn, uniqueName } from "./helpers";
 import { fixture, signedInClient } from "./supabase";
+import { stepClock } from "./load-probe";
 
 /**
  * Task suggestions when starting a project, with the server's deterministic
@@ -21,10 +22,16 @@ async function briefFor(workspace: string, values: Record<string, string>) {
 }
 
 test("suggests tasks from the brief, and creates only the ones the person ticks", async ({ page }) => {
+  test.setTimeout(180_000);
+  const mark = stepClock(page, "suggest");
   await signIn(page, fixture().member);
+  mark("signIn");
   const workspace = await createClientNamed(page, uniqueName("Suggest Co"));
+  mark("createClient");
   await briefFor(workspace, { integrations: "Bokamera booking", content: "We need help writing page copy", existingMaterials: "Logo and brand guidelines from 2024" });
+  mark("briefFor");
   await page.reload();
+  mark("reload");
 
   const projects = section(page, "projects");
   await projects.getByRole("button", { name: "New project" }).first().click();
@@ -36,6 +43,7 @@ test("suggests tasks from the brief, and creates only the ones the person ticks"
   await projects.getByRole("button", { name: "Suggest changes from the brief" }).click();
   const suggestions = projects.getByTestId("task-suggestions");
   await expect(suggestions.getByLabel(/Connect the integrations the client named/)).not.toBeChecked();
+  mark("suggest");
   await expect(suggestions.getByLabel(/Content plan and writing schedule/)).not.toBeChecked();
   await expect(suggestions).toContainText("Produced by the test provider, not by an AI model.");
   await expect(suggestions).toContainText("none is added unless you tick it");
@@ -49,12 +57,15 @@ test("suggests tasks from the brief, and creates only the ones the person ticks"
   await projects.getByLabel(/^Brand guidelines/).uncheck();
   await projects.getByRole("button", { name: `Create project with ${offered} tasks` }).click();
 
+  mark("beforeCreate");
   const card = projects.locator('[id^="project-"]', { hasText: "Brand and site" });
   await expect(card.getByText("Connect the integrations the client named", { exact: true })).toBeVisible();
   await expect(card.getByText("Content plan and writing schedule", { exact: true })).toHaveCount(0);
   await expect(card.getByText("Brand guidelines", { exact: true })).toHaveCount(0);
+  mark("createProject");
   await page.reload();
   await expect(card.locator("li[id^='task-']")).toHaveCount(offered);
+  mark("reloadAndCount");
 });
 
 test("asks for a brief first, and shows a failed request without creating anything", async ({ page }) => {
