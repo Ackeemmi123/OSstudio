@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useStudio, useStudioStore } from "@/components/providers/studio-provider";
 import { useStudioAction } from "@/components/providers/use-studio-action";
-import { Eye } from "lucide-react";
+import { Check, CircleAlert, Eye, LoaderCircle } from "lucide-react";
 import { Button, ButtonLink } from "@/components/ui/button";
 import { Field, TextArea } from "@/components/ui/field";
 import { Modal, ModalBody, ModalFooter } from "@/components/ui/modal";
@@ -16,11 +17,17 @@ import { SITE_SPEC_STATUS_LABELS } from "@/lib/domain/labels";
 import { imagesInUse, REVIEW_NOTE_MAX_LENGTH } from "@/lib/domain/site-specs";
 import { CONTEXT_FIELD_LABELS } from "@/lib/domain/labels";
 import type { Actor, Client, ContextFieldKey, Project, SiteAssetRecord, SiteSpecRecord, SiteSpecStatus } from "@/lib/domain/types";
+import { errorMessage, type StudioStore } from "@/lib/data/studio-store";
+import type { RenderImageFile } from "@/lib/site-render/model";
+import { Autosaver, type SaveStatus } from "@/lib/site-spec/autosave";
+import type { SiteLocale } from "@/lib/site-spec/catalog";
 import { refreshFromBrief } from "@/lib/site-spec/edit";
+import { localeOfPath, pageIndexOfPath, pathCandidates } from "@/lib/site-spec/paths";
 import type { SiteSpec, SiteSpecSource } from "@/lib/site-spec/schema";
 import { approvalBlockers, parseSiteSpec, type SpecIssue } from "@/lib/site-spec/validate";
 import { BrandEditor } from "./brand-editor";
 import type { ImageLibrary } from "./images-editor";
+import { LivePreview } from "./live-preview";
 import { PagesEditor } from "./pages-editor";
 import { SettingsEditor } from "./settings-editor";
 import { StrategyEditor } from "./strategy-editor";
@@ -35,8 +42,30 @@ export interface SpecEditing {
 }
 
 const LEAVE_WARNING = "This website spec has changes that are not saved. Leave without saving?";
+/** One "Edited" entry in the activity per stretch of editing, not one per pause in typing. */
+const LOG_EDIT_EVERY_MS = 10 * 60 * 1000;
 
 export const STATUS_TONES: Record<SiteSpecStatus, Tone> = { draft: "neutral", in_review: "caution", approved: "positive", superseded: "neutral" };
+
+/** Saves a draft as it is edited. Each save and step names the newest stored version, which is what it replaces. */
+function draftSaver(record: SiteSpecRecord, store: StudioStore, onStatus: (status: SaveStatus) => void) {
+  let latest = record;
+  let lastLogged = 0;
+  let notify: (record: SiteSpecRecord) => void = () => undefined;
+  const saver = new Autosaver<SiteSpec>({
+    save: async (value) => {
+      const quiet = Date.now() - lastLogged < LOG_EDIT_EVERY_MS;
+      // An entry for the activity also refreshes the studio, which shows it.
+      latest = quiet ? await store.read((r) => r.saveSiteSpecDraft!(latest, value, { quiet })) : await store.run((r) => r.saveSiteSpecDraft!(latest, value));
+      if (!quiet) lastLogged = Date.now();
+      notify(latest);
+    },
+    isFinal: (error) => error instanceof RepositoryError && ["conflict", "not_found", "permission", "session", "validation"].includes(error.code),
+    messageOf: errorMessage,
+    onStatus,
+  });
+  return { saver, latest: () => latest, onSaved: (listener: (record: SiteSpecRecord) => void) => void (notify = listener) };
+}
 
 function actorName(actor: Actor | null): string {
   if (!actor) return "someone";
@@ -44,10 +73,11 @@ function actorName(actor: Actor | null): string {
 }
 
 /**
- * One version of a project's website spec. A draft can be edited by owners
- * and members; every other version is read-only. Saving, submitting,
- * approving and sending back each go through the repository, which records
- * them in the project's activity.
+ * One version of a project's website spec, beside a live preview of it. A
+ * draft can be edited by owners and members and saves itself after a pause;
+ * every other version is read-only. Saving, submitting, approving and sending
+ * back each go through the repository, which records them in the project's
+ * activity.
  */
 export function SiteSpecEditor({
   record,
@@ -55,6 +85,7 @@ export function SiteSpecEditor({
   client,
   project,
   onChanged,
+  onSaved,
   onSelect,
 }: {
   record: SiteSpecRecord;
@@ -63,6 +94,8 @@ export function SiteSpecEditor({
   project: Project;
   /** Called with the version as stored after a change, so the page can reload the versions. */
   onChanged: (record: SiteSpecRecord) => void;
+  /** Called with the version as stored after an autosave. The editor stays as it is. */
+  onSaved: (record: SiteSpecRecord) => void;
   onSelect: (id: string) => void;
 }) {
   const state = useStudio();
@@ -102,20 +135,91 @@ export function SiteSpecEditor({
   const editable = canEdit && record.status === "draft";
   const parsed = useMemo(() => parseSiteSpec(draft), [draft]);
   const blockers = useMemo(() => (parsed.ok ? approvalBlockers(parsed.spec, client, library.assets) : []), [parsed, client, library.assets]);
-  const dirty = JSON.stringify(draft) !== JSON.stringify(record.spec);
+  const router = useRouter();
+  const [saveStatus, setSaveStatus] = useState<SaveStatus>({ kind: "saved" });
+  const dirty = saveStatus.kind !== "saved";
+  const [openPage, setOpenPage] = useState<string | null>(record.spec.pages[0]?.id ?? null);
+  const [previewPage, setPreviewPage] = useState<string | undefined>(record.spec.pages[0]?.id);
+  const [previewLocale, setPreviewLocale] = useState<SiteLocale | undefined>();
+  const [view, setView] = useState<"edit" | "preview">("edit");
+  const target = useRef<string | null>(null);
+  const [targetRound, setTargetRound] = useState(0);
+  const editorRoot = useRef<HTMLDivElement>(null);
+
+  const [drafts] = useState(() => draftSaver(record, store, setSaveStatus));
+  const saver = drafts.saver;
+  useEffect(() => {
+    drafts.onSaved(onSaved);
+  });
+  useEffect(() => {
+    saver.open();
+    return () => saver.close();
+  }, [saver]);
+
+  // Every edit goes to the saver: the newest valid text, or a stop until it is fixed.
+  const seenDraft = useRef(draft);
+  useEffect(() => {
+    if (draft === seenDraft.current) return;
+    seenDraft.current = draft;
+    if (parsed.ok) saver.edit(parsed.spec);
+    else saver.hold(parsed.issues[0].message);
+  }, [draft, parsed, saver]);
+
+  function openPageInEditor(pageId: string | null) {
+    setOpenPage(pageId);
+    if (pageId) setPreviewPage(pageId);
+  }
+
+  /** Goes to the field a problem is about, opening its page and showing it in the preview. */
+  function goToProblem(path: string) {
+    setView("edit");
+    const page = pageIndexOfPath(path);
+    if (page !== null && draft.pages[page]) openPageInEditor(draft.pages[page].id);
+    const language = localeOfPath(path);
+    if (language) setPreviewLocale(language);
+    target.current = path;
+    setTargetRound((n) => n + 1);
+  }
+
+  useEffect(() => {
+    if (!target.current) return;
+    const path = target.current;
+    target.current = null;
+    for (const candidate of pathCandidates(path)) {
+      const element = editorRoot.current?.querySelector<HTMLElement>(`[data-spec-path="${candidate}"]`);
+      if (!element) continue;
+      element.scrollIntoView({ block: "center" });
+      const field = element.matches("input, textarea, select") ? element : element.querySelector<HTMLElement>("input:not([disabled]), textarea:not([disabled]), select:not([disabled])");
+      field?.focus({ preventScroll: true });
+      return;
+    }
+  }, [targetRound]);
+
+  // The preview follows the language being written.
+  function followField(event: React.FocusEvent<HTMLDivElement>) {
+    const language = localeOfPath((event.target as HTMLElement).dataset.specPath ?? "");
+    if (language) setPreviewLocale(language);
+  }
+
+  const imageFiles = useMemo<Record<string, RenderImageFile>>(
+    () => Object.fromEntries(library.assets.flatMap((a) => (library.links[a.id] ? [[a.id, { url: library.links[a.id], width: a.width, height: a.height }]] : []))),
+    [library],
+  );
   const refreshable = useMemo(() => (editable ? refreshFromBrief(draft, client).refreshed : []), [editable, draft, client]);
 
-  // Unsaved changes: ask before the page is closed or reloaded, or a link leads elsewhere.
+  // Unsaved changes: ask before the page is closed or reloaded. A link saves first, and only asks if that fails.
   useEffect(() => {
     if (!dirty) return;
     const beforeUnload = (event: BeforeUnloadEvent) => event.preventDefault();
     const onClick = (event: MouseEvent) => {
       const link = event.target instanceof Element ? event.target.closest("a[href]") : null;
-      if (!link || link.getAttribute("href")?.startsWith("#") || link.getAttribute("target") === "_blank") return;
-      if (!window.confirm(LEAVE_WARNING)) {
-        event.preventDefault();
-        event.stopPropagation();
-      }
+      const href = link?.getAttribute("href");
+      if (!href || href.startsWith("#") || link?.getAttribute("target") === "_blank") return;
+      event.preventDefault();
+      event.stopPropagation();
+      void saver.flush().then((stored) => {
+        if (stored || window.confirm(LEAVE_WARNING)) router.push(href);
+      });
     };
     window.addEventListener("beforeunload", beforeUnload);
     document.addEventListener("click", onClick, true);
@@ -123,8 +227,8 @@ export function SiteSpecEditor({
       window.removeEventListener("beforeunload", beforeUnload);
       document.removeEventListener("click", onClick, true);
     };
-  }, [dirty]);
-  const latest = versions[0];
+  }, [dirty, saver, router]);
+  const newest = versions[0];
   const open = versions.find((v) => v.status === "draft" || v.status === "in_review");
 
   const info = state.status === "ready" ? state.info : null;
@@ -145,19 +249,21 @@ export function SiteSpecEditor({
     if (next) onChanged(next);
   }
 
-  const save = () => act(() => run((r) => r.saveSiteSpecDraft!(record, draft), "The website spec was not saved."));
-  const submit = () => act(() => run((r) => r.submitSiteSpec!(record), "The website spec was not submitted."));
+  async function submit() {
+    // Submit what is on the screen. If it cannot be stored, the save status says why.
+    if (!(await saver.flush())) return;
+    await act(() => run((r) => r.submitSiteSpec!(drafts.latest()), "The website spec was not submitted."));
+  }
   const approve = () => {
     setRefusal(null);
     return act(() =>
-      run((r) => r.approveSiteSpec!(record), "The website spec was not approved.", (error) => {
+      run((r) => r.approveSiteSpec!(drafts.latest()), "The website spec was not approved.", (error) => {
         if (error instanceof SiteSpecBlockedError) {
           setRefusal({ blockers: error.blockers });
           // The brief or the images changed since this page loaded.
           void store.reload().catch(() => undefined);
           setLibraryRound((n) => n + 1);
-        }
-        else if (error instanceof RepositoryError && error.code === "conflict") setRefusal({ conflict: error.message });
+        } else if (error instanceof RepositoryError && error.code === "conflict") setRefusal({ conflict: error.message });
         else return false;
         return true;
       }),
@@ -165,7 +271,7 @@ export function SiteSpecEditor({
   };
   const startNext = () => act(() => run((r) => r.startSiteSpec!(project.id), "A new version could not be started."));
   async function sendBack() {
-    const next = await run((r) => r.requestSiteSpecChanges!(record, note), "The website spec was not sent back.");
+    const next = await run((r) => r.requestSiteSpecChanges!(drafts.latest(), note), "The website spec was not sent back.");
     if (next) {
       setSendingBack(false);
       setNote("");
@@ -174,8 +280,8 @@ export function SiteSpecEditor({
   }
 
   return (
-    <div className="flex flex-col gap-8">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+    <div className="flex flex-col gap-6 xl:relative xl:left-1/2 xl:w-[min(calc(100vw-4rem),1560px)] xl:-translate-x-1/2">
+      <div className="z-20 flex flex-col gap-3 bg-canvas py-2 sm:flex-row sm:items-end sm:justify-between xl:sticky xl:top-14">
         <div className="min-w-0">
           <p className="text-[13px] text-ink-subtle">
             <a className="hover:text-ink" href={`/clients/${encodeURIComponent(client.id)}`}>
@@ -200,7 +306,8 @@ export function SiteSpecEditor({
           </div>
         </div>
         <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
-          {dirty ? <span className="text-[12.5px] text-ink-subtle">Save to see your changes in the preview</span> : null}
+          {editable ? <SaveStatusLabel status={saveStatus} /> : null}
+          <VersionMenu versions={versions} selected={record.id} onSelect={(id) => (id === record.id || !dirty || window.confirm(LEAVE_WARNING)) && onSelect(id)} />
           <ButtonLink href={`/clients/${encodeURIComponent(client.id)}/projects/${encodeURIComponent(project.id)}/site/preview?v=${record.version}`}>
             <Eye aria-hidden />
             Preview
@@ -209,10 +316,7 @@ export function SiteSpecEditor({
             <>
               {record.status === "draft" ? (
                 <>
-                  <Button onClick={save} disabled={pending || !dirty || !parsed.ok}>
-                    {pending ? "Saving…" : dirty ? "Save" : "Saved"}
-                  </Button>
-                  <Button variant="primary" onClick={submit} disabled={pending || dirty || blockers.length > 0} title={dirty ? "Save first" : blockers.length ? "Fix what blocks approval first" : undefined}>
+                  <Button variant="primary" onClick={submit} disabled={pending || !parsed.ok || blockers.length > 0} title={blockers.length || !parsed.ok ? "Fix what blocks approval first" : undefined}>
                     Submit for approval
                   </Button>
                 </>
@@ -227,7 +331,7 @@ export function SiteSpecEditor({
                   </Button>
                 </>
               ) : null}
-              {record.status === "approved" && !open && latest?.id === record.id ? (
+              {record.status === "approved" && !open && newest?.id === record.id ? (
                 <Button onClick={startNext} disabled={pending}>
                   Start version {record.version + 1}
                 </Button>
@@ -263,31 +367,61 @@ export function SiteSpecEditor({
         </p>
       ) : null}
 
-      <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_300px]">
-        <div className="flex min-w-0 flex-col gap-10">
-          <Section id="strategy" title="Strategy">
-            <StrategyEditor spec={draft} client={client} editing={editing} />
-          </Section>
-          <Section id="brand" title="Brand">
-            <BrandEditor spec={draft} editing={editing} />
-          </Section>
-          <Section id="pages" title="Pages" count={draft.pages.length}>
-            <PagesEditor spec={draft} editing={editing} />
-          </Section>
-          <Section id="settings" title="Site settings">
-            <SettingsEditor spec={draft} clientId={client.id} editing={editing} library={imageLibrary} />
-          </Section>
-        </div>
-        <aside className="flex flex-col gap-8 lg:sticky lg:top-20 lg:self-start">
+      <div role="group" aria-label="Edit or preview" className="flex gap-1 xl:hidden">
+        {(["edit", "preview"] as const).map((key) => (
+          <button
+            key={key}
+            type="button"
+            aria-pressed={view === key}
+            onClick={() => setView(key)}
+            className={cn("rounded-full border px-3 py-1.5 text-[13px]", view === key ? "border-ink bg-sunken text-ink" : "border-line-strong text-ink-muted hover:text-ink")}
+          >
+            {key === "edit" ? "Edit" : "See preview"}
+          </button>
+        ))}
+      </div>
+
+      <div className="grid items-start gap-8 xl:grid-cols-[132px_minmax(0,1fr)_minmax(0,1.1fr)]">
+        <SectionMenu spec={draft} openPage={openPage} onPage={openPageInEditor} />
+        <div ref={editorRoot} onFocusCapture={followField} className={cn("flex min-w-0 flex-col gap-10", view === "preview" && "hidden xl:flex")}>
           <IssuesPanel
             issues={parsed.ok ? [] : parsed.issues}
             blockers={blockers}
             status={record.status}
             refreshable={refreshable}
             onRefresh={() => editing.change((s) => void Object.assign(s, refreshFromBrief(s, client).spec))}
+            onProblem={goToProblem}
           />
-          <VersionHistory versions={versions} selected={record.id} onSelect={(id) => (id === record.id || !dirty || window.confirm(LEAVE_WARNING)) && onSelect(id)} />
-        </aside>
+          <Section id="strategy" title="Strategy" className="scroll-mt-32">
+            <div data-spec-path="strategy">
+              <StrategyEditor spec={draft} client={client} editing={editing} />
+            </div>
+          </Section>
+          <Section id="brand" title="Brand" className="scroll-mt-32">
+            <div data-spec-path="brand">
+              <BrandEditor spec={draft} editing={editing} />
+            </div>
+          </Section>
+          <Section id="pages" title="Pages" count={draft.pages.length} className="scroll-mt-32">
+            <div data-spec-path="pages">
+              <PagesEditor spec={draft} editing={editing} open={openPage} setOpen={openPageInEditor} />
+            </div>
+          </Section>
+          <Section id="settings" title="Site settings" className="scroll-mt-32">
+            <SettingsEditor spec={draft} clientId={client.id} editing={editing} library={imageLibrary} />
+          </Section>
+        </div>
+        <div className={cn("min-w-0 xl:sticky xl:top-32", view === "edit" && "hidden xl:block")}>
+          <LivePreview
+            spec={parsed.ok ? parsed.spec : null}
+            pageId={previewPage}
+            locale={previewLocale}
+            imageFiles={imageFiles}
+            showMissingByDefault={record.status === "draft" || record.status === "in_review"}
+            onPage={(pageId) => openPageInEditor(pageId)}
+            onLocale={setPreviewLocale}
+          />
+        </div>
       </div>
 
       <Modal open={sendingBack} onClose={() => setSendingBack(false)} title={`Ask for changes to v${record.version}`} description="The version goes back to draft so it can be edited." busy={pending}>
@@ -315,6 +449,7 @@ function IssuesPanel({
   status,
   refreshable,
   onRefresh,
+  onProblem,
 }: {
   issues: SpecIssue[];
   blockers: SpecIssue[];
@@ -322,6 +457,7 @@ function IssuesPanel({
   /** Brief values used here that were confirmed again since, which can be brought in with one click. */
   refreshable: ContextFieldKey[];
   onRefresh: () => void;
+  onProblem: (path: string) => void;
 }) {
   if (status === "approved" || status === "superseded") return null;
   return (
@@ -342,8 +478,8 @@ function IssuesPanel({
           <p className="mb-2 text-[13px] font-medium text-critical">Cannot be saved yet</p>
           <ul className="flex flex-col gap-1.5" data-testid="spec-issues">
             {issues.slice(0, 20).map((issue, i) => (
-              <li key={i} className="text-[13px] text-ink-muted">
-                {issue.message} {issue.path ? <span className="text-ink-subtle">({issue.path})</span> : null}
+              <li key={i}>
+                <ProblemLink issue={issue} onProblem={onProblem} />
               </li>
             ))}
           </ul>
@@ -352,8 +488,8 @@ function IssuesPanel({
       {blockers.length ? (
         <ul className="flex flex-col gap-1.5" data-testid="spec-blockers">
           {blockers.slice(0, 30).map((b, i) => (
-            <li key={i} className="text-[13px] text-ink-muted">
-              {b.message}
+            <li key={i}>
+              <ProblemLink issue={b} onProblem={onProblem} />
             </li>
           ))}
           {blockers.length > 30 ? <li className="text-[13px] text-ink-subtle">and {blockers.length - 30} more</li> : null}
@@ -365,10 +501,75 @@ function IssuesPanel({
   );
 }
 
-function VersionHistory({ versions, selected, onSelect }: { versions: SiteSpecRecord[]; selected: string; onSelect: (id: string) => void }) {
+function ProblemLink({ issue, onProblem }: { issue: SpecIssue; onProblem: (path: string) => void }) {
   return (
-    <Section id="versions" title="Versions" count={versions.length}>
-      <ol className="flex flex-col gap-1" data-testid="spec-versions">
+    <button type="button" onClick={() => onProblem(issue.path)} className="rounded-sm text-left text-[13px] text-ink-muted underline decoration-line-strong underline-offset-2 hover:text-ink">
+      {issue.message}
+    </button>
+  );
+}
+
+function SaveStatusLabel({ status }: { status: SaveStatus }) {
+  const reload = status.kind === "stopped";
+  return (
+    <p data-testid="save-status" role="status" className={cn("flex items-center gap-1.5 text-[12.5px]", status.kind === "saved" || status.kind === "saving" || status.kind === "waiting" ? "text-ink-subtle" : status.kind === "stopped" ? "text-critical" : "text-caution")}>
+      {status.kind === "saved" ? <Check aria-hidden className="size-3.5" /> : status.kind === "saving" || status.kind === "waiting" ? <LoaderCircle aria-hidden className="size-3.5 animate-spin" /> : <CircleAlert aria-hidden className="size-3.5" />}
+      {status.kind === "saved"
+        ? "Saved"
+        : status.kind === "saving" || status.kind === "waiting"
+          ? "Saving…"
+          : status.kind === "invalid"
+            ? `Not saved: ${status.message}`
+            : status.kind === "failed"
+              ? `Not saved yet, trying again: ${status.message}`
+              : `Not saved: ${status.message} Your edits are still here.`}
+      {reload ? (
+        <button type="button" onClick={() => window.location.reload()} className="rounded-sm font-medium underline underline-offset-2">
+          Reload
+        </button>
+      ) : null}
+    </p>
+  );
+}
+
+function SectionMenu({ spec, openPage, onPage }: { spec: SiteSpec; openPage: string | null; onPage: (pageId: string) => void }) {
+  const link = "block rounded-sm py-1 text-[13px] text-ink-muted hover:text-ink";
+  return (
+    <nav aria-label="Website spec sections" className="hidden xl:sticky xl:top-32 xl:block">
+      <a href="#strategy" className={link}>
+        Strategy
+      </a>
+      <a href="#brand" className={link}>
+        Brand
+      </a>
+      <a href="#pages" className={link}>
+        Pages
+      </a>
+      <ul className="mb-1 border-l border-line pl-2.5">
+        {spec.pages.map((page, i) => (
+          <li key={page.id}>
+            <a href="#pages" onClick={() => onPage(page.id)} className={cn(link, "truncate py-0.5 text-[12.5px]", openPage === page.id && "font-medium text-ink")}>
+              {page.title[spec.locales.default] || (i === 0 ? "Home" : page.id)}
+            </a>
+          </li>
+        ))}
+      </ul>
+      <a href="#settings" className={link}>
+        Site settings
+      </a>
+    </nav>
+  );
+}
+
+function VersionMenu({ versions, selected, onSelect }: { versions: SiteSpecRecord[]; selected: string; onSelect: (id: string) => void }) {
+  const current = versions.find((v) => v.id === selected);
+  return (
+    <details className="relative" data-testid="spec-version-menu">
+      <summary className="inline-flex h-8 cursor-pointer list-none items-center rounded-full border border-line-strong px-3 text-[13px] text-ink-muted hover:text-ink">
+        {versions.length === 1 ? "1 version" : `${versions.length} versions`}
+        {current ? <span className="sr-only">, showing v{current.version}</span> : null}
+      </summary>
+      <ol className="absolute right-0 z-30 mt-1 flex w-72 flex-col gap-1 rounded-[var(--radius-surface)] border border-line bg-surface p-1.5 shadow-sm" data-testid="spec-versions">
         {versions.map((v) => (
           <li key={v.id}>
             <button
@@ -388,6 +589,6 @@ function VersionHistory({ versions, selected, onSelect }: { versions: SiteSpecRe
           </li>
         ))}
       </ol>
-    </Section>
+    </details>
   );
 }

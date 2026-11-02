@@ -44,6 +44,16 @@ Each step is recorded once in the project's activity (`site_spec.created`,
 name. Viewers read specs and their history but change nothing. Agents and the
 service role have no access.
 
+## Editing
+
+A draft saves itself about 2 seconds after typing stops, one save at a time
+(`src/lib/site-spec/autosave.ts`), and Submit saves anything still waiting
+first. A draft that is not a valid spec is not stored until it is fixed, and if
+someone else changed the draft, saving stops without overwriting anything and
+the text stays on screen. The activity gets one "Edited" entry per 10 minutes of
+editing, not one per save. Clicking a problem under "Before approval" goes to
+its field (`data-spec-path` in the editors, `src/lib/site-spec/paths.ts`).
+
 ## What blocks approval
 
 `approvalBlockers()` lists, in plain language:

@@ -548,11 +548,15 @@ export class SupabaseRepository implements StudioRepository {
     });
   }
 
-  saveSiteSpecDraft(expected: SiteSpecRecord, spec: unknown): Promise<SiteSpecRecord> {
-    return this.writeSpec((_, deps) => {
-      const { record, event } = saveSiteSpecDraft(expected, spec, deps);
-      return [record, event && { events: [eventRow(event)], spec: update(siteSpecRow(record), expected.updatedAt) }];
-    });
+  saveSiteSpecDraft(expected: SiteSpecRecord, spec: unknown, options: { quiet?: boolean } = {}): Promise<SiteSpecRecord> {
+    return this.writeSpec(
+      (_, deps) => {
+        const { record, event } = saveSiteSpecDraft(expected, spec, deps);
+        return [record, event && { events: options.quiet ? [] : [eventRow(event)], spec: update(siteSpecRow(record), expected.updatedAt) }];
+      },
+      // Saving reads nothing from the studio, so typing never waits for a full reload.
+      { noSnapshot: true },
+    );
   }
 
   async submitSiteSpec(expected: SiteSpecRecord): Promise<SiteSpecRecord> {
@@ -645,12 +649,13 @@ export class SupabaseRepository implements StudioRepository {
    */
   private async writeSpec(
     change: (snapshot: StudioSnapshot, deps: DomainDeps) => [SiteSpecRecord, SpecChange | null],
-    options: { beforeWrite?: () => Promise<void> } = {},
+    options: { beforeWrite?: () => Promise<void>; noSnapshot?: boolean } = {},
   ): Promise<SiteSpecRecord> {
     if (!this.current.canWrite) {
       throw new RepositoryError("You have read-only access to this studio. Ask an owner for member access.", "permission");
     }
-    const snapshot = this.snapshot ?? (await this.load());
+    // Without a snapshot the change must not read one; the people and role it needs are already loaded.
+    const snapshot = options.noSnapshot ? (this.snapshot as StudioSnapshot) : (this.snapshot ?? (await this.load()));
     const deps: DomainDeps = { now: () => new Date().toISOString(), createId: this.createId, actor: this.actor() };
     let value: SiteSpecRecord;
     let specChange: SpecChange | null;

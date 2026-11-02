@@ -68,7 +68,7 @@ export function ImagesEditor({ spec, clientId, editing, library }: { spec: SiteS
         {spec.assets.map((asset, a) => {
           const file = asset.fileId ? library.assets.find((f) => f.id === asset.fileId) : undefined;
           return (
-            <div key={asset.id} className="flex flex-col gap-3 rounded-[var(--radius-control)] border border-line p-3" data-testid="spec-image">
+            <div key={asset.id} className="flex flex-col gap-3 rounded-[var(--radius-control)] border border-line p-3" data-testid="spec-image" data-spec-path={`assets.${a}`}>
               <div className="flex gap-3">
                 <Thumbnail url={asset.fileId ? library.links[asset.fileId] : undefined} label={asset.fileId ? "Not available" : "Placeholder"} />
                 <div className="flex min-w-0 flex-1 flex-col gap-2">
@@ -82,7 +82,7 @@ export function ImagesEditor({ spec, clientId, editing, library }: { spec: SiteS
                   )}
                 </div>
               </div>
-              <LocalizedInput label="Alternative text" hint="Read aloud to people who cannot see the image." value={asset.alt} locales={locales} maxLength={150} disabled={!editable} onChange={(alt) => change((s) => void (s.assets[a].alt = alt))} />
+              <LocalizedInput label="Alternative text" path={`assets.${a}.alt`} hint="Read aloud to people who cannot see the image." value={asset.alt} locales={locales} maxLength={150} disabled={!editable} onChange={(alt) => change((s) => void (s.assets[a].alt = alt))} />
               {editable ? (
                 <div className="flex flex-wrap items-end gap-2">
                   <Button size="xs" onClick={() => setUploadFor({ assetId: asset.id, description: asset.description, people: peopleImages.has(asset.id) })}>

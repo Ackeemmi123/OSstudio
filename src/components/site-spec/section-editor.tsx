@@ -44,6 +44,7 @@ export function SectionEditor({
   const locales = spec.locales.available;
   const sectionCount = spec.pages[pageIndex].sections.length;
   const idPrefix = `section-${section.id}`;
+  const path = `pages.${pageIndex}.sections.${sectionIndex}`;
 
   const edit = (apply: (target: Values) => void) =>
     change((s) => {
@@ -65,6 +66,7 @@ export function SectionEditor({
             locales={locales}
             multiline={def.type === "longText"}
             disabled={!editable}
+            path={`${path}.${def.key}`}
             onChange={(next) => edit((t) => void (t[def.key] = next))}
           />
         );
@@ -105,7 +107,7 @@ export function SectionEditor({
           </Field>
         );
       case "button":
-        return <ButtonEditor key={key} id={key} spec={spec} button={values.button as SiteSpecButton} disabled={!editable} onChange={(next) => edit((t) => void (t.button = next))} />;
+        return <ButtonEditor key={key} id={key} path={`${path}.button`} spec={spec} button={values.button as SiteSpecButton} disabled={!editable} onChange={(next) => edit((t) => void (t.button = next))} />;
       case "buttons": {
         const buttons = values.buttons as SiteSpecButton[];
         return (
@@ -113,7 +115,7 @@ export function SectionEditor({
             <p className="text-[13px] font-medium text-ink">{def.label}</p>
             {buttons.map((b, i) => (
               <div key={i} className="flex flex-col gap-2 rounded-[var(--radius-control)] border border-line p-3">
-                <ButtonEditor id={`${key}-${i}`} spec={spec} button={b} disabled={!editable} onChange={(next) => edit((t) => void ((t.buttons as SiteSpecButton[])[i] = next))} />
+                <ButtonEditor id={`${key}-${i}`} path={`${path}.buttons.${i}`} spec={spec} button={b} disabled={!editable} onChange={(next) => edit((t) => void ((t.buttons as SiteSpecButton[])[i] = next))} />
                 {editable ? (
                   <Button size="xs" variant="ghost" className="self-start" onClick={() => edit((t) => void (t.buttons as SiteSpecButton[]).splice(i, 1))}>
                     Remove button
@@ -130,12 +132,12 @@ export function SectionEditor({
         );
       }
       case "items":
-        return <ItemsEditor key={key} spec={spec} section={section} editable={editable} edit={edit} />;
+        return <ItemsEditor key={key} path={path} spec={spec} section={section} editable={editable} edit={edit} />;
     }
   };
 
   return (
-    <div className="flex flex-col gap-4 rounded-[var(--radius-surface)] border border-line bg-surface p-4" data-testid="spec-section">
+    <div className="flex flex-col gap-4 rounded-[var(--radius-surface)] border border-line bg-surface p-4" data-testid="spec-section" data-spec-path={path}>
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-2">
           <p className="text-sm font-medium text-ink">{SECTION_LABELS[section.kind].label}</p>
@@ -196,10 +198,10 @@ function ImagePicker({ id, label, spec, value, disabled, onChange }: { id: strin
   );
 }
 
-function ButtonEditor({ id, spec, button, disabled, onChange }: { id: string; spec: SiteSpec; button: SiteSpecButton; disabled: boolean; onChange: (next: SiteSpecButton) => void }) {
+function ButtonEditor({ id, path, spec, button, disabled, onChange }: { id: string; path: string; spec: SiteSpec; button: SiteSpecButton; disabled: boolean; onChange: (next: SiteSpecButton) => void }) {
   return (
     <div className="grid gap-3 sm:grid-cols-2">
-      <LocalizedInput label="Button label" value={button.label} locales={spec.locales.available} maxLength={40} disabled={disabled} onChange={(label) => onChange({ ...button, label })} />
+      <LocalizedInput label="Button label" path={`${path}.label`} value={button.label} locales={spec.locales.available} maxLength={40} disabled={disabled} onChange={(label) => onChange({ ...button, label })} />
       <Field id={`${id}-target`} label="It leads to">
         <Select id={`${id}-target`} value={button.targetPageId} disabled={disabled} onChange={(e) => onChange({ ...button, targetPageId: e.target.value })}>
           {spec.pages.map((page) => (
@@ -213,7 +215,7 @@ function ButtonEditor({ id, spec, button, disabled, onChange }: { id: string; sp
   );
 }
 
-function ItemsEditor({ spec, section, editable, edit }: { spec: SiteSpec; section: SiteSpecSection; editable: boolean; edit: (apply: (target: Values) => void) => void }) {
+function ItemsEditor({ path, spec, section, editable, edit }: { path: string; spec: SiteSpec; section: SiteSpecSection; editable: boolean; edit: (apply: (target: Values) => void) => void }) {
   const fields = ITEM_FIELDS[section.kind] ?? [];
   const items = (section as unknown as { items: Values[] }).items;
   const limit = ITEM_LIMITS[section.kind] ?? 0;
@@ -230,10 +232,10 @@ function ItemsEditor({ spec, section, editable, edit }: { spec: SiteSpec; sectio
     if (def.type === "image") {
       return <ImagePicker key={key} id={key} label={def.label} spec={spec} value={item[def.key] as string | undefined} disabled={!editable} onChange={(id) => edit((t) => void (id ? ((t.items as Values[])[i][def.key] = id) : delete (t.items as Values[])[i][def.key]))} />;
     }
-    return <LocalizedInput key={key} label={def.label} value={(item[def.key] as LocalizedText) ?? {}} locales={spec.locales.available} multiline={def.type === "longText"} disabled={!editable} onChange={set} />;
+    return <LocalizedInput key={key} label={def.label} path={`${path}.items.${i}.${def.key}`} value={(item[def.key] as LocalizedText) ?? {}} locales={spec.locales.available} multiline={def.type === "longText"} disabled={!editable} onChange={set} />;
   };
   return (
-    <div className="flex flex-col gap-3">
+    <div className="flex flex-col gap-3" data-spec-path={`${path}.items`}>
       {items.map((item, i) => (
         <div key={item.id as string} className="flex flex-col gap-3 rounded-[var(--radius-control)] border border-line p-3">
           {fields.map((def) => itemField(def, item, i))}

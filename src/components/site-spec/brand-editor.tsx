@@ -60,6 +60,7 @@ export function BrandEditor({ spec, editing }: { spec: SiteSpec; editing: SpecEd
                 <span aria-hidden className="size-7 shrink-0 rounded border border-line" style={{ background: isHex(value) ? value : "transparent" }} />
                 <TextInput
                   id={`brand-${key}`}
+                  data-spec-path={`brand.colors.${key}`}
                   value={value}
                   placeholder="#000000"
                   maxLength={7}

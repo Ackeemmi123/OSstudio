@@ -1,15 +1,14 @@
 "use client";
 
-import { ArrowLeft, FileText, Monitor, SearchX, Smartphone, Tablet } from "lucide-react";
+import { ArrowLeft, FileText, SearchX } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { LoadError } from "@/components/load-error";
 import { useStudio, useStudioStore } from "@/components/providers/studio-provider";
 import { ButtonLink } from "@/components/ui/button";
 import { Field, Select } from "@/components/ui/field";
 import { StatusLabel } from "@/components/ui/status";
 import { EmptyState, Surface } from "@/components/ui/surface";
-import { cn } from "@/lib/cn";
 import { errorMessage } from "@/lib/data/studio-store";
 import { SITE_SPEC_STATUS_LABELS } from "@/lib/domain/labels";
 import { isWebsiteProject, openSiteSpec } from "@/lib/domain/site-specs";
@@ -17,15 +16,9 @@ import type { SiteSpecRecord } from "@/lib/domain/types";
 import { renderPreviewDocument } from "@/lib/site-render/document";
 import { buildRenderModel, type RenderImageFile } from "@/lib/site-render/model";
 import { parseSiteSpec } from "@/lib/site-spec/validate";
+import { PreviewFrame, ViewportButtons, type Viewport } from "./preview-frame";
 import { STATUS_TONES } from "./site-spec-editor";
 import { SiteSpecSkeleton } from "./site-spec-route";
-
-const VIEWPORTS = {
-  phone: { label: "Phone", width: 390, icon: Smartphone },
-  tablet: { label: "Tablet", width: 768, icon: Tablet },
-  desktop: { label: "Desktop", width: 1280, icon: Monitor },
-} as const;
-type Viewport = keyof typeof VIEWPORTS;
 
 /**
  * The internal preview of a saved website spec version. The page is drawn by
@@ -130,10 +123,8 @@ function Preview({
 }) {
   const [viewport, setViewport] = useState<Viewport>("desktop");
   const [showMissing, setShowMissing] = useState(record.status === "draft" || record.status === "in_review");
-  const [available, setAvailable] = useState(0);
   const [imageFiles, setImageFiles] = useState<Record<string, RenderImageFile>>({});
   const [linkRound, setLinkRound] = useState(0);
-  const frameBox = useRef<HTMLDivElement>(null);
   const store = useStudioStore();
 
   // Signed links (15 minutes) to the stored images this version uses, renewed every 10 minutes.
@@ -160,24 +151,12 @@ function Preview({
     return () => clearInterval(timer);
   }, []);
 
-  // The space for the frame, so a wide preview can be scaled down to fit.
-  useEffect(() => {
-    const box = frameBox.current;
-    if (!box) return;
-    const observer = new ResizeObserver(([entry]) => setAvailable(entry.contentRect.width));
-    observer.observe(box);
-    return () => observer.disconnect();
-  }, []);
-
   const parsed = useMemo(() => parseSiteSpec(record.spec), [record.spec]);
   const rendered = useMemo(() => {
     if (!parsed.ok) return null;
     const model = buildRenderModel(parsed.spec, { pageId, locale, showMissing, imageFiles });
     return { model, html: renderPreviewDocument(parsed.spec, model) };
   }, [parsed, pageId, locale, showMissing, imageFiles]);
-
-  const width = VIEWPORTS[viewport].width;
-  const scale = available > 0 ? Math.min(1, available / width) : 1;
 
   return (
     <div className="flex flex-col gap-5">
@@ -228,26 +207,7 @@ function Preview({
                 </Select>
               </Field>
             ) : null}
-            <div role="group" aria-label="Screen size" className="flex gap-1">
-              {(Object.keys(VIEWPORTS) as Viewport[]).map((key) => {
-                const { label, icon: Icon } = VIEWPORTS[key];
-                return (
-                  <button
-                    key={key}
-                    type="button"
-                    aria-pressed={viewport === key}
-                    onClick={() => setViewport(key)}
-                    className={cn(
-                      "inline-flex h-9 items-center gap-1.5 rounded-full border px-3 text-[13px]",
-                      viewport === key ? "border-ink bg-sunken text-ink" : "border-line-strong text-ink-muted hover:text-ink",
-                    )}
-                  >
-                    <Icon aria-hidden className="size-4" />
-                    {label}
-                  </button>
-                );
-              })}
-            </div>
+            <ViewportButtons viewport={viewport} onChange={setViewport} />
             <label className="flex h-9 items-center gap-2 text-[13px] text-ink">
               <input type="checkbox" checked={showMissing} onChange={(e) => setShowMissing(e.target.checked)} />
               Show what&apos;s missing
@@ -255,17 +215,7 @@ function Preview({
             </label>
           </div>
 
-          <div ref={frameBox} className="w-full">
-            <div className="mx-auto overflow-hidden rounded-[var(--radius-surface)] border border-line bg-white" style={{ width: width * scale, height: "75vh" }}>
-              <iframe
-                title={`Preview of ${rendered.model.page.title.text || "the page"}`}
-                sandbox=""
-                srcDoc={rendered.html}
-                data-testid="site-preview-frame"
-                style={{ width, height: `calc(75vh / ${scale})`, transform: `scale(${scale})`, transformOrigin: "top left", border: 0, display: "block" }}
-              />
-            </div>
-          </div>
+          <PreviewFrame html={rendered.html} title={`Preview of ${rendered.model.page.title.text || "the page"}`} viewport={viewport} height="75vh" />
         </>
       )}
     </div>

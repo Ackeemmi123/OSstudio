@@ -107,6 +107,18 @@ describe("the lifecycle", () => {
     expect(back).toMatchObject({ status: "draft", reviewNote: "Shorter heading", submittedBy: null, submittedAt: null });
   });
 
+  it("stores a quiet save without an activity entry, so autosaving does not fill the log", async () => {
+    const { repository, clientId, project } = await websiteClient();
+    const draft = await repository.startSiteSpec(project.id);
+    const spec = completeSpec(await freshClient(clientId));
+    const quiet = await repository.saveSiteSpecDraft(draft, spec, { quiet: true });
+    expect(quiet.spec.strategy.tone).toBe(spec.strategy.tone);
+    const edited = async () => (await repositoryFor(owner, studio).load()).activity.filter((e) => e.entityId === project.id && e.eventType === "site_spec.updated").length;
+    expect(await edited()).toBe(0);
+    await repository.saveSiteSpecDraft(quiet, { ...spec, strategy: { ...spec.strategy, tone: "Formal" } });
+    expect(await edited()).toBe(1);
+  });
+
   it("detects two people saving the same draft", async () => {
     const { repository, clientId, project } = await websiteClient();
     const draft = await repository.startSiteSpec(project.id);

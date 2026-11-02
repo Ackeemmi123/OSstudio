@@ -37,6 +37,7 @@ export function StrategyEditor({ spec, client, editing }: { spec: SiteSpec; clie
         <Field id="spec-goal" label="Goal of the website" hint="What the website should achieve for the client. Not shown on the site.">
           <TextArea
             id="spec-goal"
+            data-spec-path="strategy.goal"
             rows={2}
             value={strategy.goal.text}
             maxLength={1000}
@@ -55,7 +56,7 @@ export function StrategyEditor({ spec, client, editing }: { spec: SiteSpec; clie
       </div>
 
       <div className="flex flex-col gap-2">
-        <p className="text-[13px] font-medium text-ink">Audiences</p>
+        <p data-spec-path="strategy.audiences" className="text-[13px] font-medium text-ink">Audiences</p>
         {strategy.audiences.length === 0 ? <p className="text-[13px] text-ink-subtle">No audience yet.</p> : null}
         {strategy.audiences.map((entry, i) => (
           <div key={entry.id} className="flex flex-col gap-1.5">
@@ -95,6 +96,7 @@ export function StrategyEditor({ spec, client, editing }: { spec: SiteSpec; clie
       <div className="grid gap-4 sm:grid-cols-2">
         <LocalizedInput
           label="Main call to action"
+          path="strategy.primaryCta.label"
           value={strategy.primaryCta?.label ?? {}}
           locales={spec.locales.available}
           maxLength={40}
