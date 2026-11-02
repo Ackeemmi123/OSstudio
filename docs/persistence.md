@@ -33,6 +33,7 @@ Migrations are in `supabase/migrations`, applied in name order:
 | `20261030000300_is_valid_actor_search_path` | Fixes `is_valid_actor()`'s search path, as every other function has (Supabase advisor) |
 | `20261031000100_site_assets` | Website images: the `site-assets` bucket and its policies, `site_assets` with provenance and rights, upload/review/delete/purge functions, specs approve only with approved images, anonymisation marks images deleted ([site-images.md](site-images.md)) |
 | `20261102000100_client_last_activity_index` | `client_last_activity()` finds a client's events through the index instead of reading every studio's, with the same answers |
+| `20261102000200_site_spec_approval_check` | A website spec is approved only with a pass from the server, which runs the approval rules first (`POST /api/site-specs/approve`) |
 
 Every table carries `studio_id`, and child rows reference their parent by
 `(id, studio_id)`, so a row can never point into another studio.

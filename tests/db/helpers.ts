@@ -75,6 +75,18 @@ export async function addMember(owner: TestUser, studioId: string, user: TestUse
   if (error) throw error;
 }
 
+/** Calls the approve route's handler directly, as there is no web server in these tests. */
+export async function approveRoute(token: string | null, body: unknown): Promise<Response> {
+  const { POST } = await import("@/app/api/site-specs/approve/route");
+  return POST(new Request("http://localhost/api/site-specs/approve", { method: "POST", headers: token ? { authorization: `Bearer ${token}` } : {}, body: JSON.stringify(body) }));
+}
+
+const localFetch: typeof fetch = async (input, init) => {
+  if (String(input) !== "/api/site-specs/approve") return fetch(input, init);
+  const token = new Headers(init?.headers).get("authorization")?.replace("Bearer ", "") ?? null;
+  return approveRoute(token, JSON.parse(String(init?.body)));
+};
+
 export function repositoryFor(user: TestUser, studioId: string): SupabaseRepository {
-  return new SupabaseRepository({ client: user.client, studioId, user: { id: user.id, email: user.email } });
+  return new SupabaseRepository({ client: user.client, studioId, user: { id: user.id, email: user.email }, fetch: localFetch });
 }

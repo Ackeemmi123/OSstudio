@@ -11,6 +11,7 @@ import { RelativeTime } from "@/components/ui/relative-time";
 import { Section } from "@/components/ui/surface";
 import { StatusLabel, Tag, type Tone } from "@/components/ui/status";
 import { cn } from "@/lib/cn";
+import { RepositoryError, SiteSpecBlockedError } from "@/lib/data/repository";
 import { SITE_SPEC_STATUS_LABELS } from "@/lib/domain/labels";
 import { imagesInUse, REVIEW_NOTE_MAX_LENGTH } from "@/lib/domain/site-specs";
 import { CONTEXT_FIELD_LABELS } from "@/lib/domain/labels";
@@ -96,6 +97,7 @@ export function SiteSpecEditor({
   const [draft, setDraft] = useState<SiteSpec>(record.spec);
   const [sendingBack, setSendingBack] = useState(false);
   const [note, setNote] = useState("");
+  const [refusal, setRefusal] = useState<{ blockers: string[] } | { conflict: string } | null>(null);
 
   const editable = canEdit && record.status === "draft";
   const parsed = useMemo(() => parseSiteSpec(draft), [draft]);
@@ -145,7 +147,22 @@ export function SiteSpecEditor({
 
   const save = () => act(() => run((r) => r.saveSiteSpecDraft!(record, draft), "The website spec was not saved."));
   const submit = () => act(() => run((r) => r.submitSiteSpec!(record), "The website spec was not submitted."));
-  const approve = () => act(() => run((r) => r.approveSiteSpec!(record), "The website spec was not approved."));
+  const approve = () => {
+    setRefusal(null);
+    return act(() =>
+      run((r) => r.approveSiteSpec!(record), "The website spec was not approved.", (error) => {
+        if (error instanceof SiteSpecBlockedError) {
+          setRefusal({ blockers: error.blockers });
+          // The brief or the images changed since this page loaded.
+          void store.reload().catch(() => undefined);
+          setLibraryRound((n) => n + 1);
+        }
+        else if (error instanceof RepositoryError && error.code === "conflict") setRefusal({ conflict: error.message });
+        else return false;
+        return true;
+      }),
+    );
+  };
   const startNext = () => act(() => run((r) => r.startSiteSpec!(project.id), "A new version could not be started."));
   async function sendBack() {
     const next = await run((r) => r.requestSiteSpecChanges!(record, note), "The website spec was not sent back.");
@@ -219,6 +236,26 @@ export function SiteSpecEditor({
           ) : null}
         </div>
       </div>
+
+      {refusal && record.status === "in_review" ? (
+        "blockers" in refusal ? (
+          <div data-testid="approval-refusal" role="alert" className="rounded-[var(--radius-surface)] border border-critical/25 bg-critical/[0.06] px-4 py-3 text-[13.5px] text-ink">
+            <p className="font-medium text-critical">
+              Not approved: {refusal.blockers.length === 1 ? "1 thing needs" : `${refusal.blockers.length} things need`} fixing
+            </p>
+            <ul className="mt-1.5 flex flex-col gap-1 text-ink-muted">
+              {refusal.blockers.slice(0, 30).map((blocker, i) => (
+                <li key={i}>{blocker}</li>
+              ))}
+              {refusal.blockers.length > 30 ? <li className="text-ink-subtle">and {refusal.blockers.length - 30} more</li> : null}
+            </ul>
+          </div>
+        ) : (
+          <p data-testid="approval-refusal" role="alert" className="rounded-[var(--radius-surface)] border border-caution/25 bg-caution/[0.06] px-4 py-3 text-[13.5px] text-ink">
+            {refusal.conflict}
+          </p>
+        )
+      ) : null}
 
       {record.reviewNote && record.status === "draft" ? (
         <p className="rounded-[var(--radius-surface)] border border-caution/25 bg-caution/[0.06] px-4 py-3 text-[13.5px] text-ink">

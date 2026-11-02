@@ -48,6 +48,10 @@ export function fixture(): Fixture {
   return own;
 }
 
+/** For a repository used outside the browser: its server routes are on the app under test. */
+export const appFetch: typeof fetch = (input, init) =>
+  fetch(typeof input === "string" && input.startsWith("/") ? new URL(input, test.info().project.use.baseURL) : input, init);
+
 /** A Supabase client signed in as one of the seeded people, for checks that bypass the UI. */
 export async function signedInClient(user: SeedUser): Promise<SupabaseClient> {
   const { url, anonKey } = fixture();

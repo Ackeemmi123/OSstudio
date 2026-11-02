@@ -17,12 +17,13 @@ export function useStudioAction() {
   const toast = useToast();
   const [pending, setPending] = useState(false);
 
-  async function run<T>(write: (repository: StudioRepository) => Promise<T>, failure = "The change was not saved."): Promise<T | undefined> {
+  /** `handled`: return true when the caller shows this error itself, instead of a toast. */
+  async function run<T>(write: (repository: StudioRepository) => Promise<T>, failure = "The change was not saved.", handled?: (error: unknown) => boolean): Promise<T | undefined> {
     setPending(true);
     try {
       return await store.run(write);
     } catch (error) {
-      toast.error(`${failure} ${errorMessage(error)}`);
+      if (!handled?.(error)) toast.error(`${failure} ${errorMessage(error)}`);
       return undefined;
     } finally {
       setPending(false);

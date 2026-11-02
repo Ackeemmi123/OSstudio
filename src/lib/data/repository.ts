@@ -158,6 +158,14 @@ export class RepositoryError extends Error {
   }
 }
 
+/** The server refused an approval: what needs fixing, in plain language. */
+export class SiteSpecBlockedError extends RepositoryError {
+  constructor(readonly blockers: string[]) {
+    super(blockers.length === 1 ? `1 thing needs fixing: ${blockers[0]}` : `${blockers.length} things need fixing.`, "validation");
+    this.name = "SiteSpecBlockedError";
+  }
+}
+
 /** Amounts in micro-dollars (see src/lib/agents/pricing.ts). */
 export interface AiSpend {
   /** First day of the month, YYYY-MM-DD (UTC). */

@@ -96,6 +96,12 @@ Content carries where it came from:
   newer version of the same project is approved.
 - Approving needs `auth.uid()` and `approved_by` = the caller, and every brief
   source still confirmed as it was. Times are set by the database.
+- Approving also needs a pass from the server. `POST /api/site-specs/approve`
+  runs `approvalBlockers()` on what is stored, as the signed-in person, and only
+  then records a pass (`record_site_spec_check`, service role only) for that
+  person and the spec's exact content, valid for 5 minutes. The approval is then
+  written as the person. So every rule in "What blocks approval" holds even if
+  the app is bypassed; there is no override. The pass holds no client material.
 - No delete, except by client anonymisation. Size up to 512 KB.
 
 ## Retention
