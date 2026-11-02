@@ -83,7 +83,7 @@ export function LivePreview({
         </label>
       </div>
       {!spec ? <p data-testid="preview-stale" className="text-[12.5px] text-caution">Showing the last version that could be drawn. Fix the problems under Before approval to see newer changes.</p> : null}
-      <PreviewFrame html={rendered.html} title={`Preview of ${rendered.model.page.title.text || "the page"}`} viewport={viewport} height="calc(100vh - 13rem)" testId="live-preview-frame" />
+      <PreviewFrame html={rendered.html} title={`Preview of ${rendered.model.page.title.text || "the page"}`} viewport={viewport} height="calc(100vh - 16rem)" testId="live-preview-frame" />
     </div>
   );
 }

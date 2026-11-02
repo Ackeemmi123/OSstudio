@@ -27,7 +27,7 @@ p{margin:0 0 calc(1rem * var(--sp-space))}
 .sp-button{display:inline-block;background:var(--sp-primary);color:var(--sp-on-primary);border-radius:var(--sp-radius);padding:calc(.65rem * var(--sp-space)) calc(1.25rem * var(--sp-space));font-weight:600;cursor:default}
 .sp-button--secondary{background:transparent;color:var(--sp-text);border:1px solid var(--sp-border)}
 .sp-buttons{display:flex;flex-wrap:wrap;gap:.75rem;margin-top:calc(1rem * var(--sp-space))}
-.sp-page-title{padding:calc(2.5rem * var(--sp-space)) 0 0}
+.sp-page-title{padding-top:calc(2.5rem * var(--sp-space))}
 .sp-section{padding:calc(4rem * var(--sp-space)) 0}
 .sp-section + .sp-section{border-top:1px solid var(--sp-border)}
 .sp-split{display:grid;grid-template-columns:1fr 1fr;gap:calc(2.5rem * var(--sp-space));align-items:center}
