@@ -233,3 +233,44 @@ test("a viewer can read the spec and its live preview, but nothing saves", async
   await expect(page.getByTestId("save-status")).toHaveCount(0);
   await expect(page.getByLabel("Goal of the website", { exact: true })).toBeDisabled();
 });
+
+test("sorts what must be fixed from what is worth checking, as it is typed, and reminds the reviewer", async ({ page }) => {
+  const { url } = await completeDraft("Checks Bakery (TEST)");
+  await signIn(page, fixture().member);
+  await page.goto(url);
+  await expect(page.getByText("Nothing blocks approval")).toBeVisible();
+  // A test client's name is only worth a look.
+  const warnings = page.getByTestId("spec-warnings");
+  await expect(warnings).toContainText('says "(test)"');
+  await expect(page.getByRole("button", { name: "Submit for approval" })).toBeEnabled();
+
+  const heading = page.getByLabel("Heading", { exact: true }).first();
+  await heading.fill("Lorem ipsum dolor");
+  const blockers = page.getByTestId("spec-blockers");
+  await expect(blockers).toContainText('still says "Lorem ipsum"');
+  await expect(page.getByRole("button", { name: "Submit for approval" })).toBeDisabled();
+
+  // A problem leads to its field, and fixing it clears it.
+  await page.getByLabel("Goal of the website", { exact: true }).focus();
+  await blockers.getByRole("button", { name: /Lorem ipsum/ }).click();
+  await expect(heading).toBeFocused();
+  await heading.fill("Fresh cakes every day");
+  await expect(page.getByText("Nothing blocks approval")).toBeVisible();
+  await expect(page.getByTestId("save-status")).toHaveText("Saved");
+
+  // Warnings stop nothing, and the reviewer gets a reminder, not another step.
+  await page.getByRole("button", { name: "Submit for approval" }).click();
+  await expect(page.getByTestId("review-reminder")).toContainText("Does the copy sound right");
+  await page.getByRole("button", { name: "Approve", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Start version 2" })).toBeVisible();
+  await expect(page.getByTestId("review-reminder")).toHaveCount(0);
+});
+
+test("a viewer sees the checks but no reminder to review", async ({ page }) => {
+  const { repository, draft, url } = await completeDraft("Viewer Checks Bakery (TEST)");
+  await repository.submitSiteSpec(draft);
+  await signIn(page, fixture().viewer);
+  await page.goto(url);
+  await expect(page.getByTestId("spec-warnings")).toBeVisible();
+  await expect(page.getByTestId("review-reminder")).toHaveCount(0);
+});

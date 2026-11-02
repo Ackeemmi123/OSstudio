@@ -252,6 +252,27 @@ describe("the server's check before an approval", () => {
     expect((await repository.listSiteSpecs(project.id))[0].status).toBe("in_review");
   });
 
+  it("refuses leftover draft text, but not what is only worth checking", async () => {
+    const { repository, clientId, project } = await websiteClient();
+    const draft = await repository.startSiteSpec(project.id);
+    const spec = completeSpec(await freshClient(clientId));
+    spec.assets = [];
+    const saved = await repository.saveSiteSpecDraft(draft, spec);
+    const submitted = await repository.submitSiteSpec(saved);
+    // Worth checking only: a test client's name, short search descriptions. Sent back to add leftover text.
+    const back = await repository.requestSiteSpecChanges(submitted);
+    const hero = spec.pages[0].sections[0];
+    if (hero.kind === "hero") hero.heading.en = "TODO write the heading";
+    const edited = await repository.saveSiteSpecDraft(back, spec);
+    const raw = { ...siteSpecRow(edited), status: "in_review", submitted_by: person(owner) };
+    expect((await rawWrite(owner, { op: "update", row: raw, expected: edited.updatedAt })).error).toBeNull();
+    const inReview = (await repository.listSiteSpecs(project.id))[0];
+    const response = await approveRoute(await tokenOf(owner), requestFor(inReview));
+    expect(response.status).toBe(422);
+    expect(((await response.json()) as { blockers: string[] }).blockers.join(" ")).toMatch(/still says "TODO"/);
+    expect((await repository.listSiteSpecs(project.id))[0].status).toBe("in_review");
+  });
+
   it("refuses viewers, other studios and signed-out requests, and says nothing about the spec", async () => {
     const { repository, project, submitted } = await waiting();
     expect((await approveRoute(null, requestFor(submitted))).status).toBe(401);

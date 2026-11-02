@@ -5,12 +5,14 @@
  *   references between parts. A draft may be incomplete but never malformed.
  * - `approvalBlockers` lists what stops a version from being approved:
  *   missing texts, brief values that are not (or no longer) confirmed,
- *   proposals nobody accepted, placeholder images, poor contrast. The
- *   database repeats the brief check when a version is approved.
+ *   proposals nobody accepted, placeholder images, poor contrast, leftover
+ *   draft text. The server runs it again before an approval, and the database
+ *   repeats the brief and image checks.
  */
 import { CONTEXT_FIELD_LABELS } from "@/lib/domain/labels";
 import type { Client, SiteAssetRecord } from "@/lib/domain/types";
 import { SECTION_LABELS, SITE_LOCALE_LABELS, SITE_LOCALES, SPEC_LIMITS, type SiteLocale } from "./catalog";
+import { visibleTexts } from "./texts";
 import { siteSpecSchema, type LocalizedText, type SiteSpec, type SiteSpecButton, type SiteSpecPage, type SiteSpecSection } from "./schema";
 
 export interface SpecIssue {
@@ -45,7 +47,7 @@ function duplicates(ids: string[]): string[] {
   return [...repeated];
 }
 
-function buttonsOf(section: SiteSpecSection): SiteSpecButton[] {
+export function buttonsOf(section: SiteSpecSection): SiteSpecButton[] {
   switch (section.kind) {
     case "hero":
     case "text_media":
@@ -57,7 +59,7 @@ function buttonsOf(section: SiteSpecSection): SiteSpecButton[] {
   }
 }
 
-function assetIdsOf(section: SiteSpecSection): string[] {
+export function assetIdsOf(section: SiteSpecSection): string[] {
   switch (section.kind) {
     case "hero":
     case "text_media":
@@ -163,6 +165,9 @@ export function contrastRatio(a: string, b: string): number {
   return (hi + 0.05) / (lo + 0.05);
 }
 
+/** Draft text nobody should publish. Capitals only for the abbreviations, so ordinary words are left alone. */
+const LEFTOVER_TEXT = /[Ll]orem ipsum|\b(?:TODO|TBD|FIXME)\b/;
+
 /** WCAG 2.2 AA: body text 4.5:1, interface elements and large text 3:1. */
 export const CONTRAST_MINIMUM = { text: 4.5, interface: 3 } as const;
 
@@ -200,6 +205,20 @@ export function approvalBlockers(spec: SiteSpec, client: Pick<Client, "id" | "co
   }
   if (contrastRatio(colors.primary, colors.background) < CONTRAST_MINIMUM.interface) {
     blockers.push({ path: "brand.colors.primary", message: `The primary colour on the background needs a contrast of at least ${CONTRAST_MINIMUM.interface}:1.` });
+  }
+
+  // Grey text on the page, and text on a primary-coloured button (the renderer picks the more readable of near-black and white).
+  const muted = colors.neutral[2] ?? colors.text;
+  if (contrastRatio(muted, colors.background) < CONTRAST_MINIMUM.text) {
+    blockers.push({ path: "brand.colors.neutral", message: `Grey text on the background needs a contrast of at least ${CONTRAST_MINIMUM.text}:1 (it is ${contrastRatio(muted, colors.background).toFixed(1)}:1).` });
+  }
+  if (Math.max(contrastRatio("#111111", colors.primary), contrastRatio("#FFFFFF", colors.primary)) < CONTRAST_MINIMUM.text) {
+    blockers.push({ path: "brand.colors.primary", message: `Button text on the primary colour cannot reach a contrast of ${CONTRAST_MINIMUM.text}:1. Choose a lighter or darker colour.` });
+  }
+
+  for (const { path, name, text } of visibleTexts(spec)) {
+    const leftover = LEFTOVER_TEXT.exec(text);
+    if (leftover) blockers.push({ path, message: `${name} still says "${leftover[0]}".` });
   }
 
   require(spec.seo.siteName, "seo.siteName", "The site name");

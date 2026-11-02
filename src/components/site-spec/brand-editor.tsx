@@ -78,6 +78,27 @@ export function BrandEditor({ spec, editing }: { spec: SiteSpec; editing: SpecEd
           );
         })}
       </div>
+      <div className="max-w-44">
+        <Field id="brand-muted" label="Grey text" hint="Captions, footers and short lines.">
+          <div className="flex items-center gap-2">
+            <span aria-hidden className="size-7 shrink-0 rounded border border-line" style={{ background: isHex(brand.colors.neutral[2] ?? "") ? brand.colors.neutral[2] : "transparent" }} />
+            <TextInput
+              id="brand-muted"
+              data-spec-path="brand.colors.neutral"
+              value={brand.colors.neutral[2] ?? ""}
+              placeholder="#737373"
+              maxLength={7}
+              disabled={!editable}
+              onChange={(e) =>
+                brandChange((s) => {
+                  const [surface = s.brand.colors.background, border = s.brand.colors.text] = s.brand.colors.neutral;
+                  s.brand.colors.neutral = [surface, border, e.target.value.trim()];
+                })
+              }
+            />
+          </div>
+        </Field>
+      </div>
       <div className="flex flex-wrap gap-4">
         <Contrast label="Text on background" a={brand.colors.text} b={brand.colors.background} minimum={CONTRAST_MINIMUM.text} />
         <Contrast label="Primary on background" a={brand.colors.primary} b={brand.colors.background} minimum={CONTRAST_MINIMUM.interface} />

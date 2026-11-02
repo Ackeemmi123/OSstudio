@@ -45,6 +45,7 @@ p{margin:0 0 calc(1rem * var(--sp-space))}
 .sp-list{list-style:none;margin:calc(1.5rem * var(--sp-space)) 0 0;padding:0}
 .sp-list li{padding:calc(1rem * var(--sp-space)) 0;border-bottom:1px solid var(--sp-border)}
 .sp-quote{margin:0;font-size:1.1rem}.sp-quote figcaption{margin-top:.5rem;color:var(--sp-muted);font-size:.95rem}
+.sp-card figcaption,.sp-hero--full_bleed_image .sp-lead{color:inherit}
 .sp-faq details{border-bottom:1px solid var(--sp-border);padding:calc(.9rem * var(--sp-space)) 0}
 .sp-faq summary{font-weight:600;cursor:default}
 .sp-faq dt{font-weight:600;margin-top:calc(1rem * var(--sp-space))}.sp-faq dd{margin:0}
