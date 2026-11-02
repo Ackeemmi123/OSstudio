@@ -4,6 +4,7 @@ import { Search, Settings2 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
+import { NewClientDialog } from "@/components/clients/new-client-dialog";
 import { useStudio } from "@/components/providers/studio-provider";
 import { cn } from "@/lib/cn";
 import { BrandMark } from "./brand-mark";
@@ -12,6 +13,7 @@ import { SearchDialog } from "./search-dialog";
 
 export function Topbar() {
   const [searchOpen, setSearchOpen] = useState(false);
+  const [creating, setCreating] = useState(false);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -42,10 +44,10 @@ export function Topbar() {
           <button
             type="button"
             onClick={() => setSearchOpen(true)}
-            className="group hidden h-8 w-56 items-center gap-2 rounded-[var(--radius-control)] border border-line bg-canvas px-2.5 text-[13px] text-ink-subtle transition-colors hover:border-line-strong hover:text-ink-muted md:flex"
+            className="group hidden h-8 w-64 items-center gap-2 rounded-[var(--radius-control)] border border-line bg-canvas px-2.5 text-[13px] text-ink-subtle transition-colors hover:border-line-strong hover:text-ink-muted md:flex"
           >
             <Search aria-hidden className="size-3.5" />
-            <span className="flex-1 text-left">Find a client or project</span>
+            <span className="flex-1 text-left">Find a client, project or task</span>
             <kbd className="font-sans text-[11px] text-ink-subtle">⌘K</kbd>
           </button>
           <button
@@ -66,7 +68,8 @@ export function Topbar() {
           </Link>
         </div>
       </div>
-      <SearchDialog open={searchOpen} onClose={() => setSearchOpen(false)} />
+      <SearchDialog open={searchOpen} onClose={() => setSearchOpen(false)} onNewClient={() => setCreating(true)} />
+      <NewClientDialog open={creating} onClose={() => setCreating(false)} />
     </header>
   );
 }

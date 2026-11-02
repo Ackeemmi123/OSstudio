@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { createClientNamed, section, signIn, uniqueName } from "./helpers";
+import { createClientNamed, openSection, signIn, uniqueName } from "./helpers";
 import { fixture, signedInClient } from "./supabase";
 
 test.describe("viewers", () => {
@@ -20,10 +20,10 @@ test.describe("viewers", () => {
     await page.goto(new URL(url).pathname);
     await expect(page.getByRole("heading", { level: 1, name })).toBeVisible();
     await expect(page.getByRole("button", { name: "Edit details" })).toHaveCount(0);
-    await expect(section(page, "brief").getByRole("button", { name: "Goal" })).toHaveCount(0);
-    await expect(section(page, "projects").getByRole("button", { name: "New project" })).toHaveCount(0);
-    await expect(section(page, "sources").getByRole("button", { name: "Add" })).toHaveCount(0);
-    await expect(section(page, "analysis").getByRole("button", { name: /Analyze/ })).toHaveCount(0);
+    await expect((await openSection(page, "brief")).getByRole("button", { name: "Goal" })).toHaveCount(0);
+    await expect((await openSection(page, "projects")).getByRole("button", { name: "New project" })).toHaveCount(0);
+    await expect((await openSection(page, "sources")).getByRole("button", { name: "Add" })).toHaveCount(0);
+    await expect((await openSection(page, "analysis")).getByRole("button", { name: /Analyze/ })).toHaveCount(0);
   });
 
   test("are refused by the database and the agent endpoint even without the UI", async ({ request }) => {
@@ -48,6 +48,29 @@ test.describe("viewers", () => {
       data: { studioId: studioA, clientId: clients?.[0]?.id ?? crypto.randomUUID() },
     });
     expect(response.status()).toBe(403);
+  });
+
+  test("see a task waiting for approval on Today, but cannot approve it", async ({ page, browser }) => {
+    const { member, viewer } = fixture();
+    const memberPage = await browser.newPage();
+    await signIn(memberPage, member);
+    await createClientNamed(memberPage, uniqueName("Viewer approval"));
+    const projects = await openSection(memberPage, "projects");
+    await projects.getByRole("button", { name: "New project" }).first().click();
+    await projects.getByLabel("Project name").fill("Viewer approval project");
+    await projects.getByRole("button", { name: /^Create project/ }).click();
+    const title = uniqueName("Waiting for approval");
+    await projects.getByLabel("New task").fill(title);
+    await projects.getByRole("button", { name: "Add", exact: true }).click();
+    await projects.getByLabel(`Status of ${title}`).selectOption("awaiting_approval");
+    await expect(projects.getByRole("button", { name: "Approve" })).toBeVisible();
+    await memberPage.close();
+
+    await signIn(page, viewer);
+    await page.goto("/");
+    const decisions = page.locator("section#decisions");
+    await expect(decisions.getByRole("link", { name: new RegExp(title) })).toBeVisible();
+    await expect(decisions.getByRole("button", { name: "Approve" })).toHaveCount(0);
   });
 });
 

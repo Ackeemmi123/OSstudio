@@ -1,7 +1,7 @@
 import { execFileSync } from "node:child_process";
 import { expect, test } from "@playwright/test";
 import pg from "pg";
-import { createClientNamed, section, signIn, uniqueName } from "./helpers";
+import { createClientNamed, openSection, signIn, uniqueName } from "./helpers";
 import { fixture } from "./supabase";
 
 /**
@@ -38,7 +38,7 @@ test("an owner sees the retention date, gets a warning on Today, and holds and r
   const workspace = await createClientNamed(page, name);
   const clientId = workspace.split("/").pop()!;
 
-  const retention = section(page, "retention");
+  const retention = (await openSection(page, "retention"));
   await expect(retention.getByText(/^Anonymised on /)).toBeVisible();
   await expect(retention.getByText("never became a customer is kept for 12 months", { exact: false })).toBeVisible();
 
@@ -75,7 +75,7 @@ test("members see the retention date but cannot place a hold", async ({ page }) 
   const name = uniqueName("Member Retention (test)");
   await signIn(page, fixture().member);
   await createClientNamed(page, name);
-  const retention = section(page, "retention");
+  const retention = (await openSection(page, "retention"));
   await expect(retention.getByText(/^Anonymised on /)).toBeVisible();
   await expect(retention.getByRole("button", { name: "Place hold" })).toHaveCount(0);
 });

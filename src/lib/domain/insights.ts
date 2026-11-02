@@ -200,7 +200,7 @@ export function getDecisions(snapshot: StudioSnapshot, nowMs = Date.now()): Deci
       id: `task-${task.id}`,
       kind: task.status === "awaiting_approval" ? "approval" : "review",
       title: task.title,
-      where: `${client.name} · ${project.name}`,
+      where: [client.name, project.name, task.assignee ? actorLabel(task.assignee) : null].filter(Boolean).join(" · "),
       clientId: client.id,
       href: clientHref(client.id, `task-${task.id}`),
     });

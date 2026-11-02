@@ -6,9 +6,11 @@ import { useState } from "react";
 import { ActivityTimeline } from "@/components/activity-timeline";
 import { NewClientDialog } from "@/components/clients/new-client-dialog";
 import { LoadError } from "@/components/load-error";
-import { useCanEdit, useStudio } from "@/components/providers/studio-provider";
+import { useCanEdit, useStudio, useStudioStore } from "@/components/providers/studio-provider";
+import { useStudioAction } from "@/components/providers/use-studio-action";
 import { Button } from "@/components/ui/button";
 import { Section, Skeleton, Surface } from "@/components/ui/surface";
+import { useToast } from "@/components/ui/toast";
 import { cn } from "@/lib/cn";
 import { describeWait, FOLLOW_UP_RULES, getFollowUps } from "@/lib/domain/followups";
 import {
@@ -83,6 +85,7 @@ function Workspace({ snapshot }: { snapshot: StudioSnapshot }) {
                     detail={`${describeWait(item)} · ${item.detail}`}
                     tag={FOLLOW_UP_RULES[item.kind].action}
                     critical={item.kind === "blocked"}
+                    action={item.kind === "approval" ? <ApproveTask taskId={item.id.slice("follow-task-".length)} /> : null}
                   />
                 ))}
               </ul>
@@ -106,7 +109,7 @@ function Workspace({ snapshot }: { snapshot: StudioSnapshot }) {
             <Surface>
               <ul className="divide-y divide-line">
                 {decisions.map((item) => (
-                  <Row key={item.id} href={item.href} icon={<DecisionIcon kind={item.kind} />} title={item.title} detail={item.where} tag={DECISION_LABEL[item.kind]} />
+                  <Row key={item.id} href={item.href} icon={<DecisionIcon kind={item.kind} />} title={item.title} detail={item.where} tag={DECISION_LABEL[item.kind]} action={item.kind === "approval" ? <ApproveTask taskId={item.id.slice("task-".length)} /> : null} />
                 ))}
               </ul>
             </Surface>
@@ -198,7 +201,9 @@ function Row({
   detail,
   tag,
   critical,
+  action,
 }: {
+  action?: React.ReactNode;
   href: string;
   icon: React.ReactNode;
   title: string;
@@ -207,20 +212,54 @@ function Row({
   critical?: boolean;
 }) {
   return (
-    <li>
-      <Link href={href} className="group flex items-start gap-3.5 px-5 py-3.5 transition-colors hover:bg-surface-muted">
+    <li className="flex items-center">
+      <Link href={href} className="group flex min-w-0 flex-1 items-start gap-3.5 px-5 py-3.5 transition-colors hover:bg-surface-muted">
         <span className="mt-0.5 shrink-0">{icon}</span>
         <span className="min-w-0 flex-1">
           <span className="block text-[14px] leading-snug text-ink">{title}</span>
           <span className="mt-0.5 block truncate text-[12.5px] text-ink-subtle">{detail}</span>
         </span>
-        {tag ? (
+        {tag && !action ? (
           <span className={cn("mt-0.5 shrink-0 text-[12px] font-medium", critical ? "text-critical" : "text-ink-muted group-hover:text-ink")}>
             {tag}
           </span>
         ) : null}
       </Link>
+      {action}
     </li>
+  );
+}
+
+/** Approves from the list, with a short chance to take it back. Viewers see nothing here. */
+function ApproveTask({ taskId }: { taskId: string }) {
+  const { run, pending, canEdit } = useStudioAction();
+  const store = useStudioStore();
+  const toast = useToast();
+  if (!canEdit) return null;
+
+  async function undo() {
+    const state = store.getSnapshot();
+    const task = state.status === "ready" ? state.snapshot.tasks.find((t) => t.id === taskId) : undefined;
+    // Someone may have moved it on since; leave their change alone.
+    if (task?.status !== "done") {
+      toast.error("This task has changed since you approved it, so it was left as it is.");
+      return;
+    }
+    await run((r) => r.setTaskStatus(taskId, "awaiting_approval"), "The approval was not undone.");
+  }
+
+  async function approve() {
+    const saved = await run((r) => r.setTaskStatus(taskId, "done"), "The task was not approved.");
+    if (saved) toast.success(`Approved ${saved.title}`, { label: "Undo", onClick: () => void undo() });
+  }
+
+  return (
+    <span className="shrink-0 pr-5 pl-2">
+      <Button size="xs" variant="primary" onClick={approve} disabled={pending}>
+        <Check aria-hidden />
+        Approve
+      </Button>
+    </span>
   );
 }
 

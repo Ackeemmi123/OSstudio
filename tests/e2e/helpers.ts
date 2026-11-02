@@ -38,3 +38,11 @@ export async function createClientNamed(page: Page, name: string, options: { not
 export function section(page: Page, id: string) {
   return page.locator(`section#${id}`);
 }
+
+const SECTION_TABS: Record<string, string> = { projects: "Projects", brief: "Brief", sources: "Sources", analysis: "Sources", activity: "Activity", retention: "Activity" };
+
+/** A section of the client page, after opening the tab it lives on. */
+export async function openSection(page: Page, id: string) {
+  await page.getByRole("navigation", { name: "Client sections" }).getByRole("link", { name: new RegExp(`^${SECTION_TABS[id]}`) }).click();
+  return section(page, id);
+}

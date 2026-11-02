@@ -1,11 +1,11 @@
 import { expect, test } from "@playwright/test";
-import { createClientNamed, section, signIn, uniqueName } from "./helpers";
+import { createClientNamed, openSection, signIn, uniqueName } from "./helpers";
 import { fixture } from "./supabase";
 
 test("creates a project and tasks, completes and approves work, and records it all", async ({ page }) => {
   await signIn(page, fixture().member);
   await createClientNamed(page, uniqueName("Ateljé Henrik"));
-  const projects = section(page, "projects");
+  const projects = (await openSection(page, "projects"));
 
   await projects.getByRole("button", { name: "New project" }).first().click();
   await projects.getByLabel("Project name").fill("Website relaunch");
@@ -29,7 +29,7 @@ test("creates a project and tasks, completes and approves work, and records it a
   await expect(projects.getByText("Website relaunch")).toBeVisible();
   await expect(projects.getByRole("button", { name: "2 completed" })).toBeVisible();
 
-  const activity = section(page, "activity");
+  const activity = (await openSection(page, "activity"));
   const showAll = activity.getByRole("button", { name: /Show all/ });
   if (await showAll.isVisible()) await showAll.click();
   await expect(activity.getByText("Completed Write homepage copy")).toBeVisible();
@@ -42,7 +42,7 @@ test("gives a task an owner and a due date, asks why it is blocked, and flags it
   await signIn(page, member);
   const name = uniqueName("Owner Co");
   await createClientNamed(page, name);
-  const projects = section(page, "projects");
+  const projects = (await openSection(page, "projects"));
   await projects.getByRole("button", { name: "New project" }).first().click();
   await projects.getByLabel("Project name").fill("Shop");
   await projects.getByRole("button", { name: "Create project" }).click();
@@ -85,7 +85,7 @@ test("gives a task an owner and a due date, asks why it is blocked, and flags it
 test("starts a project with the playbook's tasks, minus the ones unticked", async ({ page }) => {
   await signIn(page, fixture().member);
   await createClientNamed(page, uniqueName("Playbook Co"));
-  const projects = section(page, "projects");
+  const projects = (await openSection(page, "projects"));
   await projects.getByRole("button", { name: "New project" }).first().click();
   await projects.getByLabel("Project name").fill("Online store");
   await projects.getByLabel("Type").selectOption("ecommerce");

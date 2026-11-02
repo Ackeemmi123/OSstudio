@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test";
 import { buildNewClient } from "@/lib/domain/clients";
 import { buildProject, buildTask } from "@/lib/domain/projects";
 import type { StudioSnapshot } from "@/lib/domain/types";
-import { signIn, uniqueName } from "./helpers";
+import { openSection, signIn, uniqueName } from "./helpers";
 import { fixture } from "./supabase";
 
 /** Data someone entered in the local demo before the studio moved to Supabase. */
@@ -40,9 +40,9 @@ test("imports browser data once, verifies it, and keeps history", async ({ page 
   await page.getByLabel("Search clients").fill(name);
   await expect(page.getByRole("link", { name: new RegExp(name) })).toHaveCount(1);
   await page.getByRole("link", { name: new RegExp(name) }).click();
-  await expect(page.getByText("Collect logo files", { exact: true })).toBeVisible();
-  await expect(page.locator("#brief-goal").getByText("New website")).toBeVisible();
-  await expect(page.locator("section#activity").getByText(/Alex \(browser\)/).first()).toBeVisible();
+  await expect((await openSection(page, "projects")).getByText("Collect logo files", { exact: true })).toBeVisible();
+  await expect((await openSection(page, "brief")).locator("#brief-goal").getByText("New website")).toBeVisible();
+  await expect((await openSection(page, "activity")).getByText(/Alex \(browser\)/).first()).toBeVisible();
 
   await page.goto("/settings");
   await importSection.getByRole("button", { name: "Remove browser copy" }).click();

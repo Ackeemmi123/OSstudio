@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { createClientNamed, section, signIn, uniqueName } from "./helpers";
+import { createClientNamed, openSection, signIn, uniqueName } from "./helpers";
 import { fixture, signedInClient } from "./supabase";
 
 /**
@@ -10,7 +10,7 @@ test("analyzes source material into proposals that only a person can add to the 
   await signIn(page, fixture().member);
   await createClientNamed(page, uniqueName("Lumen Yoga"));
 
-  const sources = section(page, "sources");
+  const sources = (await openSection(page, "sources"));
   await sources.getByRole("button", { name: "Add" }).click();
   const dialog = page.getByRole("dialog", { name: "Add source material" });
   await dialog.getByLabel("Name").fill("Email from Anna");
@@ -18,7 +18,7 @@ test("analyzes source material into proposals that only a person can add to the 
   await dialog.getByRole("button", { name: "Add material" }).click();
   await expect(sources.getByText("Email from Anna")).toBeVisible();
 
-  const analysis = section(page, "analysis");
+  const analysis = (await openSection(page, "analysis"));
   await analysis.getByRole("button", { name: "Analyze client information" }).click();
 
   const proposals = analysis.getByTestId("proposal");
@@ -30,7 +30,7 @@ test("analyzes source material into proposals that only a person can add to the 
   await expect(analysis.getByText("Produced by the test provider, not by an AI model.", { exact: false })).toBeVisible();
 
   // Nothing reached the brief yet.
-  const brief = section(page, "brief");
+  const brief = (await openSection(page, "brief"));
   await expect(brief.locator("#brief-budget").getByText("50 000 SEK", { exact: true })).toHaveCount(0);
 
   await budget.getByRole("button", { name: "Add to brief" }).click();
@@ -50,7 +50,7 @@ test("analyzes source material into proposals that only a person can add to the 
   await expect(brief).not.toContainText("before the summer term");
   await expect(brief.getByText("What is the industry for this project?")).toBeVisible();
 
-  const activity = section(page, "activity");
+  const activity = (await openSection(page, "activity"));
   const showAll = activity.getByRole("button", { name: /Show all/ });
   if (await showAll.isVisible()) await showAll.click();
   await expect(activity.getByText("Intake analysis proposed 2 values for review")).toBeVisible();
@@ -61,7 +61,7 @@ test("analyzes source material into proposals that only a person can add to the 
 test("asks for material instead of guessing when there is nothing to read", async ({ page }) => {
   await signIn(page, fixture().member);
   await createClientNamed(page, uniqueName("Empty brief"));
-  const analysis = section(page, "analysis");
+  const analysis = (await openSection(page, "analysis"));
   await analysis.getByRole("button", { name: "Analyze client information" }).click();
   await expect(analysis.getByText("There is no source material to analyze.", { exact: false })).toBeVisible();
 });
@@ -69,7 +69,7 @@ test("asks for material instead of guessing when there is nothing to read", asyn
 test("shows a failed analysis and lets the person try again", async ({ page }) => {
   await signIn(page, fixture().member);
   await createClientNamed(page, uniqueName("Failing analysis"), { notes: "FIXTURE_FAIL" });
-  const analysis = section(page, "analysis");
+  const analysis = (await openSection(page, "analysis"));
   await analysis.getByRole("button", { name: "Analyze client information" }).click();
   await expect(analysis.getByText("The analysis did not finish.", { exact: false })).toBeVisible();
   await expect(analysis.getByRole("button", { name: "Try again" })).toBeVisible();
@@ -94,8 +94,8 @@ test("shows owners this month's AI spend against the cap, and nobody else", asyn
 test("offers the analysis's questions on the onboarding question they belong to", async ({ page }) => {
   await signIn(page, fixture().member);
   const workspace = await createClientNamed(page, uniqueName("Ask client"), { notes: "Budget: 30 000 SEK" });
-  await section(page, "analysis").getByRole("button", { name: "Analyze client information" }).click();
-  await expect(section(page, "analysis").getByTestId("proposal")).toHaveCount(1);
+  await (await openSection(page, "analysis")).getByRole("button", { name: "Analyze client information" }).click();
+  await expect((await openSection(page, "analysis")).getByTestId("proposal")).toHaveCount(1);
 
   await page.goto(`${workspace}/onboarding`);
   await expect(page.getByRole("heading", { name: "1. Business" })).toBeVisible();
@@ -109,5 +109,5 @@ test("offers the analysis's questions on the onboarding question they belong to"
   await expect(page.getByRole("heading", { name: "2. Current setup" })).toBeVisible();
 
   await page.goto(workspace);
-  await expect(section(page, "brief").getByText("What is the industry for this project?")).toBeVisible();
+  await expect((await openSection(page, "brief")).getByText("What is the industry for this project?")).toBeVisible();
 });
