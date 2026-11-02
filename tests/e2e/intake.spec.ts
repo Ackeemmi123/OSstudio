@@ -16,7 +16,8 @@ test("analyzes source material into proposals that only a person can add to the 
   await dialog.getByLabel("Name").fill("Email from Anna");
   await dialog.getByLabel("Content").fill("Hi!\nBudget: 50 000 SEK\nDeadline: before the summer term\nThanks, Anna");
   await dialog.getByRole("button", { name: "Add material" }).click();
-  await expect(sources.getByText("Email from Anna")).toBeVisible();
+  await expect(dialog).toBeHidden();
+  await expect(sources.getByTestId("source").getByText("Email from Anna")).toBeVisible();
 
   const analysis = (await openSection(page, "analysis"));
   await analysis.getByRole("button", { name: "Analyze client information" }).click();
