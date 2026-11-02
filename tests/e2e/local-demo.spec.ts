@@ -37,6 +37,7 @@ test("work that has waited too long moves to Follow up, once", async ({ page }) 
   // The client's workspace leads with the same follow-up.
   await blocked.click();
   await expect(page.getByRole("heading", { level: 1, name: "Ateljé Henrik" })).toBeVisible();
+  await page.getByRole("navigation", { name: "Client sections" }).getByRole("link", { name: /^Overview/ }).click();
   await expect(page.locator("section#next").getByRole("link", { name: /Product data import template/ })).toContainText(/Blocked for 5 days/);
 });
 
@@ -109,7 +110,7 @@ test("approves a task from Today, and takes it back with Undo", async ({ page })
   const decisions = page.locator("section#decisions");
   await decisions.getByRole("button", { name: "Approve" }).first().click();
   await expect(decisions.getByText("Homepage design direction")).toHaveCount(0);
-  await expect(page.getByText("Approved Homepage design direction")).toBeVisible();
+  await expect(page.getByRole("status").getByText("Approved Homepage design direction")).toBeVisible();
 
   await page.getByRole("button", { name: "Undo" }).click();
   await expect(decisions.getByText("Homepage design direction")).toBeVisible();

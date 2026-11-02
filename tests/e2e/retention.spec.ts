@@ -64,6 +64,7 @@ test("an owner sees the retention date, gets a warning on Today, and holds and r
   await expect(page.locator("section#decisions").getByText(`${name}: client data will be anonymised`)).toHaveCount(0);
 
   await page.goto(workspace);
+  await openSection(page, "retention");
   await retention.getByRole("button", { name: "Release hold" }).click();
   await expect(retention.getByText(/^Released · /)).toBeVisible();
   // Not the old date 10 days away: at least 30 days' notice after a release.

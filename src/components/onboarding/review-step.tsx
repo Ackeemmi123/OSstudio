@@ -64,7 +64,8 @@ export function ReviewStep({
     finishing.current = false;
     if (done) {
       toast.success("The brief is ready for review.");
-      router.push(`${workspace}#brief`);
+      // The overview says what comes next: usually starting the first project.
+      router.push(workspace);
     }
   }
 

@@ -3,17 +3,22 @@
 import { ArrowRight } from "lucide-react";
 import Link from "next/link";
 import { ActivityTimeline } from "@/components/activity-timeline";
+import { useCanEdit } from "@/components/providers/studio-provider";
+import { ButtonLink } from "@/components/ui/button";
 import { Section, Surface } from "@/components/ui/surface";
 import { briefProgress } from "@/lib/domain/brief";
 import { getClientActivity, getClientProjects } from "@/lib/domain/insights";
 import { PROJECT_STAGE_LABELS } from "@/lib/domain/labels";
+import { findOnboarding, stepIndex } from "@/lib/domain/onboarding";
 import { isWebsiteProject } from "@/lib/domain/site-specs";
-import type { Client, StudioSnapshot } from "@/lib/domain/types";
+import { ONBOARDING_STEPS, type Client, type StudioSnapshot } from "@/lib/domain/types";
 
 /** Where this client stands, at a glance. Each part links to the tab with the details. */
 export function ClientOverview({ client, snapshot }: { client: Client; snapshot: StudioSnapshot }) {
   const projects = getClientProjects(client.id, snapshot.projects);
   const brief = briefProgress(client);
+  const onboarding = findOnboarding(snapshot.onboardings, client.id);
+  const canEdit = useCanEdit();
   const events = getClientActivity(client.id, snapshot).slice(0, 5);
   const clientPath = `/clients/${encodeURIComponent(client.id)}`;
 
@@ -60,6 +65,18 @@ export function ClientOverview({ client, snapshot }: { client: Client; snapshot:
             <p className="mt-0.5 text-[12.5px] text-ink-subtle">
               {brief.toConfirm === 1 ? "1 to confirm" : `${brief.toConfirm} to confirm`} · {brief.total - brief.known} missing
             </p>
+            {onboarding && onboarding.status !== "ready_for_review" ? (
+              <div className="mt-3 rounded-[var(--radius-control)] border border-line bg-accent-soft px-3 py-2.5">
+                <p className="text-[13px] text-ink">
+                  Onboarding {onboarding.status === "draft" ? "started" : "in progress"}: Step {stepIndex(onboarding.currentStep) + 1} of {ONBOARDING_STEPS.length}
+                </p>
+                {canEdit ? (
+                  <ButtonLink href={`${clientPath}/onboarding`} size="sm" variant="primary" className="mt-2">
+                    Continue onboarding
+                  </ButtonLink>
+                ) : null}
+              </div>
+            ) : null}
           </div>
         </Section>
         <Section id="overview-activity" title="Recent activity" action={<TabLink hash="activity">All activity</TabLink>}>

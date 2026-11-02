@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import { openSection } from "./helpers";
 
 /**
  * Guided onboarding in the local demo: create a client, answer only what
@@ -39,7 +40,7 @@ test("creates a client, saves a partial brief, resumes, edits and finishes", asy
 
   // Leave and come back: progress and answers survive a reload.
   await page.reload();
-  await expect(page.getByText(/step 3 of 6/)).toBeVisible();
+  await expect(page.getByTestId("brief-progress")).toContainText("Step 3 of 6");
   await page.getByRole("link", { name: "Continue onboarding" }).click();
   await step(page, "3. Goals");
 
@@ -66,8 +67,8 @@ test("creates a client, saves a partial brief, resumes, edits and finishes", asy
   await page.getByRole("button", { name: /Mark ready/ }).click();
 
   // The structured brief lives on the client workspace and stays editable.
-  await expect(page).toHaveURL(/#brief$/);
-  const brief = page.locator("#brief");
+  await expect(page).toHaveURL(/\/clients\/[^/#]+$/);
+  const brief = await openSection(page, "brief");
   await expect(brief.getByText("Onboarding finished")).toBeVisible();
   await expect(brief.getByText("Shopify, Etsy")).toBeVisible();
   await expect(brief.locator("#brief-salesChannels").getByText("Confirmed", { exact: true })).toBeVisible();
@@ -112,7 +113,7 @@ test("goes from a finished onboarding to a started project with its tasks", asyn
   await page.getByRole("button", { name: "Review brief" }).click();
   await step(page, "6. Review");
   await page.getByRole("button", { name: /Mark ready/ }).click();
-  await expect(page).toHaveURL(/#brief$/);
+  await expect(page).toHaveURL(/\/clients\/[^/#]+$/);
 
   // The brief has gaps, but the guided pass is done: the next step is the project.
   const next = page.locator("section#next").getByRole("link", { name: "Start the first project for Handoff Studio" });

@@ -63,7 +63,7 @@ test("dry run: a test inquiry becomes an organized client project and is deliver
   await expect(page.locator('[data-question="budget"]').getByRole("button", { name: "Confirm" })).toHaveCount(0);
   await page.getByRole("button", { name: "Review brief" }).click();
   await page.getByRole("button", { name: /Mark ready/ }).click();
-  await expect(page).toHaveURL(/#brief$/);
+  await expect(page).toHaveURL(/\/clients\/[^/#]+$/);
 
   // 4. Start the first project from the playbook; the client becomes Active.
   await page.locator("section#next").getByRole("link", { name: `Start the first project for ${company}` }).click();

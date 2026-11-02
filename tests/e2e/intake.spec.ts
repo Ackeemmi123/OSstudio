@@ -33,10 +33,13 @@ test("analyzes source material into proposals that only a person can add to the 
   const brief = (await openSection(page, "brief"));
   await expect(brief.locator("#brief-budget").getByText("50 000 SEK", { exact: true })).toHaveCount(0);
 
+  await openSection(page, "analysis");
   await budget.getByRole("button", { name: "Add to brief" }).click();
+  await openSection(page, "brief");
   await expect(brief.locator("#brief-budget").getByText("50 000 SEK", { exact: true })).toBeVisible();
   await expect(brief.locator("#brief-budget").getByText("Observed")).toBeVisible();
 
+  await openSection(page, "analysis");
   await proposals.filter({ hasText: "Deadline" }).getByRole("button", { name: "Dismiss" }).click();
   await expect(proposals).toHaveCount(0);
 
@@ -45,6 +48,7 @@ test("analyzes source material into proposals that only a person can add to the 
   await expect(question.getByText("In open questions")).toBeVisible();
 
   await page.reload();
+  await openSection(page, "brief");
   await expect(brief.locator("#brief-budget").getByText("50 000 SEK", { exact: true })).toBeVisible();
   // The dismissed deadline is not anywhere in the brief.
   await expect(brief).not.toContainText("before the summer term");

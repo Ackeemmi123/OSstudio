@@ -1,6 +1,6 @@
 import { expect, type Browser, type BrowserContext, type Page } from "@playwright/test";
 import { createClient } from "@supabase/supabase-js";
-import { createClientNamed, section, signIn } from "../helpers";
+import { createClientNamed, openSection, signIn } from "../helpers";
 
 /** Where the app keeps the chosen studio (see workspace-gate.tsx). */
 const STUDIO_CHOICE_KEY = "studio-os:studio";
@@ -37,7 +37,7 @@ export async function createClientWithSourceAndReload(page: Page, browser: Brows
   await signIn(page, target.user);
   const workspace = await createClientNamed(page, name);
 
-  const sources = section(page, "sources");
+  const sources = await openSection(page, "sources");
   await sources.getByRole("button", { name: "Add" }).click();
   const dialog = page.getByRole("dialog", { name: "Add source material" });
   await dialog.getByLabel("Name").fill(label);
@@ -46,12 +46,12 @@ export async function createClientWithSourceAndReload(page: Page, browser: Brows
   await expect(dialog).toBeHidden();
   await expect(page.getByText("Source material added.")).toBeVisible();
 
-  const savedSource = (scope: Page) => section(scope, "sources").getByTestId("source").filter({ hasText: label });
+  const savedSource = async (scope: Page) => (await openSection(scope, "sources")).getByTestId("source").filter({ hasText: label });
 
   // 1. Same tab, after a reload.
   await page.reload();
   await expect(page.getByRole("heading", { level: 1, name })).toBeVisible();
-  await expect(savedSource(page)).toContainText(`automated test inquiry (${target.run})`);
+  await expect(await savedSource(page)).toContainText(`automated test inquiry (${target.run})`);
 
   // 2. A new browser session with empty storage: the data comes from the server.
   const fresh = await browser.newContext();
@@ -61,7 +61,7 @@ export async function createClientWithSourceAndReload(page: Page, browser: Brows
     await signIn(other, target.user);
     await other.goto(workspace);
     await expect(other.getByRole("heading", { level: 1, name })).toBeVisible();
-    await expect(savedSource(other)).toContainText(`automated test inquiry (${target.run})`);
+    await expect(await savedSource(other)).toContainText(`automated test inquiry (${target.run})`);
     await other.goto("/clients");
     await other.getByLabel("Search clients").fill(name);
     await expect(other.getByRole("link", { name: new RegExp(name) })).toBeVisible();

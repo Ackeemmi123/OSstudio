@@ -333,7 +333,7 @@ export function getNextActions(snapshot: StudioSnapshot, clientId?: string): Nex
               // After onboarding the brief is ready even with gaps; they stay listed in the brief.
               detail: missing.length > 0 ? `Brief ready, still unknown: ${missing.map((m) => m.label.toLowerCase()).join(", ")}` : "The essentials are recorded.",
               clientId: client.id,
-              href: clientHref(client.id, "projects"),
+              href: clientHref(client.id, "new-project"),
             },
       );
     }
