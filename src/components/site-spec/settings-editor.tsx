@@ -62,8 +62,8 @@ export function SettingsEditor({ spec, clientId, editing, library }: { spec: Sit
 
       <fieldset className="grid gap-4 sm:grid-cols-2">
         <legend className="mb-2 text-[13px] font-medium text-ink">Search engines</legend>
-        <LocalizedInput label="Site name" value={spec.seo.siteName} locales={locales} maxLength={60} disabled={!editable} onChange={(siteName) => change((s) => void (s.seo.siteName = siteName))} />
-        <LocalizedInput label="Default description" value={spec.seo.defaultDescription} locales={locales} maxLength={160} multiline disabled={!editable} onChange={(d) => change((s) => void (s.seo.defaultDescription = d))} />
+        <LocalizedInput label="Site name" path="seo.siteName" value={spec.seo.siteName} locales={locales} maxLength={60} disabled={!editable} onChange={(siteName) => change((s) => void (s.seo.siteName = siteName))} />
+        <LocalizedInput label="Default description" path="seo.defaultDescription" value={spec.seo.defaultDescription} locales={locales} maxLength={160} multiline disabled={!editable} onChange={(d) => change((s) => void (s.seo.defaultDescription = d))} />
         <Field id="spec-structured" label="Business type for search engines">
           <Select id="spec-structured" value={spec.seo.structuredData} disabled={!editable} onChange={(e) => change((s) => void (s.seo.structuredData = e.target.value as SiteSpec["seo"]["structuredData"]))}>
             {STRUCTURED_DATA_TYPES.map((v) => (
@@ -84,7 +84,7 @@ export function SettingsEditor({ spec, clientId, editing, library }: { spec: Sit
         <legend className="mb-2 text-[13px] font-medium text-ink">Forms</legend>
         <p className="text-[12.5px] text-ink-subtle">Answers go to the client&apos;s contact person. A form asks only for the fields ticked here.</p>
         {spec.forms.map((form, f) => (
-          <div key={form.id} className="flex flex-col gap-3 rounded-[var(--radius-control)] border border-line p-3">
+          <div key={form.id} data-spec-path={`forms.${f}`} className="flex flex-col gap-3 rounded-[var(--radius-control)] border border-line p-3">
             <div className="flex flex-wrap items-end gap-4">
               <Field id={`form-${form.id}-purpose`} label={`Form ${form.id}`} className="max-w-xs">
                 <Select id={`form-${form.id}-purpose`} value={form.purpose} disabled={!editable} onChange={(e) => change((s) => void (s.forms[f].purpose = e.target.value as (typeof FORM_PURPOSES)[number]))}>
@@ -112,7 +112,7 @@ export function SettingsEditor({ spec, clientId, editing, library }: { spec: Sit
                 })}
               </div>
             </div>
-            <LocalizedInput label="Consent text" hint="Says what the answers are used for." value={form.consentText} locales={locales} maxLength={300} multiline disabled={!editable} onChange={(t) => change((s) => void (s.forms[f].consentText = t))} />
+            <LocalizedInput label="Consent text" path={`forms.${f}.consentText`} hint="Says what the answers are used for." value={form.consentText} locales={locales} maxLength={300} multiline disabled={!editable} onChange={(t) => change((s) => void (s.forms[f].consentText = t))} />
             {editable ? (
               <Button size="xs" variant="ghost" className="self-start" onClick={() => change((s) => void s.forms.splice(f, 1))}>
                 Remove form

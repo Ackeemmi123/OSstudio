@@ -15,6 +15,7 @@ export function LocalizedInput({
   maxLength,
   disabled,
   hint,
+  path,
 }: {
   label: string;
   value: LocalizedText;
@@ -24,6 +25,8 @@ export function LocalizedInput({
   maxLength?: number;
   disabled?: boolean;
   hint?: string;
+  /** Where this text lives in the spec, so a problem with it can lead here. */
+  path?: string;
 }) {
   const id = useId();
   return (
@@ -36,6 +39,7 @@ export function LocalizedInput({
           value: value[locale] ?? "",
           maxLength,
           disabled,
+          "data-spec-path": path ? `${path}.${locale}` : undefined,
           onChange: (e: { target: { value: string } }) => onChange({ ...value, [locale]: e.target.value }),
         };
         return (

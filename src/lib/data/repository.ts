@@ -85,7 +85,8 @@ export interface StudioRepository {
   /** Starts the next version (from the brief, or from the approved one), or returns the open one. */
   startSiteSpec?(projectId: string): Promise<SiteSpecRecord>;
   /** Saves the draft's content. `expected` is the version as the person last saw it. */
-  saveSiteSpecDraft?(expected: SiteSpecRecord, spec: unknown): Promise<SiteSpecRecord>;
+  /** `quiet`: store the draft without an activity entry, for saves that follow an earlier one by moments. */
+  saveSiteSpecDraft?(expected: SiteSpecRecord, spec: unknown, options?: { quiet?: boolean }): Promise<SiteSpecRecord>;
   submitSiteSpec?(expected: SiteSpecRecord): Promise<SiteSpecRecord>;
   requestSiteSpecChanges?(expected: SiteSpecRecord, note?: string): Promise<SiteSpecRecord>;
   /** Approves the version and supersedes the project's earlier approved version. */

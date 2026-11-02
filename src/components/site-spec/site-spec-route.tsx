@@ -134,12 +134,13 @@ export function SiteSpecRoute({ clientId, projectId }: { clientId: string; proje
 
   return (
     <SiteSpecEditor
-      key={`${record.id}:${record.updatedAt}`}
+      key={`${record.id}:${record.status}`}
       record={record}
       versions={versions}
       client={client}
       project={project}
       onChanged={(next) => void reload(next.id)}
+      onSaved={(next) => setVersions((list) => list && list.map((v) => (v.id === next.id ? next : v)))}
       onSelect={setSelected}
     />
   );

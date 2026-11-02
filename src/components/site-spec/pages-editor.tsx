@@ -12,9 +12,8 @@ import { SectionEditor } from "./section-editor";
 import type { SpecEditing } from "./site-spec-editor";
 
 /** The sitemap: one entry per page, opened one at a time to edit its details and sections. */
-export function PagesEditor({ spec, editing }: { spec: SiteSpec; editing: SpecEditing }) {
+export function PagesEditor({ spec, editing, open, setOpen }: { spec: SiteSpec; editing: SpecEditing; open: string | null; setOpen: (pageId: string | null) => void }) {
   const { editable, change } = editing;
-  const [open, setOpen] = useState<string | null>(spec.pages[0]?.id ?? null);
   const [newTitle, setNewTitle] = useState("");
   const name = (i: number) => spec.pages[i].title[spec.locales.default] || (i === 0 ? "Home" : spec.pages[i].id);
 
@@ -31,7 +30,7 @@ export function PagesEditor({ spec, editing }: { spec: SiteSpec; editing: SpecEd
     <div className="flex flex-col gap-3">
       <ol className="flex flex-col gap-2">
         {spec.pages.map((page, p) => (
-          <li key={page.id} className="rounded-[var(--radius-surface)] border border-line bg-surface">
+          <li key={page.id} data-spec-path={`pages.${p}`} className="rounded-[var(--radius-surface)] border border-line bg-surface">
             <div className="flex items-center justify-between gap-2 px-4 py-3">
               <button type="button" className="flex min-w-0 flex-1 items-baseline gap-2 text-left" aria-expanded={open === page.id} onClick={() => setOpen(open === page.id ? null : page.id)}>
                 <span className={page.parentId ? "pl-4 text-sm text-ink" : "text-sm font-medium text-ink"}>{name(p)}</span>
@@ -84,13 +83,14 @@ function PageDetails({ spec, pageIndex, editing }: { spec: SiteSpec; pageIndex: 
   return (
     <div className="flex flex-col gap-5 border-t border-line px-4 py-4">
       <div className="grid gap-4 sm:grid-cols-2">
-        <LocalizedInput label="Page title" value={page.title} locales={locales} maxLength={80} disabled={!editable} onChange={(title) => change((s) => void (s.pages[pageIndex].title = title))} />
+        <LocalizedInput label="Page title" path={`pages.${pageIndex}.title`} value={page.title} locales={locales} maxLength={80} disabled={!editable} onChange={(title) => change((s) => void (s.pages[pageIndex].title = title))} />
         {pageIndex > 0 ? (
           <div className="flex flex-col gap-2">
             {locales.map((locale) => (
               <Field key={locale} id={`${id}-slug-${locale}`} label={locales.length > 1 ? `Address (${SITE_LOCALE_LABELS[locale]})` : "Address"} hint="Lower-case letters, digits and hyphens.">
                 <TextInput
                   id={`${id}-slug-${locale}`}
+                  data-spec-path={`pages.${pageIndex}.slug.${locale}`}
                   value={page.slug[locale] ?? ""}
                   maxLength={80}
                   disabled={!editable}
@@ -142,14 +142,14 @@ function PageDetails({ spec, pageIndex, editing }: { spec: SiteSpec; pageIndex: 
         </label>
         {!page.seo.noindex ? (
           <div className="grid gap-4 sm:grid-cols-2">
-            <LocalizedInput label="Search title" hint="Up to 60 characters." value={page.seo.title} locales={locales} maxLength={60} disabled={!editable} onChange={(title) => change((s) => void (s.pages[pageIndex].seo.title = title))} />
-            <LocalizedInput label="Search description" hint="Up to 160 characters." value={page.seo.description} locales={locales} maxLength={160} multiline disabled={!editable} onChange={(description) => change((s) => void (s.pages[pageIndex].seo.description = description))} />
+            <LocalizedInput label="Search title" path={`pages.${pageIndex}.seo.title`} hint="Up to 60 characters." value={page.seo.title} locales={locales} maxLength={60} disabled={!editable} onChange={(title) => change((s) => void (s.pages[pageIndex].seo.title = title))} />
+            <LocalizedInput label="Search description" path={`pages.${pageIndex}.seo.description`} hint="Up to 160 characters." value={page.seo.description} locales={locales} maxLength={160} multiline disabled={!editable} onChange={(description) => change((s) => void (s.pages[pageIndex].seo.description = description))} />
           </div>
         ) : null}
       </fieldset>
 
       <div className="flex flex-col gap-3">
-        <p className="text-[13px] font-medium text-ink">Sections</p>
+        <p data-spec-path={`pages.${pageIndex}.sections`} className="text-[13px] font-medium text-ink">Sections</p>
         {page.sections.length === 0 ? <p className="text-[13px] text-ink-subtle">No sections yet.</p> : null}
         {page.sections.map((section, s) => (
           <SectionEditor key={section.id} spec={spec} pageIndex={pageIndex} sectionIndex={s} editing={editing} />

@@ -66,8 +66,7 @@ test("replaces a placeholder with an uploaded image whose rights are approved, a
   await expect(rights).toBeHidden();
   await expect(library).toContainText("Rights approved");
 
-  await page.getByRole("button", { name: "Save", exact: true }).click();
-  await expect(page.getByRole("button", { name: "Saved" })).toBeVisible();
+  await expect(page.getByTestId("save-status")).toHaveText("Saved");
   await expect(page.getByText("Nothing blocks approval")).toBeVisible();
 
   // An image no submitted or approved version relies on can be deleted, after a confirmation.
@@ -91,7 +90,7 @@ test("replaces a placeholder with an uploaded image whose rights are approved, a
   // The draft still shows it; removing it from the spec leaves the stored images alone.
   await page.getByTestId("spec-image").filter({ hasText: "Image not available" }).getByRole("button", { name: "Remove from this spec" }).click();
   await expect(page.getByTestId("spec-image")).toHaveCount(1);
-  await expect(page.getByRole("button", { name: "Saved" })).toBeVisible();
+  await expect(page.getByTestId("save-status")).toHaveText("Saved");
   await expect(page.getByText("Nothing blocks approval")).toBeVisible();
 
   // Once a version using it is approved, the image cannot be deleted, and the reason names the version.

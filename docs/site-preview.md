@@ -1,7 +1,8 @@
 # Website preview (WF-3)
 
-Any saved website spec version can be opened as a working website inside
-Studio OS: **Preview** on the spec page, or
+The website spec page draws the version beside the editor as it is edited,
+before anything is saved. Any saved version can also be opened on its own as a
+working website inside Studio OS: **Preview** on the spec page, or
 `/clients/<client>/projects/<project>/site/preview?v=<version>&page=<page>&lang=<en|sv|fi>`.
 
 It is an **internal check**, not a website: nothing is published, nothing is

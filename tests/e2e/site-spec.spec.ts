@@ -50,8 +50,7 @@ test("a website spec goes from the brief to an approved second version", async (
   await page.getByRole("button", { name: /Contact/ }).first().click();
   await page.getByLabel("Search description", { exact: true }).last().fill("Ask us anything.");
   await page.getByLabel("Consent text", { exact: true }).fill("We use your details only to answer you.");
-  await page.getByRole("button", { name: "Save", exact: true }).click();
-  await expect(page.getByRole("button", { name: "Saved" })).toBeVisible();
+  await expect(page.getByTestId("save-status")).toHaveText("Saved");
   await expect(page.getByText("Nothing blocks approval")).toBeVisible();
 
   await page.reload();
@@ -67,10 +66,10 @@ test("a website spec goes from the brief to an approved second version", async (
   await page.getByRole("button", { name: "Start version 2" }).click();
   await expect(page.getByRole("heading", { level: 1, name: "Website spec v2" })).toBeVisible();
   await page.getByLabel("Tone of voice", { exact: true }).fill("Warm");
-  await page.getByRole("button", { name: "Save", exact: true }).click();
-  await expect(page.getByRole("button", { name: "Saved" })).toBeVisible();
+  await expect(page.getByTestId("save-status")).toHaveText("Saved");
   await page.getByRole("button", { name: "Submit for approval" }).click();
   await page.getByRole("button", { name: "Approve", exact: true }).click();
+  await page.getByTestId("spec-version-menu").locator("summary").click();
   const versions = page.getByTestId("spec-versions");
   await expect(versions.getByRole("button", { name: /v1/ })).toContainText("Replaced by a newer version");
   await expect(versions.getByRole("button", { name: /v2/ })).toContainText("Approved");
@@ -118,4 +117,117 @@ test("shows what to fix when the server refuses an approval, and leaves the vers
   await expect(refusal).toContainText("is used from the brief but is not confirmed");
   await expect(page.getByText("Waiting for approval").first()).toBeVisible();
   await expect(page.getByText("Replaced by a newer version")).toHaveCount(0);
+});
+
+/** A complete draft, for the editor tests. */
+async function completeDraft(name: string) {
+  const member = fixture().member;
+  const repository = new SupabaseRepository({ client: await signedInClient(member), studioId: fixture().studioA, user: { id: member.id, email: member.email }, fetch: appFetch });
+  await repository.load();
+  const created = await repository.createClient({ name: uniqueName(name) });
+  for (const [key, value] of [["goal", "More cake pre-orders"], ["targetAudience", "Local families"], ["offering", "Celebration cakes"]] as const) {
+    await repository.setContextField(created.id, key, { value, confidence: "confirmed" });
+  }
+  const project = await repository.createProject(created.id, { name: "New website", projectType: "website" });
+  const client = (await repository.load()).clients.find((c) => c.id === created.id)!;
+  const draft = await repository.saveSiteSpecDraft(await repository.startSiteSpec(project.id), completeSpec(client));
+  return { repository, draft, url: `/clients/${client.id}/projects/${project.id}/site`, clientId: client.id };
+}
+
+test("shows edits in the preview straight away, and saves them without a Save button", async ({ page }) => {
+  const { url } = await completeDraft("Live Bakery (TEST)");
+  await signIn(page, fixture().member);
+  await page.goto(url);
+  const frame = page.getByTestId("site-preview-frame");
+  await expect(frame).toHaveAttribute("sandbox", "");
+  await expect(frame).toHaveAttribute("srcdoc", /<h1>Celebration cakes, made to order<\/h1>/);
+  await expect(page.getByRole("button", { name: "Save", exact: true })).toHaveCount(0);
+
+  // The preview draws the draft before it has been saved.
+  await page.getByLabel("Heading", { exact: true }).first().fill("Fresh cakes every day");
+  await expect(frame).toHaveAttribute("srcdoc", /<h1>Fresh cakes every day<\/h1>/);
+  await expect(page.getByTestId("save-status")).toHaveText("Saved");
+  await page.reload();
+  await expect(page.getByLabel("Heading", { exact: true }).first()).toHaveValue("Fresh cakes every day");
+
+  // Keep typing across saves: nothing is lost, and the activity gets one entry, not one per save.
+  const heading = page.getByLabel("Heading", { exact: true }).first();
+  await heading.fill("Second text");
+  await expect(page.getByTestId("save-status")).toHaveText("Saved");
+  await heading.fill("Third text");
+  await expect(page.getByTestId("save-status")).toHaveText("Saved");
+  await page.reload();
+  await expect(page.getByLabel("Heading", { exact: true }).first()).toHaveValue("Third text");
+
+  // Opening another page shows it in the preview.
+  await page.getByRole("button", { name: /Contact/ }).first().click();
+  await expect(frame).toHaveAttribute("srcdoc", /<h1>Contact<\/h1>/);
+});
+
+test("submits what is on the screen without saving first", async ({ page }) => {
+  const { url } = await completeDraft("Submit Bakery (TEST)");
+  await signIn(page, fixture().member);
+  await page.goto(url);
+  await page.getByLabel("Tone of voice", { exact: true }).fill("Written just before submitting");
+  await page.getByRole("button", { name: "Submit for approval" }).click();
+  await expect(page.getByText("Waiting for approval").first()).toBeVisible();
+  await page.reload();
+  await expect(page.getByLabel("Tone of voice", { exact: true })).toHaveValue("Written just before submitting");
+  await expect(page.getByLabel("Tone of voice", { exact: true })).toBeDisabled();
+});
+
+test("leads from a problem to its field, opening the page it is on", async ({ page }) => {
+  const { repository, draft, url } = await completeDraft("Problem Bakery (TEST)");
+  const spec = structuredClone(draft.spec);
+  spec.pages[1].seo.description.en = "";
+  await repository.saveSiteSpecDraft(draft, spec);
+  await signIn(page, fixture().member);
+  await page.goto(url);
+  // The contact page is closed; its field is not on the screen yet.
+  await expect(page.getByTestId("spec-blockers").getByRole("button", { name: /search description/ })).toBeVisible();
+  await page.getByTestId("spec-blockers").getByRole("button", { name: /search description/ }).click();
+  await expect(page.getByLabel("Search description", { exact: true }).last()).toBeFocused();
+  await expect(page.getByTestId("site-preview-frame")).toHaveAttribute("srcdoc", /<h1>Contact<\/h1>/);
+});
+
+test("does not overwrite a change someone else made", async ({ page }) => {
+  const { repository, draft, url } = await completeDraft("Conflict Bakery (TEST)");
+  await signIn(page, fixture().member);
+  await page.goto(url);
+  await expect(page.getByTestId("save-status")).toHaveText("Saved");
+
+  const spec = structuredClone(draft.spec);
+  spec.strategy.tone = "Changed by someone else";
+  await repository.saveSiteSpecDraft(draft, spec);
+
+  await page.getByLabel("Goal of the website", { exact: true }).fill("My own text");
+  const status = page.getByTestId("save-status");
+  await expect(status).toContainText("Someone else changed this");
+  await expect(status).toContainText("Your edits are still here.");
+  await expect(page.getByLabel("Goal of the website", { exact: true })).toHaveValue("My own text");
+  const stored = (await repository.listSiteSpecs(draft.projectId))[0];
+  expect(stored.spec.strategy.tone).toBe("Changed by someone else");
+  expect(stored.spec.strategy.goal.text).not.toBe("My own text");
+});
+
+test("the editor shows one thing at a time on a phone, without sideways scrolling", async ({ page }) => {
+  const { url } = await completeDraft("Phone Bakery (TEST)");
+  await signIn(page, fixture().member);
+  await page.setViewportSize({ width: 375, height: 700 });
+  await page.goto(url);
+  await expect(page.getByLabel("Goal of the website", { exact: true })).toBeVisible();
+  await expect(page.getByTestId("site-preview-frame")).toBeHidden();
+  await page.getByRole("button", { name: "See preview" }).click();
+  await expect(page.getByTestId("site-preview-frame")).toBeVisible();
+  await expect(page.getByLabel("Goal of the website", { exact: true })).toBeHidden();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)).toBeLessThanOrEqual(0);
+});
+
+test("a viewer can read the spec and its live preview, but nothing saves", async ({ page }) => {
+  const { url } = await completeDraft("Reading Bakery (TEST)");
+  await signIn(page, fixture().viewer);
+  await page.goto(url);
+  await expect(page.getByTestId("site-preview-frame")).toHaveAttribute("srcdoc", /<h1>Celebration cakes, made to order<\/h1>/);
+  await expect(page.getByTestId("save-status")).toHaveCount(0);
+  await expect(page.getByLabel("Goal of the website", { exact: true })).toBeDisabled();
 });
