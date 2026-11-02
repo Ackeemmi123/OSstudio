@@ -25,7 +25,7 @@ p{margin:0 0 calc(1rem * var(--sp-space));text-wrap:pretty}
 
 .sp-header{background:var(--sp-bg);position:relative;z-index:2}
 .sp-header-inner{display:flex;align-items:center;gap:2.25rem;min-height:5.5rem}
-.sp-brand{font-family:var(--sp-font-heading);font-weight:var(--sp-weight-heading);font-size:1.3rem;letter-spacing:-.02em;margin-right:auto}
+.sp-brand{font-family:var(--sp-font-heading);font-weight:var(--sp-weight-heading);font-size:1.3rem;line-height:1.15;letter-spacing:-.02em;margin-right:auto}
 .sp-nav{display:flex;gap:2rem;list-style:none;margin:0;padding:0;font-size:.95rem}
 .sp-nav li{position:relative}
 .sp-nav ul{list-style:none;margin:.25rem 0 0;padding:0 0 0 .75rem;font-size:.9rem}
@@ -157,10 +157,11 @@ p{margin:0 0 calc(1rem * var(--sp-space));text-wrap:pretty}
   .sp-text .sp-wrap,.sp-faq .sp-wrap,.sp-contact .sp-wrap{grid-template-columns:minmax(0,1fr)}
   .sp-contact .sp-form{grid-column:1;grid-row:auto}
   .sp-list li{grid-template-columns:3rem minmax(0,1fr)}.sp-list li p{grid-column:2}
+  .sp-gallery--grid .sp-image:first-child{aspect-ratio:16/9;min-height:0}
 }
 @media (max-width:640px){
   .sp-nav-main .sp-nav{display:none}.sp-menu{display:inline-block}.sp-header .sp-button{display:none}
-  .sp-header-inner{min-height:4.5rem}
+  .sp-header-inner{min-height:4.5rem;gap:1rem}.sp-brand{font-size:1.15rem}
   .sp-split,.sp-split--image-left{grid-template-columns:minmax(0,1fr)}.sp-split--image-left .sp-image,.sp-split--image-left .sp-figure{order:0}
   .sp-grid,.sp-grid--4,.sp-grid--2{--sp-cols:1}.sp-columns{columns:1}
   .sp-section{padding:calc(4rem * var(--sp-space)) 0}
@@ -168,6 +169,7 @@ p{margin:0 0 calc(1rem * var(--sp-space));text-wrap:pretty}
   .sp-hero--full_bleed_image{padding:calc(6rem * var(--sp-space)) 0 calc(3rem * var(--sp-space))}
   .sp-hero-media .sp-image,.sp-hero-media .sp-figure img{aspect-ratio:4/3}
   .sp-gallery--grid .sp-image:first-child,.sp-gallery--grid .sp-figure:first-child{grid-column:auto;grid-row:auto}
+  .sp-gallery--grid .sp-image:first-child{aspect-ratio:1/1}
   .sp-gallery--masonry .sp-image:nth-child(2),.sp-gallery--masonry .sp-figure:nth-child(2){margin-top:0}
   [data-mobile=reverse] .sp-split{display:flex;flex-direction:column-reverse}
   [data-mobile=hide]{display:none}
