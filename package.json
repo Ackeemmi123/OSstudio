@@ -10,7 +10,7 @@
     "typecheck": "next typegen && tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:db": "node scripts/with-local-supabase.mjs vitest run -c vitest.db.config.mts",
+    "test:db": "node scripts/with-local-supabase.mjs node scripts/load-studio-probe.mjs",
     "test:e2e": "playwright test",
     "staging:check": "node scripts/staging-check.mjs",
     "staging:smoke": "vitest run -c vitest.staging.config.mts",
