@@ -19,19 +19,21 @@ async function websiteProject(user: SeedUser) {
   await repository.setContextField(client.id, "targetAudience", { value: "Local families", confidence: "confirmed" });
   await repository.setContextField(client.id, "offering", { value: "Celebration cakes", confidence: "observed" });
   const project = await repository.createProject(client.id, { name: "New website", projectType: "website" });
-  return { client, project, url: `/clients/${client.id}/projects/${project.id}/site` };
+  return { repository, client, project, url: `/clients/${client.id}/projects/${project.id}/site` };
 }
 
 test("a website spec goes from the brief to an approved second version", async ({ page }) => {
   test.setTimeout(90_000);
-  const { client, url } = await websiteProject(fixture().member);
+  const { repository, client, project, url } = await websiteProject(fixture().member);
   await signIn(page, fixture().member);
 
   // The project card links to the spec page.
   await page.goto(`/clients/${client.id}`);
   await (await openSection(page, "projects")).getByRole("link", { name: "Website spec" }).click();
   await expect(page.getByText(/Not confirmed yet, so left out: /)).toBeVisible();
-  await page.getByRole("button", { name: "Start the website spec" }).click();
+  // A small start, to go through every step. Templates have their own test.
+  await repository.startSiteSpec(project.id);
+  await page.reload();
 
   await expect(page.getByRole("heading", { level: 1, name: "Website spec v1" })).toBeVisible();
   await expect(page.getByLabel("Goal of the website", { exact: true })).toHaveValue("More cake pre-orders");
@@ -273,4 +275,55 @@ test("a viewer sees the checks but no reminder to review", async ({ page }) => {
   await page.goto(url);
   await expect(page.getByTestId("spec-warnings")).toBeVisible();
   await expect(page.getByTestId("review-reminder")).toHaveCount(0);
+});
+
+test("starts a first draft from a template, with instructions to write and the brief filled in", async ({ page }) => {
+  const { client, url } = await websiteProject(fixture().member);
+  await signIn(page, fixture().member);
+  await page.goto(url);
+
+  // Suggested from the project type; another can be chosen. The size follows the choice.
+  await expect(page.getByLabel("Services business")).toBeChecked();
+  await expect(page.getByTestId("draft-size")).toContainText("5 pages");
+  await page.getByLabel("Single page").check();
+  await expect(page.getByTestId("draft-size")).toContainText("2 pages");
+  await page.getByLabel("Online shop").check();
+  await expect(page.getByTestId("draft-size")).toContainText("6 pages");
+  await page.getByLabel("Services business").check();
+  await page.getByLabel("Swedish").check();
+
+  // Goal and audience were confirmed; the offering was only observed.
+  const brief = page.getByTestId("from-brief");
+  await expect(brief).toContainText("Goal, Audience");
+  await expect(brief).toContainText("Not confirmed yet, so left out: ");
+  await expect(brief.getByRole("link", { name: "Confirm in the brief" })).toHaveAttribute("href", `/clients/${client.id}#brief`);
+  await page.getByRole("button", { name: "Create draft" }).click();
+
+  // It opens in the editor, with its pages, the instructions and the preview.
+  await expect(page.getByRole("heading", { level: 1, name: "Website spec v1" })).toBeVisible();
+  const frame = page.getByTestId("live-preview-frame");
+  await expect(frame).toHaveAttribute("srcdoc", /\[Say what /);
+  await expect(page.getByRole("navigation", { name: "Website spec sections" })).toContainText("Services");
+  await expect(page.getByRole("navigation", { name: "Website spec sections" })).toContainText("Privacy");
+
+  // What is left to write is a list that leads to each field. It blocks submission.
+  const blockers = page.getByTestId("spec-blockers");
+  await expect(blockers).toContainText("still needs writing");
+  await expect(page.getByRole("button", { name: "Submit for approval" })).toBeDisabled();
+  await blockers.getByRole("button", { name: /Hero: heading still needs writing/ }).first().click();
+  const heading = page.getByLabel("Heading (English)", { exact: true }).first();
+  await expect(heading).toBeFocused();
+  await heading.fill("Cakes for every celebration");
+  await expect(frame).toHaveAttribute("srcdoc", /Cakes for every celebration/);
+  await expect(page.getByTestId("save-status")).toHaveText("Saved");
+  await page.reload();
+  await expect(page.getByLabel("Heading (English)", { exact: true }).first()).toHaveValue("Cakes for every celebration");
+});
+
+test("a viewer can see the starting points but cannot create a draft", async ({ page }) => {
+  const { url } = await websiteProject(fixture().member);
+  await signIn(page, fixture().viewer);
+  await page.goto(url);
+  await expect(page.getByRole("heading", { level: 1, name: "Start the website spec" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Create draft" })).toHaveCount(0);
 });

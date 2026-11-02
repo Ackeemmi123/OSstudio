@@ -7,7 +7,7 @@
 import type { SiteAssetRecord } from "@/lib/domain/types";
 import { SITE_LOCALE_LABELS, type SiteLocale } from "./catalog";
 import type { SiteSpec, SiteSpecSection } from "./schema";
-import { pageLabel, visibleTexts } from "./texts";
+import { isPlaceholderText, pageLabel, visibleTexts } from "./texts";
 import { assetIdsOf, buttonsOf, type SpecIssue } from "./validate";
 
 /** What a warning needs to know about a stored image. */
@@ -29,7 +29,8 @@ function widthNeeded(section: SiteSpecSection): number {
 
 export function qualityWarnings(spec: SiteSpec, files: readonly ImageFileSize[] = []): SpecIssue[] {
   const warnings: SpecIssue[] = [];
-  const texts = visibleTexts(spec);
+  // A template's instructions already block approval, so they need no second look.
+  const texts = visibleTexts(spec).filter((entry) => !isPlaceholderText(entry.text));
 
   for (const { path, name, text } of texts) {
     if (/\(test\)/i.test(text)) warnings.push({ path, message: `${name} says "(test)".` });
@@ -66,7 +67,7 @@ export function qualityWarnings(spec: SiteSpec, files: readonly ImageFileSize[] 
       const name = pageLabel(spec, page, p);
       for (const key of ["title", "description"] as const) {
         const text = page.seo[key][locale]?.trim();
-        if (!text) continue;
+        if (!text || isPlaceholderText(text)) continue;
         const earlier = seen[key].get(text);
         if (earlier !== undefined) warnings.push({ path: `pages.${p}.seo.${key}.${locale}`, message: `${pageLabel(spec, spec.pages[earlier], earlier)} and ${name} have the same search ${key}.` });
         else seen[key].set(text, p);

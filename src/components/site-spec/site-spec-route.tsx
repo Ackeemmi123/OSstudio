@@ -5,14 +5,13 @@ import { useCallback, useEffect, useState } from "react";
 import { LoadError } from "@/components/load-error";
 import { useStudio, useStudioStore } from "@/components/providers/studio-provider";
 import { useStudioAction } from "@/components/providers/use-studio-action";
-import { Button, ButtonLink } from "@/components/ui/button";
+import { ButtonLink } from "@/components/ui/button";
 import { EmptyState, Skeleton, Surface } from "@/components/ui/surface";
 import { errorMessage } from "@/lib/data/studio-store";
 import { isWebsiteProject, openSiteSpec } from "@/lib/domain/site-specs";
 import type { SiteSpecRecord } from "@/lib/domain/types";
-import { startingSpec } from "@/lib/site-spec/from-brief";
-import { CONTEXT_FIELD_LABELS } from "@/lib/domain/labels";
 import { SiteSpecEditor } from "./site-spec-editor";
+import { StartSpec } from "./start-spec";
 
 export function SiteSpecSkeleton() {
   return (
@@ -96,39 +95,18 @@ export function SiteSpecRoute({ clientId, projectId }: { clientId: string; proje
 
   const record = versions.find((v) => v.id === selected);
   if (!record) {
-    const unconfirmed = startingSpec(client, project).unconfirmed;
     return (
-      <Surface>
-        <EmptyState
-          icon={<FileText />}
-          title={`No website spec for ${project.name} yet`}
-          description={
-            <>
-              A website spec describes the site to build: pages, sections, copy, brand and search texts. It starts from the brief&apos;s confirmed values.
-              {unconfirmed.length ? ` Not confirmed yet, so left out: ${unconfirmed.map((k) => CONTEXT_FIELD_LABELS[k]).join(", ")}.` : ""}
-            </>
-          }
-          action={
-            <div className="flex gap-2">
-              <ButtonLink href={back} variant="ghost">
-                Back to client
-              </ButtonLink>
-              {canEdit ? (
-                <Button
-                  variant="primary"
-                  disabled={pending}
-                  onClick={async () => {
-                    const started = await run((r) => r.startSiteSpec!(project.id), "The website spec could not be started.");
-                    if (started) await reload(started.id);
-                  }}
-                >
-                  {pending ? "Starting…" : "Start the website spec"}
-                </Button>
-              ) : null}
-            </div>
-          }
-        />
-      </Surface>
+      <StartSpec
+        client={client}
+        project={project}
+        backHref={back}
+        canEdit={canEdit}
+        pending={pending}
+        onStart={async (from) => {
+          const started = await run((r) => r.startSiteSpec!(project.id, from), "The website spec could not be started.");
+          if (started) await reload(started.id);
+        }}
+      />
     );
   }
 

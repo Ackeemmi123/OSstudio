@@ -6,6 +6,7 @@ import { buildRenderModel } from "@/lib/site-render/model";
 import { SECTION_KINDS, SECTION_VARIANTS } from "@/lib/site-spec/catalog";
 import { newItem, newPage, newSection } from "@/lib/site-spec/edit";
 import type { SiteSpec } from "@/lib/site-spec/schema";
+import { SITE_TEMPLATES, templateSpec } from "@/lib/site-spec/templates";
 import { briefClient, completeSpec } from "@/lib/site-spec/test-helpers";
 
 /**
@@ -49,11 +50,15 @@ function everySection(): SiteSpec {
 
 
 it("draws every section type to a file", () => {
-  const spec = everySection();
-  const pages = spec.pages.map((page) => ({
-    id: page.id,
-    html: renderPreviewDocument(spec, buildRenderModel(spec, { pageId: page.id, showMissing: false, imageFiles: { "file-1": { url: TINY_IMAGE, width: 1, height: 1 } } })),
-  }));
+  const draw = (name: string, spec: SiteSpec) =>
+    spec.pages.map((page) => ({
+      id: `${name}: ${page.id}`,
+      html: renderPreviewDocument(spec, buildRenderModel(spec, { pageId: page.id, showMissing: false, imageFiles: { "file-1": { url: TINY_IMAGE, width: 1, height: 1 } } })),
+    }));
+  const pages = [
+    ...draw("sections", everySection()),
+    ...SITE_TEMPLATES.flatMap((template) => draw(template, templateSpec(briefClient(), { projectType: "website" }, template, ["en", "sv"]).spec)),
+  ];
   const file = process.env.PREVIEW_PAGES_FILE ?? "";
   mkdirSync(path.dirname(file), { recursive: true });
   writeFileSync(file, JSON.stringify(pages));

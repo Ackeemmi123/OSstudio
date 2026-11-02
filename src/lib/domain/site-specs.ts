@@ -9,11 +9,20 @@
  * approve it.
  */
 import { startingSpec } from "@/lib/site-spec/from-brief";
+import { templateSpec, type SiteTemplate } from "@/lib/site-spec/templates";
+import type { SiteLocale } from "@/lib/site-spec/catalog";
 import { approvalBlockers, parseSiteSpec, type ImageFileStatus, type SpecIssue } from "@/lib/site-spec/validate";
 import { clean, DomainError, type DomainDeps } from "./clients";
 import { WEBSITE_PROJECT_TYPES, type ActivityEvent, type Client, type Project, type SiteSpecRecord } from "./types";
 
 export const REVIEW_NOTE_MAX_LENGTH = 1000;
+
+/** What a first draft is built from. */
+export interface FirstDraft {
+  template: SiteTemplate;
+  /** The website's languages, the first being the default. */
+  locales: SiteLocale[];
+}
 
 /** The spec does not have the SiteSpec v1 shape, or its parts do not fit together. */
 export class SiteSpecInvalidError extends DomainError {
@@ -59,13 +68,15 @@ function refuseBlocked(spec: SiteSpecRecord["spec"], client: Client, what: strin
 /**
  * Starts a new version for the project, or returns the one already open.
  * After an approval the new draft is a copy of the approved version;
- * otherwise it is built from the confirmed brief.
+ * otherwise it is built from the confirmed brief, with a template when one is
+ * chosen.
  */
 export function startSiteSpec(
   client: Client,
   project: Project,
   versions: SiteSpecRecord[],
   deps: DomainDeps,
+  from?: FirstDraft,
 ): { record: SiteSpecRecord; event: ActivityEvent | null } {
   requirePerson(deps, "start a website spec");
   if (project.clientId !== client.id) throw new DomainError("This project belongs to another client.");
@@ -83,7 +94,7 @@ export function startSiteSpec(
     version,
     basedOn: approved?.id ?? null,
     status: "draft",
-    spec: approved ? structuredClone(approved.spec) : startingSpec(client, project).spec,
+    spec: approved ? structuredClone(approved.spec) : from ? templateSpec(client, project, from.template, from.locales).spec : startingSpec(client, project).spec,
     createdBy: deps.actor,
     submittedBy: null,
     submittedAt: null,

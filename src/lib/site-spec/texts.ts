@@ -15,6 +15,11 @@ export interface SpecText {
   text: string;
 }
 
+/** A whole text in brackets is an instruction from a template, for a person to replace. */
+export function isPlaceholderText(text: string): boolean {
+  return /^\[[\s\S]*\]$/.test(text.trim());
+}
+
 /** A page's name in the default language, whatever else is missing. */
 export function pageLabel(spec: SiteSpec, page: SiteSpecPage, index: number): string {
   return page.title[spec.locales.default]?.trim() || page.title.en?.trim() || (index === 0 ? "Home page" : `Page ${index + 1}`);

@@ -1,3 +1,4 @@
+import type { FirstDraft } from "@/lib/domain/site-specs";
 import type { AgentRunRecord } from "@/lib/agents/contract";
 import type { ImageProvenance } from "@/lib/site-assets/limits";
 import type {
@@ -83,7 +84,7 @@ export interface StudioRepository {
    */
   listSiteSpecs?(projectId: string): Promise<SiteSpecRecord[]>;
   /** Starts the next version (from the brief, or from the approved one), or returns the open one. */
-  startSiteSpec?(projectId: string): Promise<SiteSpecRecord>;
+  startSiteSpec?(projectId: string, from?: FirstDraft): Promise<SiteSpecRecord>;
   /** Saves the draft's content. `expected` is the version as the person last saw it. */
   /** `quiet`: store the draft without an activity entry, for saves that follow an earlier one by moments. */
   saveSiteSpecDraft?(expected: SiteSpecRecord, spec: unknown, options?: { quiet?: boolean }): Promise<SiteSpecRecord>;

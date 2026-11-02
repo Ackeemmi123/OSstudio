@@ -273,6 +273,24 @@ describe("the server's check before an approval", () => {
     expect((await repository.listSiteSpecs(project.id))[0].status).toBe("in_review");
   });
 
+  it("starts from a template, and refuses it while anything is left to write", async () => {
+    const { repository, project } = await websiteClient();
+    const draft = await repository.startSiteSpec(project.id, { template: "services", locales: ["en", "sv"] });
+    expect(draft.spec.pages.map((p) => p.id)).toEqual(["home", "services", "about", "contact", "privacy"]);
+    expect(draft.spec.locales.available).toEqual(["en", "sv"]);
+    // A second start returns the same draft, and does not make another.
+    expect((await repository.startSiteSpec(project.id, { template: "shop", locales: ["en"] })).id).toBe(draft.id);
+    await expect(repository.submitSiteSpec(draft)).rejects.toMatchObject({ code: "validation" });
+
+    const raw = { ...siteSpecRow(draft), status: "in_review", submitted_by: person(owner) };
+    expect((await rawWrite(owner, { op: "update", row: raw, expected: draft.updatedAt })).error).toBeNull();
+    const inReview = (await repository.listSiteSpecs(project.id))[0];
+    const response = await approveRoute(await tokenOf(owner), requestFor(inReview));
+    expect(response.status).toBe(422);
+    expect(((await response.json()) as { blockers: string[] }).blockers.join(" ")).toMatch(/still needs writing/);
+    expect((await repository.listSiteSpecs(project.id))[0].status).toBe("in_review");
+  });
+
   it("refuses viewers, other studios and signed-out requests, and says nothing about the spec", async () => {
     const { repository, project, submitted } = await waiting();
     expect((await approveRoute(null, requestFor(submitted))).status).toBe(401);
