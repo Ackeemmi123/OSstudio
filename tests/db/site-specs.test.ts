@@ -1,9 +1,10 @@
 /**
  * Website specs against a local Supabase stack: the lifecycle through the
  * app's repository, and what the database refuses whatever the client sends:
- * other studios, viewers, the service role, approvals in someone else's name
- * or on unconfirmed brief values, rewriting history, deleting, and anything
- * for an anonymised client. Every value is invented.
+ * other studios, viewers, the service role, approvals in someone else's name,
+ * on unconfirmed brief values or without the server's check, rewriting
+ * history, deleting, and anything for an anonymised client. Every value is
+ * invented.
  */
 import { randomUUID } from "node:crypto";
 import { beforeAll, describe, expect, it } from "vitest";
@@ -11,7 +12,7 @@ import { RepositoryError } from "@/lib/data/repository";
 import { siteSpecRow } from "@/lib/data/supabase-rows";
 import type { Project, SiteSpecRecord } from "@/lib/domain/types";
 import { completeSpec } from "@/lib/site-spec/test-helpers";
-import { addMember, admin, anonClient, asDatabaseOwner, createStudio, createUser, repositoryFor, type TestUser } from "./helpers";
+import { addMember, admin, anonClient, approveRoute, asDatabaseOwner, createStudio, createUser, repositoryFor, type TestUser } from "./helpers";
 
 let owner: TestUser;
 let member: TestUser;
@@ -198,6 +199,112 @@ describe("what the database refuses", () => {
     expect((await rawWrite(owner, { op: "insert", row: siteSpecRow(draftFor(site.clientId, site.project.id)) })).error).toBeNull();
     expect((await rawWrite(owner, { op: "insert", row: siteSpecRow(draftFor(site.clientId, site.project.id, 2)) })).error).not.toBeNull();
     expect((await rawWrite(owner, { op: "insert", row: { ...siteSpecRow(draftFor(site.clientId, site.project.id, 2)), created_by: person(member) } })).error).not.toBeNull();
+  });
+});
+
+describe("the server's check before an approval", () => {
+  const tokenOf = async (user: TestUser) => (await user.client.auth.getSession()).data.session!.access_token;
+
+  /** A complete version waiting for approval. */
+  async function waiting() {
+    const setup = await websiteClient();
+    const draft = await setup.repository.startSiteSpec(setup.project.id);
+    const saved = await setup.repository.saveSiteSpecDraft(draft, completeSpec(await freshClient(setup.clientId)));
+    return { ...setup, submitted: await setup.repository.submitSiteSpec(saved) };
+  }
+  const approval = (record: SiteSpecRecord, user: TestUser) => ({ ...siteSpecRow(record), status: "approved", approved_by: person(user) });
+  const requestFor = (record: SiteSpecRecord, studioId = studio) => ({ studioId, specId: record.id, expectedUpdatedAt: record.updatedAt });
+
+  it("approves in the person's own name", async () => {
+    const { project, submitted } = await waiting();
+    const memberRepository = repositoryFor(member, studio);
+    await memberRepository.load();
+    const approved = await memberRepository.approveSiteSpec(submitted);
+    expect(approved).toMatchObject({ status: "approved", approvedBy: { kind: "human", userId: member.id } });
+    const events = (await repositoryFor(owner, studio).load()).activity.filter((e) => e.entityId === project.id && e.eventType === "site_spec.approved");
+    expect(events.map((e) => e.actor)).toMatchObject([{ kind: "human", userId: member.id }]);
+  });
+
+  it("lists everything that blocks a spec, and leaves it waiting", async () => {
+    const { repository, project } = await websiteClient();
+    const draft = await repository.startSiteSpec(project.id);
+    expect((await rawWrite(owner, { op: "update", row: { ...siteSpecRow(draft), status: "in_review", submitted_by: person(owner) }, expected: draft.updatedAt })).error).toBeNull();
+    const inReview = (await repository.listSiteSpecs(project.id))[0];
+
+    const response = await approveRoute(await tokenOf(owner), requestFor(inReview));
+    expect(response.status).toBe(422);
+    const body = (await response.json()) as { blockers: string[] };
+    expect(body.blockers.length).toBeGreaterThan(1);
+    expect(body.blockers).toContain("Choose the brand colours and fonts (the starting values are placeholders).");
+    expect((await repository.listSiteSpecs(project.id))[0].status).toBe("in_review");
+  });
+
+  it("refuses viewers, other studios and signed-out requests, and says nothing about the spec", async () => {
+    const { repository, project, submitted } = await waiting();
+    expect((await approveRoute(null, requestFor(submitted))).status).toBe(401);
+    expect((await approveRoute("not-a-session", requestFor(submitted))).status).toBe(401);
+    expect((await approveRoute(await tokenOf(viewer), requestFor(submitted))).status).toBe(403);
+    const outsiders = await approveRoute(await tokenOf(outsider), requestFor(submitted));
+    expect(outsiders.status).toBe(404);
+    expect(JSON.stringify(await outsiders.json())).not.toContain("Spec Bakery");
+    expect((await approveRoute(await tokenOf(owner), { studioId: studio })).status).toBe(400);
+    expect((await repository.listSiteSpecs(project.id))[0].status).toBe("in_review");
+  });
+
+  it("refuses a version that changed since the page loaded", async () => {
+    const { submitted } = await waiting();
+    const response = await approveRoute(await tokenOf(owner), { ...requestFor(submitted), expectedUpdatedAt: "2020-01-01T00:00:00Z" });
+    expect(response.status).toBe(409);
+  });
+
+  it("lets only the server record a pass, and only for someone who may approve", async () => {
+    const { submitted } = await waiting();
+    expect((await owner.client.rpc("record_site_spec_check", { p_spec: submitted.id, p_person: owner.id })).error).not.toBeNull();
+    expect((await anonClient().rpc("record_site_spec_check", { p_spec: submitted.id, p_person: owner.id })).error).not.toBeNull();
+    expect((await owner.client.schema("private" as "public").from("site_spec_checks").select("spec_id")).error).not.toBeNull();
+    expect((await admin.rpc("record_site_spec_check", { p_spec: submitted.id, p_person: viewer.id })).error?.message).toMatch(/read-only/);
+    expect((await admin.rpc("record_site_spec_check", { p_spec: submitted.id, p_person: outsider.id })).error?.message).toMatch(/read-only/);
+    expect((await admin.rpc("record_site_spec_check", { p_spec: randomUUID(), p_person: owner.id })).error?.message).toMatch(/waiting for approval/);
+  });
+
+  it("accepts a pass only for the same person, the same content and for 5 minutes", async () => {
+    const { submitted } = await waiting();
+    const write = (user: TestUser) => rawWrite(user, { op: "update", row: approval(submitted, user), expected: submitted.updatedAt });
+    expect((await admin.rpc("record_site_spec_check", { p_spec: submitted.id, p_person: member.id })).error).toBeNull();
+    expect((await write(owner)).error?.message).toMatch(/approved through Studio OS/);
+
+    expect((await admin.rpc("record_site_spec_check", { p_spec: submitted.id, p_person: owner.id })).error).toBeNull();
+    await asDatabaseOwner((db) => db.query("update private.site_spec_checks set spec_hash = 'other' where spec_id = $1 and person = $2", [submitted.id, owner.id]));
+    expect((await write(owner)).error?.message).toMatch(/approved through Studio OS/);
+
+    expect((await admin.rpc("record_site_spec_check", { p_spec: submitted.id, p_person: owner.id })).error).toBeNull();
+    await asDatabaseOwner((db) => db.query("update private.site_spec_checks set checked_at = now() - interval '6 minutes' where spec_id = $1 and person = $2", [submitted.id, owner.id]));
+    expect((await write(owner)).error?.message).toMatch(/approved through Studio OS/);
+
+    expect((await admin.rpc("record_site_spec_check", { p_spec: submitted.id, p_person: owner.id })).error).toBeNull();
+    expect((await write(owner)).error).toBeNull();
+  });
+
+  it("does not let a pass skip the database's own rules", async () => {
+    const { repository, clientId, submitted } = await waiting();
+    expect((await admin.rpc("record_site_spec_check", { p_spec: submitted.id, p_person: owner.id })).error).toBeNull();
+    await repository.setContextField(clientId, "goal", { value: "Catering orders", confidence: "observed" });
+    const { error } = await rawWrite(owner, { op: "update", row: approval(submitted, owner), expected: submitted.updatedAt });
+    expect(error?.message).toMatch(/no longer confirmed/);
+  });
+
+  it("lets one of two people approving at once succeed", async () => {
+    const { project, submitted } = await waiting();
+    const memberRepository = repositoryFor(member, studio);
+    await memberRepository.load();
+    const ownerRepository = repositoryFor(owner, studio);
+    await ownerRepository.load();
+    const results = await Promise.allSettled([ownerRepository.approveSiteSpec(submitted), memberRepository.approveSiteSpec(submitted)]);
+    expect(results.filter((r) => r.status === "fulfilled")).toHaveLength(1);
+    const refused = results.find((r) => r.status === "rejected") as PromiseRejectedResult;
+    expect(refused.reason).toMatchObject({ code: "conflict" });
+    const approved = (await ownerRepository.listSiteSpecs(project.id)).filter((r) => r.status === "approved");
+    expect(approved).toHaveLength(1);
   });
 });
 

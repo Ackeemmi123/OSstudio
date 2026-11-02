@@ -1,7 +1,8 @@
 import { expect, test } from "@playwright/test";
 import { SupabaseRepository } from "@/lib/data/supabase-repository";
 import { signIn, uniqueName } from "./helpers";
-import { fixture, signedInClient, type SeedUser } from "./supabase";
+import { completeSpec } from "@/lib/site-spec/test-helpers";
+import { appFetch, fixture, signedInClient, type SeedUser } from "./supabase";
 
 /**
  * A website spec from start to a second version, in the browser, against the
@@ -90,4 +91,31 @@ test("a website spec goes from the brief to an approved second version", async (
   const showAll = activity.getByRole("button", { name: /Show all/ });
   if (await showAll.isVisible()) await showAll.click();
   await expect(activity.getByText("Approved website spec v2 (replaces v1)")).toBeVisible();
+});
+
+test("shows what to fix when the server refuses an approval, and leaves the version waiting", async ({ page }) => {
+  const member = fixture().member;
+  const repository = new SupabaseRepository({ client: await signedInClient(member), studioId: fixture().studioA, user: { id: member.id, email: member.email }, fetch: appFetch });
+  await repository.load();
+  const created = await repository.createClient({ name: uniqueName("Refused Bakery (TEST)") });
+  for (const [key, value] of [["goal", "More cake pre-orders"], ["targetAudience", "Local families"], ["offering", "Celebration cakes"]] as const) {
+    await repository.setContextField(created.id, key, { value, confidence: "confirmed" });
+  }
+  const project = await repository.createProject(created.id, { name: "New website", projectType: "website" });
+  const client = (await repository.load()).clients.find((c) => c.id === created.id)!;
+  const draft = await repository.saveSiteSpecDraft(await repository.startSiteSpec(project.id), completeSpec(client));
+  await repository.submitSiteSpec(draft);
+
+  await signIn(page, member);
+  await page.goto(`/clients/${client.id}/projects/${project.id}/site`);
+  await expect(page.getByText("Nothing blocks approval")).toBeVisible();
+
+  // The brief changes after the page loaded, so only the server knows.
+  await repository.setContextField(client.id, "goal", { value: "Catering orders", confidence: "observed" });
+  await page.getByRole("button", { name: "Approve", exact: true }).click();
+  const refusal = page.getByTestId("approval-refusal");
+  await expect(refusal).toContainText("Not approved: 1 thing needs fixing");
+  await expect(refusal).toContainText("is used from the brief but is not confirmed");
+  await expect(page.getByText("Waiting for approval").first()).toBeVisible();
+  await expect(page.getByText("Replaced by a newer version")).toHaveCount(0);
 });

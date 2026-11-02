@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test";
 import { SupabaseRepository } from "@/lib/data/supabase-repository";
 import { completeSpec } from "@/lib/site-spec/test-helpers";
 import { signIn, uniqueName } from "./helpers";
-import { fixture, signedInClient } from "./supabase";
+import { appFetch, fixture, signedInClient } from "./supabase";
 
 /**
  * The internal preview, in the browser, against the local stack: an approved
@@ -12,7 +12,7 @@ import { fixture, signedInClient } from "./supabase";
  */
 async function approvedSpec() {
   const member = fixture().member;
-  const repository = new SupabaseRepository({ client: await signedInClient(member), studioId: fixture().studioA, user: { id: member.id, email: member.email } });
+  const repository = new SupabaseRepository({ client: await signedInClient(member), studioId: fixture().studioA, user: { id: member.id, email: member.email }, fetch: appFetch });
   await repository.load();
   const created = await repository.createClient({ name: uniqueName("Preview Bakery (TEST)") });
   for (const [key, value] of [["goal", "More cake pre-orders"], ["targetAudience", "Local families"], ["offering", "Celebration cakes"]] as const) {

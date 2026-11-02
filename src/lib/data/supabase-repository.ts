@@ -38,7 +38,8 @@ import {
   type TaskStatus,
 } from "@/lib/domain/types";
 import { validateIdentity } from "./local-repository";
-import { RepositoryError, type AiSpend, type RepositoryInfo, type StudioRepository } from "./repository";
+import { RepositoryError, SiteSpecBlockedError, type AiSpend, type RepositoryErrorCode, type RepositoryInfo, type StudioRepository } from "./repository";
+import { approvalBlockers, parseSiteSpec } from "@/lib/site-spec/validate";
 import { toRepositoryError } from "./supabase-errors";
 import {
   clientRow,
@@ -86,6 +87,8 @@ export interface SupabaseRepositoryOptions {
   agentEndpoint?: string;
   /** Where images are uploaded for checking (POST /api/site-assets/upload). */
   assetEndpoint?: string;
+  /** Where a website spec is checked and approved (POST /api/site-specs/approve). */
+  approveEndpoint?: string;
   fetch?: typeof fetch;
   createId?: () => string;
 }
@@ -106,6 +109,7 @@ export class SupabaseRepository implements StudioRepository {
   private readonly user: { id: string; email: string | null };
   private readonly agentEndpoint: string;
   private readonly assetEndpoint: string;
+  private readonly approveEndpoint: string;
   private readonly fetchImpl: typeof fetch;
   private readonly createId: () => string;
 
@@ -115,6 +119,7 @@ export class SupabaseRepository implements StudioRepository {
     this.user = options.user;
     this.agentEndpoint = options.agentEndpoint ?? "/api/agents/intake";
     this.assetEndpoint = options.assetEndpoint ?? "/api/site-assets/upload";
+    this.approveEndpoint = options.approveEndpoint ?? "/api/site-specs/approve";
     this.fetchImpl = options.fetch ?? ((...args) => fetch(...args));
     this.createId = options.createId ?? (() => crypto.randomUUID());
     this.current = {
@@ -565,36 +570,87 @@ export class SupabaseRepository implements StudioRepository {
     });
   }
 
+  /**
+   * Asks the server to check and approve this version. The database refuses
+   * an approval the server has not checked, so there is no other way.
+   */
   async approveSiteSpec(expected: SiteSpecRecord): Promise<SiteSpecRecord> {
-    const current = approvedSiteSpec(await this.listSiteSpecs(expected.projectId));
+    if (!this.current.canWrite) throw new RepositoryError("You have read-only access to this studio. Ask an owner for member access.", "permission");
+    const { data } = await this.client.auth.getSession();
+    const token = data.session?.access_token;
+    if (!token) throw new RepositoryError("Your session has ended. Sign in again to continue.", "session");
+    let response: Response;
+    try {
+      response = await this.fetchImpl(this.approveEndpoint, {
+        method: "POST",
+        headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
+        body: JSON.stringify({ studioId: this.studioId, specId: expected.id, expectedUpdatedAt: expected.updatedAt }),
+      });
+    } catch {
+      throw new RepositoryError("Studio OS could not reach the server. Check your connection and try again.", "network");
+    }
+    const body = (await response.json().catch(() => null)) as { error?: string; blockers?: string[] } | null;
+    if (!response.ok) {
+      if (body?.blockers?.length) throw new SiteSpecBlockedError(body.blockers);
+      const codes: Record<number, RepositoryErrorCode> = { 401: "session", 403: "permission", 404: "not_found", 409: "conflict", 422: "validation" };
+      throw new RepositoryError(body?.error ?? "The website spec could not be approved. Try again in a moment.", codes[response.status] ?? "storage");
+    }
+    this.snapshot = null;
+    const stored = (await this.listSiteSpecs(expected.projectId)).find((r) => r.id === expected.id);
+    if (!stored) throw new RepositoryError("This website spec no longer exists, or you do not have access to it.", "not_found");
+    return stored;
+  }
+
+  /**
+   * The server's side of an approval, run as the signed-in person: every rule
+   * in approvalBlockers against what is stored now, then the pass
+   * (recordCheck, as the service role), then the approval itself.
+   */
+  async approveCheckedSiteSpec(specId: string, expectedUpdatedAt: string, recordCheck: () => Promise<void>): Promise<SiteSpecRecord> {
+    const snapshot = await this.load();
+    const { data, error } = await this.client.from("site_specs").select(SITE_SPEC_COLUMNS).eq("studio_id", this.studioId).eq("id", specId).maybeSingle();
+    if (error) throw toRepositoryError(error);
+    if (!data) throw new RepositoryError("This website spec no longer exists, or you do not have access to it.", "not_found");
+    const expected = toSiteSpecRecord(data as unknown as Row);
+    if (Date.parse(expected.updatedAt) !== Date.parse(expectedUpdatedAt)) {
+      throw new RepositoryError("Someone else changed this in the meantime. Reload to see the latest version.", "conflict");
+    }
+    const client = find(snapshot.clients, expected.clientId, "client");
     const files = await this.listSiteAssets(expected.clientId);
-    return this.writeSpec((s, deps) => {
-      const { record, superseded, event } = approveSiteSpec(expected, find(s.clients, expected.clientId, "client"), current, deps, files);
-      return [
-        record,
-        {
-          events: [eventRow(event)],
-          spec: update(siteSpecRow(record), expected.updatedAt),
-          supersede: superseded && current ? { id: current.id, expected: current.updatedAt } : null,
-        },
-      ];
-    }, { fresh: true });
+    const parsed = parseSiteSpec(expected.spec);
+    const blockers = parsed.ok ? approvalBlockers(parsed.spec, client, files) : parsed.issues;
+    if (blockers.length) throw new SiteSpecBlockedError(blockers.map((b) => b.message));
+
+    const current = approvedSiteSpec(await this.listSiteSpecs(expected.projectId));
+    return this.writeSpec(
+      (_, deps) => {
+        const { record, superseded, event } = approveSiteSpec(expected, client, current, deps, files);
+        return [
+          record,
+          {
+            events: [eventRow(event)],
+            spec: update(siteSpecRow(record), expected.updatedAt),
+            supersede: superseded && current ? { id: current.id, expected: current.updatedAt } : null,
+          },
+        ];
+      },
+      { beforeWrite: recordCheck },
+    );
   }
 
   /**
    * Applies one change to a website spec with its activity, in one
    * transaction, and returns the version as the database stored it (its
-   * `updated_at` is what the next save must send back). Approving reads the
-   * brief fresh, so the approval is judged on what the client confirmed now.
+   * `updated_at` is what the next save must send back).
    */
   private async writeSpec(
     change: (snapshot: StudioSnapshot, deps: DomainDeps) => [SiteSpecRecord, SpecChange | null],
-    options: { fresh?: boolean } = {},
+    options: { beforeWrite?: () => Promise<void> } = {},
   ): Promise<SiteSpecRecord> {
     if (!this.current.canWrite) {
       throw new RepositoryError("You have read-only access to this studio. Ask an owner for member access.", "permission");
     }
-    const snapshot = options.fresh || !this.snapshot ? await this.load() : this.snapshot;
+    const snapshot = this.snapshot ?? (await this.load());
     const deps: DomainDeps = { now: () => new Date().toISOString(), createId: this.createId, actor: this.actor() };
     let value: SiteSpecRecord;
     let specChange: SpecChange | null;
@@ -606,6 +662,7 @@ export class SupabaseRepository implements StudioRepository {
       throw error;
     }
     if (!specChange) return value;
+    await options.beforeWrite?.();
 
     let failure: unknown;
     try {
