@@ -4,7 +4,7 @@ import { qualityWarnings } from "./checks";
 import type { SiteSpec } from "./schema";
 import { briefClient } from "./test-helpers";
 import { SITE_TEMPLATES, suggestedTemplate, templateSpec } from "./templates";
-import { isPlaceholderText } from "./texts";
+import { isPlaceholderText, visibleTexts } from "./texts";
 import { approvalBlockers, parseSiteSpec } from "./validate";
 
 const project = { projectType: "website" as const };
@@ -78,6 +78,34 @@ describe("first drafts from templates", () => {
       });
     });
   }
+
+  it("marks the privacy notice and consent text as placeholders needing legal review, and blocks them", () => {
+    const client = briefClient();
+    for (const template of SITE_TEMPLATES) {
+      const { spec } = templateSpec(client, project, template, ["en"]);
+      const privacy = spec.pages.find((p) => p.id === "privacy")!.sections[0];
+      expect(privacy.kind === "text" && privacy.body.en).toMatch(/^\[PLACEHOLDER, NOT A PRIVACY NOTICE.*legal review/);
+      expect(spec.forms[0].consentText.en).toMatch(/^\[PLACEHOLDER.*legally reviewed/);
+      const paths = approvalBlockers(spec, client).map((b) => b.path);
+      expect(paths).toContain("forms.0.consentText.en");
+      expect(paths.some((path) => path.startsWith(`pages.${spec.pages.findIndex((p) => p.id === "privacy")}.sections.0.body`))).toBe(true);
+    }
+  });
+
+  it("does not make the online shop read as if anything were set up", () => {
+    const { spec } = templateSpec(briefClient(), project, "shop", ["en"]);
+    // Everything a visitor would read that is not an instruction to replace.
+    const finished = visibleTexts(spec).filter((t) => !isPlaceholderText(t.text)).map((t) => t.text).join(" | ");
+    expect(finished).not.toMatch(/checkout|cart|basket|payment|pay |shipping|delivery|returns|in stock|buy now|price/i);
+    const shop = spec.pages.find((p) => p.id === "shop")!.sections[0];
+    expect(shop.kind === "text" && shop.body.en).toMatch(/^\[NOT SET UP: no products, prices, payments, shipping or shop platform are connected/);
+    expect(spec.integrations.store.enabled).toBe(false);
+  });
+
+  it("looks different from template to template, not one form three times", () => {
+    const variants = (template: (typeof SITE_TEMPLATES)[number]) => templateSpec(briefClient(), project, template, ["en"]).spec.pages[0].sections[0];
+    expect(new Set(SITE_TEMPLATES.map((t) => variants(t).variant)).size).toBe(3);
+  });
 
   it("copies only confirmed brief values, with their source", () => {
     const client = briefClient();

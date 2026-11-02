@@ -310,6 +310,15 @@ test("starts a first draft from a template, with instructions to write and the b
   const blockers = page.getByTestId("spec-blockers");
   await expect(blockers).toContainText("still needs writing");
   await expect(page.getByRole("button", { name: "Submit for approval" })).toBeDisabled();
+  // A long list opens where to start, grouped by page, with legal text marked.
+  const groups = blockers.getByTestId("problem-group");
+  await expect(groups.first()).toContainText("Start here: goal and brand");
+  await expect(groups.first().getByRole("button").first()).toBeVisible();
+  await expect(blockers.getByRole("button", { name: /Hero: heading still needs writing/ })).toBeHidden();
+  const legal = groups.filter({ hasText: "Privacy and consent" });
+  await legal.locator("summary").click();
+  await expect(legal).toContainText("need client-specific details and legal review");
+  await groups.filter({ hasText: /^Home/ }).locator("summary").click();
   await blockers.getByRole("button", { name: /Hero: heading still needs writing/ }).first().click();
   const heading = page.getByLabel("Heading (English)", { exact: true }).first();
   await expect(heading).toBeFocused();
@@ -318,6 +327,35 @@ test("starts a first draft from a template, with instructions to write and the b
   await expect(page.getByTestId("save-status")).toHaveText("Saved");
   await page.reload();
   await expect(page.getByLabel("Heading (English)", { exact: true }).first()).toHaveValue("Cakes for every celebration");
+
+  // Sections are easy to move, add and remove, and a removed section's unfilled image goes with it.
+  const sections = page.getByTestId("spec-section");
+  const before = await sections.count();
+  const images = await page.getByTestId("spec-image").count();
+  await page.getByRole("button", { name: "Move section down" }).first().click();
+  await expect(sections.first()).not.toContainText("Hero");
+  await expect(sections.nth(1)).toContainText("Hero");
+  await page.getByRole("button", { name: "Add section" }).click();
+  await expect(sections).toHaveCount(before + 1);
+  await sections.nth(1).getByRole("button", { name: "Remove section" }).click();
+  await expect(sections).toHaveCount(before);
+  await expect(page.getByTestId("spec-image")).toHaveCount(images - 1);
+  await expect(page.getByTestId("save-status")).toHaveText("Saved");
+});
+
+test("says what the online shop template does not set up, and that legal text is a placeholder", async ({ page }) => {
+  const { url } = await websiteProject(fixture().member);
+  await signIn(page, fixture().member);
+  await page.goto(url);
+  const limits = page.getByTestId("draft-limits");
+  await expect(limits).toContainText("privacy page and consent text are placeholders");
+  await expect(limits).not.toContainText("payments");
+  await page.getByLabel("Online shop").check();
+  await expect(limits).toContainText("Products, prices, payments, shipping and shop integrations are not set up");
+  await page.getByRole("button", { name: "Create draft" }).click();
+  await expect(page.getByRole("heading", { level: 1, name: "Website spec v1" })).toBeVisible();
+  await page.getByLabel("Previewing", { exact: true }).selectOption("shop");
+  await expect(page.getByTestId("live-preview-frame")).toHaveAttribute("srcdoc", /NOT SET UP: no products, prices, payments, shipping or shop platform are connected/);
 });
 
 test("a viewer can see the starting points but cannot create a draft", async ({ page }) => {

@@ -86,6 +86,11 @@ export function StartSpec({
         </div>
       </fieldset>
 
+      <div className="flex flex-col gap-1.5 rounded-[var(--radius-control)] border border-caution/25 bg-caution/[0.06] px-3 py-2.5 text-[13px] text-ink" data-testid="draft-limits">
+        {SITE_TEMPLATE_LABELS[template].note ? <p>{SITE_TEMPLATE_LABELS[template].note}</p> : null}
+        <p>The privacy page and consent text are placeholders. They need client-specific details and legal review.</p>
+      </div>
+
       <div className="flex flex-col gap-1.5 text-[13.5px]" data-testid="from-brief">
         <p className="text-[13px] font-medium text-ink">From the confirmed brief</p>
         {from.length ? (

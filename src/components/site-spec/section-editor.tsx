@@ -15,7 +15,7 @@ import {
   type ItemFieldDefinition,
   type SectionFieldDefinition,
 } from "@/lib/site-spec/catalog";
-import { move, newItem } from "@/lib/site-spec/edit";
+import { move, newItem, removeSection } from "@/lib/site-spec/edit";
 import type { LocalizedText, SiteSpec, SiteSpecButton, SiteSpecSection } from "@/lib/site-spec/schema";
 import { LocalizedInput } from "./localized-input";
 import type { SpecEditing } from "./site-spec-editor";
@@ -151,7 +151,7 @@ export function SectionEditor({
             <IconButton label="Move section down" disabled={sectionIndex === sectionCount - 1} onClick={() => change((s) => void (s.pages[pageIndex].sections = move(s.pages[pageIndex].sections, sectionIndex, 1)))}>
               <ArrowDown />
             </IconButton>
-            <Button size="xs" variant="ghost" onClick={() => change((s) => void s.pages[pageIndex].sections.splice(sectionIndex, 1))}>
+            <Button size="xs" variant="ghost" onClick={() => change((s) => removeSection(s, pageIndex, sectionIndex))}>
               Remove section
             </Button>
           </div>

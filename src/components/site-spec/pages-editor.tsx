@@ -5,7 +5,7 @@ import { useState } from "react";
 import { Button, IconButton } from "@/components/ui/button";
 import { Field, Select, TextInput } from "@/components/ui/field";
 import { NAV_LABELS, NAV_PLACEMENTS, SECTION_KINDS, SECTION_LABELS, SITE_LOCALE_LABELS, type SectionKind } from "@/lib/site-spec/catalog";
-import { move, newPage, newSection, slugify } from "@/lib/site-spec/edit";
+import { move, newPage, newSection, removePage, slugify } from "@/lib/site-spec/edit";
 import type { SiteSpec } from "@/lib/site-spec/schema";
 import { LocalizedInput } from "./localized-input";
 import { SectionEditor } from "./section-editor";
@@ -47,7 +47,7 @@ export function PagesEditor({ spec, editing, open, setOpen }: { spec: SiteSpec; 
                   <IconButton label="Move page down" disabled={p === spec.pages.length - 1} onClick={() => change((s) => void (s.pages = [s.pages[0], ...move(s.pages.slice(1), p - 1, 1)]))}>
                     <ArrowDown />
                   </IconButton>
-                  <Button size="xs" variant="ghost" onClick={() => change((s) => void s.pages.splice(p, 1))}>
+                  <Button size="xs" variant="ghost" onClick={() => change((s) => removePage(s, p))}>
                     Remove page
                   </Button>
                 </div>

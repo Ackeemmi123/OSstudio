@@ -4,6 +4,9 @@
  * menus, buttons, common headings, search titles and image placeholders. What only
  * a person can write is left as an instruction in brackets, which blocks approval
  * (isPlaceholderText) and shows in the preview, so nothing unfinished can pass.
+ * The privacy notice and consent wording say outright that they are placeholders
+ * needing legal review, and the shop says nothing is connected: a template must
+ * not read as if those things were done.
  *
  * It uses no AI. Only confirmed brief values are copied, each with its source.
  */
@@ -15,9 +18,9 @@ import type { LocalizedText, SiteSpec, SiteSpecAsset, SiteSpecPage, SiteSpecSect
 export const SITE_TEMPLATES = ["services", "shop", "single"] as const;
 export type SiteTemplate = (typeof SITE_TEMPLATES)[number];
 
-export const SITE_TEMPLATE_LABELS: Record<SiteTemplate, { label: string; pages: string }> = {
+export const SITE_TEMPLATE_LABELS: Record<SiteTemplate, { label: string; pages: string; note?: string }> = {
   services: { label: "Services business", pages: "Home, Services, About, Contact, Privacy" },
-  shop: { label: "Online shop", pages: "Home, Shop, About, FAQ, Contact, Privacy" },
+  shop: { label: "Online shop", pages: "Home, Shop, About, FAQ, Contact, Privacy", note: "Only describes the pages. Products, prices, payments, shipping and shop integrations are not set up by this." },
   single: { label: "Single page", pages: "One long page, plus Privacy" },
 };
 
@@ -46,6 +49,9 @@ const WORDS = {
   getInTouch: { en: "Get in touch", sv: "Hör av dig", fi: "Ota yhteyttä" },
   findUs: { en: "Find us", sv: "Hitta till oss", fi: "Löydä meille" },
   products: { en: "Our products", sv: "Våra produkter", fi: "Tuotteemme" },
+  howItWorks: { en: "How it works", sv: "Så går det till", fi: "Näin se toimii" },
+  ourValues: { en: "What we stand for", sv: "Det här står vi för", fi: "Arvomme" },
+  theShop: { en: "About the shop", sv: "Om butiken", fi: "Tietoa kaupasta" },
   privacyHeading: { en: "How we handle your details", sv: "Så hanterar vi dina uppgifter", fi: "Näin käsittelemme tietojasi" },
 } satisfies Record<string, Words>;
 
@@ -90,41 +96,45 @@ function builder(client: Client, project: Pick<Project, "projectType">, locales:
   };
 
   const buttonTo = (target: string, label: Words = WORDS.contactUs) => ({ label: words(label), targetPageId: target });
-  const items = (kind: "features" | "services" | "testimonials" | "team" | "faq", count: number) =>
-    Array.from({ length: count }, () => {
+  const items = (kind: "features" | "services" | "testimonials" | "team" | "faq", count: number, faqNote = "") =>
+    Array.from({ length: count }, (_, i) => {
       const id = nextId("item");
       switch (kind) {
         case "features":
-          return { id, title: all("[A short reason to choose them]"), body: all("[One sentence about it]") };
+          return { id, title: all(`[Point ${i + 1}: a real strength, in 2 to 4 words]`), body: all("[One sentence with a concrete fact that backs it up]") };
         case "services":
-          return { id, title: all("[Name of a service]"), body: all("[What it includes, and who it is for]") };
+          return { id, title: all(`[Service ${i + 1}: its plain name]`), body: all("[Who it is for, what they get, and the result they can expect]") };
         case "testimonials":
-          return { id, quote: all("[A real quote, used with the customer's permission]"), author: "[The customer's name]" };
+          return { id, quote: all("[A real customer's words, used with their permission]"), author: "[Their name and, if they agree, company]" };
         case "team":
           return { id, name: "[A person's name, with their consent]", role: all("[Their role]") };
         case "faq":
-          return { id, question: all("[A question customers often ask]"), answer: all("[The answer, in a sentence or two]") };
+          return { id, question: all(`[Question ${i + 1}: something customers really ask]`), answer: all(`[A short, direct answer${faqNote}]`) };
       }
     });
 
   const section = (plan: SectionPlan): SiteSpecSection => ({ id: nextId(plan.kind.replace("_", "-")), ...plan }) as unknown as SiteSpecSection;
 
-  const hero = (target: string, photo: string) =>
-    section({ kind: "hero", variant: "split_image_right", heading: all(`[Say what ${name} offers, and for whom]`), subheading: all("[One line on why it matters to them]"), mediaAssetId: image(photo), buttons: [buttonTo(target)] });
+  const hero = (variant: string, target: string, photo: string, label?: Words) =>
+    section({ kind: "hero", variant, heading: all(`[Headline: what ${name} does for whom, in under 10 words]`), subheading: all("[One or two sentences on why it matters to them, and why choose this business]"), mediaAssetId: image(photo), buttons: [buttonTo(target, label)] });
+  const pageIntro = (headline: string, intro: string) => section({ kind: "hero", variant: "centered", heading: all(headline), subheading: all(intro), buttons: [] });
   const whatWeDo = () => {
     const { body, source } = offeringText();
     return section({ kind: "text", variant: "single_column", heading: words(WORDS.whatWeDo), body, ...(source ? { source } : {}) });
   };
-  const whyUs = () => section({ kind: "features", variant: "grid_3", heading: words(WORDS.whyUs), items: items("features", 3) });
-  const servicesList = () => section({ kind: "services", variant: "cards", heading: words(WORDS.ourServices), items: items("services", 3) });
-  const quotes = () => section({ kind: "testimonials", variant: "quotes", heading: words(WORDS.customersSay), items: items("testimonials", 2) });
-  const about = () => section({ kind: "text_media", variant: "image_right", heading: words(WORDS.about), body: all(`[${name}'s story: who they are and how they work]`), mediaAssetId: image("The people or the place behind the business"), buttons: [] });
+  const features = (variant: string, heading: Words = WORDS.whyUs) => section({ kind: "features", variant, heading: words(heading), items: items("features", variant === "grid_4" ? 4 : 3) });
+  const steps = () => section({ kind: "features", variant: "list", heading: words(WORDS.howItWorks), items: items("features", 3).map((item, i) => ({ ...item, title: all(`[Step ${i + 1}: what happens, in a few words]`), body: all("[What the customer does or gets at this step]") })) });
+  const servicesList = (variant: string) => section({ kind: "services", variant, heading: words(WORDS.ourServices), items: items("services", 3) });
+  const quotes = (variant = "quotes") => section({ kind: "testimonials", variant, heading: words(WORDS.customersSay), items: items("testimonials", 2) });
+  const about = (variant = "image_right") => section({ kind: "text_media", variant, heading: words(WORDS.about), body: all(`[${name}'s story: how it started, who works here, and what makes them different]`), mediaAssetId: image("The people or the place behind the business"), buttons: [] });
   const team = () => section({ kind: "team", variant: "grid", heading: words(WORDS.ourTeam), items: items("team", 2) });
-  const faq = (count = 4) => section({ kind: "faq", variant: "accordion", heading: words(WORDS.questions), items: items("faq", count) });
-  const cta = (target: string) => section({ kind: "cta", variant: "banner", heading: all("[Invite them to take the next step]"), body: all("[One line on what happens next]"), button: buttonTo(target) });
-  const contact = () => section({ kind: "contact", variant: "form_and_details", heading: words(WORDS.getInTouch), body: all("[Address, phone number and opening hours]"), formId: "contact-form" });
-  const privacyText = () => section({ kind: "text", variant: "single_column", heading: words(WORDS.privacyHeading), body: all("[The client's privacy notice: what is collected, why, for how long, and whom to ask]") });
-  const gallery = () => section({ kind: "gallery", variant: "grid", heading: words(WORDS.products), assetIds: [image("A product"), image("Another product"), image("A third product")] });
+  const faq = (variant = "accordion", count = 4, note = "") => section({ kind: "faq", variant, heading: words(WORDS.questions), items: items("faq", count, note) });
+  const cta = (variant: string, target: string, label?: Words) => section({ kind: "cta", variant, heading: all("[Invite them to take the next step, in one short line]"), body: all("[What happens after they get in touch, and how soon]"), button: buttonTo(target, label) });
+  const contact = () => section({ kind: "contact", variant: "form_and_details", heading: words(WORDS.getInTouch), body: all("[Address, phone number and opening hours, as the client confirms them]"), formId: "contact-form" });
+  const privacyText = () => section({ kind: "text", variant: "single_column", heading: words(WORDS.privacyHeading), body: all(`[PLACEHOLDER, NOT A PRIVACY NOTICE. Write ${name}'s own notice with them: what is collected, why, for how long, who receives it, and whom to ask. It needs client-specific details and legal review before publishing.]`) });
+  const gallery = (variant: string) => section({ kind: "gallery", variant, heading: words(WORDS.products), assetIds: [image("A product, once the client has chosen what to show"), image("Another product"), image("A third product")] });
+  /** Says outright that nothing is connected, so a draft cannot be read as a working shop. */
+  const shopStatus = () => section({ kind: "text", variant: "single_column", heading: words(WORDS.theShop), body: all("[NOT SET UP: no products, prices, payments, shipping or shop platform are connected. Say what will be sold and how customers will buy, once the client has decided.]") });
 
   const page = (id: string, title: Words, slug: Words | null, nav: SiteSpecPage["nav"], sections: SiteSpecSection[]): SiteSpecPage => ({
     id,
@@ -139,7 +149,7 @@ function builder(client: Client, project: Pick<Project, "projectType">, locales:
     sections,
   });
 
-  return { name, all, words, assets, page, hero, whatWeDo, whyUs, servicesList, quotes, about, team, faq, cta, contact, privacyText, gallery };
+  return { name, all, words, assets, page, hero, pageIntro, whatWeDo, features, steps, servicesList, quotes, about, team, faq, cta, contact, privacyText, gallery, shopStatus };
 }
 
 /** The draft for this template. `locales`: the website's languages, the first being the default. */
@@ -151,21 +161,21 @@ export function templateSpec(client: Client, project: Pick<Project, "projectType
 
   const pages: Record<SiteTemplate, () => SiteSpecPage[]> = {
     services: () => [
-      b.page("home", WORDS.home, null, "main", [b.hero("contact", "The work, or the people doing it"), b.whatWeDo(), b.whyUs(), b.quotes(), b.cta("contact")]),
-      b.page("services", WORDS.services, SLUGS.services, "main", [b.servicesList(), b.faq(3), b.cta("contact")]),
-      b.page("about", WORDS.about, SLUGS.about, "main", [b.about(), b.team()]),
+      b.page("home", WORDS.home, null, "main", [b.hero("split_image_right", "contact", "The work, or the people doing it"), b.whatWeDo(), b.servicesList("cards"), b.features("grid_3"), b.quotes(), b.cta("banner", "contact")]),
+      b.page("services", WORDS.services, SLUGS.services, "main", [b.pageIntro("[Headline: what clients can hire them for]", "[One or two sentences on the kind of client and work they do best]"), b.servicesList("detailed"), b.steps(), b.faq("accordion", 3), b.cta("card", "contact")]),
+      b.page("about", WORDS.about, SLUGS.about, "main", [b.about("image_left"), b.features("grid_3", WORDS.ourValues), b.team(), b.cta("banner", "contact")]),
       b.page("contact", WORDS.contact, SLUGS.contact, "main", [b.contact()]),
       privacy(),
     ],
     shop: () => [
-      b.page("home", WORDS.home, null, "main", [b.hero("shop", "A product in use"), b.whatWeDo(), b.gallery(), b.whyUs(), b.quotes(), b.cta("shop")]),
-      b.page("shop", WORDS.shop, SLUGS.shop, "main", [b.cta("contact")]),
-      b.page("about", WORDS.about, SLUGS.about, "main", [b.about()]),
-      b.page("faq", WORDS.faq, SLUGS.faq, "main", [b.faq()]),
+      b.page("home", WORDS.home, null, "main", [b.hero("full_bleed_image", "shop", "A product in use, once the client has chosen it", WORDS.shop), b.whatWeDo(), b.gallery("grid"), b.features("grid_4"), b.quotes(), b.cta("banner", "shop", WORDS.shop)]),
+      b.page("shop", WORDS.shop, SLUGS.shop, "main", [b.shopStatus(), b.gallery("masonry"), b.cta("card", "contact")]),
+      b.page("about", WORDS.about, SLUGS.about, "main", [b.about("image_right"), b.features("grid_3", WORDS.ourValues)]),
+      b.page("faq", WORDS.faq, SLUGS.faq, "main", [b.faq("accordion", 4, ". Only promise delivery, returns or payment terms the client has confirmed")]),
       b.page("contact", WORDS.contact, SLUGS.contact, "main", [b.contact()]),
       privacy(),
     ],
-    single: () => [b.page("home", WORDS.home, null, "main", [b.hero("home", "The work, or the people doing it"), b.whatWeDo(), b.servicesList(), b.about(), b.quotes(), b.faq(3), b.contact()]), privacy()],
+    single: () => [b.page("home", WORDS.home, null, "main", [b.hero("centered", "home", "The work, or the people doing it"), b.whatWeDo(), b.servicesList("list"), b.steps(), b.about("image_left"), b.quotes("carousel"), b.faq("two_column", 3), b.contact()]), privacy()],
   };
   const built = pages[template]();
 
@@ -175,7 +185,7 @@ export function templateSpec(client: Client, project: Pick<Project, "projectType
     strategy: { ...start.spec.strategy, primaryCta: { label: b.words(template === "shop" ? WORDS.shop : WORDS.contactUs), targetPageId: template === "shop" ? "shop" : template === "single" ? "home" : "contact" } },
     assets: b.assets,
     pages: built,
-    forms: [{ id: "contact-form", purpose: "contact", fields: ["name", "email", "message"], consentText: b.all("[Say what the answers are used for, as agreed with the client]"), recipient: "client_contact" }],
+    forms: [{ id: "contact-form", purpose: "contact", fields: ["name", "email", "message"], consentText: b.all("[PLACEHOLDER: this client's own consent wording, legally reviewed. Say what the answers are used for.]"), recipient: "client_contact" }],
     seo: { ...start.spec.seo, siteName: b.all(b.name), defaultDescription: b.all("[One sentence for search results about the business]") },
   };
   return { spec, unconfirmed: start.unconfirmed };
