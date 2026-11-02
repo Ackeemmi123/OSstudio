@@ -69,6 +69,8 @@ test("a website spec goes from the brief to an approved second version", async (
   await expect(page.getByTestId("save-status")).toHaveText("Saved");
   await page.getByRole("button", { name: "Submit for approval" }).click();
   await page.getByRole("button", { name: "Approve", exact: true }).click();
+  // Approving reloads the page's versions, so wait for that before opening the menu.
+  await expect(page.getByLabel("Tone of voice", { exact: true })).toBeDisabled();
   await page.getByTestId("spec-version-menu").locator("summary").click();
   const versions = page.getByTestId("spec-versions");
   await expect(versions.getByRole("button", { name: /v1/ })).toContainText("Replaced by a newer version");
@@ -138,7 +140,7 @@ test("shows edits in the preview straight away, and saves them without a Save bu
   const { url } = await completeDraft("Live Bakery (TEST)");
   await signIn(page, fixture().member);
   await page.goto(url);
-  const frame = page.getByTestId("site-preview-frame");
+  const frame = page.getByTestId("live-preview-frame");
   await expect(frame).toHaveAttribute("sandbox", "");
   await expect(frame).toHaveAttribute("srcdoc", /<h1>Celebration cakes, made to order<\/h1>/);
   await expect(page.getByRole("button", { name: "Save", exact: true })).toHaveCount(0);
@@ -187,7 +189,7 @@ test("leads from a problem to its field, opening the page it is on", async ({ pa
   await expect(page.getByTestId("spec-blockers").getByRole("button", { name: /search description/ })).toBeVisible();
   await page.getByTestId("spec-blockers").getByRole("button", { name: /search description/ }).click();
   await expect(page.getByLabel("Search description", { exact: true }).last()).toBeFocused();
-  await expect(page.getByTestId("site-preview-frame")).toHaveAttribute("srcdoc", /<h1>Contact<\/h1>/);
+  await expect(page.getByTestId("live-preview-frame")).toHaveAttribute("srcdoc", /<h1>Contact<\/h1>/);
 });
 
 test("does not overwrite a change someone else made", async ({ page }) => {
@@ -216,9 +218,9 @@ test("the editor shows one thing at a time on a phone, without sideways scrollin
   await page.setViewportSize({ width: 375, height: 700 });
   await page.goto(url);
   await expect(page.getByLabel("Goal of the website", { exact: true })).toBeVisible();
-  await expect(page.getByTestId("site-preview-frame")).toBeHidden();
+  await expect(page.getByTestId("live-preview-frame")).toBeHidden();
   await page.getByRole("button", { name: "See preview" }).click();
-  await expect(page.getByTestId("site-preview-frame")).toBeVisible();
+  await expect(page.getByTestId("live-preview-frame")).toBeVisible();
   await expect(page.getByLabel("Goal of the website", { exact: true })).toBeHidden();
   expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)).toBeLessThanOrEqual(0);
 });
@@ -227,7 +229,7 @@ test("a viewer can read the spec and its live preview, but nothing saves", async
   const { url } = await completeDraft("Reading Bakery (TEST)");
   await signIn(page, fixture().viewer);
   await page.goto(url);
-  await expect(page.getByTestId("site-preview-frame")).toHaveAttribute("srcdoc", /<h1>Celebration cakes, made to order<\/h1>/);
+  await expect(page.getByTestId("live-preview-frame")).toHaveAttribute("srcdoc", /<h1>Celebration cakes, made to order<\/h1>/);
   await expect(page.getByTestId("save-status")).toHaveCount(0);
   await expect(page.getByLabel("Goal of the website", { exact: true })).toBeDisabled();
 });

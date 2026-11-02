@@ -41,7 +41,7 @@ export function ViewportButtons({ viewport, onChange }: { viewport: Viewport; on
  * permissions: it cannot run scripts, reach the app or load anything but its
  * images. A wide viewport is scaled down to fit the space.
  */
-export function PreviewFrame({ html, title, viewport, height }: { html: string; title: string; viewport: Viewport; height: string }) {
+export function PreviewFrame({ html, title, viewport, height, testId = "site-preview-frame" }: { html: string; title: string; viewport: Viewport; height: string; testId?: string }) {
   const [available, setAvailable] = useState(0);
   const box = useRef<HTMLDivElement>(null);
 
@@ -62,7 +62,7 @@ export function PreviewFrame({ html, title, viewport, height }: { html: string; 
           title={title}
           sandbox=""
           srcDoc={html}
-          data-testid="site-preview-frame"
+          data-testid={testId}
           style={{ width, height: `calc(${height} / ${scale})`, transform: `scale(${scale})`, transformOrigin: "top left", border: 0, display: "block" }}
         />
       </div>
