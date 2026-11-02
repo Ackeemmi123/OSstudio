@@ -1,6 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { z } from "zod";
 import { RepositoryError, SiteSpecBlockedError } from "@/lib/data/repository";
+import { toRepositoryError } from "@/lib/data/supabase-errors";
 import { SupabaseRepository } from "@/lib/data/supabase-repository";
 import { logAgentError } from "@/server/agents/agent-request";
 import { serverSupabase } from "@/server/config";
@@ -50,7 +51,8 @@ export async function POST(request: Request) {
   try {
     const record = await repository.approveCheckedSiteSpec(specId, expectedUpdatedAt, async () => {
       const { error: rpcError } = await asServer.rpc("record_site_spec_check", { p_spec: specId, p_person: userId });
-      if (rpcError) throw rpcError;
+      // Someone else may have approved it a moment ago.
+      if (rpcError) throw toRepositoryError(rpcError);
     });
     return Response.json({ id: record.id, status: record.status });
   } catch (failure) {

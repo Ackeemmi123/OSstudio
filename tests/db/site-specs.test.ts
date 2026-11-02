@@ -9,6 +9,7 @@
 import { randomUUID } from "node:crypto";
 import { beforeAll, describe, expect, it } from "vitest";
 import { RepositoryError } from "@/lib/data/repository";
+import { toRepositoryError } from "@/lib/data/supabase-errors";
 import { siteSpecRow } from "@/lib/data/supabase-rows";
 import type { Project, SiteSpecRecord } from "@/lib/domain/types";
 import { completeSpec } from "@/lib/site-spec/test-helpers";
@@ -265,6 +266,10 @@ describe("the server's check before an approval", () => {
     expect((await admin.rpc("record_site_spec_check", { p_spec: submitted.id, p_person: viewer.id })).error?.message).toMatch(/read-only/);
     expect((await admin.rpc("record_site_spec_check", { p_spec: submitted.id, p_person: outsider.id })).error?.message).toMatch(/read-only/);
     expect((await admin.rpc("record_site_spec_check", { p_spec: randomUUID(), p_person: owner.id })).error?.message).toMatch(/waiting for approval/);
+    // What the route turns into "someone else changed this" when another person approves first.
+    const { approved } = await approvedSpec();
+    const late = await admin.rpc("record_site_spec_check", { p_spec: approved.id, p_person: owner.id });
+    expect(toRepositoryError(late.error)).toMatchObject({ code: "conflict", message: expect.stringMatching(/no longer waiting for approval/) });
   });
 
   it("accepts a pass only for the same person, the same content and for 5 minutes", async () => {

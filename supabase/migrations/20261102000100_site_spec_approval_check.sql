@@ -49,7 +49,7 @@ create function public.record_site_spec_check(p_spec uuid, p_person uuid) return
   begin
     select * into v from public.site_specs where id = p_spec;
     if not found or v.status <> 'in_review' then
-      raise exception 'Only a version waiting for approval can be checked.' using errcode = 'SO409';
+      raise exception 'This version is no longer waiting for approval. Reload to see the latest version.' using errcode = 'SO409';
     end if;
     if not exists (select 1 from public.studio_members m
                    where m.studio_id = v.studio_id and m.user_id = p_person and m.role in ('owner', 'member')) then
