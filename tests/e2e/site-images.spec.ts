@@ -11,8 +11,10 @@ import { fixture, signedInClient } from "./supabase";
  * Website images in the browser, against the local stack with Storage: a
  * placeholder is replaced by an uploaded image (processed in the browser,
  * checked by the server), its rights are decided, the spec has nothing
- * blocking approval, and the preview shows the stored image. A viewer sees
- * the image but cannot upload or decide.
+ * blocking approval, an unused image is deleted after a confirmation, the
+ * approved spec's image cannot be deleted (and the reason names the
+ * version), and the preview shows the stored image. A viewer sees the image
+ * but cannot upload, decide or delete.
  */
 async function specWithPlaceholder() {
   const member = fixture().member;
@@ -68,6 +70,39 @@ test("replaces a placeholder with an uploaded image whose rights are approved, a
   await expect(page.getByRole("button", { name: "Saved" })).toBeVisible();
   await expect(page.getByText("Nothing blocks approval")).toBeVisible();
 
+  // An image no submitted or approved version relies on can be deleted, after a confirmation.
+  await page.getByRole("button", { name: "Upload new image" }).click();
+  const second = page.getByRole("dialog", { name: "Upload an image" });
+  await second.getByLabel("Image file").setInputFiles({ name: "extra.png", mimeType: "image/png", buffer: Buffer.from(pngImage(640, 480, [20, 120, 200])) });
+  await second.getByLabel("What the image shows").fill("Extra photo (test)");
+  await second.getByRole("button", { name: "Upload", exact: true }).click();
+  await expect(second).toBeHidden();
+  const extra = library.getByTestId("library-image").filter({ hasText: "Extra photo (test)" });
+  await expect(extra.getByRole("button", { name: "Delete" })).toBeEnabled();
+  let confirmation = "";
+  page.once("dialog", (dialog) => {
+    confirmation = dialog.message();
+    void dialog.accept();
+  });
+  await extra.getByRole("button", { name: "Delete" }).click();
+  await expect(library.getByTestId("library-image")).toHaveCount(1);
+  expect(confirmation).toMatch(/hidden at once and its file is deleted within a day/);
+
+  // The draft still shows it; removing it from the spec leaves the stored images alone.
+  await page.getByTestId("spec-image").filter({ hasText: "Image not available" }).getByRole("button", { name: "Remove from this spec" }).click();
+  await expect(page.getByTestId("spec-image")).toHaveCount(1);
+  await expect(page.getByRole("button", { name: "Saved" })).toBeVisible();
+  await expect(page.getByText("Nothing blocks approval")).toBeVisible();
+
+  // Once a version using it is approved, the image cannot be deleted, and the reason names the version.
+  await page.getByRole("button", { name: "Submit for approval" }).click();
+  await page.getByRole("button", { name: "Approve", exact: true }).click();
+  await expect(page.getByText("Approved", { exact: true }).first()).toBeVisible();
+  const shop = library.getByTestId("library-image").filter({ hasText: "Shop front (test)" });
+  await expect(shop).toContainText("In use by approved spec v1");
+  await expect(shop.getByRole("button", { name: "Delete" })).toBeDisabled();
+  await expect(shop).toContainText("Used by approved spec v1. Start a new version without it to delete it.");
+
   // The preview shows the stored image through a signed link.
   await page.getByRole("link", { name: "Preview", exact: true }).click();
   const frame = page.getByTestId("site-preview-frame");
@@ -82,5 +117,6 @@ test("replaces a placeholder with an uploaded image whose rights are approved, a
   await expect(viewerPage.getByTestId("image-library")).toContainText("Rights approved");
   await expect(viewerPage.getByRole("button", { name: "Upload image" })).toHaveCount(0);
   await expect(viewerPage.getByRole("button", { name: "Decide rights" })).toHaveCount(0);
+  await expect(viewerPage.getByTestId("image-library").getByRole("button", { name: "Delete" })).toHaveCount(0);
   await viewer.close();
 });

@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Field, Select, TextInput } from "@/components/ui/field";
 import { StatusLabel, type Tone } from "@/components/ui/status";
 import { SITE_ASSET_STATUS_LABELS } from "@/lib/domain/labels";
+import { describeImageUse, type ImageUse } from "@/lib/domain/site-specs";
 import type { SiteAssetRecord, SiteAssetStatus } from "@/lib/domain/types";
 import { attachFile, newImageFromFile, newPlaceholderImage } from "@/lib/site-spec/edit";
 import type { SiteSpec } from "@/lib/site-spec/schema";
@@ -19,6 +20,8 @@ export interface ImageLibrary {
   assets: SiteAssetRecord[];
   links: Record<string, string>;
   reload: () => void;
+  /** Images this project's approved or waiting-for-approval versions rely on (imagesInUse). */
+  inUse: Map<string, ImageUse[]>;
 }
 
 const ASSET_TONES: Record<SiteAssetStatus, Tone> = { uploading: "neutral", pending_review: "caution", approved: "positive", rejected: "critical", deleted: "neutral" };
@@ -105,7 +108,7 @@ export function ImagesEditor({ spec, clientId, editing, library }: { spec: SiteS
                     </Field>
                   ) : null}
                   <Button size="xs" variant="ghost" onClick={() => change((s) => void s.assets.splice(a, 1))}>
-                    Remove image
+                    Remove from this spec
                   </Button>
                 </div>
               ) : null}
@@ -135,12 +138,15 @@ export function ImagesEditor({ spec, clientId, editing, library }: { spec: SiteS
       <div className="flex flex-col gap-3" data-testid="image-library">
         <p className="text-[13px] font-medium text-ink">This client&apos;s stored images ({usable.length})</p>
         {usable.length === 0 ? <p className="text-[12.5px] text-ink-subtle">None yet.</p> : null}
-        {usable.map((asset) => (
-          <div key={asset.id} className="flex items-center gap-3 rounded-[var(--radius-control)] border border-line p-2.5">
+        {usable.map((asset) => {
+          const uses = library.inUse.get(asset.id);
+          return (
+          <div key={asset.id} className="flex items-center gap-3 rounded-[var(--radius-control)] border border-line p-2.5" data-testid="library-image">
             <Thumbnail url={library.links[asset.id]} label="No preview" />
             <div className="flex min-w-0 flex-1 flex-col gap-1">
               <p className="truncate text-[13.5px] text-ink">{asset.description}</p>
               <StatusLabel tone={ASSET_TONES[asset.status]}>{SITE_ASSET_STATUS_LABELS[asset.status]}</StatusLabel>
+              {uses ? <p className="text-[12px] text-ink-muted">In use by {describeImageUse(uses)}</p> : null}
               <p className="text-[12px] text-ink-subtle">
                 {asset.width} × {asset.height} px · {Math.round(asset.byteSize / 1024)} KB
                 {asset.reviewNote ? ` · ${asset.reviewNote}` : ""}
@@ -153,13 +159,25 @@ export function ImagesEditor({ spec, clientId, editing, library }: { spec: SiteS
                     Decide rights
                   </Button>
                 ) : null}
-                <Button size="xs" variant="ghost" onClick={() => remove(asset)} disabled={pending}>
+                <Button
+                  size="xs"
+                  variant="ghost"
+                  onClick={() => remove(asset)}
+                  disabled={pending || Boolean(uses)}
+                  aria-describedby={uses ? `in-use-${asset.id}` : undefined}
+                >
                   Delete
                 </Button>
+                {uses ? (
+                  <p id={`in-use-${asset.id}`} className="max-w-48 text-right text-[11.5px] text-ink-subtle">
+                    Used by {describeImageUse(uses)}. Start a new version without it to delete it.
+                  </p>
+                ) : null}
               </div>
             ) : null}
           </div>
-        ))}
+          );
+        })}
       </div>
 
       {uploadFor ? (

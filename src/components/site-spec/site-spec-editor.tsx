@@ -12,7 +12,7 @@ import { Section } from "@/components/ui/surface";
 import { StatusLabel, Tag, type Tone } from "@/components/ui/status";
 import { cn } from "@/lib/cn";
 import { SITE_SPEC_STATUS_LABELS } from "@/lib/domain/labels";
-import { REVIEW_NOTE_MAX_LENGTH } from "@/lib/domain/site-specs";
+import { imagesInUse, REVIEW_NOTE_MAX_LENGTH } from "@/lib/domain/site-specs";
 import { CONTEXT_FIELD_LABELS } from "@/lib/domain/labels";
 import type { Actor, Client, ContextFieldKey, Project, SiteAssetRecord, SiteSpecRecord, SiteSpecStatus } from "@/lib/domain/types";
 import { refreshFromBrief } from "@/lib/site-spec/edit";
@@ -91,7 +91,8 @@ export function SiteSpecEditor({
     const timer = setInterval(() => setLibraryRound((n) => n + 1), 10 * 60 * 1000);
     return () => clearInterval(timer);
   }, []);
-  const imageLibrary: ImageLibrary = { ...library, reload: () => setLibraryRound((n) => n + 1) };
+  const inUse = useMemo(() => imagesInUse(versions), [versions]);
+  const imageLibrary: ImageLibrary = { ...library, inUse, reload: () => setLibraryRound((n) => n + 1) };
   const [draft, setDraft] = useState<SiteSpec>(record.spec);
   const [sendingBack, setSendingBack] = useState(false);
   const [note, setNote] = useState("");

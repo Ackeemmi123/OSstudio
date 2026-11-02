@@ -3,6 +3,8 @@ import { briefClient, completeSpec, websiteProject } from "@/lib/site-spec/test-
 import { setContextField } from "./clients";
 import {
   approveSiteSpec,
+  describeImageUse,
+  imagesInUse,
   isWebsiteProject,
   requestSiteSpecChanges,
   saveSiteSpecDraft,
@@ -133,5 +135,34 @@ describe("review and approval", () => {
     expect(() => approveSiteSpec(approved, client, null, testDeps())).toThrow(/waiting for approval/);
     expect(() => requestSiteSpecChanges(approved, undefined, testDeps())).toThrow(/waiting for approval/);
     expect(() => requestSiteSpecChanges({ ...approved, status: "in_review" }, "x".repeat(1001), testDeps())).toThrow(/under 1000/);
+  });
+});
+
+describe("images a spec relies on", () => {
+  const fileA = "5b2d8c41-0e3f-4a5b-9c6d-7e8f9a0b1c2d";
+  const fileB = "3a9e1f20-6b7c-4d8e-8f90-1a2b3c4d5e6f";
+  function version(n: number, status: SiteSpecRecord["status"], fileIds: string[]): Pick<SiteSpecRecord, "version" | "status" | "spec"> {
+    const spec = completeSpec(briefClient());
+    spec.assets = fileIds.map((fileId, i) => ({ id: `image-${i}`, kind: "photo", alt: { en: "x" }, origin: "client_supplied", description: "x", fileId }));
+    return { version: n, status, spec };
+  }
+
+  it("counts approved versions and versions waiting for approval, not drafts or replaced versions", () => {
+    const uses = imagesInUse([
+      version(3, "draft", [fileA, fileB]),
+      version(2, "in_review", [fileA]),
+      version(1, "superseded", [fileB]),
+    ]);
+    expect([...uses.keys()]).toEqual([fileA]);
+    expect(uses.get(fileA)).toEqual([{ version: 2, status: "in_review" }]);
+  });
+
+  it("lists every version that uses an image, oldest first, once each", () => {
+    const uses = imagesInUse([version(2, "in_review", [fileA]), version(1, "approved", [fileA, fileA])]);
+    expect(uses.get(fileA)).toEqual([
+      { version: 1, status: "approved" },
+      { version: 2, status: "in_review" },
+    ]);
+    expect(describeImageUse(uses.get(fileA)!)).toBe("approved spec v1 and spec v2 waiting for approval");
   });
 });
