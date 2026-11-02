@@ -317,10 +317,10 @@ async function compareVariants(label, spec, def) {
   say(`| V0 today | ${ms(baseTime.cold)} | ${ms(baseTime.med)} | ${baseTime.n} | n/a |`);
 
   const variants = [
-    ["V1 last_activity via the entity index", [V1]],
-    ["V2 = V1 + retention in one pass", [V1, V2, loadStudioV2(def)]],
-    ["V3 = V2 + anonymised lists, not per-row calls", [V1, V2, loadStudioV3(def)]],
-    ["V4 = V3 + RLS through a once-only studio list", [V1, V2, loadStudioV3(def), V4]],
+    ["V1 (repeat)", [V1]],
+    ["V4 alone", [V4]],
+    ["V1 + V4", [V1, V4]],
+    ["V1 + V2 + V3 + V4 (repeat)", [V1, V2, loadStudioV3(def), V4]],
   ];
   for (const [name, statements] of variants) {
     try {
@@ -346,9 +346,10 @@ async function compareVariants(label, spec, def) {
   // The retention job calls the same function as the table owner.
   await db.query("begin");
   await db.query(V1);
+  await db.query(V4);
   await db.query("set local role authenticated");
   const client = (await db.query("select id from public.clients where studio_id = $1 and anonymised_at is null order by created_at limit 1", [studio])).rows[0].id;
-  say(`\nPlan of client_last_activity with V1 (${label}):\n`);
+  say(`\nPlan of client_last_activity with V1 + V4 (${label}):\n`);
   await explain(db, "v1", LAST_ACTIVITY_V1, client);
   await db.query("rollback");
   await db.end();
@@ -369,49 +370,6 @@ say(`- role settings: ${JSON.stringify((await setup.query("select rolname, rolco
 say(`- postgres: bypassrls=${(await setup.query("select rolbypassrls from pg_roles where rolname = 'postgres'")).rows[0].rolbypassrls}`);
 const def = (await setup.query("select pg_get_functiondef('public.load_studio(uuid)'::regprocedure) as d")).rows[0].d;
 
-// 1. Where the time goes, on the size CI measured, with no other studios.
-say("\n## 1. Parts of load_studio, reference size\n");
-const studio = await seed(setup, REFERENCE);
-const fresh = await connect();
-await asPerson(fresh);
-const noStats = await measure(fresh, LOAD, [studio]);
-await fresh.end();
-await setup.query("analyze");
-const db = await connect();
-await asPerson(db);
-const whole = await measure(db, LOAD, [studio]);
-say(`C=${REFERENCE.C} P=${REFERENCE.P} T=${REFERENCE.T} E=${REFERENCE.E}. Whole function before ANALYZE: ${ms(noStats.med)} ms, after: cold ${ms(whole.cold)} ms, median ${ms(whole.med)} ms.\n`);
-say("| Part | Cold ms | Median ms | Share of whole |");
-say("|---|---|---|---|");
-for (const [name, sql] of Object.entries(PARTS)) {
-  const r = await measure(db, sql, [studio]);
-  say(`| ${name} | ${ms(r.cold)} | ${ms(r.med)} | ${r.med == null ? "" : ((100 * r.med) / whole.med).toFixed(0) + "%"} |`);
-}
-await asOwner(db);
-const noRls = await measure(db, LOAD, [studio]);
-say(`| whole function as table owner (no RLS) | ${ms(noRls.cold)} | ${ms(noRls.med)} | ${((100 * noRls.med) / whole.med).toFixed(0)}% |`);
-const anyClient = (await db.query("select id from public.clients where studio_id = $1 and anonymised_at is null order by created_at limit 1", [studio])).rows[0].id;
-const anyTask = (await db.query("select id from public.tasks where studio_id = $1 limit 1", [studio])).rows[0].id;
-await asPerson(db);
-
-say("\nCost of one helper call, as the signed-in person:\n");
-say("| Helper | Microseconds per call |");
-say("|---|---|");
-const CALLS = 2000;
-for (const [name, sql, params] of [
-  ["is_member", `select count(*) filter (where private.is_member($1)) from generate_series(1, ${CALLS})`, [studio]],
-  ["client_is_anonymised", `select count(*) filter (where private.client_is_anonymised($1)) from generate_series(1, ${CALLS})`, [anyClient]],
-  ["entity_client('task')", `select count(private.entity_client('task', $1)) from generate_series(1, ${CALLS})`, [anyTask]],
-  ["client_last_activity", `select count(private.client_last_activity($1)) from generate_series(1, 20)`, [anyClient]],
-]) {
-  const r = await measure(db, sql, params);
-  say(`| ${name} | ${r.med == null ? r.error : ((r.med * 1000) / (sql.includes("1, 20)") ? 20 : CALLS)).toFixed(1)} |`);
-}
-say("\nPlan of client_last_activity today, as the signed-in person:\n");
-await explain(db, "v0", LAST_ACTIVITY_V0, anyClient);
-await db.end();
-flush();
-
 // 3. Candidate fixes, with the output checked against today's.
 await compareVariants("reference size", REFERENCE, def);
 flush();
@@ -420,54 +378,8 @@ flush();
 await compareVariants("large studio past the limit", { C: 24, P: 9, T: 70, E: 8960, X: 0 }, def);
 flush();
 
-// 4. The real path: through the API, as a signed-in person, with its time limit.
-say("\n## 4. Through the API, with the role's statement timeout\n");
-say("| Size | Median ms | Error |");
-say("|---|---|---|");
-for (const [label, spec] of [["reference", REFERENCE], ["large", BIG]]) {
-  const c = await connect();
-  const s = await seed(c, spec);
-  await c.query("analyze");
-  await c.end();
-  const times = [];
-  let failure = "";
-  for (let i = 0; i < 3; i++) {
-    const start = performance.now();
-    const { error } = await anon.rpc("load_studio", { p_studio: s });
-    times.push(performance.now() - start);
-    if (error) failure = `${error.code}: ${error.message}`;
-  }
-  say(`| ${label} | ${ms(median(times))} | ${failure || "none"} |`);
-  flush();
-}
-// 2. How the time grows.
-say("\n## 2. Growth\n");
-say("| C | P | T | E | Other-studio events | Whole cold ms | Whole median ms | Retention key median ms | Everything else ms |");
-say("|---|---|---|---|---|---|---|---|---|");
-const GRID = [
-  { C: 24, P: 9, T: 70, E: 35, X: 0 }, { C: 24, P: 9, T: 70, E: 140, X: 0 }, { C: 24, P: 9, T: 70, E: 560, X: 0 },
-  { C: 6, P: 9, T: 70, E: 140, X: 0 }, { C: 96, P: 9, T: 70, E: 140, X: 0 },
-  { C: 24, P: 36, T: 280, E: 140, X: 0 }, { C: 24, P: 144, T: 1120, E: 140, X: 0 },
-  { C: 24, P: 9, T: 70, E: 140, X: 500 }, { C: 24, P: 9, T: 70, E: 140, X: 2000 },
-  { C: 24, P: 9, T: 70, E: 2240, X: 0 }, { C: 96, P: 9, T: 70, E: 140, X: 2000 },
-  { C: 24, P: 9, T: 70, E: 8960, X: 0 }, { C: 24, P: 9, T: 70, E: 140, X: 8000 },
-];
-for (const spec of GRID) {
-  if (performance.now() > DEADLINE) {
-    say(`| ${spec.C} | ${spec.P} | ${spec.T} | ${spec.E} | ${spec.X} | skipped: out of time | | | |`);
-    continue;
-  }
-  const c = await connect();
-  const s = await seed(c, spec);
-  await c.query("analyze");
-  await asPerson(c);
-  const w = await measure(c, LOAD, [s]);
-  const r = await measure(c, PARTS["retention (whole key)"], [s]);
-  say(`| ${spec.C} | ${spec.P} | ${spec.T} | ${spec.E} | ${spec.X} | ${ms(w.cold)} | ${ms(w.med)}${w.error ? ` (${w.error})` : ""} | ${ms(r.med)} | ${w.med != null && r.med != null ? ms(Math.max(0, w.med - r.med)) : "n/a"} |`);
-  await c.end();
-  flush();
-}
-
+await compareVariants("other studios' events", { C: 24, P: 9, T: 70, E: 140, X: 8000 }, def);
+flush();
 flush();
 console.log("Finished. Exiting 1 on purpose: the rest of this job must not run on the emptied database.");
 process.exit(1);
