@@ -155,6 +155,21 @@ describe("what the database refuses", () => {
     expect(error?.message).toMatch(/no longer confirmed/);
   });
 
+  it("refuses to approve a spec with blockers when the app is bypassed, through the function and the table", async () => {
+    const { repository, project } = await websiteClient();
+    // The starting draft has blockers: no brand chosen, empty texts.
+    const draft = await repository.startSiteSpec(project.id);
+    const submit = { ...siteSpecRow(draft), status: "in_review", submitted_by: person(owner) };
+    expect((await rawWrite(owner, { op: "update", row: submit, expected: draft.updatedAt })).error).toBeNull();
+    const inReview = (await repository.listSiteSpecs(project.id))[0];
+
+    const approve = { ...siteSpecRow(inReview), status: "approved", approved_by: person(owner) };
+    expect((await rawWrite(owner, { op: "update", row: approve, expected: inReview.updatedAt })).error?.message).toMatch(/approved through Studio OS/);
+    const direct = await owner.client.from("site_specs").update({ status: "approved", approved_by: person(owner) }).eq("id", inReview.id);
+    expect(direct.error?.message).toMatch(/approved through Studio OS/);
+    expect((await repository.listSiteSpecs(project.id))[0].status).toBe("in_review");
+  });
+
   it("refuses changes to an approved version, superseding it without a newer approval, and deleting", async () => {
     const { approved } = await approvedSpec();
     const changed = { ...siteSpecRow(approved), spec: { ...approved.spec, strategy: { ...approved.spec.strategy, tone: "Changed" } } };
