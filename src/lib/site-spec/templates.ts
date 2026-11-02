@@ -152,6 +152,36 @@ function builder(client: Client, project: Pick<Project, "projectType">, locales:
   return { name, all, words, assets, page, hero, pageIntro, whatWeDo, features, steps, servicesList, quotes, about, team, faq, cta, contact, privacyText, gallery, shopStatus };
 }
 
+/**
+ * A starting look for each template: a considered palette and type, so a draft
+ * looks designed from the first moment. It is still a starting point: it has no
+ * source, so a person must choose or keep the brand before approval. The preview
+ * loads no web fonts, so these are families most computers have.
+ */
+const LOOKS: Record<SiteTemplate, SiteSpec["brand"]> = {
+  // Quiet confidence: warm paper, deep green, an editorial serif.
+  services: {
+    colors: { primary: "#1E3A34", accent: "#B8763A", background: "#F6F3EC", text: "#16201D", neutral: ["#E9E4D8", "#CFC8B8", "#58625C"] },
+    typography: { heading: { family: "Iowan Old Style", weight: 500 }, body: { family: "Inter", weight: 400 }, scale: "1.333" },
+    radius: "none",
+    density: "regular",
+  },
+  // Bold and tactile: espresso and terracotta, heavy tight type.
+  shop: {
+    colors: { primary: "#2A1A12", accent: "#C8553D", background: "#FBF6EE", text: "#21140D", neutral: ["#F0E4D3", "#D8C8B2", "#6A5849"] },
+    typography: { heading: { family: "Helvetica Neue", weight: 700 }, body: { family: "Helvetica Neue", weight: 400 }, scale: "1.333" },
+    radius: "soft",
+    density: "regular",
+  },
+  // Calm and airy: sage, soft corners, a light serif with room to breathe.
+  single: {
+    colors: { primary: "#3C5546", accent: "#A7BCA0", background: "#F3F4EE", text: "#1C2620", neutral: ["#E4E8DE", "#C9D0C2", "#55615A"] },
+    typography: { heading: { family: "Palatino", weight: 400 }, body: { family: "Inter", weight: 400 }, scale: "1.333" },
+    radius: "round",
+    density: "airy",
+  },
+};
+
 /** The draft for this template. `locales`: the website's languages, the first being the default. */
 export function templateSpec(client: Client, project: Pick<Project, "projectType">, template: SiteTemplate, locales: SiteLocale[]): StartingSpec {
   const start = startingSpec(client, project);
@@ -175,13 +205,14 @@ export function templateSpec(client: Client, project: Pick<Project, "projectType
       b.page("contact", WORDS.contact, SLUGS.contact, "main", [b.contact()]),
       privacy(),
     ],
-    single: () => [b.page("home", WORDS.home, null, "main", [b.hero("centered", "home", "The work, or the people doing it"), b.whatWeDo(), b.servicesList("list"), b.steps(), b.about("image_left"), b.quotes("carousel"), b.faq("two_column", 3), b.contact()]), privacy()],
+    single: () => [b.page("home", WORDS.home, null, "main", [b.hero("centered", "home", "The work, or the people doing it"), b.whatWeDo(), b.servicesList("cards"), b.steps(), b.about("image_left"), b.quotes("carousel"), b.faq("two_column", 3), b.contact()]), privacy()],
   };
   const built = pages[template]();
 
   const spec: SiteSpec = {
     ...start.spec,
     locales: { available: languages, default: languages[0] },
+    brand: LOOKS[template],
     strategy: { ...start.spec.strategy, primaryCta: { label: b.words(template === "shop" ? WORDS.shop : WORDS.contactUs), targetPageId: template === "shop" ? "shop" : template === "single" ? "home" : "contact" } },
     assets: b.assets,
     pages: built,

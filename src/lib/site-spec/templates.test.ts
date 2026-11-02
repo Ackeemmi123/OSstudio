@@ -107,6 +107,19 @@ describe("first drafts from templates", () => {
     expect(new Set(SITE_TEMPLATES.map((t) => variants(t).variant)).size).toBe(3);
   });
 
+  it("starts each template with its own look, readable, and still to be chosen", () => {
+    const client = briefClient();
+    const looks = SITE_TEMPLATES.map((t) => templateSpec(client, project, t, ["en"]).spec.brand);
+    expect(new Set(looks.map((b) => b.colors.primary)).size).toBe(3);
+    expect(new Set(looks.map((b) => b.typography.heading.family)).size).toBe(3);
+    for (const brand of looks) expect(brand.source).toBeUndefined();
+    for (const template of SITE_TEMPLATES) {
+      const messages = approvalBlockers(templateSpec(client, project, template, ["en"]).spec, client).map((b) => b.message).join(" ");
+      expect(messages).toMatch(/Choose the brand colours and fonts/);
+      expect(messages).not.toMatch(/contrast/i);
+    }
+  });
+
   it("copies only confirmed brief values, with their source", () => {
     const client = briefClient();
     const { spec, unconfirmed } = templateSpec(client, project, "services", ["en", "sv"]);

@@ -191,7 +191,7 @@ function Section({ section, first }: { section: RenderSection; first: boolean })
             {split ? <ImageBox image={section.image} /> : null}
           </div>
           {!split && section.image ? (
-            <div className="sp-wrap" style={{ marginTop: "2rem" }}>
+            <div className="sp-wrap sp-hero-media">
               <ImageBox image={section.image} />
             </div>
           ) : null}
