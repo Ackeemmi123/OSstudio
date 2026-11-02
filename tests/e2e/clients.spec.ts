@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { createClientNamed, section, signIn, uniqueName } from "./helpers";
+import { createClientNamed, openSection, signIn, uniqueName } from "./helpers";
 import { fixture } from "./supabase";
 
 test.beforeEach(async ({ page }) => {
@@ -30,7 +30,7 @@ test("creates and edits a client, and the changes are still there after a reload
 test("records a brief value as observed, confirms it, and keeps who confirmed it", async ({ page }) => {
   const { member } = fixture();
   await createClientNamed(page, uniqueName("Nordvik"));
-  const brief = section(page, "brief");
+  const brief = (await openSection(page, "brief"));
 
   await brief.getByRole("button", { name: "Goal" }).click();
   const editor = brief.getByRole("form", { name: "Edit goal" });
@@ -48,6 +48,8 @@ test("records a brief value as observed, confirms it, and keeps who confirmed it
   await page.reload();
   await expect(goal.getByText("More online bookings")).toBeVisible();
   await expect(goal.getByText("Confirmed", { exact: true })).toBeVisible();
+  // A settled value takes one line; who confirmed it is a click away.
+  await goal.getByRole("button", { name: "Show details of goal" }).click();
   await expect(goal.getByText(`confirmed by ${member.name}`)).toBeVisible();
-  await expect(section(page, "activity").getByText(/goal/i).first()).toBeVisible();
+  await expect((await openSection(page, "activity")).getByText(/goal/i).first()).toBeVisible();
 });

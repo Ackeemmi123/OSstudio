@@ -387,6 +387,14 @@ export function getBriefGaps(client: Client, onboarding?: Pick<Onboarding, "skip
   return { missing, skipped, unconfirmed };
 }
 
+/** How far the brief has come: answered out of what applies to this client, and what still needs confirming. */
+export function briefProgress(client: Client): { known: number; total: number; toConfirm: number } {
+  const conditions = briefConditions(client);
+  const relevant = CONTEXT_FIELD_KEYS.filter((key) => fieldApplies(key, conditions));
+  const known = relevant.filter((key) => client.context[key].value !== null);
+  return { known: known.length, total: relevant.length, toConfirm: known.filter((key) => client.context[key].confidence !== "confirmed").length };
+}
+
 export function fieldLabel(key: ContextFieldKey): string {
   return CONTEXT_FIELD_LABELS[key];
 }

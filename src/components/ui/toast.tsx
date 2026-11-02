@@ -6,14 +6,20 @@ import { cn } from "@/lib/cn";
 
 type ToastTone = "success" | "error";
 
+interface ToastAction {
+  label: string;
+  onClick: () => void;
+}
+
 interface Toast {
   id: number;
   tone: ToastTone;
   message: string;
+  action?: ToastAction;
 }
 
 interface ToastApi {
-  success: (message: string) => void;
+  success: (message: string, action?: ToastAction) => void;
   error: (message: string) => void;
 }
 
@@ -28,16 +34,16 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const push = useCallback(
-    (tone: ToastTone, message: string) => {
+    (tone: ToastTone, message: string, action?: ToastAction) => {
       const id = nextId.current++;
-      setToasts((current) => [...current.slice(-2), { id, tone, message }]);
-      setTimeout(() => dismiss(id), tone === "error" ? 8000 : 4500);
+      setToasts((current) => [...current.slice(-2), { id, tone, message, action }]);
+      setTimeout(() => dismiss(id), tone === "error" || action ? 8000 : 4500);
     },
     [dismiss],
   );
 
   const api = useMemo<ToastApi>(
-    () => ({ success: (m) => push("success", m), error: (m) => push("error", m) }),
+    () => ({ success: (m, action) => push("success", m, action), error: (m) => push("error", m) }),
     [push],
   );
 
@@ -60,6 +66,18 @@ export function ToastProvider({ children }: { children: ReactNode }) {
               <CircleAlert aria-hidden className="mt-0.5 size-4 shrink-0 text-critical" />
             )}
             <p className={cn("flex-1 leading-snug", toast.tone === "error" && "text-ink")}>{toast.message}</p>
+            {toast.action ? (
+              <button
+                type="button"
+                onClick={() => {
+                  dismiss(toast.id);
+                  toast.action?.onClick();
+                }}
+                className="shrink-0 rounded-sm text-[13px] font-medium text-ink underline underline-offset-2"
+              >
+                {toast.action.label}
+              </button>
+            ) : null}
             <button
               type="button"
               onClick={() => dismiss(toast.id)}

@@ -200,7 +200,7 @@ export function getDecisions(snapshot: StudioSnapshot, nowMs = Date.now()): Deci
       id: `task-${task.id}`,
       kind: task.status === "awaiting_approval" ? "approval" : "review",
       title: task.title,
-      where: `${client.name} · ${project.name}`,
+      where: [client.name, project.name, task.assignee ? actorLabel(task.assignee) : null].filter(Boolean).join(" · "),
       clientId: client.id,
       href: clientHref(client.id, `task-${task.id}`),
     });
@@ -333,7 +333,7 @@ export function getNextActions(snapshot: StudioSnapshot, clientId?: string): Nex
               // After onboarding the brief is ready even with gaps; they stay listed in the brief.
               detail: missing.length > 0 ? `Brief ready, still unknown: ${missing.map((m) => m.label.toLowerCase()).join(", ")}` : "The essentials are recorded.",
               clientId: client.id,
-              href: clientHref(client.id, "projects"),
+              href: clientHref(client.id, "new-project"),
             },
       );
     }

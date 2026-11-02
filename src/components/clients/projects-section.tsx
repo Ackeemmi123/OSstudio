@@ -47,9 +47,9 @@ function useOwnerOptions(snapshot: StudioSnapshot): { name: string; userId?: str
 export function ProjectsSection({ client, snapshot }: { client: Client; snapshot: StudioSnapshot }) {
   const projects = getClientProjects(client.id, snapshot.projects);
   const owners = useOwnerOptions(snapshot);
-  // A link to #new-project (from onboarding or a follow-up) opens the form, as does #projects for a client with no project yet.
+  // A link to #new-project (from What's next, onboarding or a follow-up) opens the form; the Projects tab alone does not.
   // The workspace renders only in the browser, once data has loaded, so reading the hash here is safe.
-  const opensForm = (hash: string) => hash === "#new-project" || (hash === "#projects" && projects.length === 0);
+  const opensForm = (hash: string) => hash === "#new-project";
   const [creating, setCreating] = useState(() => typeof window !== "undefined" && opensForm(window.location.hash));
   useEffect(() => {
     // Links on the same page (What's next) change only the hash.

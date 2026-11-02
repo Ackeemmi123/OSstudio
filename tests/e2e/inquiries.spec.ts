@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { expect, test, type Page } from "@playwright/test";
 import { createClient } from "@supabase/supabase-js";
 import { examplePayload } from "@/lib/inquiries/test-helpers";
-import { section, signIn, uniqueName } from "./helpers";
+import { openSection, section, signIn, uniqueName } from "./helpers";
 import { fixture, localSupabase } from "./supabase";
 
 /**
@@ -55,9 +55,9 @@ test("approving creates the client with a prefilled, staff-led onboarding", asyn
   await expect(page).toHaveURL(/\/clients\/[^/]+$/);
 
   await expect(page.getByText("Maja Lind").first()).toBeVisible();
-  const brief = section(page, "brief");
+  const brief = (await openSection(page, "brief"));
   await expect(brief.locator("#brief-budget").getByText("€4,500", { exact: true })).toBeVisible();
-  await expect(section(page, "sources").getByTestId("source").getByText(/Website inquiry · /)).toBeVisible();
+  await expect((await openSection(page, "sources")).getByTestId("source").getByText(/Website inquiry · /)).toBeVisible();
 
   // Onboarding starts as a draft; inquiry values are shown to verify, not asked again.
   await page.goto(`${new URL(page.url()).pathname}/onboarding`);
@@ -112,7 +112,7 @@ test("a returning customer is added to the existing client without a second one"
   await expect(dialog.getByText("No existing value changes")).toBeVisible();
   await dialog.getByRole("button", { name: `Add to ${company}` }).click();
   await expect(page.getByRole("heading", { level: 1, name: company })).toBeVisible();
-  await expect(section(page, "sources").getByTestId("source").getByText(/Website inquiry · /)).toBeVisible();
+  await expect((await openSection(page, "sources")).getByTestId("source").getByText(/Website inquiry · /)).toBeVisible();
 
   await page.goto("/clients");
   await page.getByLabel("Search clients").fill(company);
@@ -183,7 +183,7 @@ test("a repeat from the same address is shown and decided with the first inquiry
   await page.getByLabel("Client name").fill(approvedName);
   await page.getByRole("button", { name: "Approve as new client" }).click();
   await expect(page.getByRole("heading", { level: 1, name: approvedName })).toBeVisible();
-  await expect(section(page, "sources").getByTestId("source")).toHaveCount(2);
+  await expect((await openSection(page, "sources")).getByTestId("source")).toHaveCount(2);
 
   await page.goto(`/inquiries/${repeat}`);
   await expect(page.getByText(/decided the first inquiry from this address/)).toBeVisible();

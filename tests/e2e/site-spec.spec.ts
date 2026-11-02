@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { SupabaseRepository } from "@/lib/data/supabase-repository";
-import { signIn, uniqueName } from "./helpers";
+import { openSection, signIn, uniqueName } from "./helpers";
 import { completeSpec } from "@/lib/site-spec/test-helpers";
 import { appFetch, fixture, signedInClient, type SeedUser } from "./supabase";
 
@@ -29,7 +29,7 @@ test("a website spec goes from the brief to an approved second version", async (
 
   // The project card links to the spec page.
   await page.goto(`/clients/${client.id}`);
-  await page.locator("section#projects").getByRole("link", { name: "Website spec" }).click();
+  await (await openSection(page, "projects")).getByRole("link", { name: "Website spec" }).click();
   await expect(page.getByText(/Not confirmed yet, so left out: /)).toBeVisible();
   await page.getByRole("button", { name: "Start the website spec" }).click();
 
@@ -87,7 +87,7 @@ test("a website spec goes from the brief to an approved second version", async (
 
   // The steps are in the client's activity.
   await page.goto(`/clients/${client.id}`);
-  const activity = page.locator("section#activity");
+  const activity = await openSection(page, "activity");
   const showAll = activity.getByRole("button", { name: /Show all/ });
   if (await showAll.isVisible()) await showAll.click();
   await expect(activity.getByText("Approved website spec v2 (replaces v1)")).toBeVisible();

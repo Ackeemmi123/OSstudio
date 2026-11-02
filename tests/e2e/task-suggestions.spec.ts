@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { SupabaseRepository } from "@/lib/data/supabase-repository";
-import { createClientNamed, section, signIn, uniqueName } from "./helpers";
+import { createClientNamed, openSection, signIn, uniqueName } from "./helpers";
 import { fixture, signedInClient } from "./supabase";
 
 /**
@@ -26,7 +26,7 @@ test("suggests tasks from the brief, and creates only the ones the person ticks"
   await briefFor(workspace, { integrations: "Bokamera booking", content: "We need help writing page copy", existingMaterials: "Logo and brand guidelines from 2024" });
   await page.reload();
 
-  const projects = section(page, "projects");
+  const projects = (await openSection(page, "projects"));
   await projects.getByRole("button", { name: "New project" }).first().click();
   await projects.getByLabel("Project name").fill("Brand and site");
   await projects.getByLabel("Type").selectOption("brand_website");
@@ -60,7 +60,7 @@ test("suggests tasks from the brief, and creates only the ones the person ticks"
 test("asks for a brief first, and shows a failed request without creating anything", async ({ page }) => {
   await signIn(page, fixture().member);
   const empty = await createClientNamed(page, uniqueName("No brief"));
-  const projects = section(page, "projects");
+  const projects = (await openSection(page, "projects"));
   await projects.getByRole("button", { name: "New project" }).first().click();
   await projects.getByRole("button", { name: "Suggest changes from the brief" }).click();
   await expect(projects.getByTestId("task-suggestions")).toContainText("The brief is empty.");

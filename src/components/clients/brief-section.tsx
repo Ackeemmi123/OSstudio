@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowRight, Check, History, ListChecks, Pencil, Plus } from "lucide-react";
+import { ArrowRight, Check, ChevronDown, History, ListChecks, Pencil, Plus } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useId, useState, type FormEvent } from "react";
 import { ChannelPicker } from "@/components/onboarding/channel-picker";
@@ -9,6 +9,7 @@ import { useStudioAction } from "@/components/providers/use-studio-action";
 import { Button, ButtonLink } from "@/components/ui/button";
 import { RelativeTime } from "@/components/ui/relative-time";
 import { Section, Surface } from "@/components/ui/surface";
+import { cn } from "@/lib/cn";
 import { BRIEF_FIELD, briefConditions, fieldApplies } from "@/lib/domain/brief";
 import {
   actorLabel,
@@ -33,13 +34,13 @@ import { ConfidenceTag } from "./status";
 
 const EDITABLE_CONFIDENCES: ContextFieldInput["confidence"][] = ["observed", "proposed", "confirmed"];
 
-const GROUPS = ONBOARDING_STEPS.filter((step) => step !== "review");
 const UNKNOWN_CHIPS_SHOWN = 6;
 
 /**
- * The client brief: what we know, how sure we are, and where it came from,
- * grouped like onboarding. It is the same data onboarding writes, so editing
- * here and answering there never disagree. Only a person can confirm a value.
+ * The client brief: what is missing, what still needs confirming, and what is
+ * settled, with where it came from. It is the same data onboarding writes, so
+ * editing here and answering there never disagree. Only a person can confirm a
+ * value.
  */
 export function BriefSection({ client, onboarding }: { client: Client; onboarding: Onboarding | undefined }) {
   const [editing, setEditing] = useState<ContextFieldKey | null>(null);
@@ -51,44 +52,30 @@ export function BriefSection({ client, onboarding }: { client: Client; onboardin
   const unknown = CONTEXT_FIELD_KEYS.filter((key) => client.context[key].value === null && fieldApplies(key, conditions) && key !== editing);
   const shownUnknown = showAllUnknown ? unknown : unknown.slice(0, UNKNOWN_CHIPS_SHOWN);
   const questions = client.contextItems.filter((item) => item.confidence !== "superseded");
+  const toConfirm = known.filter((key) => client.context[key].confidence !== "confirmed");
+  const confirmed = known.filter((key) => client.context[key].confidence === "confirmed");
+  const row = (key: ContextFieldKey) =>
+    editing === key ? (
+      <li key={key} id={`brief-${key}`} className="scroll-mt-24 px-5 py-4">
+        <FieldEditor client={client} fieldKey={key} onDone={() => setEditing(null)} />
+      </li>
+    ) : client.context[key].confidence === "confirmed" ? (
+      <ConfirmedField key={key} client={client} fieldKey={key} onEdit={() => setEditing(key)} />
+    ) : (
+      <KnownField key={key} client={client} fieldKey={key} onEdit={() => setEditing(key)} />
+    );
 
   return (
     <Section id="brief" title="Brief" action={<ConfidenceHelp />}>
       <OnboardingStatus client={client} onboarding={onboarding} />
       <Surface>
         {known.length === 0 && editing === null ? (
-          <p className="px-5 pt-4 text-[13.5px] text-ink-muted">Nothing recorded yet. Add what you know; it can stay unconfirmed until the client agrees.</p>
+          <p className="px-5 pt-4 text-[13.5px] text-ink-muted">Nothing recorded yet. Add what you know; it can stay unconfirmed until the client confirms it.</p>
         ) : null}
-        {GROUPS.map((group) => {
-          const keys = known.filter((key) => BRIEF_FIELD[key].step === group);
-          const editingHere = editing && BRIEF_FIELD[editing].step === group && client.context[editing].value === null;
-          if (keys.length === 0 && !editingHere) return null;
-          return (
-            <div key={group} className="border-t border-line first:border-t-0">
-              <p className="px-5 pt-3.5 text-[12px] font-medium text-ink-subtle">{ONBOARDING_STEP_LABELS[group]}</p>
-              <ul className="divide-y divide-line">
-                {keys.map((key) =>
-                  editing === key ? (
-                    <li key={key} id={`brief-${key}`} className="scroll-mt-24 px-5 py-4">
-                      <FieldEditor client={client} fieldKey={key} onDone={() => setEditing(null)} />
-                    </li>
-                  ) : (
-                    <KnownField key={key} client={client} fieldKey={key} onEdit={() => setEditing(key)} />
-                  ),
-                )}
-                {editingHere ? (
-                  <li id={`brief-${editing}`} className="px-5 py-4">
-                    <FieldEditor client={client} fieldKey={editing} onDone={() => setEditing(null)} />
-                  </li>
-                ) : null}
-              </ul>
-            </div>
-          );
-        })}
 
         {canEdit && unknown.length > 0 ? (
-          <div className="flex flex-wrap items-center gap-2 border-t border-line px-5 py-3.5">
-            <span className="mr-1 text-[12.5px] text-ink-subtle">Not known yet</span>
+          <div className="flex flex-wrap items-center gap-2 border-t border-line px-5 py-3.5 first:border-t-0">
+            <span className="mr-1 text-[12.5px] font-medium text-ink">Missing {unknown.length}</span>
             {shownUnknown.map((key) => (
               <Button key={key} size="xs" variant="secondary" onClick={() => setEditing(key)} id={editing ? undefined : `brief-${key}`}>
                 <Plus aria-hidden />
@@ -103,8 +90,14 @@ export function BriefSection({ client, onboarding }: { client: Client; onboardin
           </div>
         ) : null}
 
+        {editing && client.context[editing].value === null ? (
+          <div id={`brief-${editing}`} className="border-t border-line px-5 py-4 first:border-t-0">
+            <FieldEditor client={client} fieldKey={editing} onDone={() => setEditing(null)} />
+          </div>
+        ) : null}
+
         {questions.length > 0 ? (
-          <div className="border-t border-line px-5 py-4">
+          <div className="border-t border-line px-5 py-4 first:border-t-0">
             <p className="mb-2 text-[12.5px] text-ink-subtle">Open questions and assumptions</p>
             <ul className="flex flex-col gap-2">
               {questions.map((item) => (
@@ -117,6 +110,20 @@ export function BriefSection({ client, onboarding }: { client: Client; onboardin
                 </li>
               ))}
             </ul>
+          </div>
+        ) : null}
+
+        {toConfirm.length > 0 ? (
+          <div className="border-t border-line first:border-t-0">
+            <p className="px-5 pt-3.5 text-[12.5px] font-medium text-ink">To confirm {toConfirm.length}</p>
+            <ul className="divide-y divide-line">{toConfirm.map(row)}</ul>
+          </div>
+        ) : null}
+
+        {confirmed.length > 0 ? (
+          <div className="border-t border-line first:border-t-0">
+            <p className="px-5 pt-3.5 text-[12.5px] font-medium text-ink">Confirmed {confirmed.length}</p>
+            <ul className="divide-y divide-line">{confirmed.map(row)}</ul>
           </div>
         ) : null}
       </Surface>
@@ -208,6 +215,41 @@ function KnownField({ client, fieldKey, onEdit }: { client: Client; fieldKey: Co
         {field.note ? <p className="mt-1.5 text-[12.5px] text-ink-muted">{field.note}</p> : null}
         <FieldHistory field={field} />
       </div>
+    </li>
+  );
+}
+
+/** A settled value takes one line; its source and history are a click away. */
+function ConfirmedField({ client, fieldKey, onEdit }: { client: Client; fieldKey: ContextFieldKey; onEdit: () => void }) {
+  const [open, setOpen] = useState(false);
+  const canEdit = useCanEdit();
+  const field = client.context[fieldKey];
+  const label = CONTEXT_FIELD_LABELS[fieldKey];
+  return (
+    <li id={`brief-${fieldKey}`} className="scroll-mt-24 px-5 py-2.5 target:bg-accent-soft">
+      <div className="flex items-center gap-3">
+        <p className="w-[110px] shrink-0 text-[13px] text-ink-subtle">{label}</p>
+        <p className={cn("min-w-0 flex-1 text-[13.5px] text-ink", open ? "leading-relaxed" : "truncate")}>{formatContextValue(field.value ?? "")}</p>
+        <ConfidenceTag confidence={field.confidence} />
+        <Button size="xs" variant="ghost" onClick={() => setOpen((v) => !v)} aria-expanded={open} aria-label={`${open ? "Hide" : "Show"} details of ${label.toLowerCase()}`}>
+          <ChevronDown aria-hidden className={cn("transition-transform", open && "rotate-180")} />
+        </Button>
+      </div>
+      {open ? (
+        <div className="mt-1.5 sm:pl-[122px]">
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5 text-[12px] text-ink-subtle">
+            <Provenance field={field} />
+            <span className="ml-auto" hidden={!canEdit}>
+              <Button size="xs" variant="ghost" onClick={onEdit} aria-label={`Edit ${label.toLowerCase()}`}>
+                <Pencil aria-hidden />
+                Edit
+              </Button>
+            </span>
+          </div>
+          {field.note ? <p className="mt-1.5 text-[12.5px] text-ink-muted">{field.note}</p> : null}
+          <FieldHistory field={field} />
+        </div>
+      ) : null}
     </li>
   );
 }

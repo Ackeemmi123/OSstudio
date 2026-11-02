@@ -2,24 +2,28 @@
 
 import { ArrowLeft, CircleSlash, Clock, Pencil, SearchX } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import { LoadError } from "@/components/load-error";
 import { useCanEdit, useStudio } from "@/components/providers/studio-provider";
 import { Avatar } from "@/components/ui/avatar";
 import { Button, ButtonLink } from "@/components/ui/button";
 import { EmptyState, Section, Skeleton, Surface } from "@/components/ui/surface";
 import { cn } from "@/lib/cn";
+import { briefProgress } from "@/lib/domain/brief";
+import { CLIENT_TAB_LABELS, CLIENT_TABS, hashTarget, tabForHash, type ClientTab } from "@/lib/domain/client-tabs";
 import { describeWait, FOLLOW_UP_RULES, getFollowUps } from "@/lib/domain/followups";
-import { getDecisions, getNextActions } from "@/lib/domain/insights";
+import { getClientProjects, getDecisions, getNextActions } from "@/lib/domain/insights";
 import { findOnboarding } from "@/lib/domain/onboarding";
 import type { Client, StudioSnapshot } from "@/lib/domain/types";
 import { useNow } from "@/lib/use-now";
 import { BriefSection } from "./brief-section";
 import { ChaseDraftButton } from "./chase-draft";
-import { ClientAside, ExternalLink } from "./client-aside";
+import { ExternalLink, History, SourceMaterial } from "./client-aside";
+import { ClientOverview } from "./client-overview";
 import { EditDetailsDialog } from "./edit-details-dialog";
 import { IntakeReview } from "./intake-review";
 import { ProjectsSection } from "./projects-section";
+import { RetentionSection } from "./retention-section";
 import { ClientStatusLabel, DemoTag } from "./status";
 
 export function ClientWorkspace({ clientId }: { clientId: string }) {
@@ -51,7 +55,15 @@ export function ClientWorkspace({ clientId }: { clientId: string }) {
 function Workspace({ client, snapshot }: { client: Client; snapshot: StudioSnapshot }) {
   const [editing, setEditing] = useState(false);
   const canEdit = useCanEdit();
-  useScrollToHash();
+  const hash = useLocationHash();
+  const tab = tabForHash(hash);
+  useScrollToTarget(hash);
+  const brief = briefProgress(client);
+  const counts: Partial<Record<ClientTab, string | number>> = {
+    projects: getClientProjects(client.id, snapshot.projects).length || undefined,
+    brief: `${brief.known}/${brief.total}`,
+    sources: snapshot.sources.filter((source) => source.clientId === client.id).length || undefined,
+  };
 
   return (
     <>
@@ -90,14 +102,41 @@ function Workspace({ client, snapshot }: { client: Client; snapshot: StudioSnaps
         ) : null}
       </header>
 
-      <div className="grid gap-x-12 gap-y-12 lg:grid-cols-[minmax(0,1fr)_300px]">
-        <div className="flex min-w-0 flex-col gap-12">
-          <NextUp client={client} snapshot={snapshot} />
-          <ProjectsSection client={client} snapshot={snapshot} />
-          <BriefSection client={client} onboarding={findOnboarding(snapshot.onboardings, client.id)} />
-          <IntakeReview client={client} snapshot={snapshot} />
-        </div>
-        <ClientAside client={client} snapshot={snapshot} />
+      <nav aria-label="Client sections" className="-mt-4 mb-8 flex gap-6 overflow-x-auto border-b border-line">
+        {CLIENT_TABS.map((key) => (
+          <a
+            key={key}
+            href={`#${key}`}
+            aria-current={tab === key ? "page" : undefined}
+            className={cn(
+              "shrink-0 border-b-2 pb-2.5 text-[13.5px] whitespace-nowrap transition-colors",
+              tab === key ? "border-ink font-medium text-ink" : "border-transparent text-ink-muted hover:text-ink",
+            )}
+          >
+            {CLIENT_TAB_LABELS[key]}
+            {counts[key] ? <span className="ml-1.5 font-normal tabular-nums text-ink-subtle">{counts[key]}</span> : null}
+          </a>
+        ))}
+      </nav>
+
+      {/* Every tab stays mounted, so a half-filled form survives a look elsewhere. */}
+      <div hidden={tab !== "overview"} className="flex flex-col gap-10">
+        <NextUp client={client} snapshot={snapshot} />
+        <ClientOverview client={client} snapshot={snapshot} />
+      </div>
+      <div hidden={tab !== "projects"}>
+        <ProjectsSection client={client} snapshot={snapshot} />
+      </div>
+      <div hidden={tab !== "brief"}>
+        <BriefSection client={client} onboarding={findOnboarding(snapshot.onboardings, client.id)} />
+      </div>
+      <div hidden={tab !== "sources"} className="flex flex-col gap-10">
+        <SourceMaterial client={client} sources={snapshot.sources.filter((source) => source.clientId === client.id)} />
+        <IntakeReview client={client} snapshot={snapshot} />
+      </div>
+      <div hidden={tab !== "activity"} className="flex flex-col gap-10">
+        <RetentionSection client={client} />
+        <History client={client} snapshot={snapshot} />
       </div>
 
       <EditDetailsDialog client={client} open={editing} onClose={() => setEditing(false)} />
@@ -158,12 +197,21 @@ function NextUp({ client, snapshot }: { client: Client; snapshot: StudioSnapshot
   );
 }
 
-/** Data loads in the browser, so scroll to a linked task or brief value once it exists. */
-function useScrollToHash() {
+const subscribeToHash = (onChange: () => void) => {
+  window.addEventListener("hashchange", onChange);
+  return () => window.removeEventListener("hashchange", onChange);
+};
+
+function useLocationHash() {
+  return useSyncExternalStore(subscribeToHash, () => window.location.hash, () => "");
+}
+
+/** Data loads in the browser, so scroll to a linked task or brief value once it and its tab exist. */
+function useScrollToTarget(hash: string) {
   useEffect(() => {
-    const id = decodeURIComponent(window.location.hash.slice(1));
+    const id = hashTarget(hash);
     if (id) document.getElementById(id)?.scrollIntoView({ block: "center" });
-  }, []);
+  }, [hash]);
 }
 
 export function WorkspaceSkeleton() {

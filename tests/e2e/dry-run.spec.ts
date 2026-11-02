@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { expect, test } from "@playwright/test";
 import { createClient } from "@supabase/supabase-js";
-import { section, signIn, uniqueName } from "./helpers";
+import { openSection, signIn, uniqueName } from "./helpers";
 import { fixture, localSupabase } from "./supabase";
 
 /**
@@ -52,8 +52,8 @@ test("dry run: a test inquiry becomes an organized client project and is deliver
   await expect(page).toHaveURL(/\/clients\/[^/]+$/);
   const workspace = page.url();
   await expect(page.locator("header, main").getByText(/^(Lead|Onboarding|Active)$/).first()).toHaveText("Onboarding");
-  await expect(section(page, "brief").locator("#brief-budget")).toContainText("€3,000–€5,000 (indicative)");
-  await expect(section(page, "sources").getByTestId("source").getByText(/Website inquiry · /)).toBeVisible();
+  await expect((await openSection(page, "brief")).locator("#brief-budget")).toContainText("€3,000–€5,000 (indicative)");
+  await expect((await openSection(page, "sources")).getByTestId("source").getByText(/Website inquiry · /)).toBeVisible();
 
   // 3. Onboarding: confirm the budget with the client, then mark the brief ready.
   await page.goto(`${workspace}/onboarding`);
@@ -63,11 +63,11 @@ test("dry run: a test inquiry becomes an organized client project and is deliver
   await expect(page.locator('[data-question="budget"]').getByRole("button", { name: "Confirm" })).toHaveCount(0);
   await page.getByRole("button", { name: "Review brief" }).click();
   await page.getByRole("button", { name: /Mark ready/ }).click();
-  await expect(page).toHaveURL(/#brief$/);
+  await expect(page).toHaveURL(/\/clients\/[^/#]+$/);
 
   // 4. Start the first project from the playbook; the client becomes Active.
   await page.locator("section#next").getByRole("link", { name: `Start the first project for ${company}` }).click();
-  const projects = section(page, "projects");
+  const projects = (await openSection(page, "projects"));
   await projects.getByLabel("Project name").fill("New website (TEST)");
   await expect(projects.getByLabel("Mark " + company + " as an active client")).toBeChecked();
   await projects.getByRole("button", { name: /^Create project with \d+ tasks$/ }).click();
@@ -98,7 +98,7 @@ test("dry run: a test inquiry becomes an organized client project and is deliver
   await page.reload();
   await expect(card.getByLabel("Project status")).toHaveValue("completed");
   await expect(card.getByLabel("Stage")).toHaveValue("launch");
-  const activity = section(page, "activity");
+  const activity = (await openSection(page, "activity"));
   const showAll = activity.getByRole("button", { name: /Show all/ });
   if (await showAll.isVisible()) await showAll.click();
   await expect(activity.getByText(/from a website inquiry/)).toBeVisible();
@@ -119,8 +119,8 @@ test("dry run: an inquiry with every optional field left out is approved without
   await page.getByRole("button", { name: "Approve as new client" }).click();
   await expect(page.getByRole("heading", { level: 1, name: person })).toBeVisible();
   await expect(page).toHaveURL(/\/clients\/[^/]+$/);
-  await expect(section(page, "sources").getByTestId("source")).toContainText("Language: Finnish");
+  await expect((await openSection(page, "sources")).getByTestId("source")).toContainText("Language: Finnish");
   // Nothing was sent for budget or timing, so nothing is recorded.
-  await expect(section(page, "brief")).toContainText("Nothing recorded yet");
-  await expect(section(page, "brief").locator("#brief-budget")).toHaveCount(0);
+  await expect((await openSection(page, "brief"))).toContainText("Nothing recorded yet");
+  await expect((await openSection(page, "brief")).locator("#brief-budget")).toHaveCount(0);
 });
