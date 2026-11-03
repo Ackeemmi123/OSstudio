@@ -11,14 +11,14 @@ describe("the list of what is left", () => {
   it("groups a first draft by where the work is, most important first", () => {
     const { spec } = templateSpec(client, project, "services", ["en"]);
     const groups = groupProblems(spec, approvalBlockers(spec, client));
-    expect(groups.map((g) => g.label)).toEqual(["Start here: goal and brand", "Home", "Services", "About", "Contact", "Images", "Privacy and consent", "Search texts and site name"]);
+    expect(groups.map((g) => g.label)).toEqual(["Start here: goal and brand", "Home", "About", "Contact", "Images", "Privacy and consent", "Search texts and site name"]);
   });
 
   it("marks privacy and consent as needing legal review", () => {
     const { spec } = templateSpec(client, project, "services", ["en"]);
     const legal = groupProblems(spec, approvalBlockers(spec, client)).find((g) => g.key === "legal")!;
     expect(legal.note).toMatch(/client-specific details and legal review/);
-    expect(legal.items.map((i) => i.path)).toEqual(expect.arrayContaining(["forms.0.consentText.en", "pages.4.sections.0.body.en"]));
+    expect(legal.items.map((i) => i.path)).toEqual(expect.arrayContaining(["forms.0.consentText.en", "pages.3.sections.0.body.en"]));
   });
 
   it("lists a field once, however many languages it needs writing in", () => {

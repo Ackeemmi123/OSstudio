@@ -54,6 +54,26 @@ confirmed brief values are copied, each with its source. Everything only a perso
 can write is an instruction in square brackets, shown in the preview and in English
 for now. A whole field in brackets blocks approval. It uses no AI.
 
+Each template follows its own journey, from the approved design references. A
+services business tells the whole story on its home page, from promises and services
+to how the start goes, proof and questions. A shop goes from wanting a product to
+choosing one and knowing the terms before buying. A single page walks towards the
+form at its end. Headings a visitor reads are written for the client, not fixed
+words, except for questions and contact, which visitors look for. A section of
+quotes asks for real words with permission, or for the section to be removed. Only
+new drafts are affected: a draft already started keeps its structure.
+
+An instruction can never pass as finished text: a whole field in brackets, or words
+in brackets inside other text, blocks approval on the server. Finished standard
+headings such as "Frequently asked questions" do not. Instructions can stay in
+English, because no visitor ever reads them.
+
+The services template has no separate Services page, so nothing is written twice.
+A business with a lot to say about its services, or specific search needs, can still
+add its own pages with Add page. Sections keep stable ids and buttons can already
+lead to one, so the menu can later link to sections on the home page without changing
+how a page is stored.
+
 ## Editing
 
 A draft saves itself about 2 seconds after typing stops, one save at a time

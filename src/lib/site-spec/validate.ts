@@ -12,7 +12,7 @@
 import { CONTEXT_FIELD_LABELS } from "@/lib/domain/labels";
 import type { Client, SiteAssetRecord } from "@/lib/domain/types";
 import { SECTION_LABELS, SITE_LOCALE_LABELS, SITE_LOCALES, SPEC_LIMITS, type SiteLocale } from "./catalog";
-import { isPlaceholderText, visibleTexts } from "./texts";
+import { hasInstructionInside, isPlaceholderText, visibleTexts } from "./texts";
 import { siteSpecSchema, type LocalizedText, type SiteSpec, type SiteSpecButton, type SiteSpecPage, type SiteSpecSection } from "./schema";
 
 export interface SpecIssue {
@@ -232,6 +232,7 @@ export function approvalBlockers(spec: SiteSpec, client: Pick<Client, "id" | "co
     }
     const leftover = LEFTOVER_TEXT.exec(text);
     if (leftover) blockers.push({ path, message: `${name} still says "${leftover[0]}".` });
+    if (hasInstructionInside(text)) blockers.push({ path, message: `${name} still has an instruction in square brackets.` });
   }
 
   require(spec.seo.siteName, "seo.siteName", "The site name");

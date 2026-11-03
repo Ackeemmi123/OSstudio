@@ -342,7 +342,7 @@ test("starts a first draft from a template, with instructions to write and the b
 
   // Suggested from the project type; another can be chosen. The size follows the choice.
   await expect(page.getByLabel("Services business")).toBeChecked();
-  await expect(page.getByTestId("draft-size")).toContainText("5 pages");
+  await expect(page.getByTestId("draft-size")).toContainText("4 pages");
   await page.getByLabel("Single page").check();
   await expect(page.getByTestId("draft-size")).toContainText("2 pages");
   await page.getByLabel("Online shop").check();
@@ -360,8 +360,8 @@ test("starts a first draft from a template, with instructions to write and the b
   // It opens in the editor, with its pages, the instructions and the preview.
   await expect(page.getByRole("heading", { level: 1, name: "Website spec v1" })).toBeVisible();
   const frame = page.getByTestId("live-preview-frame");
-  await expect(frame).toHaveAttribute("srcdoc", /\[Say what /);
-  await expect(page.getByRole("navigation", { name: "Website spec sections" })).toContainText("Services");
+  await expect(frame).toHaveAttribute("srcdoc", /\[Headline: the outcome /);
+  await expect(page.getByRole("navigation", { name: "Website spec sections" })).toContainText("About");
   await expect(page.getByRole("navigation", { name: "Website spec sections" })).toContainText("Privacy");
 
   // What is left to write is a list that leads to each field. It blocks submission.

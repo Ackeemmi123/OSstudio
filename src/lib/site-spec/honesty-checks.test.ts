@@ -93,8 +93,15 @@ describe("the visitor's next step", () => {
 describe("a shop's terms", () => {
   const shop = () => templateSpec(client, { projectType: "website" } as never, "shop", ["en"]).spec;
 
-  it("asks for delivery, returns and payment on a shop", () => {
-    const found = warnings(shop());
+  it("asks nothing of a fresh template, whose instructions already block approval", () => {
+    expect(warnings(shop()).filter((w) => w.includes("doesn't mention"))).toEqual([]);
+  });
+
+  it("asks for delivery, returns and payment once a shop has dropped them", () => {
+    const value = shop();
+    value.pages = value.pages.filter((p) => p.id === "shop" || p.id === "home").map((p) => ({ ...p, sections: p.sections.filter((s) => s.kind === "hero") }));
+    value.pages[1] = { ...value.pages[1], sections: [text("about", "Coffee.", "Coffee in Turku")] };
+    const found = warnings(value);
     for (const what of ["delivery", "returns", "payment"]) expect(found).toContainEqual(expect.stringContaining(`doesn't mention ${what}`));
   });
 
