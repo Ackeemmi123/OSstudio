@@ -273,10 +273,38 @@ describe("the server's check before an approval", () => {
     expect((await repository.listSiteSpecs(project.id))[0].status).toBe("in_review");
   });
 
+  it("refuses an instruction left inside finished text, but not a standard heading or a claim, which only asks for a look", async () => {
+    const { repository, clientId, project } = await websiteClient();
+    const draft = await repository.startSiteSpec(project.id);
+    const spec = completeSpec(await freshClient(clientId));
+    spec.assets = [];
+    const hero = spec.pages[0].sections[0];
+    if (hero.kind !== "hero") throw new Error("Expected a hero");
+    hero.subheading.en = "Baked to order. [One or two sentences on why it matters to them]";
+    const saved = await repository.saveSiteSpecDraft(draft, spec);
+    await expect(repository.submitSiteSpec(saved)).rejects.toMatchObject({ code: "validation" });
+
+    // The app's own check is bypassed, so only the route can stop it.
+    const raw = { ...siteSpecRow(saved), status: "in_review", submitted_by: person(owner) };
+    expect((await rawWrite(owner, { op: "update", row: raw, expected: saved.updatedAt })).error).toBeNull();
+    const refused = await approveRoute(await tokenOf(owner), requestFor((await repository.listSiteSpecs(project.id))[0]));
+    expect(refused.status).toBe(422);
+    expect(((await refused.json()) as { blockers: string[] }).blockers.join(" ")).toMatch(/still has an instruction in square brackets/);
+    expect((await repository.listSiteSpecs(project.id))[0].status).toBe("in_review");
+
+    const back = await repository.requestSiteSpecChanges((await repository.listSiteSpecs(project.id))[0]);
+    hero.subheading.en = "Award-winning cakes, baked to order.";
+    const contact = spec.pages.flatMap((p) => p.sections).find((s) => s.kind === "contact");
+    expect(contact?.heading.en).toBe("Get in touch");
+    const finished = await repository.submitSiteSpec(await repository.saveSiteSpecDraft(back, spec));
+    expect((await approveRoute(await tokenOf(owner), requestFor(finished))).status).toBe(200);
+    expect((await repository.listSiteSpecs(project.id))[0].status).toBe("approved");
+  });
+
   it("starts from a template, and refuses it while anything is left to write", async () => {
     const { repository, project } = await websiteClient();
     const draft = await repository.startSiteSpec(project.id, { template: "services", locales: ["en", "sv"] });
-    expect(draft.spec.pages.map((p) => p.id)).toEqual(["home", "services", "about", "contact", "privacy"]);
+    expect(draft.spec.pages.map((p) => p.id)).toEqual(["home", "about", "contact", "privacy"]);
     expect(draft.spec.locales.available).toEqual(["en", "sv"]);
     // A second start returns the same draft, and does not make another.
     expect((await repository.startSiteSpec(project.id, { template: "shop", locales: ["en"] })).id).toBe(draft.id);

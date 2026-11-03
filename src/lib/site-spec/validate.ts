@@ -12,7 +12,7 @@
 import { CONTEXT_FIELD_LABELS } from "@/lib/domain/labels";
 import type { Client, SiteAssetRecord } from "@/lib/domain/types";
 import { SECTION_LABELS, SITE_LOCALE_LABELS, SITE_LOCALES, SPEC_LIMITS, type SiteLocale } from "./catalog";
-import { isPlaceholderText, visibleTexts } from "./texts";
+import { hasInstructionInside, isPlaceholderText, visibleTexts } from "./texts";
 import { siteSpecSchema, type LocalizedText, type SiteSpec, type SiteSpecButton, type SiteSpecPage, type SiteSpecSection } from "./schema";
 
 export interface SpecIssue {
@@ -68,7 +68,8 @@ export function assetIdsOf(section: SiteSpecSection): string[] {
     case "gallery":
       return section.assetIds;
     case "team":
-      return section.items.flatMap((member) => (member.assetId ? [member.assetId] : []));
+    case "products":
+      return section.items.flatMap((entry) => (entry.assetId ? [entry.assetId] : []));
     default:
       return [];
   }
@@ -232,6 +233,7 @@ export function approvalBlockers(spec: SiteSpec, client: Pick<Client, "id" | "co
     }
     const leftover = LEFTOVER_TEXT.exec(text);
     if (leftover) blockers.push({ path, message: `${name} still says "${leftover[0]}".` });
+    if (hasInstructionInside(text)) blockers.push({ path, message: `${name} still has an instruction in square brackets.` });
   }
 
   require(spec.seo.siteName, "seo.siteName", "The site name");
@@ -260,7 +262,7 @@ export function approvalBlockers(spec: SiteSpec, client: Pick<Client, "id" | "co
         finishStarted(section.emphasis, `${sectionPath}.emphasis`, `${where}: the end of the heading to set apart`);
         finishStarted(section.reassurance, `${sectionPath}.reassurance`, `${where}: the reassurance`);
       }
-      if (section.kind === "services") section.items.forEach((entry, i) => finishStarted(entry.price, `${sectionPath}.items.${i}.price`, `${where}: a price`));
+      if (section.kind === "services" || section.kind === "products") section.items.forEach((entry, i) => finishStarted(entry.price, `${sectionPath}.items.${i}.price`, `${where}: a price`));
     });
   });
 
@@ -316,6 +318,7 @@ function sectionBlockers(section: SiteSpecSection, path: string, name: string, r
       break;
     case "features":
     case "services":
+    case "products":
       if (!section.items.length) blockers.push({ path: `${path}.items`, message: `${name}: add at least one item.` });
       section.items.forEach((entry, i) => require(entry.title, `${path}.items.${i}.title`, `${name}: an item's title`));
       break;
