@@ -84,7 +84,7 @@ describe("the visitor's next step", () => {
 
   it("asks what happens after sending a form, until it says", () => {
     const value = spec();
-    expect(warnings(value)).toContainEqual(expect.stringContaining("doesn't say what happens after sending"));
+    expect(warnings(value)).toContainEqual(expect.stringContaining("The contact form doesn't say what happens after sending"));
     value.forms[0].replyNote = { en: "We reply within a day." };
     expect(warnings(value).filter((w) => w.includes("after sending"))).toEqual([]);
   });

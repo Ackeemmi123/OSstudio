@@ -5,7 +5,7 @@
  * ignore all of them.
  */
 import type { SiteAssetRecord } from "@/lib/domain/types";
-import { SECTION_LABELS, SITE_LOCALE_LABELS, type SiteLocale } from "./catalog";
+import { FORM_PURPOSE_LABELS, SECTION_LABELS, SITE_LOCALE_LABELS, type SiteLocale } from "./catalog";
 import type { SiteSpec, SiteSpecSection } from "./schema";
 import { isPlaceholderText, pageLabel, visibleTexts } from "./texts";
 import { assetIdsOf, buttonsOf, type SpecIssue } from "./validate";
@@ -107,7 +107,7 @@ function journeyWarnings(spec: SiteSpec, written: { path: string; name: string; 
   const shown = new Set(spec.pages.flatMap((page) => page.sections.flatMap((section) => (section.kind === "contact" && section.variant !== "details_only" && section.formId ? [section.formId] : []))));
   spec.forms.forEach((form, f) => {
     if (shown.has(form.id) && !spec.locales.available.some((locale) => form.replyNote?.[locale]?.trim())) {
-      warnings.push({ path: `forms.${f}.replyNote.${spec.locales.default}`, message: `Form ${form.id} doesn't say what happens after sending.` });
+      warnings.push({ path: `forms.${f}.replyNote.${spec.locales.default}`, message: `The ${FORM_PURPOSE_LABELS[form.purpose].toLowerCase()} form doesn't say what happens after sending.` });
     }
   });
 
