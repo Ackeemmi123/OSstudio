@@ -17,6 +17,8 @@
 /.next/
 /.next-e2e-*/
 /out/
+/proof/out/
+/proof/qa/planted-out/
 
 # production
 /build

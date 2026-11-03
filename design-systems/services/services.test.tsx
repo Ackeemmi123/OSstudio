@@ -1,0 +1,126 @@
+import { readdirSync, readFileSync } from "node:fs";
+import path from "node:path";
+import { describe, expect, it } from "vitest";
+import { SITES } from "../../proof/sites";
+import { STRESS_SITES } from "../../proof/sites/stress";
+import { siteContent, visibleStrings, type Site } from "./content";
+import { build } from "./index";
+import { CHROME, displayTier } from "./pages";
+
+const all: [string, Site][] = [...Object.entries(SITES).map(([name, { site }]) => [name, site] as [string, Site]), ...Object.entries(STRESS_SITES)];
+const lindqvist = SITES.lindqvist.site;
+
+const words = (text: string) => text.toLowerCase().match(/\p{L}[\p{L}\p{M}'’-]*/gu) ?? [];
+const htmlOf = (site: Site) => build(site).filter((file) => file.path.endsWith(".html"));
+const visibleText = (html: string) =>
+  html
+    .slice(html.indexOf("<body"))
+    .replace(/<[^>]*>/g, " ")
+    .replace(/&#x27;/g, "'")
+    .replace(/&amp;/g, "&");
+
+describe("the content contract", () => {
+  it("holds no layout, colour or section-type field", () => {
+    for (const key of ["layout", "variant", "color", "colour", "section", "sections", "font", "theme", "columns"]) {
+      expect(siteContent.safeParse({ ...lindqvist.content, [key]: "anything" }).success, key).toBe(false);
+      const promise = { ...lindqvist.content.promise, [key]: "anything" };
+      expect(siteContent.safeParse({ ...lindqvist.content, promise }).success, key).toBe(false);
+    }
+    const shape = JSON.stringify(Object.keys(siteContent.shape));
+    expect(shape).not.toMatch(/layout|variant|colou?r|font|style/i);
+  });
+
+  it("takes only businesses marked as invented", () => {
+    expect(siteContent.safeParse({ ...lindqvist.content, invented: false }).success).toBe(false);
+    const withoutMark: Record<string, unknown> = { ...lindqvist.content };
+    delete withoutMark.invented;
+    expect(siteContent.safeParse(withoutMark).success).toBe(false);
+  });
+
+  it("gives every sentence an origin", () => {
+    const missing = { ...lindqvist.content, closing: { ...lindqvist.content.closing, text: { text: "Words." } } };
+    expect(siteContent.safeParse(missing).success).toBe(false);
+  });
+
+  it("refuses a picture or a headline's turn that does not exist", () => {
+    const content = structuredClone(lindqvist.content);
+    content.promise.imageId = "nobody";
+    expect(() => build({ ...lindqvist, content })).toThrow(/nobody/);
+    const turned = structuredClone(lindqvist.content);
+    turned.promise.turn = "not how it ends";
+    expect(() => build({ ...lindqvist, content: turned })).toThrow(/not how it ends/);
+  });
+});
+
+describe("what the design system adds", () => {
+  for (const [name, site] of all) {
+    it(`${name}: adds no words of its own beyond its interface`, () => {
+      const allowed = new Set([...visibleStrings(site.content), ...Object.values(CHROME[site.content.language])].flatMap(words));
+      for (const file of htmlOf(site)) {
+        const extra = words(visibleText(file.text)).filter((word) => !allowed.has(word));
+        expect(extra, file.path).toEqual([]);
+      }
+    });
+  }
+
+  it("draws no empty slot when there is no proof", () => {
+    const site = STRESS_SITES["no-proof-formal"];
+    const home = htmlOf(site).find((file) => file.path === "index.html")!.text;
+    expect(home).not.toContain('class="proof');
+  });
+
+  it("never needs a photo", () => {
+    const home = htmlOf(STRESS_SITES["no-photo-editorial"]).find((file) => file.path === "index.html")!.text;
+    expect(home).not.toContain("<img");
+    expect(home).toContain("hero--type");
+  });
+
+  it("composes one service differently from several", () => {
+    const home = htmlOf(STRESS_SITES["one-service-statement"]).find((file) => file.path === "index.html")!.text;
+    expect(home).toContain("services--one");
+  });
+
+  it("gives a long headline or a long word a smaller display size", () => {
+    expect(displayTier("Short and clear.")).toBe(1);
+    expect(displayTier("A headline that runs on for rather longer than most")).toBe(1);
+    expect(displayTier("Omistajanvaihdostilanteet")).toBe(3);
+    expect(displayTier("A headline of a length that really needs a good deal more room to be read well on a phone screen")).toBe(3);
+  });
+});
+
+describe("the built site", () => {
+  it("has all its pages, with a way back from each", () => {
+    const paths = build(lindqvist).map((file) => file.path);
+    expect(paths).toEqual(["site.css", "index.html", "about/index.html", "contact/index.html", "privacy/index.html", "404.html"]);
+  });
+
+  it("runs no scripts, stays out of search engines, and says it is a test", () => {
+    for (const [, site] of all) {
+      for (const file of htmlOf(site)) {
+        expect(file.text).not.toMatch(/<script/i);
+        expect(file.text).toContain('content="noindex,nofollow"');
+        expect(file.text).toContain(CHROME[site.content.language].testNote);
+        expect(file.text).toContain(`lang="${site.content.language}"`);
+      }
+    }
+  });
+
+  it("loads fonts from its own files, and nothing but stock photos from anywhere else", () => {
+    for (const [, site] of all) {
+      for (const file of htmlOf(site)) {
+        const outside = (file.text.match(/(?:src|href)="https?:[^"]*"/g) ?? []).filter((found) => !found.includes("images.unsplash.com"));
+        expect(outside).toEqual([]);
+      }
+    }
+    const css = build(lindqvist).find((file) => file.path === "site.css")!.text;
+    expect(css).not.toMatch(/https?:/);
+    const fonts = readdirSync(path.join(__dirname, "fonts"));
+    for (const font of css.match(/fonts\/[^)]+/g) ?? []) expect(fonts).toContain(font.replace("fonts/", ""));
+    expect(readFileSync(path.join(__dirname, "fonts/LICENSE-newsreader.txt"), "utf8")).toMatch(/Open Font License/);
+  });
+
+  it("three firms get three different looks and compositions", () => {
+    const bodies = Object.values(SITES).map(({ site }) => /<body class="([^"]+)"/.exec(htmlOf(site)[0].text)![1]);
+    expect(new Set(bodies).size).toBe(3);
+  });
+});
