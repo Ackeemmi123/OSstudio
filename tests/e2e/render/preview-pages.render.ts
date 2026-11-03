@@ -23,6 +23,8 @@ function everySection(): SiteSpec {
     { id: "stored", kind: "photo", alt: { en: "The bakery's shop front" }, origin: "client_supplied", description: "Shop front", fileId: "file-1" },
     { id: "waiting", kind: "photo", alt: { en: "A tray of cakes" }, origin: "placeholder", description: "Tray of cakes" },
   );
+  spec.forms[0].submitLabel = { en: "Ask us" };
+  spec.forms[0].replyNote = { en: "We reply within a day." };
   for (const kind of SECTION_KINDS) {
     const page = newPage(spec, `Page for ${kind}`);
     page.nav = "main";
@@ -32,6 +34,11 @@ function everySection(): SiteSpec {
       const section = newSection(spec, kind) as unknown as Record<string, unknown>;
       section.variant = variant;
       section.heading = { en: `A heading for ${kind}` };
+      section.eyebrow = { en: "A small line above" };
+      if (kind === "hero") {
+        section.emphasis = { en: `for ${kind}` };
+        section.reassurance = { en: "A short reassurance under the buttons." };
+      }
       if ("subheading" in section) section.subheading = { en: "A short line under the heading." };
       if ("body" in section) section.body = { en: "Some body text that a visitor reads on the page." };
       if ("buttons" in section) section.buttons = [{ label: { en: "Get in touch" }, targetPageId: spec.pages[0].id }];
@@ -39,8 +46,8 @@ function everySection(): SiteSpec {
       if (kind === "hero" || kind === "text_media") section.mediaAssetId = "stored";
       if (kind === "gallery") section.assetIds = ["stored", "waiting"];
       if ("items" in section) {
-        const filled = { title: { en: "A title" }, body: { en: "Some text about it." }, quote: { en: "They made our day." }, author: "A customer", name: "A person", role: { en: "Baker" }, question: { en: "A question?" }, answer: { en: "An answer." }, assetId: "stored" };
-        section.items = [newItem(spec, kind), { ...newItem(spec, kind), id: "second" }].map((item) => Object.fromEntries(Object.keys(item).concat(kind === "team" ? ["assetId"] : []).map((key) => [key, key === "id" ? item.id : filled[key as keyof typeof filled]])));
+        const filled = { price: { en: "From 100 euros" }, title: { en: "A title" }, body: { en: "Some text about it." }, quote: { en: "They made our day." }, author: "A customer", name: "A person", role: { en: "Baker" }, question: { en: "A question?" }, answer: { en: "An answer." }, assetId: "stored" };
+        section.items = [newItem(spec, kind), { ...newItem(spec, kind), id: "second" }].map((item) => Object.fromEntries(Object.keys(item).concat(kind === "team" ? ["assetId"] : kind === "services" ? ["price"] : []).map((key) => [key, key === "id" ? item.id : filled[key as keyof typeof filled]])));
       }
       page.sections.push(section as never);
     }
