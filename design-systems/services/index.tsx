@@ -34,7 +34,7 @@ function document(site: Site, root: string, seo: SiteContent["home"]["seo"], bod
     `<link rel="stylesheet" href="${root}site.css">`,
     `<meta name="generator" content="${design.system}">`,
     "</head>",
-    `<body class="d-${design.direction} p-${design.palette}">${renderToStaticMarkup(body)}</body>`,
+    `<body class="d-${design.direction} p-${design.palette}${content.promise.action.by === "phone" && content.business.phone ? " has-call-bar" : ""}">${renderToStaticMarkup(body)}</body>`,
     "</html>",
   ].join("\n");
 }

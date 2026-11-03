@@ -80,6 +80,12 @@ describe("what the design system adds", () => {
     expect(home).toContain("services--one");
   });
 
+  it("keeps a call button available only for a firm whose main action is a phone call", () => {
+    const pages = (site: Site) => htmlOf(site).map((file) => file.text);
+    for (const page of pages(SITES.norrsken.site)) expect(page).toContain('class="call-bar"');
+    for (const page of pages(lindqvist)) expect(page).not.toContain("call-bar");
+  });
+
   it("gives a long headline or a long word a smaller display size", () => {
     expect(displayTier("Short and clear.")).toBe(1);
     expect(displayTier("A headline that runs on for rather longer than most")).toBe(1);

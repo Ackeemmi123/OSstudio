@@ -9,7 +9,7 @@ import path from "node:path";
 import AxeBuilder from "@axe-core/playwright";
 import { chromium } from "@playwright/test";
 
-export const WIDTHS = [390, 768, 1280, 1440];
+export const WIDTHS = [390, 768, 1024, 1280, 1440, 1920];
 
 /** Stock photos, for this proof only. Anything else from outside the site is a failure. */
 const ALLOWED_HOSTS = new Set(["images.unsplash.com"]);

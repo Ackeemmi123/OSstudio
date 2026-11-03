@@ -10,7 +10,7 @@ final report and the renderer decision do.
 | Question | Answer |
 | --- | --- |
 | Who at Axivo would own this code for years? | Unknown |
-| Is there a designer who can review Gate 1? | Unknown |
+| Is there a designer who can review Gate 1? | No. Axivo has no designer (owner, 3 November 2026) |
 | How is a site built today, and in which tools? | Unknown |
 | Hours per recent site, by step | Unknown |
 | Price of a recent site, and its real cost | Unknown |

@@ -142,6 +142,7 @@ function Frame({ context, children }: { context: PageContext; children: ReactNod
         <nav aria-label={chrome.footerNav}><Menu context={context} footer /></nav>
         {business.legalName ? <p className="footer-legal">{business.legalName}{business.businessId ? `, ${business.businessId}` : ""}</p> : null}
       </footer>
+      {content.promise.action.by === "phone" && business.phone ? <a className="call-bar" href={tel(business.phone)}>{content.promise.action.label}</a> : null}
     </>
   );
 }
@@ -319,6 +320,10 @@ function Closing({ content }: { content: SiteContent }) {
       <div className="closing-words">
         <h2 id="form" tabIndex={-1}>{closing.heading.text}</h2>
         <p>{closing.text.text}</p>
+        <div className="closing-details">
+          {content.business.phone ? <p><a href={tel(content.business.phone)}>{content.business.phone}</a></p> : null}
+          <p><a href={`mailto:${content.business.email}`}>{content.business.email}</a></p>
+        </div>
       </div>
       <ContactForm content={content} formId="home" />
     </section>

@@ -85,7 +85,7 @@ h1 em{font-style:italic;color:var(--accent)}
 .ledger-row{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));column-gap:24px;padding:2rem 0;border-bottom:1px solid var(--line);align-items:baseline}
 .ledger-row h3{grid-column:1/5}
 .ledger-row p{grid-column:5/10}
-.ledger-row .price{grid-column:10/13;text-align:right;font-size:.95rem;font-weight:500}
+.ledger-row .price{grid-column:10/13;text-align:right;font-size:1.05rem;font-weight:500}
 .services--one .ledger-row h3{grid-column:1/13;font-size:var(--h2);margin-bottom:1.5rem}
 .services--one .ledger-row p{grid-column:4/10;font-size:1.2rem}
 
@@ -95,7 +95,7 @@ h1 em{font-style:italic;color:var(--accent)}
 .steps li:nth-child(2){margin-top:3rem}.steps li:nth-child(3){margin-top:6rem}.steps li:nth-child(4){margin-top:9rem}
 .steps li::before{content:counter(step);display:block;font:300 3.4rem/1 "Newsreader",Georgia,serif;color:var(--accent)}
 .steps h3{margin:.8rem 0 .4rem;font:600 1.05rem/1.3 "Schibsted Grotesk",system-ui,sans-serif;letter-spacing:0}
-.steps p{font-size:.97rem}
+.steps p{font-size:1rem}
 
 .proof{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));column-gap:24px;align-items:end}
 .proof-image{grid-column:1/6}.proof-image img{aspect-ratio:5/4}
@@ -117,7 +117,9 @@ h1 em{font-style:italic;color:var(--accent)}
 .question-list details p{margin-top:.8rem;max-width:42rem}
 
 .closing{margin-top:clamp(5rem,10vw,10rem);background:var(--deep);color:var(--on-deep);display:grid;grid-template-columns:repeat(12,minmax(0,1fr));column-gap:24px;padding:clamp(4rem,8vw,8rem) var(--gut)}
-.closing-words{grid-column:1/7}
+.closing-words{grid-column:1/7;display:flex;flex-direction:column;align-items:flex-start}
+.closing-details{margin-top:auto;padding-top:2.5rem;font-size:1.05rem}
+.closing-details p + p{margin-top:.2rem}
 .closing-words h2{scroll-margin-top:2rem}
 .closing-words h2:focus{outline:0}
 .closing-words p{margin-top:1.5rem;color:var(--on-deep-mute);max-width:26rem}
@@ -131,6 +133,7 @@ h1 em{font-style:italic;color:var(--accent)}
 .field{margin-bottom:1.3rem}
 .field label{display:block;font-size:.9rem}
 .field input,.field textarea{display:block;width:100%;margin-top:.3rem;background:transparent;border:0;border-bottom:1px solid var(--ink);border-radius:0;color:inherit;font:inherit;padding:.55rem 0;min-height:44px}
+.call-bar{display:none}
 .trap{position:absolute;left:-9999px;height:1px;overflow:hidden}
 .consent{font-size:.84rem;color:var(--mute);margin-bottom:1.2rem}
 .next{font-size:.88rem;color:var(--mute);margin-top:.9rem}
@@ -201,7 +204,10 @@ h1 em{font-style:italic;color:var(--accent)}
  .contact-words,.contact-page .form{grid-column:1/-1}
  .contact-page .form{margin-top:3rem}
  .footer-mark,.footer-details,.site-footer nav{grid-column:1/-1}
+ .has-call-bar{padding-bottom:4.5rem}
+ .call-bar{display:block;position:fixed;left:0;right:0;bottom:0;z-index:6;background:var(--action);color:var(--on-action);padding:1.05rem var(--gut);text-align:center;font-weight:700;text-decoration:none;min-height:3.5rem}
 }
+
 
 /* Formal: measured and upright. Hairlines instead of bands, the portrait inside the frame. */
 .d-formal .mark{font-weight:500}
@@ -299,6 +305,24 @@ h1 em{font-style:italic;color:var(--accent)}
  .d-statement .hero .button--phone{width:100%;text-align:center}
  .d-statement .reason-list,.d-statement .reason-list[data-count]{grid-template-columns:1fr;gap:0}
  .d-statement .steps li:nth-child(n){grid-template-columns:5.5rem minmax(0,1fr)}
+}
+
+/* The portrait stays on the first screen, however wide the window: it sits beside the words, not under them. */
+@media (min-width:1100px){
+ .hero--image{grid-template-rows:repeat(4,auto) 1fr}
+ .hero--image .hero-for{grid-column:1/8;grid-row:1}
+ .hero--image h1{grid-column:1/8;grid-row:2}
+ .hero--image .hero-why{grid-row:3}
+ .hero--image .hero-actions{grid-row:4}
+ .hero--image .hero-reassurance{grid-row:5}
+ .hero--image .hero-image{grid-column:8/13;grid-row:1/6;margin-top:0;align-self:start}
+ .d-formal .hero--image .hero-image{grid-column:9/13}
+}
+/* Tablet: a portrait in proportion, not filling the screen. */
+@media (min-width:561px) and (max-width:820px){
+ .hero-image{grid-column:5/-1}
+ .d-formal .hero-image{grid-column:1/8}
+ .person,.person--no-photo{grid-column:span 6}
 }
 `;
 
