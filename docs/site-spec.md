@@ -64,6 +64,22 @@ the text stays on screen. The activity gets one "Edited" entry per 10 minutes of
 editing, not one per save. Clicking a problem under "Before approval" goes to
 its field (`data-spec-path` in the editors, `src/lib/site-spec/paths.ts`).
 
+## Optional fields a design can use
+
+Every one of these is optional, so existing specs stay valid and no migration is needed. They hold what a premium
+page needs and a template can't invent:
+
+- A small line above any section's heading.
+- In a hero: the end of the heading to set apart, and an honest line under the buttons.
+- A price on a service. Use only a price the client confirmed.
+- An image beside testimonials, under the same image-rights rules as any other.
+- A button can go to a section of a page, not only to the top.
+- A form's send button, a note on what happens next, and its field labels in the website's own language.
+
+An optional text can be left out, but one written in some languages only blocks approval. Bracketed instructions
+in these fields block approval too. The live product catalogue is not part of the SiteSpec: clients manage it on
+the shop platform.
+
 ## What blocks approval
 
 `approvalBlockers()` lists, in plain language:

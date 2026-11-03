@@ -75,6 +75,7 @@ export interface RenderItem {
   /** Who said a quote. Plain text, not translated. */
   meta: string | null;
   image: RenderImage | null;
+  price: RenderText | null;
 }
 
 export interface RenderForm {
@@ -82,6 +83,8 @@ export interface RenderForm {
   purpose: string;
   fields: { name: string; label: string }[];
   consent: RenderText;
+  submitLabel: RenderText | null;
+  replyNote: RenderText | null;
 }
 
 export interface RenderSection {
@@ -99,6 +102,10 @@ export interface RenderSection {
   images: RenderImage[];
   items: RenderItem[];
   form: RenderForm | null;
+  eyebrow: RenderText | null;
+  /** How much of the end of the heading is set apart. Null when it is not the heading's own ending. */
+  emphasis: RenderText | null;
+  reassurance: RenderText | null;
 }
 
 export interface RenderPage {
@@ -151,7 +158,8 @@ export function buildRenderModel(spec: SiteSpec, options: RenderOptions): Render
   const pageTitle = (page: SiteSpecPage) => page.title[locale]?.trim() || page.title[spec.locales.default]?.trim() || page.id;
   const link = (button: SiteSpecButton, what: string): RenderLink => {
     const target = spec.pages.find((p) => p.id === button.targetPageId) ?? spec.pages[0];
-    return { label: text(button.label, what), pageId: target.id, href: pageHref(spec, target, locale) };
+    const anchor = button.targetSectionId && target.sections.some((section) => section.id === button.targetSectionId) ? `#${button.targetSectionId}` : "";
+    return { label: text(button.label, what), pageId: target.id, href: `${pageHref(spec, target, locale)}${anchor}` };
   };
   const image = (id: string | undefined): RenderImage | null => {
     const asset = id ? spec.assets.find((a) => a.id === id) : undefined;
@@ -200,38 +208,59 @@ export function buildRenderModel(spec: SiteSpec, options: RenderOptions): Render
       images: [],
       items: [],
       form: null,
+      eyebrow: optional(section.eyebrow),
+      emphasis: null,
+      reassurance: null,
     };
     switch (section.kind) {
       case "hero":
-        return { ...base, heading: text(section.heading, `${label}: heading`), subheading: optional(section.subheading), image: image(section.mediaAssetId), buttons: section.buttons.map((b) => link(b, `${label}: button label`)) };
+        {
+        const heading = text(section.heading, `${label}: heading`);
+        const emphasis = optional(section.emphasis);
+        return {
+          ...base,
+          heading,
+          emphasis: emphasis && heading.text.endsWith(emphasis.text) ? emphasis : null,
+          subheading: optional(section.subheading),
+          image: image(section.mediaAssetId),
+          buttons: section.buttons.map((b) => link(b, `${label}: button label`)),
+          reassurance: optional(section.reassurance),
+        };
+      }
       case "text":
         return { ...base, heading: optional(section.heading), body: text(section.body, `${label}: text`) };
       case "text_media":
         return { ...base, heading: optional(section.heading), body: text(section.body, `${label}: text`), image: image(section.mediaAssetId), buttons: section.buttons.map((b) => link(b, `${label}: button label`)) };
       case "features":
+        return {
+          ...base,
+          heading: optional(section.heading),
+          items: section.items.map((entry) => ({ id: entry.id, title: text(entry.title, `${label}: title`), body: optional(entry.body), meta: null, image: null, price: null })),
+        };
       case "services":
         return {
           ...base,
           heading: optional(section.heading),
-          items: section.items.map((entry) => ({ id: entry.id, title: text(entry.title, `${label}: title`), body: optional(entry.body), meta: null, image: null })),
+          items: section.items.map((entry) => ({ id: entry.id, title: text(entry.title, `${label}: title`), body: optional(entry.body), meta: null, image: null, price: optional(entry.price) })),
         };
       case "testimonials":
         return {
           ...base,
           heading: optional(section.heading),
-          items: section.items.map((entry) => ({ id: entry.id, title: null, body: text(entry.quote, `${label}: quote`), meta: entry.author.trim() || null, image: null })),
+          image: image(section.mediaAssetId),
+          items: section.items.map((entry) => ({ id: entry.id, title: null, body: text(entry.quote, `${label}: quote`), meta: entry.author.trim() || null, image: null, price: null })),
         };
       case "team":
         return {
           ...base,
           heading: optional(section.heading),
-          items: section.items.map((entry) => ({ id: entry.id, title: plain(entry.name, `${label}: name`), body: text(entry.role, `${label}: role`), meta: null, image: image(entry.assetId) })),
+          items: section.items.map((entry) => ({ id: entry.id, title: plain(entry.name, `${label}: name`), body: text(entry.role, `${label}: role`), meta: null, image: image(entry.assetId), price: null })),
         };
       case "faq":
         return {
           ...base,
           heading: optional(section.heading),
-          items: section.items.map((entry) => ({ id: entry.id, title: text(entry.question, `${label}: question`), body: text(entry.answer, `${label}: answer`), meta: null, image: null })),
+          items: section.items.map((entry) => ({ id: entry.id, title: text(entry.question, `${label}: question`), body: text(entry.answer, `${label}: answer`), meta: null, image: null, price: null })),
         };
       case "gallery":
         return { ...base, heading: optional(section.heading), images: section.assetIds.map(image).filter((i): i is RenderImage => i !== null) };
@@ -247,8 +276,10 @@ export function buildRenderModel(spec: SiteSpec, options: RenderOptions): Render
             ? {
                 id: form.id,
                 purpose: FORM_PURPOSE_LABELS[form.purpose],
-                fields: form.fields.map((name) => ({ name, label: FORM_FIELD_LABELS[name] })),
+                fields: form.fields.map((name) => ({ name, label: form.fieldLabels?.[name]?.[locale]?.trim() || FORM_FIELD_LABELS[name] })),
                 consent: text(form.consentText, "Form: consent text"),
+                submitLabel: optional(form.submitLabel),
+                replyNote: optional(form.replyNote),
               }
             : null,
         };

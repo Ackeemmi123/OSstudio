@@ -25,6 +25,24 @@ function Text({ value, as: Tag = "span", className }: { value: RenderText | null
   );
 }
 
+/** The small line above a heading. */
+function Eyebrow({ section }: { section: RenderSection }) {
+  return <Text value={section.eyebrow} as="p" className="sp-eyebrow" />;
+}
+
+/** A hero's heading, with its end set apart when the spec asks for it. */
+function HeroHeading({ section, as: Tag }: { section: RenderSection; as: "h1" | "h2" }) {
+  const heading = section.heading;
+  if (!heading?.text || !section.emphasis) return <Text value={heading} as={Tag} />;
+  const start = heading.text.slice(0, heading.text.length - section.emphasis.text.length);
+  return (
+    <Tag>
+      {start}
+      <em className="sp-emphasis">{section.emphasis.text}</em>
+    </Tag>
+  );
+}
+
 function Button({ link, secondary }: { link: RenderLink; secondary?: boolean }) {
   return (
     <span className={secondary ? "sp-button sp-button--secondary" : "sp-button"} title={link.href}>
@@ -144,6 +162,7 @@ function Items({ section }: { section: RenderSection }) {
       {item.image || kind === "team" ? <ImageBox image={item.image} small /> : null}
       <Text value={item.title} as="h3" />
       <Text value={item.body} as="p" />
+      <Text value={item.price} as="p" className="sp-price" />
     </>
   );
   if (variant === "list") {
@@ -179,9 +198,11 @@ function Section({ section, first }: { section: RenderSection; first: boolean })
       const split = section.image && section.variant !== "centered" && section.variant !== "full_bleed_image";
       const copy = (
         <div>
-          <Text value={section.heading} as={heading} />
+          <Eyebrow section={section} />
+          {section.kind === "hero" ? <HeroHeading section={section} as={heading} /> : <Text value={section.heading} as={heading} />}
           {section.kind === "hero" ? <Text value={section.subheading} as="p" className="sp-lead" /> : <Text value={section.body} as="p" />}
           <Buttons links={section.buttons} />
+          <Text value={section.reassurance} as="p" className="sp-reassurance" />
         </div>
       );
       return (
@@ -202,6 +223,7 @@ function Section({ section, first }: { section: RenderSection; first: boolean })
       return (
         <section {...common}>
           <div className="sp-wrap">
+            <Eyebrow section={section} />
             <Text value={section.heading} as="h2" />
             <Text value={section.body} as="p" className={section.variant === "two_column" ? "sp-columns" : undefined} />
           </div>
@@ -211,6 +233,7 @@ function Section({ section, first }: { section: RenderSection; first: boolean })
       return (
         <section {...common}>
           <div className="sp-wrap">
+            <Eyebrow section={section} />
             <Text value={section.heading} as="h2" />
             <div className="sp-grid">
               {section.images.map((image) => (
@@ -225,6 +248,7 @@ function Section({ section, first }: { section: RenderSection; first: boolean })
         <section {...common}>
           <div className="sp-wrap">
             <div>
+              <Eyebrow section={section} />
               <Text value={section.heading} as="h2" />
               <Text value={section.body} as="p" />
               <Buttons links={section.buttons} />
@@ -236,6 +260,7 @@ function Section({ section, first }: { section: RenderSection; first: boolean })
       return (
         <section {...common}>
           <div className="sp-wrap">
+            <Eyebrow section={section} />
             <Text value={section.heading} as="h2" />
             <Text value={section.body} as="p" />
             {section.form && section.variant !== "details_only" ? (
@@ -247,7 +272,8 @@ function Section({ section, first }: { section: RenderSection; first: boolean })
                   </label>
                 ))}
                 <Text value={section.form.consent} as="p" className="sp-consent" />
-                <span className="sp-button">Send</span>
+                <span className="sp-button">{section.form.submitLabel?.text || "Send"}</span>
+                <Text value={section.form.replyNote} as="p" className="sp-consent" />
               </form>
             ) : null}
           </div>
@@ -257,6 +283,7 @@ function Section({ section, first }: { section: RenderSection; first: boolean })
       return (
         <section {...common}>
           <div className="sp-wrap">
+            <Eyebrow section={section} />
             <Text value={section.heading} as="h2" />
             <div className="sp-image sp-map" role="img" aria-label="Map">
               Map (not loaded in the preview)
@@ -268,7 +295,9 @@ function Section({ section, first }: { section: RenderSection; first: boolean })
       return (
         <section {...common}>
           <div className="sp-wrap">
+            <Eyebrow section={section} />
             <Text value={section.heading} as="h2" />
+            {section.kind === "testimonials" ? <ImageBox image={section.image} /> : null}
             <Items section={section} />
           </div>
         </section>

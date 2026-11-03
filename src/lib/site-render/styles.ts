@@ -53,6 +53,10 @@ p{margin:0 0 calc(1rem * var(--sp-space));text-wrap:pretty}
 .sp-figure--small img{aspect-ratio:1/1}
 
 .sp-hero{padding:calc(4.5rem * var(--sp-space)) 0 calc(7rem * var(--sp-space))}
+.sp-eyebrow{font-size:.85rem;letter-spacing:.02em;color:var(--sp-muted);margin:0 0 .75rem}
+.sp-emphasis{font-style:italic;color:var(--sp-text)}
+.sp-reassurance{font-size:.9rem;color:var(--sp-muted);margin-top:1rem}
+.sp-price{font-size:.95rem;font-weight:600;margin-top:.5rem}
 .sp-lead{font-size:clamp(1.15rem,1.7vw,1.4rem);line-height:1.5;color:var(--sp-muted);max-width:38rem;margin-top:calc(1.75rem * var(--sp-space))}
 .sp-hero--centered{text-align:center;padding-top:calc(7rem * var(--sp-space))}
 .sp-hero--centered .sp-buttons{justify-content:center}
