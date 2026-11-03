@@ -12,7 +12,7 @@
 import { CONTEXT_FIELD_LABELS } from "@/lib/domain/labels";
 import type { Client, SiteAssetRecord } from "@/lib/domain/types";
 import { SECTION_LABELS, SITE_LOCALE_LABELS, SITE_LOCALES, SPEC_LIMITS, type SiteLocale } from "./catalog";
-import { visibleTexts } from "./texts";
+import { isPlaceholderText, visibleTexts } from "./texts";
 import { siteSpecSchema, type LocalizedText, type SiteSpec, type SiteSpecButton, type SiteSpecPage, type SiteSpecSection } from "./schema";
 
 export interface SpecIssue {
@@ -217,6 +217,10 @@ export function approvalBlockers(spec: SiteSpec, client: Pick<Client, "id" | "co
   }
 
   for (const { path, name, text } of visibleTexts(spec)) {
+    if (isPlaceholderText(text)) {
+      blockers.push({ path, message: `${name} still needs writing.` });
+      continue;
+    }
     const leftover = LEFTOVER_TEXT.exec(text);
     if (leftover) blockers.push({ path, message: `${name} still says "${leftover[0]}".` });
   }

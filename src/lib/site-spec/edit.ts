@@ -6,6 +6,8 @@
 import type { Client, ContextFieldKey, SiteAssetRecord } from "@/lib/domain/types";
 import { SECTION_VARIANTS, type SectionKind } from "./catalog";
 import type { SiteSpec, SiteSpecAsset, SiteSpecForm, SiteSpecPage, SiteSpecSection, SiteSpecSource } from "./schema";
+import { isPlaceholderText } from "./texts";
+import { assetIdsOf, buttonsOf } from "./validate";
 
 /** Every id already used in the spec, of any kind. */
 export function usedIds(spec: SiteSpec): Set<string> {
@@ -107,6 +109,40 @@ export function newForm(spec: SiteSpec): SiteSpecForm {
 }
 
 /** Moves an entry one place up (-1) or down (+1). Returns a new array. */
+/** Removes what only these sections used and that nobody has provided yet, so it stops blocking approval. Stored images stay. */
+function dropWhatOnlyTheyUsed(spec: SiteSpec, removed: SiteSpecSection[]) {
+  const sections = spec.pages.flatMap((page) => page.sections);
+  const stillUsed = new Set(sections.flatMap(assetIdsOf));
+  if (spec.brand.logoAssetId) stillUsed.add(spec.brand.logoAssetId);
+  const candidates = new Set(removed.flatMap(assetIdsOf));
+  spec.assets = spec.assets.filter((asset) => !candidates.has(asset.id) || stillUsed.has(asset.id) || asset.fileId !== undefined || asset.origin !== "placeholder");
+  const formsInUse = new Set(sections.flatMap((section) => (section.kind === "contact" && section.formId ? [section.formId] : [])));
+  const removedForms = new Set(removed.flatMap((section) => (section.kind === "contact" && section.formId ? [section.formId] : [])));
+  spec.forms = spec.forms.filter((form) => !removedForms.has(form.id) || formsInUse.has(form.id) || !Object.values(form.consentText).every((text) => text === undefined || isPlaceholderText(text)));
+}
+
+export function removeSection(spec: SiteSpec, pageIndex: number, sectionIndex: number) {
+  const [removed] = spec.pages[pageIndex].sections.splice(sectionIndex, 1);
+  if (removed) dropWhatOnlyTheyUsed(spec, [removed]);
+}
+
+/** Removes a page. Buttons that led to it lead home instead, and pages under it move up, so the draft stays valid. */
+export function removePage(spec: SiteSpec, pageIndex: number) {
+  const [removed] = spec.pages.splice(pageIndex, 1);
+  if (!removed) return;
+  const home = spec.pages[0].id;
+  for (const page of spec.pages) {
+    if (page.parentId === removed.id) delete page.parentId;
+    for (const section of page.sections) {
+      for (const button of buttonsOf(section)) {
+        if (button.targetPageId === removed.id) button.targetPageId = home;
+      }
+    }
+  }
+  if (spec.strategy.primaryCta?.targetPageId === removed.id) spec.strategy.primaryCta.targetPageId = home;
+  dropWhatOnlyTheyUsed(spec, removed.sections);
+}
+
 export function move<T>(list: T[], index: number, by: -1 | 1): T[] {
   const target = index + by;
   if (target < 0 || target >= list.length) return list;

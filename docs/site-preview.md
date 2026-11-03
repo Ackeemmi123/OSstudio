@@ -10,6 +10,16 @@ written, and it is hidden from search engines. Members and viewers of the
 studio can open it; signed-out visitors and other studios cannot (the spec is
 read with row-level security, like the editor).
 
+## How it looks
+
+The preview is meant to look like a finished, art-directed website: large
+editorial type, generous space and a different composition for each kind of
+section (`src/lib/site-render/styles.ts`). Each template starts with its own
+palette, type and spacing (`LOOKS` in `src/lib/site-spec/templates.ts`), which a
+person keeps or replaces when choosing the brand. Until a stored image is used, a
+designed panel in the brand's colours stands in for it. No web font is loaded, so
+type depends on what the viewer's computer has.
+
 ## What it shows
 
 - Every page of the version, with its main menu and footer menu, and every

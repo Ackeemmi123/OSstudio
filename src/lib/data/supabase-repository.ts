@@ -7,7 +7,7 @@ import { buildOnboarding, completeOnboarding, findOnboarding, saveOnboardingStep
 import { buildProject, buildTask, setTaskStatus, updateProject, updateTaskDetails } from "@/lib/domain/projects";
 import { cleanHoldReason } from "@/lib/domain/retention";
 import { approvalProblems, SIGNED_URL_TTL_SECONDS, STORAGE_BUCKET, type ImageProvenance } from "@/lib/site-assets/limits";
-import { approvedSiteSpec, approveSiteSpec, requestSiteSpecChanges, saveSiteSpecDraft, startSiteSpec, submitSiteSpec } from "@/lib/domain/site-specs";
+import { approvedSiteSpec, approveSiteSpec, type FirstDraft, requestSiteSpecChanges, saveSiteSpecDraft, startSiteSpec, submitSiteSpec } from "@/lib/domain/site-specs";
 import {
   CONTEXT_FIELD_KEYS,
   type ActivityEvent,
@@ -539,11 +539,11 @@ export class SupabaseRepository implements StudioRepository {
     return Object.fromEntries(assets.flatMap((a) => (byPath.get(a.storagePath) ? [[a.id, byPath.get(a.storagePath)!]] : [])));
   }
 
-  async startSiteSpec(projectId: string): Promise<SiteSpecRecord> {
+  async startSiteSpec(projectId: string, from?: FirstDraft): Promise<SiteSpecRecord> {
     const versions = await this.listSiteSpecs(projectId);
     return this.writeSpec((s, deps) => {
       const project = find(s.projects, projectId, "project");
-      const { record, event } = startSiteSpec(find(s.clients, project.clientId, "client"), project, versions, deps);
+      const { record, event } = startSiteSpec(find(s.clients, project.clientId, "client"), project, versions, deps, from);
       return [record, event && { events: [eventRow(event)], spec: { op: "insert", row: siteSpecRow(record) } }];
     });
   }

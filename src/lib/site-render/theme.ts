@@ -25,8 +25,12 @@ const DENSITY: Record<Brand["density"], number> = { compact: 0.75, regular: 1, a
 
 export const FALLBACK_SANS = 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif';
 
+const FALLBACK_SERIF = '"Iowan Old Style", "Palatino Linotype", Palatino, Georgia, "Times New Roman", serif';
+/** Serif families a brand may name, so a missing font falls back to a serif, not a sans. */
+const SERIF_FAMILY = /georgia|palatino|iowan|times|garamond|baskerville|didot|bodoni|serif$|fraunces|playfair|lora|merriweather/i;
+
 function fontStack(family: string): string {
-  return `"${family}", ${FALLBACK_SANS}`;
+  return `"${family}", ${SERIF_FAMILY.test(family) && !/sans/i.test(family) ? FALLBACK_SERIF : FALLBACK_SANS}`;
 }
 
 /** Heading sizes from the type scale, from small (h4) to large (h1), in rem. */

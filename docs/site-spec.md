@@ -44,6 +44,16 @@ Each step is recorded once in the project's activity (`site_spec.created`,
 name. Viewers read specs and their history but change nothing. Agents and the
 service role have no access.
 
+## Starting from a template
+
+A first version starts from one of three templates (`src/lib/site-spec/templates.ts`):
+services business, online shop or single page. The project type suggests one. A
+template creates the pages, sections, menus, buttons, common headings and search
+titles in the chosen languages, plus a privacy page and image placeholders. Only
+confirmed brief values are copied, each with its source. Everything only a person
+can write is an instruction in square brackets, shown in the preview and in English
+for now. A whole field in brackets blocks approval. It uses no AI.
+
 ## Editing
 
 A draft saves itself about 2 seconds after typing stops, one save at a time
@@ -62,7 +72,8 @@ its field (`data-spec-path` in the editors, `src/lib/site-spec/paths.ts`).
 - the starting brand placeholders (a person must choose the brand);
 - text or grey text contrast under 4.5:1, or the primary colour under 3:1, on the
   background, or button text that cannot reach 4.5:1 on the primary colour;
-- leftover draft text: "lorem ipsum", TODO, TBD or FIXME;
+- leftover draft text: "lorem ipsum", TODO, TBD or FIXME, or a template's
+  instruction in square brackets;
 - a missing text in any of the website's languages: page titles, addresses,
   search titles and descriptions (unless a page is hidden from search),
   headings and texts that sections need, button labels, alternative texts,

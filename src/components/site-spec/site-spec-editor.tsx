@@ -25,6 +25,7 @@ import { refreshFromBrief } from "@/lib/site-spec/edit";
 import { localeOfPath, pageIndexOfPath, pathCandidates } from "@/lib/site-spec/paths";
 import type { SiteSpec, SiteSpecSource } from "@/lib/site-spec/schema";
 import { qualityWarnings } from "@/lib/site-spec/checks";
+import { groupProblems } from "@/lib/site-spec/todo";
 import { approvalBlockers, parseSiteSpec, type SpecIssue } from "@/lib/site-spec/validate";
 import { BrandEditor } from "./brand-editor";
 import type { ImageLibrary } from "./images-editor";
@@ -387,6 +388,7 @@ export function SiteSpecEditor({
         <SectionMenu spec={draft} openPage={openPage} onPage={openPageInEditor} />
         <div ref={editorRoot} onFocusCapture={followField} className={cn("flex min-w-0 flex-col gap-10", view === "preview" && "hidden xl:flex")}>
           <IssuesPanel
+            spec={draft}
             issues={parsed.ok ? [] : parsed.issues}
             blockers={blockers}
             warnings={warnings}
@@ -449,6 +451,7 @@ export function SiteSpecEditor({
 
 function IssuesPanel({
   issues,
+  spec,
   blockers,
   warnings,
   reviewing,
@@ -457,6 +460,7 @@ function IssuesPanel({
   onRefresh,
   onProblem,
 }: {
+  spec: SiteSpec;
   issues: SpecIssue[];
   blockers: SpecIssue[];
   /** Worth a second look; they stop nothing. */
@@ -470,7 +474,7 @@ function IssuesPanel({
 }) {
   if (status === "approved" || status === "superseded") return null;
   return (
-    <Section id="checks" title="Before approval" count={issues.length + blockers.length}>
+    <Section id="checks" title="Before approval" count={issues.length + groupProblems(spec, blockers).reduce((sum, group) => sum + group.items.length, 0)}>
       {refreshable.length ? (
         <div className="mb-4 flex flex-col items-start gap-2 rounded-[var(--radius-surface)] border border-caution/25 bg-caution/[0.06] px-3 py-2.5">
           <p className="text-[13px] text-ink">
@@ -497,14 +501,7 @@ function IssuesPanel({
       {blockers.length ? (
         <div className="mb-4">
           <p className="mb-2 text-[13px] font-medium text-critical">Fix before approval</p>
-          <ul className="flex flex-col gap-1.5" data-testid="spec-blockers">
-            {blockers.slice(0, 30).map((b, i) => (
-              <li key={i}>
-                <ProblemLink issue={b} onProblem={onProblem} />
-              </li>
-            ))}
-            {blockers.length > 30 ? <li className="text-[13px] text-ink-subtle">and {blockers.length - 30} more</li> : null}
-          </ul>
+          <ProblemGroups spec={spec} blockers={blockers} onProblem={onProblem} />
         </div>
       ) : !issues.length ? (
         <div className="mb-4">
@@ -529,10 +526,55 @@ function IssuesPanel({
       {reviewing ? (
         <div data-testid="review-reminder" className="text-[13px]">
           <p className="mb-1 font-medium text-ink">The checks can&apos;t judge these, so look yourself</p>
-          <p className="text-ink-muted">Does the copy sound right for this client? Do the images suit their pages? Are the legal and contact details correct? Does it look right at phone width?</p>
+          <p className="text-ink-muted">Does the copy sound right for this client? Do the images suit their pages? Are the contact details correct? Have the privacy notice and consent wording had client-specific and legal review? Does it look right at phone width?</p>
         </div>
       ) : null}
     </Section>
+  );
+}
+
+/** Short lists stay open. A long one opens where to start, with the rest a click away. */
+const OPEN_EVERYTHING_UP_TO = 8;
+
+function ProblemGroups({ spec, blockers, onProblem }: { spec: SiteSpec; blockers: SpecIssue[]; onProblem: (path: string) => void }) {
+  const groups = groupProblems(spec, blockers);
+  const total = groups.reduce((sum, group) => sum + group.items.length, 0);
+  // Null until the person opens or closes one; then their choice stands.
+  const [opened, setOpened] = useState<Set<string> | null>(null);
+  const isOpen = (key: string, index: number) => (opened ? opened.has(key) : total <= OPEN_EVERYTHING_UP_TO || index === 0);
+  return (
+    <div className="flex flex-col gap-1" data-testid="spec-blockers">
+      {groups.map((group, g) => (
+        <details
+          key={group.key}
+          open={isOpen(group.key, g)}
+          data-testid="problem-group"
+          className="rounded-[var(--radius-control)] border border-line px-3 py-2"
+        >
+          <summary
+            onClick={(event) => {
+              event.preventDefault();
+              const next = new Set(groups.filter((other, i) => isOpen(other.key, i)).map((other) => other.key));
+              if (next.has(group.key)) next.delete(group.key);
+              else next.add(group.key);
+              setOpened(next);
+            }}
+            className="flex cursor-pointer list-none items-baseline justify-between gap-3 text-[13px] font-medium text-ink"
+          >
+            {group.label}
+            <span className="font-normal tabular-nums text-ink-subtle">{group.items.length}</span>
+          </summary>
+          {group.note ? <p className="mt-1.5 text-[12.5px] text-caution">{group.note}</p> : null}
+          <ul className="mt-1.5 flex flex-col gap-1.5">
+            {group.items.map((item) => (
+              <li key={`${item.path}|${item.message}`}>
+                <ProblemLink issue={item} onProblem={onProblem} />
+              </li>
+            ))}
+          </ul>
+        </details>
+      ))}
+    </div>
   );
 }
 
