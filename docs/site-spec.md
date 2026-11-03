@@ -63,6 +63,14 @@ words, except for questions and contact, which visitors look for. A section of
 quotes asks for real words with permission, or for the section to be removed. Only
 new drafts are affected: a draft already started keeps its structure.
 
+A shop's range uses its own Products section, with a name, description, optional
+confirmed price and a photo for each. It is what the page shows, not a catalogue: the
+shop platform owns live products, prices and stock.
+
+The list of what is left splits a page with more than 8 things to do into its
+sections, such as "Home › Hero", and opens only where to start: the goal and brand,
+then the home page's hero.
+
 An instruction can never pass as finished text: a whole field in brackets, or words
 in brackets inside other text, blocks approval on the server. Finished standard
 headings such as "Frequently asked questions" do not. Instructions can stay in

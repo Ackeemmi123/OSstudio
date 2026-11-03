@@ -111,7 +111,7 @@ describe("first drafts from templates", () => {
   it("gives each template its own journey on the home page", () => {
     const journey = (template: (typeof SITE_TEMPLATES)[number]) => templateSpec(briefClient(), project, template, ["en"]).spec.pages[0].sections.map((s) => s.kind);
     expect(journey("services")).toEqual(["hero", "features", "services", "features", "testimonials", "faq", "cta"]);
-    expect(journey("shop")).toEqual(["hero", "text_media", "services", "features", "features", "testimonials"]);
+    expect(journey("shop")).toEqual(["hero", "text_media", "products", "features", "features", "testimonials"]);
     expect(journey("single")).toEqual(["hero", "text", "services", "text_media", "features", "testimonials", "faq", "contact"]);
   });
 
@@ -191,6 +191,15 @@ describe("first drafts from templates", () => {
     spec.pages.splice(1, 0, page);
     expect(approvalBlockers(spec, client, clientFiles).map((b) => b.message)).toEqual([]);
     expect(parseSiteSpec(spec).ok).toBe(true);
+  });
+
+  it("calls a shop's products products, each with its own image placeholder", () => {
+    const { spec } = templateSpec(briefClient(), project, "shop", ["en"]);
+    const kinds = spec.pages.flatMap((p) => p.sections).map((s) => s.kind);
+    expect(kinds).toContain("products");
+    expect(kinds).not.toContain("services");
+    const range = spec.pages[0].sections.find((s) => s.kind === "products");
+    expect(range?.kind === "products" && range.items.every((item) => spec.assets.some((a) => a.id === item.assetId))).toBe(true);
   });
 
   it("asks for real quotes or none, and for what a form's sender can expect", () => {

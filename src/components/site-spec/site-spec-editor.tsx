@@ -25,7 +25,7 @@ import { refreshFromBrief } from "@/lib/site-spec/edit";
 import { localeOfPath, pageIndexOfPath, pathCandidates } from "@/lib/site-spec/paths";
 import type { SiteSpec, SiteSpecSource } from "@/lib/site-spec/schema";
 import { qualityWarnings } from "@/lib/site-spec/checks";
-import { groupProblems } from "@/lib/site-spec/todo";
+import { groupProblems, type ProblemGroup } from "@/lib/site-spec/todo";
 import { approvalBlockers, parseSiteSpec, type SpecIssue } from "@/lib/site-spec/validate";
 import { BrandEditor } from "./brand-editor";
 import type { ImageLibrary } from "./images-editor";
@@ -533,7 +533,7 @@ function IssuesPanel({
   );
 }
 
-/** Short lists stay open. A long one opens where to start, with the rest a click away. */
+/** Short lists stay open. A long one opens where to start: the goal and brand, then the home page's hero. */
 const OPEN_EVERYTHING_UP_TO = 8;
 
 function ProblemGroups({ spec, blockers, onProblem }: { spec: SiteSpec; blockers: SpecIssue[]; onProblem: (path: string) => void }) {
@@ -541,20 +541,20 @@ function ProblemGroups({ spec, blockers, onProblem }: { spec: SiteSpec; blockers
   const total = groups.reduce((sum, group) => sum + group.items.length, 0);
   // Null until the person opens or closes one; then their choice stands.
   const [opened, setOpened] = useState<Set<string> | null>(null);
-  const isOpen = (key: string, index: number) => (opened ? opened.has(key) : total <= OPEN_EVERYTHING_UP_TO || index === 0);
+  const isOpen = (group: ProblemGroup) => (opened ? opened.has(group.key) : total <= OPEN_EVERYTHING_UP_TO || group.first === true);
   return (
     <div className="flex flex-col gap-1" data-testid="spec-blockers">
-      {groups.map((group, g) => (
+      {groups.map((group) => (
         <details
           key={group.key}
-          open={isOpen(group.key, g)}
+          open={isOpen(group)}
           data-testid="problem-group"
           className="rounded-[var(--radius-control)] border border-line px-3 py-2"
         >
           <summary
             onClick={(event) => {
               event.preventDefault();
-              const next = new Set(groups.filter((other, i) => isOpen(other.key, i)).map((other) => other.key));
+              const next = new Set(groups.filter(isOpen).map((other) => other.key));
               if (next.has(group.key)) next.delete(group.key);
               else next.add(group.key);
               setOpened(next);

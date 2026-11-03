@@ -68,7 +68,8 @@ export function assetIdsOf(section: SiteSpecSection): string[] {
     case "gallery":
       return section.assetIds;
     case "team":
-      return section.items.flatMap((member) => (member.assetId ? [member.assetId] : []));
+    case "products":
+      return section.items.flatMap((entry) => (entry.assetId ? [entry.assetId] : []));
     default:
       return [];
   }
@@ -261,7 +262,7 @@ export function approvalBlockers(spec: SiteSpec, client: Pick<Client, "id" | "co
         finishStarted(section.emphasis, `${sectionPath}.emphasis`, `${where}: the end of the heading to set apart`);
         finishStarted(section.reassurance, `${sectionPath}.reassurance`, `${where}: the reassurance`);
       }
-      if (section.kind === "services") section.items.forEach((entry, i) => finishStarted(entry.price, `${sectionPath}.items.${i}.price`, `${where}: a price`));
+      if (section.kind === "services" || section.kind === "products") section.items.forEach((entry, i) => finishStarted(entry.price, `${sectionPath}.items.${i}.price`, `${where}: a price`));
     });
   });
 
@@ -317,6 +318,7 @@ function sectionBlockers(section: SiteSpecSection, path: string, name: string, r
       break;
     case "features":
     case "services":
+    case "products":
       if (!section.items.length) blockers.push({ path: `${path}.items`, message: `${name}: add at least one item.` });
       section.items.forEach((entry, i) => require(entry.title, `${path}.items.${i}.title`, `${name}: an item's title`));
       break;

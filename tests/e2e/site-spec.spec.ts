@@ -372,11 +372,12 @@ test("starts a first draft from a template, with instructions to write and the b
   const groups = blockers.getByTestId("problem-group");
   await expect(groups.first()).toContainText("Start here: goal and brand");
   await expect(groups.first().getByRole("button").first()).toBeVisible();
-  await expect(blockers.getByRole("button", { name: /Hero: heading still needs writing/ })).toBeHidden();
+  // The home page is split by section, and its hero is open as where to go next.
+  await expect(groups.filter({ hasText: /^Home › Hero/ }).getByRole("button", { name: /Hero: heading still needs writing/ }).first()).toBeVisible();
+  await expect(groups.filter({ hasText: /^Home › What they take off/ }).getByRole("button").first()).toBeHidden();
   const legal = groups.filter({ hasText: "Privacy and consent" });
   await legal.locator("summary").click();
   await expect(legal).toContainText("need client-specific details and legal review");
-  await groups.filter({ hasText: /^Home/ }).locator("summary").click();
   await blockers.getByRole("button", { name: /Hero: heading still needs writing/ }).first().click();
   const heading = page.getByLabel("Heading (English)", { exact: true }).first();
   await expect(heading).toBeFocused();

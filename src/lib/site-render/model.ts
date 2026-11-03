@@ -243,6 +243,12 @@ export function buildRenderModel(spec: SiteSpec, options: RenderOptions): Render
           heading: optional(section.heading),
           items: section.items.map((entry) => ({ id: entry.id, title: text(entry.title, `${label}: title`), body: optional(entry.body), meta: null, image: null, price: optional(entry.price) })),
         };
+      case "products":
+        return {
+          ...base,
+          heading: optional(section.heading),
+          items: section.items.map((entry) => ({ id: entry.id, title: text(entry.title, `${label}: title`), body: optional(entry.body), meta: null, image: image(entry.assetId), price: optional(entry.price) })),
+        };
       case "testimonials":
         return {
           ...base,
