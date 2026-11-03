@@ -5,7 +5,7 @@
  * ignore all of them.
  */
 import type { SiteAssetRecord } from "@/lib/domain/types";
-import { SITE_LOCALE_LABELS, type SiteLocale } from "./catalog";
+import { SECTION_LABELS, SITE_LOCALE_LABELS, type SiteLocale } from "./catalog";
 import type { SiteSpec, SiteSpecSection } from "./schema";
 import { isPlaceholderText, pageLabel, visibleTexts } from "./texts";
 import { assetIdsOf, buttonsOf, type SpecIssue } from "./validate";
@@ -25,6 +25,100 @@ function widthNeeded(section: SiteSpecSection): number {
   if (section.kind === "text_media") return 600;
   if (section.kind === "gallery") return 400;
   return 0;
+}
+
+/**
+ * Words that make a claim someone could ask to see proof of. Only a person knows
+ * whether the client confirmed it, so these ask for a look and never stop anything.
+ */
+const CLAIMS: { pattern: RegExp; what: string }[] = [
+  { pattern: /\b\d+(?:[.,]\d+)?\s?%/, what: "a percentage" },
+  { pattern: /\b\d[\d\s.,]*\+?\s*(?:clients?|customers?|projects?|years?|reviews?|kunder|projekt|år|recensioner|asiakasta|asiakkaita|projektia|vuotta|arvostelua)\b/i, what: "a number of customers, projects or years" },
+  { pattern: /\b(?:award[- ]winning|awards?|prisbelönt\w*|palkittu\w*|palkinto\w*)/i, what: "an award" },
+  { pattern: /\b(?:certified|accredited|licensed|certifierad\w*|auktoriserad\w*|sertifioitu\w*|auktorisoitu\w*)/i, what: "a certification" },
+  { pattern: /\b(?:guarantee[ds]?|money[- ]back|garanti\w*|takuu\w*)/i, what: "a guarantee" },
+  { pattern: /(?:#\s?1\b|\bnumber one\b|\bthe best\b|\bbest in\b|\bleading\b|\bbäst\w*|\bledande\b|\bparas\b|\bparhaat\b|\bjohtava\w*)/i, what: "a ranking" },
+];
+
+/** Pressure that is rarely true of a real business. */
+const PRESSURE = /\b(?:only \d+ left|limited time|last chance|hurry|act now|ends (?:today|soon)|endast \d+ kvar|sista chansen|skynda|vain \d+ jäljellä|viimeinen mahdollisuus|kiirehdi)\b/i;
+
+/** Headings that say nothing about this client. A template starts with them, and they read as a template. Contact and FAQ words stay out: visitors look for them. */
+const GENERIC_HEADINGS = new Set(
+  [
+    "welcome", "about", "about us", "our services", "services", "what we do", "why choose us", "why us", "what customers say", "testimonials", "our products", "products",
+    "välkommen", "om oss", "våra tjänster", "tjänster", "vad vi gör", "varför välja oss", "vad kunderna säger", "våra produkter",
+    "tervetuloa", "meistä", "palvelumme", "palvelut", "mitä teemme", "miksi valita meidät", "asiakkaamme kertovat", "tuotteemme",
+  ],
+);
+
+/** Long enough that a hero's heading stops being read at a glance. */
+const LONG_HERO_HEADING = 90;
+/** The same kind of section this many times in a row reads as a stack, not a page. */
+const REPEATED_SECTIONS = 3;
+/** What a shopper needs to know before buying, in each language. */
+const SHOP_TERMS: { what: string; pattern: RegExp }[] = [
+  { what: "delivery", pattern: /deliver|shipping|leverans|frakt|toimitus/i },
+  { what: "returns", pattern: /return|retur|palautus/i },
+  { what: "payment", pattern: /payment|pay by|betal|maksu/i },
+];
+
+/** Does the website tell people what the next step is, and is it honest about it? */
+function journeyWarnings(spec: SiteSpec, written: { path: string; name: string; text: string }[]): SpecIssue[] {
+  const warnings: SpecIssue[] = [];
+
+  for (const { path, name, text } of written) {
+    if (path.includes(".seo.") || path.startsWith("seo.") || path.startsWith("assets.")) continue;
+    const claim = CLAIMS.find(({ pattern }) => pattern.test(text));
+    if (claim) warnings.push({ path, message: `${name} makes a claim (${claim.what}). Keep it only if the client confirmed it.` });
+    if (PRESSURE.test(text)) warnings.push({ path, message: `${name} puts pressure on visitors. Keep it only if it is really true.` });
+  }
+
+  spec.pages.forEach((page, p) => {
+    const name = pageLabel(spec, page, p);
+    let run = 1;
+    page.sections.forEach((section, s) => {
+      const path = `pages.${p}.sections.${s}`;
+      for (const locale of spec.locales.available) {
+        const heading = section.heading[locale]?.trim();
+        if (heading && GENERIC_HEADINGS.has(heading.toLowerCase().replace(/[.!?]$/, ""))) {
+          warnings.push({ path: `${path}.heading.${locale}`, message: `${name}: "${heading}" could be on any website. Say something about this client.` });
+        }
+      }
+      if (section.kind === "hero") {
+        if (!section.buttons.length) warnings.push({ path: `${path}.buttons`, message: `${name}: the hero has no button, so the next step isn't clear.` });
+        for (const locale of spec.locales.available) {
+          const heading = section.heading[locale]?.trim() ?? "";
+          if (heading.length > LONG_HERO_HEADING && !isPlaceholderText(heading)) warnings.push({ path: `${path}.heading.${locale}`, message: `${name}: the hero's heading is long, so it may not be read at a glance.` });
+        }
+      }
+      if (section.kind === "testimonials") {
+        section.items.forEach((item, i) => {
+          if (Object.values(item.quote).some((quote) => quote?.trim()) && !item.author.trim()) warnings.push({ path: `${path}.items.${i}.author`, message: `${name}: a quote doesn't say who said it.` });
+        });
+      }
+      run = s > 0 && page.sections[s - 1].kind === section.kind ? run + 1 : 1;
+      if (run === REPEATED_SECTIONS) warnings.push({ path, message: `${name}: ${REPEATED_SECTIONS} ${SECTION_LABELS[section.kind].label.toLowerCase()} sections in a row read as a stack. Vary them.` });
+    });
+    if (p === 0 && page.sections.length && page.sections[0].kind !== "hero") warnings.push({ path: `pages.0.sections.0`, message: `${name} doesn't open with a hero, so visitors may not see at once what this is.` });
+  });
+
+  // A form is where people hesitate. Saying what happens next helps, if it is true.
+  const shown = new Set(spec.pages.flatMap((page) => page.sections.flatMap((section) => (section.kind === "contact" && section.variant !== "details_only" && section.formId ? [section.formId] : []))));
+  spec.forms.forEach((form, f) => {
+    if (shown.has(form.id) && !spec.locales.available.some((locale) => form.replyNote?.[locale]?.trim())) {
+      warnings.push({ path: `forms.${f}.replyNote.${spec.locales.default}`, message: `Form ${form.id} doesn't say what happens after sending.` });
+    }
+  });
+
+  // A shop must say these things, and nothing here pretends they are set up.
+  if (spec.integrations.store.enabled || spec.pages.some((page) => page.id === "shop")) {
+    const all = written.map((entry) => entry.text).join(" ");
+    for (const { what, pattern } of SHOP_TERMS) {
+      if (!pattern.test(all)) warnings.push({ path: "pages", message: `The shop doesn't mention ${what} anywhere, and shoppers look for this before buying.` });
+    }
+  }
+  return warnings;
 }
 
 export function qualityWarnings(spec: SiteSpec, files: readonly ImageFileSize[] = []): SpecIssue[] {
@@ -146,5 +240,5 @@ export function qualityWarnings(spec: SiteSpec, files: readonly ImageFileSize[] 
     if (bytes > HEAVY_PAGE_BYTES) warnings.push({ path: `pages.${p}`, message: `${pageLabel(spec, page, p)} has ${Math.round(bytes / (1024 * 1024))} MB of images, which can make it slow.` });
   });
 
-  return warnings;
+  return [...warnings, ...journeyWarnings(spec, texts)];
 }

@@ -149,7 +149,13 @@ Content carries where it came from:
 look and stops nothing: test text, text that may not be translated, vague
 alternative texts, duplicate or short search texts, pages nothing leads to, a
 home page without the main call to action, lists without a heading, unused
-images and forms, images too small for their place, and heavy pages. The review
+images and forms, images too small for their place, and heavy pages. It also
+looks for claims that need the client's confirmation (percentages, customer
+numbers, awards, certifications, guarantees, rankings), pressure such as "last
+chance", headings that could be on any website, a hero without a button or with a
+very long heading, quotes with nobody named, three similar sections in a row, a
+form that doesn't say what happens next, and a shop that doesn't mention delivery,
+returns or payment. These match words, so they ask for a look and never block. The review
 shows a short reminder of what no check can judge. The preview's templates are
 checked for accessibility in CI (`tests/e2e/preview-accessibility.spec.ts`).
 
