@@ -127,7 +127,7 @@ function builder(client: Client, project: Pick<Project, "projectType">, locales:
   /** No catalogue: the shop platform will own that. This only shows what the range is like. */
   const productRange = (heading: string) => section({ kind: "products", variant: "grid_3", heading: all(heading), items: items("products", 3) });
   const featured = (target: string) => section({ kind: "text_media", variant: "image_right", heading: all("[The one product worth seeing right now, by its name]"), body: all("[What makes it worth trying, and who it suits]"), mediaAssetId: image("The featured product, once the client has chosen it"), buttons: [buttonTo(target, WORDS.shop)] });
-  const quotes = (variant = "quotes") => section({ kind: "testimonials", variant, heading: all("[What clients say changed for them, in their terms]"), items: items("testimonials", 2) });
+  const quotes = (heading: string, variant = "quotes") => section({ kind: "testimonials", variant, heading: all(heading), items: items("testimonials", 2) });
   const about = (variant = "image_right") => section({ kind: "text_media", variant, heading: all("[Who they are, in one line, not the word About]"), body: all(`[${name}'s story: how it started, who works here, and what makes them different]`), mediaAssetId: image("The people or the place behind the business"), buttons: [] });
   const team = () => section({ kind: "team", variant: "grid", heading: all("[The people a client will deal with, in one line]"), items: items("team", 2) });
   const faq = (variant = "accordion", count = 4, note = "") => section({ kind: "faq", variant, heading: words(WORDS.questions), items: items("faq", count, note) });
@@ -207,7 +207,7 @@ export function templateSpec(client: Client, project: Pick<Project, "projectType
         b.features("grid_3", "[What a client can rely on, in one specific line]", b.points(3, (n) => `[Promise ${n}: such as who they deal with, the price or how fast they hear back]`, "[One sentence with a concrete fact that backs it up]")),
         list,
         b.features("list", "[What worries a new client most, and how the start goes]", b.steps(3, "what happens, in a few words", "[What the client does or gets at this step]")),
-        b.quotes(),
+        b.quotes("[What clients say changed for them, in their terms]"),
         b.faq("accordion", 3),
         b.cta("banner", b.buttonTo("contact", WORDS.contactUs, form.id)),
       ]),
@@ -229,7 +229,7 @@ export function templateSpec(client: Client, project: Pick<Project, "projectType
         ...b.points(1, () => "[Payment]", "[The accepted methods, only as the client confirms them]"),
         ...b.points(1, () => "[Quality: a real strength, in 2 to 4 words]", "[One sentence with a concrete fact that backs it up]"),
       ]),
-      b.quotes(),
+      b.quotes("[What customers say about the products, in their words]"),
     ]),
     b.page("shop", WORDS.shop, SLUGS.shop, "main", [b.shopStatus(), b.cta("card", b.buttonTo("contact"))]),
     b.page("about", WORDS.about, SLUGS.about, "main", [b.about("image_right"), b.offering("[What they make or sell, for whom, in one specific line]")]),
@@ -247,7 +247,7 @@ export function templateSpec(client: Client, project: Pick<Project, "projectType
         b.servicesList("list", "[What is on offer, in one specific line]"),
         b.about("image_left"),
         b.features("list", "[What the first visit is like, in one line]", b.steps(3, "what happens, in a few words", "[What the visitor does or gets at this step]")),
-        b.quotes("carousel"),
+        b.quotes("[How it feels to come here, in someone's own words]", "carousel"),
         b.faq("two_column", 3),
         form,
       ]),
