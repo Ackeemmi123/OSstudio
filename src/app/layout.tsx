@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono, Inter } from "next/font/google";
+import { Analytics } from "@vercel/analytics/next";
 import { AppShell } from "@/components/shell/app-shell";
 import { WorkspaceGate } from "@/components/providers/workspace-gate";
 import { ToastProvider } from "@/components/ui/toast";
@@ -24,6 +25,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
             <AppShell>{children}</AppShell>
           </WorkspaceGate>
         </ToastProvider>
+        <Analytics />
       </body>
     </html>
   );
