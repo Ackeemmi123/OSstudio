@@ -111,17 +111,25 @@ function Pipe({ side, from, to }: { side: "left" | "right"; from: string; to: st
   );
 }
 
+/** A measuring scale across a section's edge, for a firm whose work starts with measuring. */
+function Scale({ from, to }: { from: string; to: string }) {
+  return <div className="scale" aria-hidden="true" style={{ "--from": `var(--${from})`, "--to": `var(--${to})` } as CSSProperties}><i /></div>;
+}
+
 export function StatementHome({ context }: { context: PageContext }) {
   const { content, design } = context;
   const piped = design.motif === "pipe";
+  const scaled = design.motif === "scale";
   return (
     <Frame context={context}>
       <Hero context={context} />
       {piped ? <Pipe side="right" from="deep" to="signal" /> : null}
       <Reasons content={content} />
       {piped ? <Pipe side="left" from="signal" to="paper" /> : null}
+      {scaled ? <Scale from="paper" to="ink" /> : null}
       <Services content={content} />
       {piped ? <Pipe side="right" from="paper" to="deep" /> : null}
+      {scaled ? <Scale from="paper" to="ink" /> : null}
       <Steps content={content} />
       <Crew content={content} />
       <Proof content={content} />

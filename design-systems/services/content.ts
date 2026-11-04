@@ -32,8 +32,10 @@ const seo = z.strictObject({ title: words(70), description: words(170) });
 const point = z.strictObject({ title: statement(60), text: statement(240) });
 
 export const siteContent = z.strictObject({
-  /** Set by the proof's invented businesses. Real client data has no place here. */
-  invented: z.literal(true),
+  /** Set by the proof's invented businesses. A site is either this or a concept. */
+  invented: z.literal(true).optional(),
+  /** An unrequested proposal for a real firm, from its public information only. Each page says so. */
+  concept: z.strictObject({ preparedBy: words(60), sources: z.array(words(300)).min(1) }).optional(),
   language: z.enum(["en", "sv", "fi"]),
   business: z.strictObject({
     name: words(60),
@@ -41,7 +43,7 @@ export const siteContent = z.strictObject({
     businessId: words(20).optional(),
     address: words(120).optional(),
     phone: words(30).optional(),
-    email: z.email(),
+    email: z.email().optional(),
     hours: words(120).optional(),
   }),
   assets: z.array(asset).max(24),
@@ -96,7 +98,7 @@ export const siteContent = z.strictObject({
   notFound: z.strictObject({ heading: words(80), text: words(200), back: words(40) }),
   menu: z.strictObject({ servicesLabel: words(24), questionsLabel: words(24) }),
   home: z.strictObject({ seo }),
-});
+}).refine((content) => Boolean(content.invented) !== Boolean(content.concept), { message: "A site must be either invented or a concept." });
 
 export type SiteContent = z.infer<typeof siteContent>;
 export type Asset = SiteContent["assets"][number];
@@ -105,9 +107,11 @@ export type Asset = SiteContent["assets"][number];
 export const siteDesign = z.strictObject({
   system: z.literal("services@0.1"),
   direction: z.enum(["editorial", "formal", "statement"]),
-  palette: z.enum(["pine", "oxblood", "signal"]),
+  palette: z.enum(["pine", "oxblood", "signal", "harbor", "dry", "measure", "brick", "verdigris"]),
+  /** Only the statement direction takes a type choice: its condensed face is the default. */
+  type: z.enum(["wide", "grotesk"]).optional(),
   /** One recurring idea from the firm's own trade. Optional, and it adds nothing to what the page says. */
-  motif: z.enum(["pipe"]).optional(),
+  motif: z.enum(["pipe", "drain", "scale", "ripple", "courses"]).optional(),
 });
 
 export type SiteDesign = z.infer<typeof siteDesign>;
@@ -119,7 +123,7 @@ export interface Site {
 
 /** Every string a visitor could read, with the keys that are not visible left out. */
 export function visibleStrings(content: SiteContent): string[] {
-  const hidden = new Set(["id", "src", "source", "licence", "origin", "evidence", "by", "permission", "consent_status", "language", "imageId", "slug"]);
+  const hidden = new Set(["id", "src", "source", "sources", "licence", "origin", "evidence", "by", "permission", "consent_status", "language", "imageId", "slug"]);
   const found: string[] = [];
   const walk = (value: unknown, key: string) => {
     if (typeof value === "string") {

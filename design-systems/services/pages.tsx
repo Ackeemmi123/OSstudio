@@ -10,10 +10,10 @@ import type { Asset, SiteContent, SiteDesign } from "./content";
 type Language = SiteContent["language"];
 
 /** The system's own words: its interface, never anything about the business. */
-export const CHROME: Record<Language, { skip: string; menu: string; mainNav: string; footerNav: string; trap: string; testNote: string }> = {
-  en: { skip: "Skip to content", menu: "Menu", mainNav: "Main", footerNav: "Footer", trap: "Leave this empty", testNote: "Test site. This business and everything about it are invented." },
-  sv: { skip: "Till innehållet", menu: "Meny", mainNav: "Huvudmeny", footerNav: "Sidfot", trap: "Lämna tomt", testNote: "Testsida. Företaget och allt om det är påhittat." },
-  fi: { skip: "Siirry sisältöön", menu: "Valikko", mainNav: "Päävalikko", footerNav: "Alatunniste", trap: "Jätä tyhjäksi", testNote: "Testisivusto. Yritys ja kaikki sen tiedot on keksitty." },
+export const CHROME: Record<Language, { skip: string; menu: string; mainNav: string; footerNav: string; trap: string; testNote: string; conceptNote: string }> = {
+  en: { skip: "Skip to content", menu: "Menu", mainNav: "Main", footerNav: "Footer", trap: "Leave this empty", testNote: "Test site. This business and everything about it are invented.", conceptNote: "Concept by Axivo, from public information. This is not the website of the firm." },
+  sv: { skip: "Till innehållet", menu: "Meny", mainNav: "Huvudmeny", footerNav: "Sidfot", trap: "Lämna tomt", testNote: "Testsida. Företaget och allt om det är påhittat.", conceptNote: "Koncept av Axivo, utifrån offentlig information. Det här är inte företagets webbplats." },
+  fi: { skip: "Siirry sisältöön", menu: "Valikko", mainNav: "Päävalikko", footerNav: "Alatunniste", trap: "Jätä tyhjäksi", testNote: "Testisivusto. Yritys ja kaikki sen tiedot on keksitty.", conceptNote: "Axivon konseptiluonnos julkisten tietojen pohjalta. Tämä ei ole yrityksen verkkosivusto." },
 };
 
 export interface PageContext {
@@ -129,7 +129,7 @@ export function Frame({ context, children }: { context: PageContext; children: R
   return (
     <>
       <a className="skip" href="#main">{chrome.skip}</a>
-      <p className="test-note">{chrome.testNote}</p>
+      <p className="test-note">{content.concept ? chrome.conceptNote : chrome.testNote}</p>
       <header className="site-header">
         <a className="mark" href={root}>{business.name}</a>
         <nav className="menu-wide" aria-label={chrome.mainNav}>
@@ -150,7 +150,7 @@ export function Frame({ context, children }: { context: PageContext; children: R
         <div className="footer-details">
           {business.address ? <p>{business.address}</p> : null}
           {business.phone ? <p><a href={tel(business.phone)}>{business.phone}</a></p> : null}
-          <p><a href={`mailto:${business.email}`}>{business.email}</a></p>
+          {business.email ? <p><a href={`mailto:${business.email}`}>{business.email}</a></p> : null}
           {business.hours ? <p>{business.hours}</p> : null}
         </div>
         <nav aria-label={chrome.footerNav}><Menu context={context} footer /></nav>
@@ -314,7 +314,7 @@ export function Closing({ content, emphasise }: { content: SiteContent; emphasis
         <p>{closing.text.text}</p>
         <div className="closing-details">
           {content.business.phone ? <p><a href={tel(content.business.phone)}>{content.business.phone}</a></p> : null}
-          <p><a href={`mailto:${content.business.email}`}>{content.business.email}</a></p>
+          {content.business.email ? <p><a href={`mailto:${content.business.email}`}>{content.business.email}</a></p> : null}
         </div>
       </div>
       <ContactForm content={content} formId="home" />
@@ -382,7 +382,7 @@ export function ContactPage({ context }: { context: PageContext }) {
             <h2 className="label">{contact.detailsLabel}</h2>
             {business.address ? <p>{business.address}</p> : null}
             {business.phone ? <p><a href={tel(business.phone)}>{business.phone}</a></p> : null}
-            <p><a href={`mailto:${business.email}`}>{business.email}</a></p>
+            {business.email ? <p><a href={`mailto:${business.email}`}>{business.email}</a></p> : null}
             {business.hours ? <p>{business.hours}</p> : null}
           </div>
         </div>

@@ -18,6 +18,8 @@
 /.next-e2e-*/
 /out/
 /proof/out/
+# Concepts for real firms: public information, but not for the repository.
+/proof/concepts/
 /proof/qa/planted-out/
 
 # production

@@ -1,7 +1,7 @@
 /**
  * The formal direction's home page: established and personal, on a full field
- * of colour. Rings widen across it, like a stone in still water. The year a firm
- * began becomes part of the composition, if the firm has said it.
+ * of colour, with a motif from the firm's own world. The year a firm began
+ * becomes part of the composition, if the firm has said it.
  */
 import type { SiteContent } from "./content";
 import { Action, Closing, Emphasised, FirstSteps, Frame, Headline, Picture, Proof, Questions, Reasons, Services, displayTier, find, type PageContext } from "./pages";
@@ -12,12 +12,12 @@ export function foundingYear(text: string): string | null {
 }
 
 function Hero({ context }: { context: PageContext }) {
-  const { content } = context;
+  const { content, design } = context;
   const { promise } = content;
   const image = find(content, promise.imageId);
   return (
     <section className={image ? "hero hero--field" : "hero hero--field hero--type"} data-tier={displayTier(promise.headline.text)}>
-      <div className="ringbox" aria-hidden="true" />
+      {design.motif === "ripple" ? <div className="ringbox" aria-hidden="true" /> : null}
       <p className="label hero-for">{promise.whoFor.text}</p>
       <Headline text={promise.headline.text} turn={promise.turn} />
       <p className="hero-why">{promise.why.text}</p>

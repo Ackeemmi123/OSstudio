@@ -124,7 +124,7 @@ const lindqvist: Site = {
 };
 
 const kivela: Site = {
-  design: { system: "services@0.1", direction: "formal", palette: "oxblood" },
+  design: { system: "services@0.1", direction: "formal", palette: "oxblood", motif: "ripple" },
   content: {
     invented: true,
     language: "fi",

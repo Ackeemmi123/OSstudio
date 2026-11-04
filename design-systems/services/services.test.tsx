@@ -39,6 +39,16 @@ describe("the content contract", () => {
     expect(siteContent.safeParse(withoutMark).success).toBe(false);
   });
 
+  it("takes a concept for a real firm only when it is marked as one, and never both", () => {
+    const concept = { ...lindqvist.content, invented: undefined, concept: { preparedBy: "Axivo", sources: ["https://example.fi"] } };
+    expect(siteContent.safeParse(concept).success).toBe(true);
+    expect(siteContent.safeParse({ ...concept, invented: true }).success).toBe(false);
+    const home = htmlOf({ ...lindqvist, content: concept })[0].text;
+    expect(home).toContain(CHROME.en.conceptNote);
+    expect(home).not.toContain(CHROME.en.testNote);
+    expect(home).toContain('content="noindex,nofollow"');
+  });
+
   it("gives every sentence an origin", () => {
     const missing = { ...lindqvist.content, closing: { ...lindqvist.content.closing, text: { text: "Words." } } };
     expect(siteContent.safeParse(missing).success).toBe(false);
