@@ -28,11 +28,14 @@ To look at a site: `python3 -m http.server 3210 --directory proof/out`
 - `proof/qa`: the QA runner and the planted defects.
 - `proof/outreach`: the reusable outreach template, one A4 sheet and one email per
   firm. Firm details and concepts stay in git-ignored `proof/concepts`.
+- `proof/publish`: a client site's working contact form and the step that packs it
+  for hosting. It refuses test sites and concepts, and it publishes nothing itself.
 - `proof/baseline.md`: what the proof is measured against. Still to be answered.
 
 ## Known limits of this stage
 
-- The form posts to `/api/contact`, which does not exist yet. That is step 6.
+- Test sites and concepts have no working form. A client site gets one from `proof/publish`,
+  which needs a Resend key and has not yet sent a real message.
 - Photos are Unsplash stock loaded by address, for internal review only. A real
   site needs the client's own, in the site's folder, with an image step to size them.
 - Lighthouse and hosted checks wait for private hosting (step 6).

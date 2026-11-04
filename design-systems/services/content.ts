@@ -36,6 +36,8 @@ export const siteContent = z.strictObject({
   invented: z.literal(true).optional(),
   /** An unrequested proposal for a real firm, from its public information only. Each page says so. */
   concept: z.strictObject({ preparedBy: words(60), sources: z.array(words(300)).min(1) }).optional(),
+  /** A paying client's real site, published only after this person approved it in writing. */
+  client: z.strictObject({ approvedBy: words(80), approvedOn: words(10) }).optional(),
   language: z.enum(["en", "sv", "fi"]),
   business: z.strictObject({
     name: words(60),
@@ -98,7 +100,7 @@ export const siteContent = z.strictObject({
   notFound: z.strictObject({ heading: words(80), text: words(200), back: words(40) }),
   menu: z.strictObject({ servicesLabel: words(24), questionsLabel: words(24) }),
   home: z.strictObject({ seo }),
-}).refine((content) => Boolean(content.invented) !== Boolean(content.concept), { message: "A site must be either invented or a concept." });
+}).refine((content) => [content.invented, content.concept, content.client].filter(Boolean).length === 1, { message: "A site must be exactly one of invented, a concept, or a client's." });
 
 export type SiteContent = z.infer<typeof siteContent>;
 export type Asset = SiteContent["assets"][number];
@@ -123,7 +125,7 @@ export interface Site {
 
 /** Every string a visitor could read, with the keys that are not visible left out. */
 export function visibleStrings(content: SiteContent): string[] {
-  const hidden = new Set(["id", "src", "source", "sources", "licence", "origin", "evidence", "by", "permission", "consent_status", "language", "imageId", "slug"]);
+  const hidden = new Set(["id", "src", "source", "sources", "licence", "client", "origin", "evidence", "by", "permission", "consent_status", "language", "imageId", "slug"]);
   const found: string[] = [];
   const walk = (value: unknown, key: string) => {
     if (typeof value === "string") {

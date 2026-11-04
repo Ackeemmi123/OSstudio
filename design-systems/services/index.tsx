@@ -8,7 +8,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { siteContent, siteDesign, type Site, type SiteContent } from "./content";
 import { EditorialHome } from "./editorial";
 import { FormalHome } from "./formal";
-import { AboutPage, ContactPage, NotFoundPage, PrivacyPage, type PageContext } from "./pages";
+import { AboutPage, CHROME, ContactPage, FormResultPage, NotFoundPage, PrivacyPage, type PageContext } from "./pages";
 import { StatementHome } from "./statement";
 import { STYLES } from "./styles";
 
@@ -33,7 +33,7 @@ function document(site: Site, root: string, seo: SiteContent["home"]["seo"], bod
     "<head>",
     '<meta charset="utf-8">',
     '<meta name="viewport" content="width=device-width,initial-scale=1">',
-    '<meta name="robots" content="noindex,nofollow">',
+    ...(content.client ? [] : ['<meta name="robots" content="noindex,nofollow">']),
     `<title>${escapeHtml(seo.title)}</title>`,
     `<meta name="description" content="${escapeHtml(seo.description)}">`,
     `<link rel="stylesheet" href="${root}site.css">`,
@@ -53,6 +53,17 @@ function checkReferences(content: SiteContent) {
   }
   const { headline, turn } = content.promise;
   if (turn && !headline.text.endsWith(turn)) throw new Error(`The headline does not end with: ${turn}`);
+  if (content.client) checkClientSite(content);
+}
+
+/** A real client's site may not carry anything left over from a test: no stock photos, nothing without permission. */
+function checkClientSite(content: SiteContent) {
+  const stock = content.assets.find((asset) => asset.src.startsWith("https://images.unsplash.com/"));
+  if (stock) throw new Error(`A client's site cannot use the stock photo ${stock.id}.`);
+  const quote = content.proof.quotes.find((item) => item.permission !== "given");
+  if (quote) throw new Error(`No permission to use the quote from ${quote.who}.`);
+  const person = content.about.people.find((item) => item.consent !== "given");
+  if (person) throw new Error(`No consent to show ${person.name}.`);
 }
 
 /** Every page as a file. Fonts are copied by whoever writes the files out. */
@@ -68,6 +79,8 @@ export function build(site: Site): BuiltFile[] {
     { path: `${content.about.slug}/index.html`, text: document(parsed, "../", content.about.seo, <AboutPage context={context("about", "../")} />) },
     { path: `${content.contact.slug}/index.html`, text: document(parsed, "../", content.contact.seo, <ContactPage context={context("contact", "../")} />) },
     { path: `${content.privacy.slug}/index.html`, text: document(parsed, "../", content.privacy.seo, <PrivacyPage context={context("privacy", "../")} />) },
+    { path: "sent/index.html", text: document(parsed, "../", { title: CHROME[content.language].sent, description: CHROME[content.language].sent }, <FormResultPage context={context("notFound", "../")} sent />) },
+    { path: "not-sent/index.html", text: document(parsed, "../", { title: CHROME[content.language].notSent, description: CHROME[content.language].notSent }, <FormResultPage context={context("notFound", "../")} sent={false} />) },
     { path: "404.html", text: document(parsed, "./", { title: content.notFound.heading, description: content.notFound.text }, <NotFoundPage context={context("notFound", "./")} />) },
   ];
 }

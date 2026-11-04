@@ -49,6 +49,27 @@ describe("the content contract", () => {
     expect(home).toContain('content="noindex,nofollow"');
   });
 
+  it("lets a client's approved site be found, with nothing left from a test", () => {
+    const content = structuredClone(lindqvist.content) as Site["content"];
+    delete content.invented;
+    content.client = { approvedBy: "A Client", approvedOn: "2026-12-01" };
+    expect(() => build({ ...lindqvist, content })).toThrow(/stock photo/);
+    content.assets = [];
+    delete content.promise.imageId;
+    delete content.proof.imageId;
+    delete content.about.imageId;
+    content.about.people.forEach((person) => delete person.imageId);
+    expect(() => build({ ...lindqvist, content })).toThrow(/No permission/);
+    content.proof.quotes = [];
+    expect(() => build({ ...lindqvist, content })).toThrow(/No consent/);
+    content.about.people = [];
+    const home = htmlOf({ ...lindqvist, content })[0].text;
+    expect(home).not.toContain("noindex");
+    expect(home).not.toContain(CHROME.en.testNote);
+    expect(home).not.toContain(CHROME.en.conceptNote);
+    expect(siteContent.safeParse({ ...content, invented: true }).success).toBe(false);
+  });
+
   it("gives every sentence an origin", () => {
     const missing = { ...lindqvist.content, closing: { ...lindqvist.content.closing, text: { text: "Words." } } };
     expect(siteContent.safeParse(missing).success).toBe(false);
@@ -144,7 +165,7 @@ describe("what the design system adds", () => {
 describe("the built site", () => {
   it("has all its pages, with a way back from each", () => {
     const paths = build(lindqvist).map((file) => file.path);
-    expect(paths).toEqual(["site.css", "index.html", "about/index.html", "contact/index.html", "privacy/index.html", "404.html"]);
+    expect(paths).toEqual(["site.css", "index.html", "about/index.html", "contact/index.html", "privacy/index.html", "sent/index.html", "not-sent/index.html", "404.html"]);
   });
 
   it("runs no scripts, stays out of search engines, and says it is a test", () => {

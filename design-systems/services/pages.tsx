@@ -10,10 +10,10 @@ import type { Asset, SiteContent, SiteDesign } from "./content";
 type Language = SiteContent["language"];
 
 /** The system's own words: its interface, never anything about the business. */
-export const CHROME: Record<Language, { skip: string; menu: string; mainNav: string; footerNav: string; trap: string; testNote: string; conceptNote: string }> = {
-  en: { skip: "Skip to content", menu: "Menu", mainNav: "Main", footerNav: "Footer", trap: "Leave this empty", testNote: "Test site. This business and everything about it are invented.", conceptNote: "Concept by Axivo, from public information. This is not the website of the firm." },
-  sv: { skip: "Till innehållet", menu: "Meny", mainNav: "Huvudmeny", footerNav: "Sidfot", trap: "Lämna tomt", testNote: "Testsida. Företaget och allt om det är påhittat.", conceptNote: "Koncept av Axivo, utifrån offentlig information. Det här är inte företagets webbplats." },
-  fi: { skip: "Siirry sisältöön", menu: "Valikko", mainNav: "Päävalikko", footerNav: "Alatunniste", trap: "Jätä tyhjäksi", testNote: "Testisivusto. Yritys ja kaikki sen tiedot on keksitty.", conceptNote: "Axivon konseptiluonnos julkisten tietojen pohjalta. Tämä ei ole yrityksen verkkosivusto." },
+export const CHROME: Record<Language, { skip: string; menu: string; mainNav: string; footerNav: string; trap: string; testNote: string; conceptNote: string; sent: string; notSent: string; backHome: string }> = {
+  en: { skip: "Skip to content", menu: "Menu", mainNav: "Main", footerNav: "Footer", trap: "Leave this empty", testNote: "Test site. This business and everything about it are invented.", conceptNote: "Concept by Axivo, from public information. This is not the website of the firm.", sent: "Thank you. Your message was sent.", notSent: "Your message could not be sent. Please call or email us instead.", backHome: "Back to the front page" },
+  sv: { skip: "Till innehållet", menu: "Meny", mainNav: "Huvudmeny", footerNav: "Sidfot", trap: "Lämna tomt", testNote: "Testsida. Företaget och allt om det är påhittat.", conceptNote: "Koncept av Axivo, utifrån offentlig information. Det här är inte företagets webbplats.", sent: "Tack! Ditt meddelande har skickats.", notSent: "Meddelandet kunde inte skickas. Ring eller mejla oss i stället.", backHome: "Till startsidan" },
+  fi: { skip: "Siirry sisältöön", menu: "Valikko", mainNav: "Päävalikko", footerNav: "Alatunniste", trap: "Jätä tyhjäksi", testNote: "Testisivusto. Yritys ja kaikki sen tiedot on keksitty.", conceptNote: "Axivon konseptiluonnos julkisten tietojen pohjalta. Tämä ei ole yrityksen verkkosivusto.", sent: "Kiitos! Viestisi on lähetetty.", notSent: "Viestiä ei voitu lähettää. Soita tai lähetä sähköpostia.", backHome: "Etusivulle" },
 };
 
 export interface PageContext {
@@ -129,7 +129,7 @@ export function Frame({ context, children }: { context: PageContext; children: R
   return (
     <>
       <a className="skip" href="#main">{chrome.skip}</a>
-      <p className="test-note">{content.concept ? chrome.conceptNote : chrome.testNote}</p>
+      {content.client ? null : <p className="test-note">{content.concept ? chrome.conceptNote : chrome.testNote}</p>}
       <header className="site-header">
         <a className="mark" href={root}>{business.name}</a>
         <nav className="menu-wide" aria-label={chrome.mainNav}>
@@ -401,6 +401,24 @@ export function PrivacyPage({ context }: { context: PageContext }) {
         {privacy.paragraphs.map((paragraph) => (
           <p key={paragraph.text}>{paragraph.text}</p>
         ))}
+      </section>
+    </Frame>
+  );
+}
+
+/** Where the form sends a visitor afterwards, so a site with no scripts can still say what happened. */
+export function FormResultPage({ context, sent }: { context: PageContext; sent: boolean }) {
+  const { content, root } = context;
+  const chrome = CHROME[content.language];
+  const { phone, email } = content.business;
+  return (
+    <Frame context={context}>
+      <section className="plain-page plain-page--missing">
+        <h1>{sent ? chrome.sent : chrome.notSent}</h1>
+        {sent ? <p>{content.form.whatHappensNext.text}</p> : null}
+        {!sent && phone ? <p><a href={tel(phone)}>{phone}</a></p> : null}
+        {!sent && email ? <p><a href={`mailto:${email}`}>{email}</a></p> : null}
+        <a className="button" href={root}>{chrome.backHome}</a>
       </section>
     </Frame>
   );

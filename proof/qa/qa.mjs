@@ -144,7 +144,7 @@ export async function runQa(root, { widths = WIDTHS, confirmedFacts = [], shotsT
   };
   const facts = confirmedFacts.join(" ").toLowerCase();
   const measures = { pages: 0, largestWithoutImages: 0, scripts: 0 };
-  const pages = new Set(["/", "/404.html"]);
+  const pages = new Set(["/", "/404.html", "/sent/", "/not-sent/"]);
   const done = new Set();
   if (shotsTo) mkdirSync(shotsTo, { recursive: true });
 
