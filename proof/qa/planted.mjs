@@ -43,7 +43,7 @@ const DEFECTS = [
   ["a script from outside the site", "script", home((html) => once(html, "</head>", '<script src="https://tracker.example/t.js"></script></head>'))],
   ["two main headings", "headings", home((html) => once(html, '<main id="main">', '<main id="main"><h1>Another</h1>'))],
   ["a form with no spam trap", "form", home((html) => html.replace(/<div class="trap"[\s\S]*?<\/div>/, ""))],
-  ["words left faint by an animation", "motion-hides-words", home((html) => once(html, "</head>", "<style>@keyframes faint{to{opacity:.1}}.ledger-row{animation:faint .1s forwards}</style></head>"))],
+  ["words left faint by an animation", "motion-hides-words", home((html) => once(html, "</head>", "<style>@keyframes faint{to{opacity:.1}}@media (prefers-reduced-motion:no-preference){main .ledger-row.ledger-row{animation:faint .1s forwards;animation-timeline:auto}}</style></head>"))],
   ["an animation that ignores reduced motion", "motion-not-off", home((html) => once(html, "</head>", "<style>@keyframes sway{to{translate:4px 0}}.hero-why{animation:sway 2s infinite}</style></head>"))],
   ["a phone number pushed below the first screen", "call-below-first-screen", home((html) => once(html, '<section class="hero hero--poster"', '<div style="height:1200px"></div><section class="hero hero--poster"')), "norrsken"],
 ];
