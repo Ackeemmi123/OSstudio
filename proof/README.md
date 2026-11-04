@@ -18,6 +18,9 @@ To look at a site: `python3 -m http.server 3210 --directory proof/out`
 
 - `design-systems/services`: the design system. One content file in, one static
   site out, with no scripts. It imports nothing from Studio OS.
+- `design-systems/services/statement.tsx`: the home page of the bold, type-led
+  direction, with its own order and composition. A site can add one motif from
+  its trade, such as `pipe`, which draws the pipe and rising water.
 - `proof/sites`: three invented firms, written by hand for Gate 1, and awkward
   stress cases. `briefs.ts` holds the briefs AI drafting will later start from.
 - `proof/qa`: the QA runner and the planted defects.
@@ -30,4 +33,6 @@ To look at a site: `python3 -m http.server 3210 --directory proof/out`
   site needs the client's own, in the site's folder, with an image step to size them.
 - Lighthouse and hosted checks wait for private hosting (step 6).
 - The Finnish and Swedish copy has not been read by a native speaker.
+- Motion is checked in Chrome only: that it hides no words and stops when a
+  visitor asks their device for reduced motion. Whether it feels right is a person's call.
 - QA uses the machine's own Chrome, and does not yet run in CI.

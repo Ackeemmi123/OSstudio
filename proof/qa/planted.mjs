@@ -13,7 +13,8 @@ import { fileURLToPath } from "node:url";
 import { chromium } from "@playwright/test";
 import { runQa } from "./qa.mjs";
 
-const clean = path.join(path.dirname(fileURLToPath(import.meta.url)), "../out/lindqvist");
+const built = (name) => path.join(path.dirname(fileURLToPath(import.meta.url)), "../out", name);
+const clean = built("lindqvist");
 if (!existsSync(clean)) {
   console.error("Run npm run proof:build first.");
   process.exit(1);
@@ -42,6 +43,9 @@ const DEFECTS = [
   ["a script from outside the site", "script", home((html) => once(html, "</head>", '<script src="https://tracker.example/t.js"></script></head>'))],
   ["two main headings", "headings", home((html) => once(html, '<main id="main">', '<main id="main"><h1>Another</h1>'))],
   ["a form with no spam trap", "form", home((html) => html.replace(/<div class="trap"[\s\S]*?<\/div>/, ""))],
+  ["words left faint by an animation", "motion-hides-words", home((html) => once(html, "</head>", "<style>@keyframes faint{to{opacity:.1}}.ledger-row{animation:faint .1s forwards}</style></head>"))],
+  ["an animation that ignores reduced motion", "motion-not-off", home((html) => once(html, "</head>", "<style>@keyframes sway{to{translate:4px 0}}.hero-why{animation:sway 2s infinite}</style></head>"))],
+  ["a phone number pushed below the first screen", "call-below-first-screen", home((html) => once(html, '<section class="hero hero--poster"', '<div style="height:1200px"></div><section class="hero hero--poster"')), "norrsken"],
 ];
 
 const browser = await chromium.launch({ channel: "chrome" });
@@ -51,9 +55,9 @@ console.log(base.failures.length ? `Clean site: ${base.failures.length} false al
 for (const failure of base.failures) console.log(`      ${failure.check}  ${failure.where}  ${failure.detail}`);
 
 let missed = 0;
-for (const [name, check, plant] of DEFECTS) {
+for (const [name, check, plant, site = "lindqvist"] of DEFECTS) {
   const dir = mkdtempSync(path.join(os.tmpdir(), "proof-planted-"));
-  cpSync(clean, dir, { recursive: true });
+  cpSync(built(site), dir, { recursive: true });
   plant(dir);
   const { failures } = await runQa(dir, { widths, browser });
   rmSync(dir, { recursive: true, force: true });

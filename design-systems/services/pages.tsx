@@ -4,8 +4,8 @@
  * firm with no photo or one service still gets a page designed for that. The
  * only words of its own are in CHROME.
  */
-import type { ReactNode } from "react";
-import type { Asset, SiteContent } from "./content";
+import type { CSSProperties, ReactNode } from "react";
+import type { Asset, SiteContent, SiteDesign } from "./content";
 
 type Language = SiteContent["language"];
 
@@ -18,6 +18,7 @@ export const CHROME: Record<Language, { skip: string; menu: string; mainNav: str
 
 export interface PageContext {
   content: SiteContent;
+  design: SiteDesign;
   /** The way back to the site's root from this page: "./" or "../". */
   root: string;
   page: "home" | "about" | "contact" | "privacy" | "notFound";
@@ -63,7 +64,7 @@ function Picture({ asset, ratio, sizes, widths, first, className }: { asset: Ass
   );
 }
 
-function Headline({ text, turn, as: Tag = "h1" }: { text: string; turn?: string; as?: "h1" | "h2" }) {
+export function Headline({ text, turn, as: Tag = "h1" }: { text: string; turn?: string; as?: "h1" | "h2" }) {
   if (!turn || !text.endsWith(turn)) return <Tag>{text}</Tag>;
   return (
     <Tag>
@@ -78,7 +79,7 @@ function tel(phone: string) {
 }
 
 /** The one thing the firm wants a visitor to do, wherever it appears. */
-function Action({ context, className = "button" }: { context: PageContext; className?: string }) {
+export function Action({ context, className = "button" }: { context: PageContext; className?: string }) {
   const { content, root, page } = context;
   const { action } = content.promise;
   if (action.by === "phone" && content.business.phone) return <a className={`${className} button--phone`} href={tel(content.business.phone)}>{action.label}</a>;
@@ -108,8 +109,8 @@ function Menu({ context, footer }: { context: PageContext; footer?: boolean }) {
   );
 }
 
-function Frame({ context, children }: { context: PageContext; children: ReactNode }) {
-  const { content, root } = context;
+export function Frame({ context, children }: { context: PageContext; children: ReactNode }) {
+  const { content, design, root } = context;
   const chrome = CHROME[content.language];
   const { business } = content;
   return (
@@ -132,7 +133,7 @@ function Frame({ context, children }: { context: PageContext; children: ReactNod
       </header>
       <main id="main">{children}</main>
       <footer className="site-footer">
-        <p className="footer-mark">{business.name}</p>
+        <p className="footer-mark" style={design.direction === "statement" ? ({ "--n": business.name.length } as CSSProperties) : undefined}>{business.name}</p>
         <div className="footer-details">
           {business.address ? <p>{business.address}</p> : null}
           {business.phone ? <p><a href={tel(business.phone)}>{business.phone}</a></p> : null}
@@ -213,7 +214,7 @@ function Hero({ context }: { context: PageContext }) {
   );
 }
 
-function Reasons({ content }: { content: SiteContent }) {
+export function Reasons({ content }: { content: SiteContent }) {
   return (
     <section className="reasons" aria-label={content.promise.whoFor.text}>
       <ul className="reason-list" data-count={content.reasons.items.length}>
@@ -228,7 +229,7 @@ function Reasons({ content }: { content: SiteContent }) {
   );
 }
 
-function Services({ content }: { content: SiteContent }) {
+export function Services({ content }: { content: SiteContent }) {
   const { services } = content;
   const one = services.items.length === 1;
   return (
@@ -247,7 +248,7 @@ function Services({ content }: { content: SiteContent }) {
   );
 }
 
-function FirstSteps({ content }: { content: SiteContent }) {
+export function FirstSteps({ content }: { content: SiteContent }) {
   const { firstSteps } = content;
   return (
     <section className="steps-section" aria-labelledby="first-steps">
@@ -265,7 +266,7 @@ function FirstSteps({ content }: { content: SiteContent }) {
 }
 
 /** Only what is real. With nothing to show, this section does not exist. */
-function Proof({ content }: { content: SiteContent }) {
+export function Proof({ content }: { content: SiteContent }) {
   const { proof } = content;
   const image = find(content, proof.imageId);
   if (!proof.quotes.length && !proof.credentials.length) return null;
@@ -296,7 +297,7 @@ function Proof({ content }: { content: SiteContent }) {
   );
 }
 
-function Questions({ content }: { content: SiteContent }) {
+export function Questions({ content }: { content: SiteContent }) {
   const { questions } = content;
   return (
     <section className="questions" aria-labelledby="questions">
@@ -313,7 +314,7 @@ function Questions({ content }: { content: SiteContent }) {
   );
 }
 
-function Closing({ content }: { content: SiteContent }) {
+export function Closing({ content }: { content: SiteContent }) {
   const { closing } = content;
   return (
     <section className="closing" aria-labelledby="form">

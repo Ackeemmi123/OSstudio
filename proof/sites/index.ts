@@ -228,7 +228,7 @@ const kivela: Site = {
 };
 
 const norrsken: Site = {
-  design: { system: "services@0.1", direction: "statement", palette: "signal" },
+  design: { system: "services@0.1", direction: "statement", palette: "signal", motif: "pipe" },
   content: {
     invented: true,
     language: "sv",

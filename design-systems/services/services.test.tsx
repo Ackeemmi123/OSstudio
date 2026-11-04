@@ -6,6 +6,7 @@ import { STRESS_SITES } from "../../proof/sites/stress";
 import { siteContent, visibleStrings, type Site } from "./content";
 import { build } from "./index";
 import { CHROME, displayTier } from "./pages";
+import { posterLines, stepWords } from "./statement";
 
 const all: [string, Site][] = [...Object.entries(SITES).map(([name, { site }]) => [name, site] as [string, Site]), ...Object.entries(STRESS_SITES)];
 const lindqvist = SITES.lindqvist.site;
@@ -86,6 +87,27 @@ describe("what the design system adds", () => {
     for (const page of pages(lindqvist)) expect(page).not.toContain("call-bar");
   });
 
+  it("sets a headline as poster lines only when it reads well that way", () => {
+    expect(posterLines("Läcker det? Vi är hos dig inom två timmar.", "inom två timmar.")).toEqual(["Läcker det?", "Vi är hos dig", "inom två timmar."]);
+    expect(posterLines("Lämpöpumppuasennuspalvelut taloyhtiöille")).toBeNull();
+    expect(posterLines("A short one. A headline with a line that runs on for far too long. Done.")).toBeNull();
+  });
+
+  it("gives each step its own word only when the heading has one for each", () => {
+    expect(stepWords("Ring. Vi kommer. Klart.", 3)).toEqual(["Ring.", "Vi kommer.", "Klart."]);
+    expect(stepWords("Ring. Vi kommer. Klart.", 2)).toBeNull();
+    expect(stepWords("Kolme askelta ennen kuin mitään on päätetty.", 3)).toBeNull();
+  });
+
+  it("draws a motif only for the site that chose it", () => {
+    const home = (site: Site) => htmlOf(site).find((file) => file.path === "index.html")!.text;
+    expect(home(SITES.norrsken.site)).toContain('class="pipe ');
+    expect(home(SITES.norrsken.site)).toContain("m-pipe");
+    const noMotif = { ...SITES.norrsken.site, design: { system: SITES.norrsken.site.design.system, direction: SITES.norrsken.site.design.direction, palette: SITES.norrsken.site.design.palette } };
+    expect(home(noMotif)).not.toContain('class="pipe ');
+    expect(home(noMotif)).not.toContain("m-pipe");
+  });
+
   it("gives a long headline or a long word a smaller display size", () => {
     expect(displayTier("Short and clear.")).toBe(1);
     expect(displayTier("A headline that runs on for rather longer than most")).toBe(1);
@@ -119,7 +141,8 @@ describe("the built site", () => {
       }
     }
     const css = build(lindqvist).find((file) => file.path === "site.css")!.text;
-    expect(css).not.toMatch(/https?:/);
+    // An inline drawing has to name its format with this address. Nothing is fetched from it.
+    expect(css.replaceAll("http://www.w3.org/2000/svg", "")).not.toMatch(/https?:/);
     const fonts = readdirSync(path.join(__dirname, "fonts"));
     for (const font of css.match(/fonts\/[^)]+/g) ?? []) expect(fonts).toContain(font.replace("fonts/", ""));
     expect(readFileSync(path.join(__dirname, "fonts/LICENSE-newsreader.txt"), "utf8")).toMatch(/Open Font License/);

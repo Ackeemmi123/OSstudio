@@ -106,6 +106,8 @@ export const siteDesign = z.strictObject({
   system: z.literal("services@0.1"),
   direction: z.enum(["editorial", "formal", "statement"]),
   palette: z.enum(["pine", "oxblood", "signal"]),
+  /** One recurring idea from the firm's own trade. Optional, and it adds nothing to what the page says. */
+  motif: z.enum(["pipe"]).optional(),
 });
 
 export type SiteDesign = z.infer<typeof siteDesign>;

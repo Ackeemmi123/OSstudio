@@ -7,9 +7,10 @@ import type { ReactElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { siteContent, siteDesign, type Site, type SiteContent } from "./content";
 import { AboutPage, ContactPage, HomePage, NotFoundPage, PrivacyPage, type PageContext } from "./pages";
+import { StatementHome } from "./statement";
 import { STYLES } from "./styles";
 
-export const FONT_FILES = ["newsreader-latin-standard-normal.woff2", "newsreader-latin-standard-italic.woff2", "schibsted-grotesk-latin-wght-normal.woff2", "LICENSE-newsreader.txt", "LICENSE-schibsted-grotesk.txt"];
+export const FONT_FILES = ["newsreader-latin-standard-normal.woff2", "newsreader-latin-standard-italic.woff2", "schibsted-grotesk-latin-wght-normal.woff2", "big-shoulders-display-latin-wght-normal.woff2", "archivo-latin-wdth-normal.woff2", "LICENSE-newsreader.txt", "LICENSE-schibsted-grotesk.txt", "LICENSE-big-shoulders-display.txt", "LICENSE-archivo.txt"];
 
 export interface BuiltFile {
   path: string;
@@ -34,7 +35,7 @@ function document(site: Site, root: string, seo: SiteContent["home"]["seo"], bod
     `<link rel="stylesheet" href="${root}site.css">`,
     `<meta name="generator" content="${design.system}">`,
     "</head>",
-    `<body class="d-${design.direction} p-${design.palette}${content.promise.action.by === "phone" && content.business.phone ? " has-call-bar" : ""}">${renderToStaticMarkup(body)}</body>`,
+    `<body class="d-${design.direction} p-${design.palette}${design.motif ? ` m-${design.motif}` : ""}${content.promise.action.by === "phone" && content.business.phone ? " has-call-bar" : ""}">${renderToStaticMarkup(body)}</body>`,
     "</html>",
   ].join("\n");
 }
@@ -56,10 +57,10 @@ export function build(site: Site): BuiltFile[] {
   siteDesign.parse(site.design);
   checkReferences(content);
   const parsed = { ...site, content };
-  const context = (page: PageContext["page"], root: string): PageContext => ({ content, root, page });
+  const context = (page: PageContext["page"], root: string): PageContext => ({ content, design: site.design, root, page });
   return [
     { path: "site.css", text: STYLES },
-    { path: "index.html", text: document(parsed, "./", content.home.seo, <HomePage context={context("home", "./")} />) },
+    { path: "index.html", text: document(parsed, "./", content.home.seo, site.design.direction === "statement" ? <StatementHome context={context("home", "./")} /> : <HomePage context={context("home", "./")} />) },
     { path: `${content.about.slug}/index.html`, text: document(parsed, "../", content.about.seo, <AboutPage context={context("about", "../")} />) },
     { path: `${content.contact.slug}/index.html`, text: document(parsed, "../", content.contact.seo, <ContactPage context={context("contact", "../")} />) },
     { path: `${content.privacy.slug}/index.html`, text: document(parsed, "../", content.privacy.seo, <PrivacyPage context={context("privacy", "../")} />) },

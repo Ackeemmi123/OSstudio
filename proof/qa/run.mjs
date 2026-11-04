@@ -20,7 +20,7 @@ if (!existsSync(out)) {
   process.exit(1);
 }
 const reports = path.join(out, "reports");
-const names = process.argv.slice(2).length ? process.argv.slice(2) : readdirSync(out).filter((name) => existsSync(path.join(out, name, "index.html")));
+const names = process.argv.slice(2).length ? process.argv.slice(2) : readdirSync(out).filter((name) => existsSync(path.join(out, name, "404.html")));
 const escape = (value) => String(value).replace(/&/g, "&amp;").replace(/</g, "&lt;");
 
 const browser = await chromium.launch({ channel: "chrome" });

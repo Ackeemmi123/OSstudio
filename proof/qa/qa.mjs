@@ -11,6 +11,9 @@ import { chromium } from "@playwright/test";
 
 export const WIDTHS = [390, 768, 1024, 1280, 1440, 1920];
 
+/** Where motion is checked: a phone and a laptop. */
+const MOTION_WIDTHS = [390, 1280];
+
 /** Stock photos, for this proof only. Anything else from outside the site is a failure. */
 const ALLOWED_HOSTS = new Set(["images.unsplash.com"]);
 
@@ -67,6 +70,7 @@ function readPage() {
     text: document.body.innerText,
     lang: document.documentElement.lang,
     title: document.title,
+    callBelowFirstScreen: document.body.classList.contains("has-call-bar") && (document.querySelector('.hero a[href^="tel:"]')?.getBoundingClientRect().bottom ?? 0) > innerHeight,
     description: document.querySelector('meta[name="description"]')?.getAttribute("content") ?? "",
     h1s: document.querySelectorAll("h1").length,
     links: [...document.querySelectorAll("a[href]")].map((a) => a.getAttribute("href")),
@@ -79,6 +83,47 @@ function readPage() {
       required: [...form.querySelectorAll("[required]")].map((field) => field.getAttribute("name")),
     })),
   };
+}
+
+/** Scrolls the whole page with motion on, and returns any words that are still faint or cut off once they reach the middle of the screen. */
+async function findHiddenByMotion() {
+  document.documentElement.style.scrollBehavior = "auto";
+  const moving = [...new Set(document.getAnimations().map((animation) => animation.effect?.target).filter((el) => el && !el.closest("[aria-hidden]")))];
+  const hidden = new Set();
+  const lastY = document.documentElement.scrollHeight - innerHeight;
+  const settle = () => new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done)));
+  for (let y = 0; y <= lastY + 120; y += 120) {
+    scrollTo(0, y);
+    await settle();
+    for (const el of moving) {
+      const box = el.getBoundingClientRect();
+      const middle = (box.top + box.bottom) / 2;
+      if (middle < innerHeight * 0.35 || middle > innerHeight * 0.6) continue;
+      const style = getComputedStyle(el);
+      const cut = /^inset\(\S+ ([\d.]+)%/.exec(style.clipPath);
+      if (Number(style.opacity) < 0.9 || (cut && Number(cut[1]) > 5)) hidden.add((el.textContent ?? "").trim().slice(0, 40) || el.tagName);
+    }
+  }
+  return [...hidden].slice(0, 5);
+}
+
+/** Motion must never keep words from a visitor, and must stop for anyone who asks their device for less. */
+async function checkMotion(browser, origin, fail) {
+  for (const width of MOTION_WIDTHS) {
+    const moving = await browser.newContext({ viewport: { width, height: 900 } });
+    const page = await moving.newPage();
+    await page.goto(`${origin}/`, { waitUntil: "load" });
+    await page.waitForTimeout(1000);
+    const hidden = await page.evaluate(findHiddenByMotion);
+    if (hidden.length) fail("motion-hides-words", `/ at ${width}px`, hidden.join(" | "));
+    await moving.close();
+    const still = await browser.newContext({ viewport: { width, height: 900 }, reducedMotion: "reduce" });
+    const quiet = await still.newPage();
+    await quiet.goto(`${origin}/`, { waitUntil: "load" });
+    const running = await quiet.evaluate(() => document.getAnimations().length);
+    if (running) fail("motion-not-off", `/ at ${width}px`, `${running} animations with reduced motion on`);
+    await still.close();
+  }
 }
 
 /**
@@ -108,7 +153,8 @@ export async function runQa(root, { widths = WIDTHS, confirmedFacts = [], shotsT
       done.add(url);
       measures.pages += 1;
       for (const width of widths) {
-        const context = await browser.newContext({ viewport: { width, height: 900 } });
+        // The finished page, with motion off, so nothing is judged halfway through an animation.
+        const context = await browser.newContext({ viewport: { width, height: 900 }, reducedMotion: "reduce" });
         const page = await context.newPage();
         let bytes = 0;
         page.on("response", async (response) => {
@@ -133,6 +179,8 @@ export async function runQa(root, { widths = WIDTHS, confirmedFacts = [], shotsT
         if (read.overflow > 0) fail("sideways-scroll", where, `${read.overflow}px too wide: ${read.offscreen.join(", ")}`);
         else if (read.offscreen.length) fail("off-screen", where, read.offscreen.join(", "));
         if (read.clipped.length) fail("clipped-text", where, read.clipped.join(" | "));
+
+        if (url === "/" && read.callBelowFirstScreen) fail("call-below-first-screen", where, "the phone number is not on the first screen");
 
         const { violations } = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"]).analyze();
         for (const violation of violations) fail(`accessibility:${violation.id}`, where, violation.nodes.slice(0, 2).map((node) => node.target.join(" ")).join(", "));
@@ -191,6 +239,7 @@ export async function runQa(root, { widths = WIDTHS, confirmedFacts = [], shotsT
         await context.close();
       }
     }
+    await checkMotion(browser, origin, fail);
   } finally {
     server.close();
     if (!given) await browser.close();
