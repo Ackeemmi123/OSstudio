@@ -26,6 +26,8 @@ To look at a site: `python3 -m http.server 3210 --directory proof/out`
 - `proof/sites`: three invented firms, written by hand for Gate 1, and awkward
   stress cases. `briefs.ts` holds the briefs AI drafting will later start from.
 - `proof/qa`: the QA runner and the planted defects.
+- `proof/outreach`: the reusable outreach template, one A4 sheet and one email per
+  firm. Firm details and concepts stay in git-ignored `proof/concepts`.
 - `proof/baseline.md`: what the proof is measured against. Still to be answered.
 
 ## Known limits of this stage
