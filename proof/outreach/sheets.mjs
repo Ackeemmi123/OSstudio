@@ -125,7 +125,7 @@ h1{font:${firm.w} ${firm.size}/1.02 H,serif;font-stretch:${face};${up}${firm.up 
 .cap{position:absolute;left:15mm;bottom:3.5mm;width:125mm;margin:0;font-size:8.3pt}
 .row{display:grid;grid-template-columns:1fr ${alt ? "62mm" : "41mm"};gap:9mm;padding:6mm 15mm 0}
 .row p{margin:0 0 1.8mm}.hello{font:${firm.w} 14pt/1.1 H,serif;font-stretch:${face};${up}}
-.sender{display:flex;align-items:center;gap:3.5mm;margin-top:3mm}.face{width:13mm;height:13mm;border-radius:50%;object-fit:cover;flex:none}
+.sender{display:flex;align-items:center;gap:3.5mm;margin-top:3mm}.face{width:17mm;height:17mm;border-radius:50%;object-fit:cover;flex:none}
 .initials{display:flex;align-items:center;justify-content:center;background:${firm.deep};color:#fff;font-weight:700;font-size:10pt;letter-spacing:.03em}
 .sender small{display:block;font-size:9pt;line-height:1.3}.who{font:${firm.w} 13pt/1.15 H,serif;font-stretch:${face};${firm.up ? "font-size:11.5pt;" : ""}}
 .scan{font:${firm.w} ${firm.up ? "12pt" : "11.5pt"}/1.12 H,serif;font-stretch:${face};${up}margin:0 0 2mm}.qr{width:100%;display:block}
