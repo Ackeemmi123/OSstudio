@@ -113,7 +113,8 @@ async function checkMotion(browser, origin, fail) {
     const moving = await browser.newContext({ viewport: { width, height: 900 } });
     const page = await moving.newPage();
     await page.goto(`${origin}/`, { waitUntil: "load" });
-    await page.waitForTimeout(1000);
+    // Let what plays once on arrival finish: this is about words left hidden, not ones still arriving.
+    await page.evaluate(() => Promise.race([Promise.allSettled(document.getAnimations().filter((animation) => animation.timeline === document.timeline && Number.isFinite(animation.effect?.getComputedTiming().endTime)).map((animation) => animation.finished)), new Promise((done) => setTimeout(done, 5000))]));
     const hidden = await page.evaluate(findHiddenByMotion);
     if (hidden.length) fail("motion-hides-words", `/ at ${width}px`, hidden.join(" | "));
     await moving.close();

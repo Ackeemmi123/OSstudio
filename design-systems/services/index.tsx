@@ -3,14 +3,18 @@
  * out. It has no database, no network and no connection to Studio OS, and the
  * pages it writes run no scripts.
  */
-import type { ReactElement } from "react";
+import { createElement, type ReactElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { siteContent, siteDesign, type Site, type SiteContent } from "./content";
-import { AboutPage, ContactPage, HomePage, NotFoundPage, PrivacyPage, type PageContext } from "./pages";
+import { EditorialHome } from "./editorial";
+import { FormalHome } from "./formal";
+import { AboutPage, ContactPage, NotFoundPage, PrivacyPage, type PageContext } from "./pages";
 import { StatementHome } from "./statement";
 import { STYLES } from "./styles";
 
-export const FONT_FILES = ["newsreader-latin-standard-normal.woff2", "newsreader-latin-standard-italic.woff2", "schibsted-grotesk-latin-wght-normal.woff2", "big-shoulders-display-latin-wght-normal.woff2", "archivo-latin-wdth-normal.woff2", "LICENSE-newsreader.txt", "LICENSE-schibsted-grotesk.txt", "LICENSE-big-shoulders-display.txt", "LICENSE-archivo.txt"];
+export const FONT_FILES = ["fraunces-display-normal.woff2", "fraunces-display-italic.woff2", "instrument-sans-latin-wght-normal.woff2", "bodoni-moda-latin-wght-normal.woff2", "bodoni-moda-latin-wght-italic.woff2", "hanken-grotesk-latin-wght-normal.woff2", "big-shoulders-display-latin-wght-normal.woff2", "archivo-latin-wdth-normal.woff2", "LICENSE-fraunces.txt", "LICENSE-instrument-sans.txt", "LICENSE-bodoni-moda.txt", "LICENSE-hanken-grotesk.txt", "LICENSE-big-shoulders-display.txt", "LICENSE-archivo.txt"];
+
+const HOMES = { editorial: EditorialHome, formal: FormalHome, statement: StatementHome };
 
 export interface BuiltFile {
   path: string;
@@ -60,7 +64,7 @@ export function build(site: Site): BuiltFile[] {
   const context = (page: PageContext["page"], root: string): PageContext => ({ content, design: site.design, root, page });
   return [
     { path: "site.css", text: STYLES },
-    { path: "index.html", text: document(parsed, "./", content.home.seo, site.design.direction === "statement" ? <StatementHome context={context("home", "./")} /> : <HomePage context={context("home", "./")} />) },
+    { path: "index.html", text: document(parsed, "./", content.home.seo, createElement(HOMES[site.design.direction], { context: context("home", "./") })) },
     { path: `${content.about.slug}/index.html`, text: document(parsed, "../", content.about.seo, <AboutPage context={context("about", "../")} />) },
     { path: `${content.contact.slug}/index.html`, text: document(parsed, "../", content.contact.seo, <ContactPage context={context("contact", "../")} />) },
     { path: `${content.privacy.slug}/index.html`, text: document(parsed, "../", content.privacy.seo, <PrivacyPage context={context("privacy", "../")} />) },

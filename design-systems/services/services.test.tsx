@@ -5,6 +5,7 @@ import { SITES } from "../../proof/sites";
 import { STRESS_SITES } from "../../proof/sites/stress";
 import { siteContent, visibleStrings, type Site } from "./content";
 import { build } from "./index";
+import { foundingYear } from "./formal";
 import { CHROME, displayTier } from "./pages";
 import { posterLines, stepWords } from "./statement";
 
@@ -87,6 +88,20 @@ describe("what the design system adds", () => {
     for (const page of pages(lindqvist)) expect(page).not.toContain("call-bar");
   });
 
+  it("uses a founding year only when the firm's own words give one", () => {
+    expect(foundingYear("Asianajotoimisto Kivelä on palvellut perheyrityksiä vuodesta 1998.")).toBe("1998");
+    expect(foundingYear("A small firm in Helsinki.")).toBeNull();
+    const home = (site: Site) => htmlOf(site).find((file) => file.path === "index.html")!.text;
+    expect(home(SITES.kivela.site)).toContain("memory-year");
+    expect(home(STRESS_SITES["no-proof-formal"])).not.toContain('class="proof');
+  });
+
+  it("does not need a founder's photo for the editorial letter", () => {
+    const home = htmlOf(STRESS_SITES["no-photo-editorial"]).find((file) => file.path === "index.html")!.text;
+    expect(home).toContain("letter--words");
+    expect(htmlOf(lindqvist)[0].text).toContain('class="cameo"');
+  });
+
   it("sets a headline as poster lines only when it reads well that way", () => {
     expect(posterLines("Läcker det? Vi är hos dig inom två timmar.", "inom två timmar.")).toEqual(["Läcker det?", "Vi är hos dig", "inom två timmar."]);
     expect(posterLines("Lämpöpumppuasennuspalvelut taloyhtiöille")).toBeNull();
@@ -145,7 +160,7 @@ describe("the built site", () => {
     expect(css.replaceAll("http://www.w3.org/2000/svg", "")).not.toMatch(/https?:/);
     const fonts = readdirSync(path.join(__dirname, "fonts"));
     for (const font of css.match(/fonts\/[^)]+/g) ?? []) expect(fonts).toContain(font.replace("fonts/", ""));
-    expect(readFileSync(path.join(__dirname, "fonts/LICENSE-newsreader.txt"), "utf8")).toMatch(/Open Font License/);
+    expect(readFileSync(path.join(__dirname, "fonts/LICENSE-fraunces.txt"), "utf8")).toMatch(/Open Font License/);
   });
 
   it("three firms get three different looks and compositions", () => {

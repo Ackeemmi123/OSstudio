@@ -31,7 +31,7 @@ export function displayTier(heading: string): 1 | 2 | 3 {
   return heading.length > 52 || longest > 12 ? 2 : 1;
 }
 
-function find(content: SiteContent, id: string | undefined): Asset | null {
+export function find(content: SiteContent, id: string | undefined): Asset | null {
   return id ? (content.assets.find((asset) => asset.id === id) ?? null) : null;
 }
 
@@ -43,7 +43,7 @@ function imageUrl(asset: Asset, width: number, ratio?: number): string {
   return `${asset.src}?w=${width}&q=72&auto=format${crop}`;
 }
 
-function Picture({ asset, ratio, sizes, widths, first, className }: { asset: Asset; ratio: number; sizes: string; widths: number[]; first?: boolean; className?: string }) {
+export function Picture({ asset, ratio, sizes, widths, first, className }: { asset: Asset; ratio: number; sizes: string; widths: number[]; first?: boolean; className?: string }) {
   const largest = widths[widths.length - 1];
   return (
     // Static HTML for a published site, with no framework behind it.
@@ -71,6 +71,19 @@ export function Headline({ text, turn, as: Tag = "h1" }: { text: string; turn?: 
       {text.slice(0, text.length - turn.length)}
       <em>{turn}</em>
     </Tag>
+  );
+}
+
+/** Sets the end of a phrase in italics: what follows its last comma, or else its last word. */
+export function Emphasised({ text }: { text: string }) {
+  const comma = text.lastIndexOf(", ");
+  const cut = comma > 0 ? comma + 2 : text.lastIndexOf(" ") + 1;
+  if (cut <= 0) return <>{text}</>;
+  return (
+    <>
+      {text.slice(0, cut)}
+      <em>{text.slice(cut)}</em>
+    </>
   );
 }
 
@@ -191,32 +204,10 @@ function ContactForm({ content, formId }: { content: SiteContent; formId: string
   );
 }
 
-function Hero({ context }: { context: PageContext }) {
-  const { content } = context;
-  const { promise } = content;
-  const image = find(content, promise.imageId);
-  return (
-    <section className={image ? "hero hero--image" : "hero hero--type"} data-tier={displayTier(promise.headline.text)}>
-      <p className="label hero-for">{promise.whoFor.text}</p>
-      <Headline text={promise.headline.text} turn={promise.turn} />
-      <p className="hero-why">{promise.why.text}</p>
-      <div className="hero-actions">
-        <Action context={context} />
-        {promise.secondAction ? <a className="link-action" href="#services">{promise.secondAction}</a> : null}
-      </div>
-      {promise.reassurance ? <p className="hero-reassurance">{promise.reassurance.text}</p> : null}
-      {image ? (
-        <figure className="hero-image">
-          <Picture asset={image} ratio={4 / 5} sizes="(max-width: 820px) 85vw, 42vw" widths={[480, 800, 1200]} first />
-        </figure>
-      ) : null}
-    </section>
-  );
-}
-
-export function Reasons({ content }: { content: SiteContent }) {
+export function Reasons({ content, heading }: { content: SiteContent; heading?: string }) {
   return (
     <section className="reasons" aria-label={content.promise.whoFor.text}>
+      {heading ? <h2><Emphasised text={heading} /></h2> : null}
       <ul className="reason-list" data-count={content.reasons.items.length}>
         {content.reasons.items.map((reason) => (
           <li key={reason.title.text}>
@@ -275,7 +266,7 @@ export function Proof({ content }: { content: SiteContent }) {
     <section className={onlyCredentials ? "proof proof--credentials" : image ? "proof proof--image" : "proof"} aria-label={proof.credentials[0]?.text ?? proof.quotes[0]?.who}>
       {image && !onlyCredentials ? (
         <figure className="proof-image">
-          <Picture asset={image} ratio={5 / 4} sizes="(max-width: 820px) 100vw, 40vw" widths={[480, 800, 1200]} />
+          <Picture asset={image} ratio={5 / 4} sizes="(max-width: 820px) 100vw, 50vw" widths={[480, 800, 1200]} />
         </figure>
       ) : null}
       <div className="proof-words">
@@ -314,12 +305,12 @@ export function Questions({ content }: { content: SiteContent }) {
   );
 }
 
-export function Closing({ content }: { content: SiteContent }) {
+export function Closing({ content, emphasise }: { content: SiteContent; emphasise?: boolean }) {
   const { closing } = content;
   return (
     <section className="closing" aria-labelledby="form">
       <div className="closing-words">
-        <h2 id="form" tabIndex={-1}>{closing.heading.text}</h2>
+        <h2 id="form" tabIndex={-1}>{emphasise ? <Emphasised text={closing.heading.text} /> : closing.heading.text}</h2>
         <p>{closing.text.text}</p>
         <div className="closing-details">
           {content.business.phone ? <p><a href={tel(content.business.phone)}>{content.business.phone}</a></p> : null}
@@ -328,21 +319,6 @@ export function Closing({ content }: { content: SiteContent }) {
       </div>
       <ContactForm content={content} formId="home" />
     </section>
-  );
-}
-
-export function HomePage({ context }: { context: PageContext }) {
-  const { content } = context;
-  return (
-    <Frame context={context}>
-      <Hero context={context} />
-      <Reasons content={content} />
-      <Services content={content} />
-      <FirstSteps content={content} />
-      <Proof content={content} />
-      <Questions content={content} />
-      <Closing content={content} />
-    </Frame>
   );
 }
 

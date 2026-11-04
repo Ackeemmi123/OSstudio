@@ -12,6 +12,8 @@ is published. Every business, person and quote is invented, and each page says s
     npm run proof:qa           # QA in a real browser, with reports in proof/out/reports
     npm run proof:qa:planted   # checks that QA catches planted defects
 
+    npm run proof:preview      # packs the three sites for a private link, with forms off
+
 To look at a site: `python3 -m http.server 3210 --directory proof/out`
 
 ## What is here
@@ -32,7 +34,7 @@ To look at a site: `python3 -m http.server 3210 --directory proof/out`
 - Photos are Unsplash stock loaded by address, for internal review only. A real
   site needs the client's own, in the site's folder, with an image step to size them.
 - Lighthouse and hosted checks wait for private hosting (step 6).
-- The Finnish and Swedish copy has not been read by a native speaker.
+- The Swedish copy has not been read by a native speaker. The owner has read the Finnish.
 - Motion is checked in Chrome only: that it hides no words and stops when a
   visitor asks their device for reduced motion. Whether it feels right is a person's call.
 - QA uses the machine's own Chrome, and does not yet run in CI.

@@ -175,7 +175,7 @@ const kivela: Site = {
       items: [
         { question: w("Milloin sukupolvenvaihdosta kannattaa alkaa suunnitella?"), answer: w("Yleensä muutamaa vuotta ennen kuin vaihdoksen on tarkoitus tapahtua. Verotuksen huojennukset ja perheen tilanne vaativat aikaa.") },
         { question: w("Mitä keskustelu maksaa?"), answer: w("Ensimmäinen keskustelu on maksuton. Jos jatkamme, saat kirjallisen arvion etukäteen.") },
-        { question: w("Hoidatteko myös riitoja?"), answer: w("Hoidamme yritysten välisiä sopimusriitoja. Muissa asioissa ohjaamme sinut luotettavalle kollegalle.") },
+        { question: w("Entä jos asiasta syntyy riita?"), answer: w("Hoidamme yritysten välisiä sopimusriitoja. Muissa asioissa ohjaamme sinut luotettavalle kollegalle.") },
       ],
     },
     closing: { heading: w("Kerro tilanteestasi."), text: w("Kaikki, mitä kerrot, on luottamuksellista. Vastaamme yhden työpäivän kuluessa.") },
