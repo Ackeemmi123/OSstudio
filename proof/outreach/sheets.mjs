@@ -30,7 +30,7 @@ const WORDS = {
     caption: "Axivon luonnos. Kuva esittää idean, ei valmista sivustoa.",
     scan: "Kurkatkaa luonnos myös puhelimella.",
     hello: "Hei!",
-    message: ["Olemme Axivo, pieni verkkosivutoimisto Helsingistä. Emme halunneet lähettää vain viestiä siitä, mitä voisimme tehdä, vaan päätimme näyttää sen.", "Luonnos on idea, ei valmis sivusto. Sen katsominen ei maksa mitään eikä sido teitä mihinkään.", "Soitan muutaman päivän kuluttua, niin voimme vaihtaa ajatuksia. Voitte myös vastata suoraan sähköpostiini."],
+    message: ["Olemme Axivo, pieni verkkosivutoimisto, joka auttaa yrityksiä erottumaan verkossa. Emme halunneet lähettää vain viestiä siitä, mitä voisimme tehdä, vaan päätimme näyttää sen.", "Luonnos on idea, ei valmis sivusto. Sen katsominen ei maksa mitään eikä sido teitä mihinkään.", "Palaan asiaan muutaman päivän kuluttua ja kuulisin mielelläni, mitä ajatuksia luonnos herätti. Voitte myös vastata suoraan tähän sähköpostiin."],
     regards: "Ystävällisin terveisin,",
     id: "Y-tunnus",
     footer: "Tämä on Axivon markkinointia. Löysimme yrityksenne yhteystiedot julkisista lähteistä. Jos ette halua meiltä lisää yhteydenottoja, kertokaa siitä sähköpostitse tai puhelimitse, niin poistamme tietonne yhteydenottolistaltamme ja luonnoksen verkosta.",
@@ -38,7 +38,7 @@ const WORDS = {
     subject: (firm) => `${firm.name}: tältä verkkosivunne voisivat näyttää`,
     email: (firm, link, greeting) => `${greeting}
 
-Olen Alexander Axivosta, pienestä verkkosivutoimistosta Helsingistä.
+Olen Alexander Axivosta, pienestä verkkosivutoimistosta, joka auttaa yrityksiä erottumaan verkossa.
 
 Halusin lähestyä teitä hieman tavallisesta poikkeavalla tavalla. En halunnut lähettää vain viestiä siitä, mitä voisimme tehdä, vaan päätimme näyttää sen konkreettisesti.
 
@@ -48,7 +48,7 @@ Luonnos on liitteenä, ja sen voi avata myös puhelimella: ${link}
 
 Sen katsominen ei maksa mitään eikä sido teitä mihinkään.
 
-Soitan teille muutaman päivän kuluttua, niin voimme vaihtaa ajatuksia ja kuulla, mitä piditte siitä. Voitte myös vastata suoraan tähän viestiin.
+Palaan asiaan muutaman päivän kuluttua ja kuulisin mielelläni, mitä ajatuksia luonnos herätti. Voitte myös vastata suoraan tähän sähköpostiin.
 
 Ystävällisin terveisin,
 Alexander Hammarén
@@ -69,7 +69,7 @@ Tietosuoja: axivo.fi/privacy-policy`,
     caption: "Utkast av Axivo. Bilden visar en idé, inte en färdig webbplats.",
     scan: "Kika på utkastet också på mobilen.",
     hello: "Hej!",
-    message: ["Vi är Axivo, en liten webbyrå från Helsingfors. Vi ville inte bara skicka ett meddelande om vad vi kunde göra, utan bestämde oss för att visa det.", "Utkastet är en idé, inte en färdig webbplats. Det kostar inget att titta på det och binder er inte till något.", "Jag ringer om några dagar, så kan vi prata om det. Ni kan också svara direkt på min e-post."],
+    message: ["Vi är Axivo, en liten webbyrå som hjälper företag att sticka ut på webben. Vi ville inte bara skicka ett meddelande om vad vi kunde göra, utan bestämde oss för att visa det.", "Utkastet är en idé, inte en färdig webbplats. Det kostar inget att titta på det och binder er inte till något.", "Jag återkommer om några dagar och skulle gärna höra vilka tankar utkastet väckte. Ni kan också svara direkt på det här mejlet."],
     regards: "Med vänliga hälsningar,",
     id: "FO-nummer",
     footer: "Det här är marknadsföring från Axivo. Vi hittade era kontaktuppgifter i offentliga källor. Vill ni inte höra mer från oss, säg till per e-post eller telefon, så tar vi bort era uppgifter från vår kontaktlista och utkastet från webben.",
@@ -77,7 +77,7 @@ Tietosuoja: axivo.fi/privacy-policy`,
     subject: (firm) => `${firm.name}: så här kunde er webbplats se ut`,
     email: (firm, link, greeting, altLink) => `${greeting}
 
-Jag är Alexander från Axivo, en liten webbyrå från Helsingfors.
+Jag är Alexander från Axivo, en liten webbyrå som hjälper företag att sticka ut på webben.
 
 Jag ville kontakta er på ett lite annorlunda sätt. Jag ville inte bara skicka ett meddelande om vad vi kunde göra, så vi bestämde oss för att visa det.
 
@@ -87,7 +87,7 @@ Utkastet finns som bilaga, och ni kan öppna det på mobilen: ${link}${altLink ?
 
 Det kostar inget att titta på det och binder er inte till något.
 
-Jag ringer om några dagar, så kan vi prata om vad ni tycker. Ni kan också svara direkt på det här meddelandet.
+Jag återkommer om några dagar och skulle gärna höra vilka tankar utkastet väckte. Ni kan också svara direkt på det här mejlet.
 
 Med vänliga hälsningar,
 Alexander Hammarén
