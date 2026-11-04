@@ -359,7 +359,7 @@ h1 em{font-style:italic;color:var(--accent)}
  .d-formal .hero .button:hover,.d-formal .site-header .menu-wide .button:hover,.d-formal .closing .button:hover{background:var(--accent-on-deep);color:var(--deep-2);box-shadow:0 0 0 .45rem #f0c8ad33,0 0 0 .9rem #f0c8ad1a}
 }
 .ringbox{position:absolute;inset:0;overflow:hidden;pointer-events:none}
-.ringbox::before,.m-ripple .closing::before{content:"";position:absolute;aspect-ratio:1;border-radius:50%;background:repeating-radial-gradient(circle at center,transparent 0 calc(var(--gap) - 1px),var(--ring) calc(var(--gap) - 1px) var(--gap));-webkit-mask:radial-gradient(circle,#000 0 66%,transparent 71%);mask:radial-gradient(circle,#000 0 66%,transparent 71%)}
+.ringbox::before,.d-formal.m-ripple .closing::before{content:"";position:absolute;aspect-ratio:1;border-radius:50%;background:repeating-radial-gradient(circle at center,transparent 0 calc(var(--gap) - 1px),var(--ring) calc(var(--gap) - 1px) var(--gap));-webkit-mask:radial-gradient(circle,#000 0 66%,transparent 71%);mask:radial-gradient(circle,#000 0 66%,transparent 71%)}
 .ringbox::before{--gap:clamp(1.5rem,3.1vw,3rem);width:clamp(44rem,92vw,96rem);left:80%;top:62%;translate:-50% -50%}
 .d-formal .hero{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));column-gap:24px;position:relative;background:var(--deep);color:var(--on-deep);padding:clamp(1.5rem,4vw,4rem) var(--gut) clamp(3rem,7vw,7rem)}
 .d-formal .hero :focus-visible,.d-formal .site-header :focus-visible,.d-formal .closing :focus-visible,.d-formal .site-footer :focus-visible{outline-color:var(--accent-on-deep)}
@@ -436,7 +436,7 @@ h1 em{font-style:italic;color:var(--accent)}
 .d-formal .question-list summary{font:400 1.38rem/1.25 var(--display)}
 .d-formal .question-list details[open] summary::after{content:"\\00d7"}
 .d-formal .closing{position:relative;overflow:clip;isolation:isolate;margin:0;background:var(--deep-2);padding:clamp(5rem,10vw,10rem) var(--gut);--ring:#f0c8ad26;--gap:clamp(1.5rem,3vw,3rem)}
-.m-ripple .closing::before{z-index:-1;width:clamp(50rem,110vw,120rem);left:28%;top:40%;translate:-50% -50%}
+.d-formal.m-ripple .closing::before{z-index:-1;width:clamp(50rem,110vw,120rem);left:28%;top:40%;translate:-50% -50%}
 .d-formal .closing-words h2{font-size:clamp(3rem,6.6vw,8rem);font-style:italic;color:var(--accent-on-deep)}
 .d-formal .closing-words h2 em{font-style:italic}
 .d-formal .closing .button--send{background:var(--on-deep);color:var(--deep)}
@@ -493,7 +493,7 @@ h1 em{font-style:italic;color:var(--accent)}
  @supports (animation-timeline:view()){
   .m-courses .hero::before{animation:formal-lay linear both;animation-timeline:scroll(root);animation-range:0 90vh}
   .ringbox::before{animation:formal-widen linear both;animation-timeline:scroll(root);animation-range:0 110vh}
-  .m-ripple .closing::before{animation:formal-ripple linear both;animation-timeline:view();animation-range:entry 0% cover 60%}
+  .d-formal.m-ripple .closing::before{animation:formal-ripple linear both;animation-timeline:view();animation-range:entry 0% cover 60%}
   .d-formal .reason-list li,.d-formal .section-head,.d-formal .ledger-row,.memory-head,.memory-story,.d-formal .closing-words h2{animation:formal-lift linear both;animation-timeline:view();animation-range:entry 5% cover 28%}
   .d-formal .steps li{animation:formal-ripple linear both;animation-timeline:view();animation-range:entry 0% cover 35%}
   .memory-image img{animation:formal-drift linear both;animation-timeline:view()}
