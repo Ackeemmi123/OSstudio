@@ -16,6 +16,8 @@ const MOTION_WIDTHS = [390, 1280];
 
 /** Stock photos, for this proof only. Anything else from outside the site is a failure. */
 const ALLOWED_HOSTS = new Set(["images.unsplash.com"]);
+/** Links to a profile on these are allowed; nothing is loaded from them. */
+const SOCIAL_HOSTS = new Set(["www.instagram.com", "www.facebook.com", "www.linkedin.com", "www.tiktok.com"]);
 
 /** The most a page may weigh without its photos, in bytes. Set from the first built sites. */
 const BUDGET_WITHOUT_IMAGES = 500_000;
@@ -221,6 +223,8 @@ export async function runQa(root, { widths = WIDTHS, confirmedFacts = [], shotsT
             }
             const target = new URL(href, origin + url);
             if (target.origin !== origin) {
+              // A client's own social media profile is asked for in the brief; anything else outside the site is not.
+              if (target.protocol === "https:" && SOCIAL_HOSTS.has(target.hostname)) continue;
               fail("outside-link", url, href);
               continue;
             }

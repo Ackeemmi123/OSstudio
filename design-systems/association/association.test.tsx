@@ -1,0 +1,105 @@
+import { describe, expect, it } from "vitest";
+import { build, eventsOf, parseWhen, richText } from "./index";
+import { siteSpecSchema } from "@/lib/site-spec/schema";
+
+/** An invented association, so the tests carry no real person or client. */
+function spec() {
+  const sv = (text: string) => ({ sv: text });
+  const seo = (title: string) => ({ title: sv(title), description: sv(`${title}.`), noindex: false });
+  return {
+    specVersion: 1,
+    locales: { available: ["sv"], default: "sv" },
+    strategy: { goal: { text: "Testa." }, audiences: [], primaryCta: { label: sv("Bli medlem"), targetPageId: "join" }, tone: "" },
+    brand: { colors: { primary: "#84091D", secondary: "#69726D", accent: "#682C14", background: "#F3F3F0", text: "#2A1A10", neutral: ["#5D625F"] }, typography: { heading: { family: "Courier New", weight: 700 }, body: { family: "system-ui", weight: 400 }, scale: "1.25" }, radius: "none", density: "regular" },
+    assets: [{ id: "logo", kind: "logo", alt: sv("Påhittade föreningens logotyp"), origin: "client_supplied", description: "" }],
+    pages: [
+      { id: "home", slug: { sv: "" }, title: sv("Hem"), nav: "main", seo: seo("Påhittade föreningen"), sections: [
+        { id: "hero-1", kind: "hero", variant: "split_image_right", heading: sv("Påhittade föreningen"), subheading: sv("En testförening."), mediaAssetId: "logo", buttons: [{ label: sv("Bli medlem"), targetPageId: "join" }] },
+        { id: "cta-1", kind: "cta", variant: "banner", heading: sv("Gå med"), body: sv("Det kostar 5 €."), button: { label: sv("Bli medlem"), targetPageId: "join" } },
+      ] },
+      { id: "events", slug: { sv: "evenemang" }, title: sv("Evenemang"), nav: "main", seo: seo("Evenemang"), sections: [
+        { id: "text-1", kind: "text", variant: "single_column", heading: sv("Evenemang"), body: sv("Allt vi gör.") },
+        { id: "list-1", kind: "features", variant: "list", heading: sv("Kalender"), items: [
+          { id: "e1", title: sv("Vecka 51, december 2026 · Höstmöte"), body: sv("Datum kommer.") },
+          { id: "e2", title: sv("15.10.2026 · Spelkväll"), body: sv("Spel.") },
+        ] },
+      ] },
+      { id: "docs", slug: { sv: "dokument" }, title: sv("Dokument"), nav: "main", seo: seo("Dokument"), sections: [
+        { id: "text-2", kind: "text", variant: "single_column", heading: sv("Dokument"), body: sv("Läs.") },
+        { id: "list-2", kind: "features", variant: "list", heading: sv("Protokoll"), items: [{ id: "d1", title: sv("Möte 1/26"), body: sv("PDF.") }] },
+      ] },
+      { id: "join", slug: { sv: "bli-medlem" }, title: sv("Bli medlem"), nav: "main", seo: seo("Bli medlem"), sections: [
+        { id: "contact-1", kind: "contact", variant: "form_and_details", heading: sv("Bli medlem"), body: sv("Fyll i.\n\nAvgift: 5 €"), formId: "member" },
+      ] },
+      { id: "contact", slug: { sv: "kontakt" }, title: sv("Kontakt"), nav: "main", seo: seo("Kontakt"), sections: [
+        { id: "contact-2", kind: "contact", variant: "form_and_details", heading: sv("Kontakta oss"), body: sv("Skriv till oss.\n\nE-post: info@example.org\nInstagram: @paahittad"), formId: "msg" },
+      ] },
+    ],
+    forms: [
+      { id: "member", purpose: "contact", fields: ["name", "email", "phone"], consentText: sv("Jag betalar avgiften."), recipient: "client_contact" },
+      { id: "msg", purpose: "contact", fields: ["name", "email", "message"], consentText: sv(""), recipient: "client_contact" },
+    ],
+    integrations: { analytics: { enabled: false }, maps: { enabled: false }, booking: { enabled: false }, newsletter: { enabled: false }, store: { enabled: false } },
+    seo: { siteName: sv("Påhittade föreningen"), defaultDescription: sv("En påhittad förening för tester."), structuredData: "Organization" },
+    accessibility: { target: "WCAG 2.2 AA" },
+  };
+}
+
+const options = { files: { logo: "img/logo.png" }, documents: { d1: "dokument/mote-1.pdf" }, smallLogo: "logo", status: "prototype" as const, today: new Date(Date.UTC(2026, 10, 16)) };
+const page = (files: ReturnType<typeof build>, path: string) => files.find((file) => file.path === path)!.text;
+
+describe("association design system", () => {
+  it("reads a spec exactly as Studio OS stores it", () => {
+    expect(siteSpecSchema.safeParse(spec()).success).toBe(true);
+  });
+
+  it("writes one page per spec page, each with one main heading and no scripts", () => {
+    const files = build(spec(), options);
+    expect(files.map((file) => file.path).sort()).toEqual(["404.html", "bli-medlem/index.html", "dokument/index.html", "evenemang/index.html", "index.html", "kontakt/index.html", "not-sent/index.html", "robots.txt", "sent/index.html", "site.css"]);
+    for (const file of files.filter((entry) => entry.path.endsWith(".html"))) {
+      expect(file.text.match(/<h1[ >]/g)).toHaveLength(1);
+      expect(file.text).not.toMatch(/<script/i);
+    }
+  });
+
+  it("keeps a prototype out of search engines and switches its forms off", () => {
+    const files = build(spec(), options);
+    expect(page(files, "index.html")).toContain('content="noindex,nofollow"');
+    expect(page(files, "kontakt/index.html")).toMatch(/<button class="btn" type="submit" disabled>/);
+    expect(page(files, "kontakt/index.html")).toContain("avstängt i prototypen");
+    const approved = build(spec(), { ...options, status: "approved" });
+    expect(page(approved, "index.html")).not.toContain("noindex");
+    expect(approved.some((file) => file.path === "robots.txt")).toBe(false);
+  });
+
+  it("reads dated list items as events and sorts them by the build date", () => {
+    expect(parseWhen("15.10.2026")).toMatchObject({ day: "15", month: "okt 2026" });
+    expect(parseWhen("Vecka 51, december 2026")).toMatchObject({ day: "v. 51", month: "dec 2026" });
+    expect(parseWhen("Vecka 51, december 2026").latest!.toISOString().slice(0, 10)).toBe("2026-12-20");
+    expect(eventsOf(siteSpecSchema.parse(spec()), "sv")!.events.map((event) => event.title)).toEqual(["Höstmöte", "Spelkväll"]);
+    const files = build(spec(), options);
+    const events = page(files, "evenemang/index.html");
+    expect(events).toMatch(/class="event"><div class="date"[^>]*><b>v. 51/);
+    expect(events).toMatch(/class="event is-past"><div class="date"[^>]*><b>15/);
+    const home = page(files, "index.html");
+    expect(home).toContain("Kommande evenemang");
+    expect(home).toContain("Höstmöte");
+    expect(home).not.toContain("Spelkväll");
+  });
+
+  it("offers attached documents for download and refuses a document for an unknown item", () => {
+    expect(page(build(spec(), options), "dokument/index.html")).toContain('<a class="dl" href="/dokument/mote-1.pdf">');
+    expect(() => build(spec(), { ...options, documents: { nope: "x.pdf" } })).toThrow(/not a list item/);
+  });
+
+  it("makes the main call to action the menu's button and links details", () => {
+    const home = page(build(spec(), options), "index.html");
+    expect(home).toMatch(/<nav class="nav"[^>]*>.*<a class="btn" href="\/bli-medlem\/">Bli medlem<\/a><\/nav>/);
+    expect(richText("E-post: info@example.org\nInstagram: @paahittad")).toContain('<a href="https://www.instagram.com/paahittad/">@paahittad</a>');
+    expect(richText("1. ett\n2. två")).toBe("<ol><li>ett</li><li>två</li></ol>");
+  });
+
+  it("refuses an image without a file", () => {
+    expect(() => build(spec(), { ...options, files: {} })).toThrow(/No file for the image logo/);
+  });
+});
