@@ -71,7 +71,7 @@ export async function POST(request: Request) {
       const { error: storeError } = await asServer.storage.from(BUILD_BUCKET).upload(`${site.storagePrefix}/${file.path}`, file.body, { contentType: file.contentType, upsert: false });
       if (storeError) throw storeError;
     }
-    const { error: insertError } = await asServer.from("site_builds").insert({
+    const { error: insertError } = await asServer.rpc("record_site_build", { p_build: {
       id: site.id,
       studio_id: studioId,
       client_id: record.client_id,
@@ -86,7 +86,7 @@ export async function POST(request: Request) {
       share_token: site.shareToken,
       expires_at: site.expiresAt.toISOString(),
       created_by: actor,
-    });
+    } });
     if (insertError) throw insertError;
 
     const event = {
