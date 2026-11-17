@@ -113,6 +113,21 @@ export function SettingsEditor({ spec, clientId, editing, library }: { spec: Sit
               </div>
             </div>
             <LocalizedInput label="Consent text" path={`forms.${f}.consentText`} hint="Says what the answers are used for." value={form.consentText} locales={locales} maxLength={300} multiline disabled={!editable} onChange={(t) => change((s) => void (s.forms[f].consentText = t))} />
+            <LocalizedInput label="Send button" path={`forms.${f}.submitLabel`} hint="Optional. Empty: Send." value={form.submitLabel ?? {}} locales={locales} maxLength={40} disabled={!editable} onChange={(t) => change((s) => void (s.forms[f].submitLabel = t))} />
+            <LocalizedInput label="What happens next" path={`forms.${f}.replyNote`} hint="Optional. Shown under the button, such as when they will hear back. Only what is true." value={form.replyNote ?? {}} locales={locales} maxLength={160} multiline disabled={!editable} onChange={(t) => change((s) => void (s.forms[f].replyNote = t))} />
+            {form.fields.map((name) => (
+              <LocalizedInput
+                key={name}
+                label={`Label for ${FORM_FIELD_LABELS[name]}`}
+                path={`forms.${f}.fieldLabels.${name}`}
+                hint="Optional. Needed for the website's own language."
+                value={form.fieldLabels?.[name] ?? {}}
+                locales={locales}
+                maxLength={60}
+                disabled={!editable}
+                onChange={(t) => change((s) => void (s.forms[f].fieldLabels = { ...s.forms[f].fieldLabels, [name]: t }))}
+              />
+            ))}
             {editable ? (
               <Button size="xs" variant="ghost" className="self-start" onClick={() => change((s) => void s.forms.splice(f, 1))}>
                 Remove form

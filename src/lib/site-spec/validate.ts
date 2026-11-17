@@ -63,6 +63,7 @@ export function assetIdsOf(section: SiteSpecSection): string[] {
   switch (section.kind) {
     case "hero":
     case "text_media":
+    case "testimonials":
       return section.mediaAssetId ? [section.mediaAssetId] : [];
     case "gallery":
       return section.assetIds;
@@ -80,7 +81,6 @@ function itemIdsOf(section: SiteSpecSection): string[] {
 /** References between parts of a spec: ids, pages, assets, forms, slugs. */
 export function referenceIssues(spec: SiteSpec): SpecIssue[] {
   const issues: SpecIssue[] = [];
-  const pageIds = new Set(spec.pages.map((p) => p.id));
   const assetIds = new Set(spec.assets.map((a) => a.id));
   const formIds = new Set(spec.forms.map((f) => f.id));
   const sections = spec.pages.flatMap((page, p) => page.sections.map((section, s) => ({ section, path: `pages.${p}.sections.${s}` })));
@@ -121,14 +121,18 @@ export function referenceIssues(spec: SiteSpec): SpecIssue[] {
     for (const path of duplicates(paths)) issues.push({ path: "pages", message: `Two pages have the address /${path} (${SITE_LOCALE_LABELS[locale]}).` });
   }
 
-  const checkPage = (pageId: string, path: string) => {
-    if (!pageIds.has(pageId)) issues.push({ path, message: "The button points to a page that does not exist." });
+  const checkButton = (button: SiteSpecButton, path: string) => {
+    const page = spec.pages.find((candidate) => candidate.id === button.targetPageId);
+    if (!page) issues.push({ path: `${path}.targetPageId`, message: "The button points to a page that does not exist." });
+    else if (button.targetSectionId && !page.sections.some((section) => section.id === button.targetSectionId)) {
+      issues.push({ path: `${path}.targetSectionId`, message: "The button points to a section that is not on that page." });
+    }
   };
-  if (spec.strategy.primaryCta) checkPage(spec.strategy.primaryCta.targetPageId, "strategy.primaryCta.targetPageId");
+  if (spec.strategy.primaryCta) checkButton(spec.strategy.primaryCta, "strategy.primaryCta");
   if (spec.brand.logoAssetId && !assetIds.has(spec.brand.logoAssetId)) issues.push({ path: "brand.logoAssetId", message: "The logo image does not exist." });
 
   for (const { section, path } of sections) {
-    buttonsOf(section).forEach((b, i) => checkPage(b.targetPageId, section.kind === "cta" ? `${path}.button.targetPageId` : `${path}.buttons.${i}.targetPageId`));
+    buttonsOf(section).forEach((b, i) => checkButton(b, section.kind === "cta" ? `${path}.button` : `${path}.buttons.${i}`));
     for (const id of assetIdsOf(section)) {
       if (!assetIds.has(id)) issues.push({ path, message: `The image "${id}" does not exist.` });
     }
@@ -193,6 +197,11 @@ export function approvalBlockers(spec: SiteSpec, client: Pick<Client, "id" | "co
     }
   };
 
+  /** An optional text may be left out, but not written in some languages only. */
+  const finishStarted = (value: LocalizedText | undefined, path: string, what: string) => {
+    if (value && locales.some((locale) => value[locale]?.trim())) require(value, path, what);
+  };
+
   if (!spec.strategy.goal.text.trim()) blockers.push({ path: "strategy.goal", message: "Write the website's goal." });
   if (!spec.strategy.audiences.some((a) => a.text.trim())) blockers.push({ path: "strategy.audiences", message: "Name at least one audience." });
   if (!spec.strategy.primaryCta) blockers.push({ path: "strategy.primaryCta", message: "Choose the main call to action." });
@@ -242,7 +251,17 @@ export function approvalBlockers(spec: SiteSpec, client: Pick<Client, "id" | "co
       require(page.seo.description, `${base}.seo.description`, `${name}: the search description`);
     }
     if (!page.sections.length) blockers.push({ path: `${base}.sections`, message: `${name} has no sections.` });
-    page.sections.forEach((section, s) => sectionBlockers(section, `${base}.sections.${s}`, `${name} › ${SECTION_LABELS[section.kind].label}`, require, blockers));
+    page.sections.forEach((section, s) => {
+      const sectionPath = `${base}.sections.${s}`;
+      const where = `${name} › ${SECTION_LABELS[section.kind].label}`;
+      sectionBlockers(section, sectionPath, where, require, blockers);
+      finishStarted(section.eyebrow, `${sectionPath}.eyebrow`, `${where}: the small line above the heading`);
+      if (section.kind === "hero") {
+        finishStarted(section.emphasis, `${sectionPath}.emphasis`, `${where}: the end of the heading to set apart`);
+        finishStarted(section.reassurance, `${sectionPath}.reassurance`, `${where}: the reassurance`);
+      }
+      if (section.kind === "services") section.items.forEach((entry, i) => finishStarted(entry.price, `${sectionPath}.items.${i}.price`, `${where}: a price`));
+    });
   });
 
   spec.assets.forEach((asset, a) => {
@@ -261,7 +280,12 @@ export function approvalBlockers(spec: SiteSpec, client: Pick<Client, "id" | "co
     }
     require(asset.alt, `assets.${a}.alt`, `${name}: the alternative text`);
   });
-  spec.forms.forEach((form, f) => require(form.consentText, `forms.${f}.consentText`, "A form's consent text"));
+  spec.forms.forEach((form, f) => {
+    require(form.consentText, `forms.${f}.consentText`, "A form's consent text");
+    finishStarted(form.submitLabel, `forms.${f}.submitLabel`, "A form's send button");
+    finishStarted(form.replyNote, `forms.${f}.replyNote`, "A form's note on what happens next");
+    for (const name of form.fields) finishStarted(form.fieldLabels?.[name], `forms.${f}.fieldLabels.${name}`, "A form's field label");
+  });
 
   for (const { source, path } of sources(spec)) {
     if (source.kind === "brief") {

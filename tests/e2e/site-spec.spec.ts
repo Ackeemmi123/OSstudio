@@ -194,6 +194,45 @@ test("leads from a problem to its field, opening the page it is on", async ({ pa
   await expect(page.getByTestId("live-preview-frame")).toHaveAttribute("srcdoc", /<h1>Contact<\/h1>/);
 });
 
+test("the fields a premium page needs reach the preview and stay saved", async ({ page }) => {
+  const { url } = await completeDraft("Premium Bakery (TEST)");
+  await signIn(page, fixture().member);
+  await page.goto(url);
+  const frame = page.getByTestId("live-preview-frame");
+  const eyebrow = page.getByLabel("Small line above the heading", { exact: true }).first();
+
+  await eyebrow.fill("Bakers in Turku");
+  await expect(frame).toHaveAttribute("srcdoc", /class="sp-eyebrow">Bakers in Turku</);
+
+  await page.getByLabel("End of the heading to set apart", { exact: true }).fill("made to order");
+  await expect(frame).toHaveAttribute("srcdoc", /<em class="sp-emphasis">made to order<\/em>/);
+  await page.getByLabel("Reassurance under the buttons", { exact: true }).fill("A free first chat.");
+  await expect(frame).toHaveAttribute("srcdoc", /class="sp-reassurance">A free first chat\.</);
+
+  // A button can lead to one part of a page. Choosing another page clears that.
+  const hero = page.getByTestId("spec-section").first();
+  const part = hero.getByLabel("Part of that page", { exact: true });
+  await part.selectOption({ index: 1 });
+  await expect(frame).toHaveAttribute("srcdoc", /title="\/contact#/);
+  await hero.getByLabel("It leads to", { exact: true }).selectOption({ label: "Home" });
+  await expect(part).toHaveValue("");
+  await hero.getByLabel("It leads to", { exact: true }).selectOption({ label: "Contact" });
+  await part.selectOption({ index: 1 });
+
+  await page.getByRole("button", { name: /Contact/ }).first().click();
+  await page.getByLabel("Send button", { exact: true }).fill("Ask us");
+  await page.getByLabel("What happens next", { exact: true }).fill("We reply within a day.");
+  await page.getByLabel("Label for Name", { exact: true }).fill("Your name");
+  await expect(frame).toHaveAttribute("srcdoc", /Ask us/);
+  await expect(frame).toHaveAttribute("srcdoc", /We reply within a day\./);
+  await expect(frame).toHaveAttribute("srcdoc", /Your name/);
+  await expect(page.getByTestId("save-status")).toHaveText("Saved");
+
+  await page.reload();
+  await expect(page.getByLabel("Small line above the heading", { exact: true }).first()).toHaveValue("Bakers in Turku");
+  await expect(page.getByTestId("spec-section").first().getByLabel("Part of that page", { exact: true })).not.toHaveValue("");
+});
+
 test("does not overwrite a change someone else made", async ({ page }) => {
   const { repository, draft, url } = await completeDraft("Conflict Bakery (TEST)");
   await signIn(page, fixture().member);

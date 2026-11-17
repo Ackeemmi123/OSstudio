@@ -67,6 +67,11 @@ export function visibleTexts(spec: SiteSpec): SpecText[] {
   });
 
   spec.assets.forEach((asset, a) => localized(asset.alt, `assets.${a}.alt`, `${asset.description.trim() || `Image ${a + 1}`}: the alternative text`));
-  spec.forms.forEach((form, f) => localized(form.consentText, `forms.${f}.consentText`, "A form's consent text"));
+  spec.forms.forEach((form, f) => {
+    localized(form.consentText, `forms.${f}.consentText`, "A form's consent text");
+    localized(form.submitLabel, `forms.${f}.submitLabel`, "A form's send button");
+    localized(form.replyNote, `forms.${f}.replyNote`, "A form's note on what happens next");
+    for (const name of form.fields) localized(form.fieldLabels?.[name], `forms.${f}.fieldLabels.${name}`, "A form's field label");
+  });
   return found;
 }

@@ -92,6 +92,19 @@ export function qualityWarnings(spec: SiteSpec, files: readonly ImageFileSize[] 
     warnings.push({ path: "pages.0.sections", message: `${pageLabel(spec, home, 0)} has no button for the main call to action.` });
   }
 
+  // The set-apart words must be the heading's own ending, or the display shows them nowhere.
+  spec.pages.forEach((page, p) => {
+    page.sections.forEach((section, s) => {
+      if (section.kind !== "hero") return;
+      for (const locale of spec.locales.available) {
+        const emphasis = section.emphasis?.[locale]?.trim();
+        if (emphasis && !section.heading[locale]?.trim().endsWith(emphasis)) {
+          warnings.push({ path: `pages.${p}.sections.${s}.emphasis.${locale}`, message: `${pageLabel(spec, page, p)}: the words to set apart are not the end of the heading, so they will not stand out.` });
+        }
+      }
+    });
+  });
+
   // A list's items are smaller headings, so the list needs a heading above them.
   spec.pages.forEach((page, p) => {
     page.sections.forEach((section, s) => {

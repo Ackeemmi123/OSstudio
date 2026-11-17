@@ -69,13 +69,20 @@ export const sourceSchema = z.discriminatedUnion("kind", [
   z.strictObject({ kind: z.literal("proposal"), runId: z.string().max(80), proposalId: z.string().max(80), acceptedBy: text(120).optional() }),
 ]);
 
-const button = z.strictObject({ label: localized(40), targetPageId: idSchema });
+const button = z.strictObject({
+  label: localized(40),
+  targetPageId: idSchema,
+  /** A section on that page to go straight to. */
+  targetSectionId: idSchema.optional(),
+});
 
 const common = {
   id: idSchema,
   source: sourceSchema.optional(),
   /** A neutral hint for small screens; a renderer may follow it. */
   mobile: z.enum(MOBILE_BEHAVIOURS).optional(),
+  /** A small line above the heading. */
+  eyebrow: localized(60).optional(),
 };
 
 const section = <K extends keyof typeof SECTION_VARIANTS, S extends z.ZodRawShape>(kind: K, shape: S) =>
@@ -84,12 +91,21 @@ const section = <K extends keyof typeof SECTION_VARIANTS, S extends z.ZodRawShap
 const item = <S extends z.ZodRawShape>(shape: S) => z.strictObject({ id: idSchema, source: sourceSchema.optional(), ...shape });
 
 export const sectionSchema = z.discriminatedUnion("kind", [
-  section("hero", { heading: localized(120), subheading: localized(300), mediaAssetId: idSchema.optional(), buttons: z.array(button).max(2) }),
+  section("hero", {
+    heading: localized(120),
+    /** The end of the heading, set apart in the display. */
+    emphasis: localized(60).optional(),
+    subheading: localized(300),
+    mediaAssetId: idSchema.optional(),
+    buttons: z.array(button).max(2),
+    /** An honest line under the buttons: what happens next, what it costs to ask. */
+    reassurance: localized(160).optional(),
+  }),
   section("text", { heading: localized(120), body: localized(4000, true) }),
   section("text_media", { heading: localized(120), body: localized(4000, true), mediaAssetId: idSchema.optional(), buttons: z.array(button).max(1) }),
   section("features", { heading: localized(120), items: z.array(item({ title: localized(80), body: localized(400, true) })).max(12) }),
-  section("services", { heading: localized(120), items: z.array(item({ title: localized(80), body: localized(1000, true) })).max(24) }),
-  section("testimonials", { heading: localized(120), items: z.array(item({ quote: localized(600, true), author: text(80) })).max(12) }),
+  section("services", { heading: localized(120), items: z.array(item({ title: localized(80), body: localized(1000, true), price: localized(60).optional() })).max(24) }),
+  section("testimonials", { heading: localized(120), mediaAssetId: idSchema.optional(), items: z.array(item({ quote: localized(600, true), author: text(80) })).max(12) }),
   section("gallery", { heading: localized(120), assetIds: z.array(idSchema).max(24) }),
   section("team", { heading: localized(120), items: z.array(item({ name: text(80), role: localized(80), assetId: idSchema.optional() })).max(24) }),
   section("faq", { heading: localized(120), items: z.array(item({ question: localized(200), answer: localized(1000, true) })).max(30) }),
@@ -126,6 +142,12 @@ export const formSchema = z.strictObject({
   purpose: z.enum(FORM_PURPOSES),
   fields: z.array(z.enum(FORM_FIELDS)).min(1).max(FORM_FIELDS.length),
   consentText: localized(300, true),
+  /** The send button. Empty: the renderer's own word. */
+  submitLabel: localized(40).optional(),
+  /** What happens after sending, shown under the button. */
+  replyNote: localized(160, true).optional(),
+  /** Labels for this form's fields, where the catalogue's word is not right. */
+  fieldLabels: z.strictObject(Object.fromEntries(FORM_FIELDS.map((name) => [name, localized(60).optional()])) as Record<(typeof FORM_FIELDS)[number], z.ZodOptional<ReturnType<typeof localized>>>).optional(),
   /** Submissions go to the client's contact. A reference, never a typed address. */
   recipient: z.literal("client_contact"),
 });
