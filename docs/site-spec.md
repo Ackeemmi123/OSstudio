@@ -31,6 +31,13 @@ association's site straight from the spec. It is chosen under Brand, and the
 preview follows it (the address `?design=` can show the other one). The
 services design system reads its own content file and is not a choice here yet.
 
+## Documents
+
+A list item in a Features section can offer a PDF to download
+(`documentFileId`, a `site_documents` id). PDFs are added in the editor with
+"Add a PDF" (POST /api/site-documents: a real PDF of at most 4 MB) and stored
+privately in the `site-documents` bucket; a build copies them into the site.
+
 ## Versions
 
 - Each project has numbered versions (v1, v2, …), one row each in
