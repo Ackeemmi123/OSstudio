@@ -15,8 +15,9 @@ export async function GET(_request: Request, { params }: { params: Promise<{ tok
   const asServer = createClient(supabase.url, supabase.serviceRoleKey, { auth: { persistSession: false, autoRefreshToken: false } });
   return serveBuild(token, path, {
     find: async (value) => {
-      const { data } = await asServer.from("site_builds").select("storage_prefix, expires_at, revoked_at").eq("share_token", value).maybeSingle();
-      return data ? { storagePrefix: data.storage_prefix, expiresAt: data.expires_at, revokedAt: data.revoked_at } : null;
+      const { data } = await asServer.rpc("site_build_by_token", { p_token: value });
+      const found = (data as { storage_prefix: string; expires_at: string; revoked_at: string | null }[] | null)?.[0];
+      return found ? { storagePrefix: found.storage_prefix, expiresAt: found.expires_at, revokedAt: found.revoked_at } : null;
     },
     read: async (file) => {
       const { data, error } = await asServer.storage.from(BUILD_BUCKET).download(file);
