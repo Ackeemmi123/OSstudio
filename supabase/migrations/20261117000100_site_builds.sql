@@ -40,6 +40,12 @@ create table public.site_builds (
 
 create index site_builds_spec on public.site_builds (spec_id, created_at desc);
 
+-- Every role starts with nothing (default privileges are revoked in 20261027000300 and
+-- 20261028000100). People read; the server (service role) reads, creates and deletes.
+revoke all on public.site_builds from public, anon, authenticated, service_role;
+grant select on public.site_builds to authenticated;
+grant select, insert, delete on public.site_builds to service_role;
+
 alter table public.site_builds enable row level security;
 
 -- Members read their studio's builds. Writes go through the server only.
