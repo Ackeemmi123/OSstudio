@@ -40,11 +40,22 @@ export interface BuiltSite {
   expiresAt: Date;
 }
 
+export interface StoredDocument {
+  /** site_documents.id, a list item's documentFileId. */
+  id: string;
+  storagePath: string;
+  deleted: boolean;
+}
+
 export interface BuildDeps {
   /** The client's stored images the spec points at. */
   images: (fileIds: string[]) => Promise<StoredImage[]>;
   /** The bytes of one stored image. */
   download: (storagePath: string) => Promise<Uint8Array>;
+  /** The client's stored documents the spec points at. Absent: no documents. */
+  documents?: (fileIds: string[]) => Promise<StoredDocument[]>;
+  /** The bytes of one stored document. */
+  downloadDocument?: (storagePath: string) => Promise<Uint8Array>;
   now: () => Date;
 }
 
@@ -110,9 +121,34 @@ export async function buildSite(input: { studioId: string; specVersion: number; 
   );
   if (checks.some((check) => check.level === "error")) throw new BuildRefused("The site was not built.", checks);
 
+  // Documents to download, by the list item that offers them.
+  const documentFiles: Record<string, string> = {};
+  const wanted = spec.pages.flatMap((page) =>
+    page.sections.flatMap((section) => (section.kind === "features" ? section.items.flatMap((item) => (item.documentFileId ? [{ itemId: item.id, fileId: item.documentFileId }] : [])) : [])),
+  );
+  if (wanted.length) {
+    const found = new Map((deps.documents ? await deps.documents([...new Set(wanted.map((w) => w.fileId))]) : []).map((d) => [d.id, d]));
+    const fetched = new Map<string, string>();
+    await Promise.all(
+      wanted.map(async ({ itemId, fileId }) => {
+        const document = found.get(fileId);
+        if (!document || document.deleted || !deps.downloadDocument) {
+          checks.push({ level: "warning", message: "A list item points at a document that no longer exists, so it has no download link." });
+          return;
+        }
+        const path = `dokument/${fileId}.pdf`;
+        documentFiles[itemId] = path;
+        if (!fetched.has(fileId)) {
+          fetched.set(fileId, path);
+          files.push({ path, body: await deps.downloadDocument(document.storagePath), contentType: "application/pdf" });
+        }
+      }),
+    );
+  }
+
   let built;
   try {
-    built = buildAssociation(spec, { files: imageFiles, status: "prototype", today: deps.now() });
+    built = buildAssociation(spec, { files: imageFiles, documents: documentFiles, status: "prototype", today: deps.now() });
   } catch (failure) {
     throw new BuildRefused(failure instanceof Error ? failure.message : "The design system could not build this spec.", checks);
   }

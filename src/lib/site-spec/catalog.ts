@@ -118,7 +118,7 @@ export const SPEC_LIMITS = {
  * the schema in schema.ts defines the same fields.
  */
 export type SectionFieldType = "text" | "longText" | "buttons" | "button" | "image" | "images" | "form" | "items";
-export type ItemFieldType = "text" | "longText" | "plain" | "image";
+export type ItemFieldType = "text" | "longText" | "plain" | "image" | "document";
 
 export interface SectionFieldDefinition {
   key: string;
@@ -154,7 +154,7 @@ export const SECTION_FIELDS: Record<SectionKind, SectionFieldDefinition[]> = {
 };
 
 export const ITEM_FIELDS: Partial<Record<SectionKind, ItemFieldDefinition[]>> = {
-  features: [{ key: "title", label: "Title", type: "text" }, { key: "body", label: "Text", type: "longText" }],
+  features: [{ key: "title", label: "Title", type: "text" }, { key: "body", label: "Text", type: "longText" }, { key: "documentFileId", label: "Document to download (PDF)", type: "document" }],
   services: [{ key: "title", label: "Service", type: "text" }, { key: "body", label: "Description", type: "longText" }, { key: "price", label: "Price (only if the client confirmed it)", type: "text" }],
   products: [{ key: "title", label: "Product", type: "text" }, { key: "body", label: "Description", type: "longText" }, { key: "price", label: "Price (only if the client confirmed it)", type: "text" }, { key: "assetId", label: "Photo", type: "image" }],
   testimonials: [{ key: "quote", label: "Quote", type: "longText" }, { key: "author", label: "Who said it", type: "plain" }],

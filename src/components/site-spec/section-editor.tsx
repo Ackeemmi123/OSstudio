@@ -17,6 +17,7 @@ import {
 } from "@/lib/site-spec/catalog";
 import { move, newItem, removeSection } from "@/lib/site-spec/edit";
 import type { LocalizedText, SiteSpec, SiteSpecButton, SiteSpecSection } from "@/lib/site-spec/schema";
+import { DocumentPicker } from "./document-picker";
 import { LocalizedInput } from "./localized-input";
 import type { SpecEditing } from "./site-spec-editor";
 import { SourceTag } from "./strategy-editor";
@@ -260,6 +261,10 @@ function ItemsEditor({ path, spec, section, editable, edit }: { path: string; sp
     }
     if (def.type === "image") {
       return <ImagePicker key={key} id={key} label={def.label} spec={spec} value={item[def.key] as string | undefined} disabled={!editable} onChange={(id) => edit((t) => void (id ? ((t.items as Values[])[i][def.key] = id) : delete (t.items as Values[])[i][def.key]))} />;
+    }
+    if (def.type === "document") {
+      const itemTitle = (item.title as LocalizedText | undefined)?.[spec.locales.default] ?? "";
+      return <DocumentPicker key={key} id={key} label={def.label} value={item[def.key] as string | undefined} title={itemTitle} disabled={!editable} onChange={(id) => edit((t) => void (id ? ((t.items as Values[])[i][def.key] = id) : delete (t.items as Values[])[i][def.key]))} />;
     }
     return <LocalizedInput key={key} label={def.label} path={`${path}.items.${i}.${def.key}`} value={(item[def.key] as LocalizedText) ?? {}} locales={spec.locales.available} multiline={def.type === "longText"} disabled={!editable} onChange={set} />;
   };

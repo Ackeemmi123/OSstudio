@@ -22,6 +22,7 @@ import type {
   ProposalDecision,
   SiteAssetRecord,
   SiteBuildRecord,
+  SiteDocumentRecord,
   SiteSpecRecord,
   SourceDocument,
   StudioSnapshot,
@@ -112,6 +113,10 @@ export interface StudioRepository {
   listSiteBuilds?(specId: string): Promise<SiteBuildRecord[]>;
   /** Turns a build's link off for good. */
   revokeSiteBuild?(build: SiteBuildRecord): Promise<void>;
+  /** The client's documents for download, newest first, without deleted ones. */
+  listSiteDocuments?(clientId: string): Promise<SiteDocumentRecord[]>;
+  /** Sends one PDF to the server, which checks it before storing it. */
+  uploadSiteDocument?(clientId: string, file: Blob, title: string): Promise<SiteDocumentRecord>;
   /** Restores the demonstration workspace. Only meaningful for demo repositories. */
   resetDemoData(): Promise<StudioSnapshot>;
 }

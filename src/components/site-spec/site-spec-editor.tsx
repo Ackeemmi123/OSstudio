@@ -30,6 +30,7 @@ import { approvalBlockers, parseSiteSpec, type SpecIssue } from "@/lib/site-spec
 import { BrandEditor } from "./brand-editor";
 import type { ImageLibrary } from "./images-editor";
 import { LivePreview } from "./live-preview";
+import { DocumentLibraryProvider } from "./document-picker";
 import { PagesEditor } from "./pages-editor";
 import { SettingsEditor } from "./settings-editor";
 import { StrategyEditor } from "./strategy-editor";
@@ -410,7 +411,9 @@ export function SiteSpecEditor({
           </Section>
           <Section id="pages" title="Pages" count={draft.pages.length} className="scroll-mt-32">
             <div data-spec-path="pages">
-              <PagesEditor spec={draft} editing={editing} open={openPage} setOpen={openPageInEditor} />
+              <DocumentLibraryProvider clientId={client.id}>
+                <PagesEditor spec={draft} editing={editing} open={openPage} setOpen={openPageInEditor} />
+              </DocumentLibraryProvider>
             </div>
           </Section>
           <Section id="settings" title="Site settings" className="scroll-mt-32">

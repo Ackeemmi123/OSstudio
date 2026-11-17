@@ -31,6 +31,7 @@ import {
   type ProposalDecision,
   type SiteAssetRecord,
   type SiteBuildRecord,
+  type SiteDocumentRecord,
   type SiteSpecRecord,
   type SourceDocument,
   type StudioSnapshot,
@@ -515,6 +516,44 @@ export class SupabaseRepository implements StudioRepository {
     if (!this.current.canWrite) throw new RepositoryError("You have read-only access to this studio. Ask an owner for member access.", "permission");
     const { error } = await this.client.rpc("revoke_site_build", { p_build: build.id });
     if (error) throw toRepositoryError(error);
+  }
+
+  async listSiteDocuments(clientId: string): Promise<SiteDocumentRecord[]> {
+    const { data, error } = await this.client
+      .from("site_documents")
+      .select("id, client_id, title, byte_size, created_at")
+      .eq("studio_id", this.studioId)
+      .eq("client_id", clientId)
+      .is("deleted_at", null)
+      .order("created_at", { ascending: false });
+    if (error) throw toRepositoryError(error);
+    return (data ?? []).map((row) => ({ id: row.id, clientId: row.client_id, title: row.title, byteSize: row.byte_size, createdAt: row.created_at }));
+  }
+
+  async uploadSiteDocument(clientId: string, file: Blob, title: string): Promise<SiteDocumentRecord> {
+    if (!this.current.canWrite) throw new RepositoryError("You have read-only access to this studio. Ask an owner for member access.", "permission");
+    const { data } = await this.client.auth.getSession();
+    const token = data.session?.access_token;
+    if (!token) throw new RepositoryError("Your session has ended. Sign in again to continue.", "session");
+    const form = new FormData();
+    form.set("studioId", this.studioId);
+    form.set("clientId", clientId);
+    form.set("title", title);
+    form.set("file", file);
+    let response: Response;
+    try {
+      response = await this.fetchImpl("/api/site-documents", { method: "POST", headers: { authorization: `Bearer ${token}` }, body: form });
+    } catch {
+      throw new RepositoryError("Studio OS could not reach the server. Check your connection and try again.", "network");
+    }
+    const body = (await response.json().catch(() => null)) as { id?: string; error?: string } | null;
+    if (!response.ok) {
+      const codes: Record<number, RepositoryErrorCode> = { 400: "validation", 401: "session", 403: "permission", 404: "not_found" };
+      throw new RepositoryError(body?.error ?? "The document could not be stored. Try again in a moment.", codes[response.status] ?? "storage");
+    }
+    const stored = (await this.listSiteDocuments(clientId)).find((document) => document.id === body?.id);
+    if (!stored) throw new RepositoryError("The document was stored, but could not be read back. Reload the page.", "storage");
+    return stored;
   }
 
   async listSiteAssets(clientId: string): Promise<SiteAssetRecord[]> {

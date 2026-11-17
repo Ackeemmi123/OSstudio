@@ -88,6 +88,40 @@ describe("building a site from a spec", () => {
   });
 });
 
+describe("documents in a build", () => {
+  function withDocument(value: SiteSpec) {
+    const page = value.pages[0];
+    page.sections.push({ id: "docs", kind: "features", variant: "list", heading: { sv: "Dokument" }, items: [{ id: "minutes-1", title: { sv: "M\u00f6te 1/26" }, body: { sv: "PDF." }, documentFileId: "00000000-0000-4000-8000-0000000000d1" }] });
+    return value;
+  }
+
+  it("adds the PDF and links the list item to it", async () => {
+    const value = withDocument(spec());
+    const images = withImages(value, "approved");
+    const site = await buildSite({ studioId, specVersion: 1, spec: value }, {
+      ...deps(images),
+      documents: async (ids) => ids.map((id) => ({ id, storagePath: `${studioId}/c/${id}.pdf`, deleted: false })),
+      downloadDocument: async () => new TextEncoder().encode("%PDF-1.7"),
+    });
+    const pdf = site.files.find((file) => file.path === "dokument/00000000-0000-4000-8000-0000000000d1.pdf");
+    expect(pdf?.contentType).toBe("application/pdf");
+    const home = new TextDecoder().decode(site.files.find((file) => file.path === "index.html")!.body);
+    expect(home).toContain('href="/dokument/00000000-0000-4000-8000-0000000000d1.pdf"');
+  });
+
+  it("warns, and leaves the link out, when the document was deleted", async () => {
+    const value = withDocument(spec());
+    const images = withImages(value, "approved");
+    const site = await buildSite({ studioId, specVersion: 1, spec: value }, {
+      ...deps(images),
+      documents: async (ids) => ids.map((id) => ({ id, storagePath: "x", deleted: true })),
+      downloadDocument: async () => new Uint8Array(),
+    });
+    expect(site.checks.some((check) => /no longer exists/.test(check.message))).toBe(true);
+    expect(site.files.some((file) => file.path.endsWith(".pdf"))).toBe(false);
+  });
+});
+
 describe("page checks", () => {
   it("finds scripts, images without alternative text and text left in square brackets", () => {
     const checks = pageChecks('<p>[Write the story here]</p><img src="a.jpg" alt=""><script>x</script>', "index.html");
