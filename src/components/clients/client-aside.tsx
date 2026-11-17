@@ -1,15 +1,16 @@
 "use client";
 
 import { ArrowUpRight, Plus } from "lucide-react";
-import { useState, type ReactNode } from "react";
+import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { ActivityTimeline } from "@/components/activity-timeline";
-import { useCanEdit } from "@/components/providers/studio-provider";
+import { useCanEdit, useStudioStore } from "@/components/providers/studio-provider";
+import { useStudioAction } from "@/components/providers/use-studio-action";
 import { Button } from "@/components/ui/button";
 import { Section } from "@/components/ui/surface";
 import { websiteHref } from "@/lib/domain/clients";
 import { getClientActivity } from "@/lib/domain/insights";
 import { SOURCE_TYPE_LABELS } from "@/lib/domain/labels";
-import { CONTEXT_FIELD_KEYS, type Client, type SourceDocument, type StudioSnapshot } from "@/lib/domain/types";
+import { CONTEXT_FIELD_KEYS, type Client, type ClientMaterialRecord, type SourceDocument, type StudioSnapshot } from "@/lib/domain/types";
 import { formatDate } from "@/lib/format";
 import { AddSourceDialog } from "./add-source-dialog";
 
@@ -18,6 +19,12 @@ export function SourceMaterial({ client, sources }: { client: Client; sources: S
   const [expanded, setExpanded] = useState(false);
   const [adding, setAdding] = useState(false);
   const canEdit = useCanEdit();
+  const store = useStudioStore();
+  const [files, setFiles] = useState<ClientMaterialRecord[]>([]);
+  const loadFiles = useCallback(() => {
+    store.read((r) => (r.listClientMaterials ? r.listClientMaterials(client.id) : Promise.resolve([]))).then(setFiles, () => undefined);
+  }, [store, client.id]);
+  useEffect(loadFiles, [loadFiles]);
   const notes = client.source.initialNotes;
   const long = (notes?.length ?? 0) > 280;
   const referenced = Array.from(
@@ -79,10 +86,49 @@ export function SourceMaterial({ client, sources }: { client: Client; sources: S
             </ul>
           </div>
         ) : null}
-        <p className="text-[12px] text-ink-subtle">Paste text with Add. Attaching files is not available yet.</p>
+        {files.length > 0 ? <KeptFiles files={files} canEdit={canEdit} onDeleted={(id) => setFiles((list) => list.filter((f) => f.id !== id))} /> : null}
+        <p className="text-[12px] text-ink-subtle">Add pasted text, files the client sent or their current web page.</p>
       </div>
-      <AddSourceDialog clientId={client.id} open={adding} onClose={() => setAdding(false)} />
+      <AddSourceDialog clientId={client.id} open={adding} onClose={() => setAdding(false)} onFilesAdded={loadFiles} />
     </Section>
+  );
+}
+
+const FILE_KIND: Record<ClientMaterialRecord["mimeType"], string> = { "application/pdf": "PDF", "image/jpeg": "JPEG", "image/png": "PNG", "image/webp": "WebP" };
+
+/** PDFs and images the client sent, kept as they are for the AI draft. */
+function KeptFiles({ files, canEdit, onDeleted }: { files: ClientMaterialRecord[]; canEdit: boolean; onDeleted: (id: string) => void }) {
+  const { run } = useStudioAction();
+  const [deleting, setDeleting] = useState<string | null>(null);
+  async function remove(file: ClientMaterialRecord) {
+    if (!window.confirm(`Delete ${file.title}? It is left out of every AI draft.`)) return;
+    setDeleting(file.id);
+    const done = await run((r) => r.deleteClientMaterial!(file).then(() => true), "The file was not deleted.");
+    setDeleting(null);
+    if (done) onDeleted(file.id);
+  }
+  return (
+    <div>
+      <p className="mb-1.5 text-[12.5px] text-ink-subtle">Kept files</p>
+      <ul className="flex flex-col gap-1">
+        {files.map((file) => (
+          <li key={file.id} className="flex items-center justify-between gap-2 text-ink-muted">
+            <span className="min-w-0 truncate">
+              {file.title}
+              <span className="text-ink-subtle">
+                {" "}
+                · {FILE_KIND[file.mimeType]} · {Math.max(1, Math.round(file.byteSize / 1024))} KB
+              </span>
+            </span>
+            {canEdit ? (
+              <Button size="xs" variant="ghost" disabled={deleting === file.id} onClick={() => remove(file)} aria-label={`Delete ${file.title}`}>
+                {deleting === file.id ? "Deleting…" : "Delete"}
+              </Button>
+            ) : null}
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }
 

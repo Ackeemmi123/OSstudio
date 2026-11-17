@@ -8,15 +8,180 @@ import { Modal, ModalBody, ModalFooter } from "@/components/ui/modal";
 import { useToast } from "@/components/ui/toast";
 import { errorMessage } from "@/lib/data/studio-store";
 import { SOURCE_TYPE_LABELS } from "@/lib/domain/labels";
-import { SOURCE_CONTENT_MAX_LENGTH, SOURCE_TYPES, type SourceType } from "@/lib/domain/types";
+import { SOURCE_CONTENT_MAX_LENGTH, SOURCE_TYPES, type ReadMaterial, type SourceType } from "@/lib/domain/types";
 
-/** Paste an email, form message, call notes or brief. It is kept exactly as written. */
-export function AddSourceDialog({ clientId, open, onClose }: { clientId: string; open: boolean; onClose: () => void }) {
+type Mode = "paste" | "files" | "web";
+
+/** Add what the client sent: pasted text, files (PDF, Word, images) or a web page. Text is kept exactly as written. */
+export function AddSourceDialog({ clientId, open, onClose, onFilesAdded }: { clientId: string; open: boolean; onClose: () => void; onFilesAdded?: () => void }) {
   const [busy, setBusy] = useState(false);
+  const [mode, setMode] = useState<Mode>("paste");
   return (
-    <Modal open={open} onClose={onClose} busy={busy} size="lg" title="Add source material" description="Paste what the client sent or what was said. It is stored exactly as written and can be analyzed.">
-      {open ? <AddSourceForm clientId={clientId} onClose={onClose} onBusyChange={setBusy} /> : null}
+    <Modal open={open} onClose={onClose} busy={busy} size="lg" title="Add source material" description="Paste text, add the files the client sent, or read their current web page. Word documents and web pages become text sources; PDFs and images are kept as files.">
+      {open ? (
+        <>
+          <div role="tablist" aria-label="How to add material" className="flex gap-1 border-b border-line px-6 pt-1">
+            {(
+              [
+                ["paste", "Paste text"],
+                ["files", "Files"],
+                ["web", "Web page"],
+              ] as const
+            ).map(([value, label]) => (
+              <button
+                key={value}
+                type="button"
+                role="tab"
+                aria-selected={mode === value}
+                disabled={busy}
+                onClick={() => setMode(value)}
+                className={`-mb-px border-b-2 px-3 py-2 text-[13px] ${mode === value ? "border-primary text-ink" : "border-transparent text-ink-subtle hover:text-ink"}`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          {mode === "paste" ? <AddSourceForm clientId={clientId} onClose={onClose} onBusyChange={setBusy} /> : null}
+          {mode === "files" ? <AddFilesForm clientId={clientId} onClose={onClose} onBusyChange={setBusy} onFilesAdded={onFilesAdded} /> : null}
+          {mode === "web" ? <AddWebPageForm clientId={clientId} onClose={onClose} onBusyChange={setBusy} /> : null}
+        </>
+      ) : null}
     </Modal>
+  );
+}
+
+/** Keeps read text as one source per part, named after the file or page. */
+async function keepAsSources(add: (input: { type: SourceType; label: string; content: string }) => Promise<unknown>, read: ReadMaterial, type: SourceType, prefix = "") {
+  const total = read.parts.length;
+  for (const [i, part] of read.parts.entries()) {
+    const name = `${prefix}${read.title}`.slice(0, 100);
+    const content = read.url && i === 0 ? `${read.url}\n\n${part}` : part;
+    await add({ type, label: total > 1 ? `${name} (del ${i + 1}/${total})` : name, content: content.slice(0, SOURCE_CONTENT_MAX_LENGTH) });
+  }
+}
+
+function AddFilesForm({ clientId, onClose, onBusyChange, onFilesAdded }: { clientId: string; onClose: () => void; onBusyChange: (busy: boolean) => void; onFilesAdded?: () => void }) {
+  const store = useStudioStore();
+  const toast = useToast();
+  const formId = useId();
+  const [files, setFiles] = useState<File[]>([]);
+  const [progress, setProgress] = useState<string[]>([]);
+  const [submitting, setSubmitting] = useState(false);
+
+  async function handleSubmit(event: FormEvent) {
+    event.preventDefault();
+    if (submitting || !files.length) return;
+    setSubmitting(true);
+    onBusyChange(true);
+    const lines: string[] = [];
+    let failed = 0;
+    for (const file of files) {
+      const title = file.name.replace(/\.(pdf|docx|png|jpe?g|webp)$/i, "");
+      try {
+        const result = await store.run((r) => r.addClientMaterial!(clientId, file, title));
+        if (result.kind === "text") {
+          await keepAsSources((input) => store.run((r) => r.addSource(clientId, input)), result.read, "document");
+          lines.push(`${file.name}: read into ${result.read.parts.length} text source${result.read.parts.length === 1 ? "" : "s"}`);
+        } else {
+          lines.push(`${file.name}: kept as a file`);
+        }
+      } catch (caught) {
+        failed++;
+        lines.push(`${file.name}: not added. ${errorMessage(caught)}`);
+      }
+      setProgress([...lines]);
+    }
+    onFilesAdded?.();
+    onBusyChange(false);
+    setSubmitting(false);
+    if (!failed) {
+      onClose();
+      toast.success(files.length === 1 ? "The file was added." : `${files.length} files were added.`);
+    }
+  }
+
+  return (
+    <form onSubmit={handleSubmit} noValidate className="flex min-h-0 flex-1 flex-col">
+      <ModalBody className="flex flex-col gap-4">
+        <Field id={`${formId}-files`} label="Files" hint="PDF, Word (.docx), JPEG, PNG or WebP, at most 4 MB each.">
+          <input
+            id={`${formId}-files`}
+            type="file"
+            multiple
+            accept=".pdf,.docx,.png,.jpg,.jpeg,.webp,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,image/png,image/jpeg,image/webp"
+            disabled={submitting}
+            onChange={(e) => setFiles(Array.from(e.target.files ?? []))}
+            className="text-[13px]"
+          />
+        </Field>
+        {progress.length ? (
+          <ul aria-live="polite" className="flex flex-col gap-1 text-[13px] text-ink-muted">
+            {progress.map((line) => (
+              <li key={line}>{line}</li>
+            ))}
+          </ul>
+        ) : null}
+      </ModalBody>
+      <ModalFooter>
+        <Button variant="ghost" onClick={onClose} disabled={submitting}>
+          {progress.length ? "Close" : "Cancel"}
+        </Button>
+        <Button type="submit" variant="primary" disabled={submitting || !files.length} aria-busy={submitting}>
+          {submitting ? "Adding…" : files.length > 1 ? `Add ${files.length} files` : "Add file"}
+        </Button>
+      </ModalFooter>
+    </form>
+  );
+}
+
+function AddWebPageForm({ clientId, onClose, onBusyChange }: { clientId: string; onClose: () => void; onBusyChange: (busy: boolean) => void }) {
+  const store = useStudioStore();
+  const toast = useToast();
+  const formId = useId();
+  const [url, setUrl] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function handleSubmit(event: FormEvent) {
+    event.preventDefault();
+    if (submitting || !url.trim()) return;
+    setSubmitting(true);
+    setError(null);
+    onBusyChange(true);
+    try {
+      const read = await store.run((r) => r.readClientWebPage!(clientId, url.trim()));
+      await keepAsSources((input) => store.run((r) => r.addSource(clientId, input)), read, "other", "Webbsida: ");
+      onBusyChange(false);
+      onClose();
+      toast.success("The web page was read into a source.");
+    } catch (caught) {
+      setError(errorMessage(caught));
+      setSubmitting(false);
+      onBusyChange(false);
+    }
+  }
+
+  return (
+    <form onSubmit={handleSubmit} noValidate className="flex min-h-0 flex-1 flex-col">
+      <ModalBody className="flex flex-col gap-4">
+        <Field id={`${formId}-url`} label="Web address" hint="The client's current public site, for example nomadinterior.fi. One page is read.">
+          <TextInput id={`${formId}-url`} type="url" inputMode="url" autoComplete="off" autoFocus value={url} disabled={submitting} onChange={(e) => setUrl(e.target.value)} />
+        </Field>
+        {error ? (
+          <p role="alert" className="rounded-[var(--radius-control)] border border-critical/30 bg-critical/[0.05] px-3 py-2.5 text-[13px] text-critical">
+            The page was not read. {error}
+          </p>
+        ) : null}
+      </ModalBody>
+      <ModalFooter>
+        <Button variant="ghost" onClick={onClose} disabled={submitting}>
+          Cancel
+        </Button>
+        <Button type="submit" variant="primary" disabled={submitting || !url.trim()} aria-busy={submitting}>
+          {submitting ? "Reading…" : "Read the page"}
+        </Button>
+      </ModalFooter>
+    </form>
   );
 }
 

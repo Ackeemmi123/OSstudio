@@ -32,6 +32,8 @@ import {
   type SiteAssetRecord,
   type SiteBuildRecord,
   type SiteDocumentRecord,
+  type ClientMaterialRecord,
+  type ReadMaterial,
   type SiteSpecRecord,
   type SourceDocument,
   type StudioSnapshot,
@@ -515,6 +517,65 @@ export class SupabaseRepository implements StudioRepository {
   async revokeSiteBuild(build: SiteBuildRecord): Promise<void> {
     if (!this.current.canWrite) throw new RepositoryError("You have read-only access to this studio. Ask an owner for member access.", "permission");
     const { error } = await this.client.rpc("revoke_site_build", { p_build: build.id });
+    if (error) throw toRepositoryError(error);
+  }
+
+  private async materialRequest(path: string, init: RequestInit, failure: string): Promise<Record<string, unknown>> {
+    if (!this.current.canWrite) throw new RepositoryError("You have read-only access to this studio. Ask an owner for member access.", "permission");
+    const { data } = await this.client.auth.getSession();
+    const token = data.session?.access_token;
+    if (!token) throw new RepositoryError("Your session has ended. Sign in again to continue.", "session");
+    let response: Response;
+    try {
+      response = await this.fetchImpl(path, { ...init, headers: { ...(init.headers as Record<string, string> | undefined), authorization: `Bearer ${token}` } });
+    } catch {
+      throw new RepositoryError("Studio OS could not reach the server. Check your connection and try again.", "network");
+    }
+    const body = (await response.json().catch(() => null)) as Record<string, unknown> | null;
+    if (!response.ok) {
+      const codes: Record<number, RepositoryErrorCode> = { 400: "validation", 401: "session", 403: "permission", 404: "not_found", 422: "validation" };
+      throw new RepositoryError(String(body?.error ?? failure), codes[response.status] ?? "storage");
+    }
+    return body ?? {};
+  }
+
+  async listClientMaterials(clientId: string): Promise<ClientMaterialRecord[]> {
+    const { data, error } = await this.client
+      .from("client_materials")
+      .select("id, client_id, title, mime_type, byte_size, created_at")
+      .eq("studio_id", this.studioId)
+      .eq("client_id", clientId)
+      .is("deleted_at", null)
+      .order("created_at", { ascending: false });
+    if (error) throw toRepositoryError(error);
+    return (data ?? []).map((row) => ({ id: row.id, clientId: row.client_id, title: row.title, mimeType: row.mime_type, byteSize: row.byte_size, createdAt: row.created_at }));
+  }
+
+  async addClientMaterial(clientId: string, file: Blob, title: string): Promise<{ kind: "text"; read: ReadMaterial } | { kind: "file"; material: ClientMaterialRecord }> {
+    const form = new FormData();
+    form.set("studioId", this.studioId);
+    form.set("clientId", clientId);
+    form.set("title", title);
+    form.set("file", file);
+    const body = await this.materialRequest("/api/client-materials", { method: "POST", body: form }, "The file could not be added. Try again in a moment.");
+    if (body.kind === "text") return { kind: "text", read: { title: String(body.title), parts: (body.parts as string[]) ?? [] } };
+    const material = (await this.listClientMaterials(clientId)).find((m) => m.id === body.id);
+    if (!material) throw new RepositoryError("The file was stored, but could not be read back. Reload the page.", "storage");
+    return { kind: "file", material };
+  }
+
+  async readClientWebPage(clientId: string, url: string): Promise<ReadMaterial> {
+    const body = await this.materialRequest(
+      "/api/client-materials/web",
+      { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ studioId: this.studioId, clientId, url }) },
+      "The page could not be read. Try again in a moment.",
+    );
+    return { title: String(body.title), url: String(body.url), parts: (body.parts as string[]) ?? [] };
+  }
+
+  async deleteClientMaterial(material: ClientMaterialRecord): Promise<void> {
+    if (!this.current.canWrite) throw new RepositoryError("You have read-only access to this studio. Ask an owner for member access.", "permission");
+    const { error } = await this.client.rpc("delete_client_material", { p_material: material.id });
     if (error) throw toRepositoryError(error);
   }
 
