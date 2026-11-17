@@ -243,7 +243,8 @@ function section(site: Site, page: SiteSpecPage, entry: SiteSpecSection, first: 
       return `<section class="sec"><div class="wrap">${head}<div class="points points--${entry.variant}">${entry.items.map((item) => `<div class="point"><h3>${escapeHtml(text(item.title, locale))}</h3><p>${linkify(text(item.body, locale))}</p></div>`).join("")}</div></div></section>`;
     }
     case "services":
-      return `<section class="sec"><div class="wrap">${head}<div class="points">${entry.items.map((item) => `<div class="point"><h3>${escapeHtml(text(item.title, locale))}</h3><p>${linkify(text(item.body, locale))}</p></div>`).join("")}</div></div></section>`;
+    case "products":
+      return `<section class="sec"><div class="wrap">${head}<div class="points">${entry.items.map((item) => { const price = text(item.price, locale); return `<div class="point"><h3>${escapeHtml(text(item.title, locale))}</h3><p>${linkify(text(item.body, locale))}</p>${price ? `<p class="price">${escapeHtml(price)}</p>` : ""}</div>`; }).join("")}</div></div></section>`;
     case "team": {
       const emails = new Map<string, string>();
       for (const other of page.sections) if (other.kind === "text") for (const line of text(other.body, locale).split("\n")) { const match = line.match(/^(.+): (\S+@\S+)$/); if (match) emails.set(match[1].trim(), match[2]); }
