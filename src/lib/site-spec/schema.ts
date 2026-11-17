@@ -17,6 +17,7 @@ import {
   ASSET_KINDS,
   ASSET_ORIGINS,
   DENSITIES,
+  DESIGN_SYSTEMS,
   FORM_FIELDS,
   FORM_PURPOSES,
   INTEGRATIONS,
@@ -185,6 +186,8 @@ export const siteSpecSchema = z.strictObject({
     radius: z.enum(RADII),
     density: z.enum(DENSITIES),
     logoAssetId: idSchema.optional(),
+    /** The design system the site is drawn and built with. Absent: Studio OS's template. */
+    designSystem: z.enum(DESIGN_SYSTEMS).optional(),
     /** Set when a person chose the brand. Absent: the starting defaults, which cannot be approved. */
     source: sourceSchema.optional(),
   }),
