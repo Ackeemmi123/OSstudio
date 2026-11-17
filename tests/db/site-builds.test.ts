@@ -52,16 +52,17 @@ function row(ids: Awaited<ReturnType<typeof newSpec>>, token = randomUUID().repl
 describe("site builds", () => {
   it("are written by the server only, never by a person's session", async () => {
     const ids = await newSpec();
-    const attempt = await owner.client.from("site_builds").insert(row(ids));
-    expect(attempt.error).not.toBeNull();
-    const stored = await admin.from("site_builds").insert(row(ids));
+    expect((await owner.client.from("site_builds").insert(row(ids))).error).not.toBeNull();
+    expect((await owner.client.rpc("record_site_build", { p_build: row(ids) })).error).not.toBeNull();
+    expect((await owner.client.rpc("site_build_by_token", { p_token: "x".repeat(32) })).error).not.toBeNull();
+    const stored = await admin.rpc("record_site_build", { p_build: row(ids) });
     expect(stored.error).toBeNull();
   });
 
   it("are readable by the studio's people, not by others", async () => {
     const ids = await newSpec();
     const build = row(ids);
-    expect((await admin.from("site_builds").insert(build)).error).toBeNull();
+    expect((await admin.rpc("record_site_build", { p_build: build })).error).toBeNull();
     expect((await owner.client.from("site_builds").select("id").eq("id", build.id)).data).toHaveLength(1);
     expect((await viewer.client.from("site_builds").select("id").eq("id", build.id)).data).toHaveLength(1);
     expect((await outsider.client.from("site_builds").select("id").eq("id", build.id)).data).toHaveLength(0);
@@ -69,22 +70,22 @@ describe("site builds", () => {
 
   it("refuse a short or guessable link token", async () => {
     const ids = await newSpec();
-    const { error } = await admin.from("site_builds").insert(row(ids, "short"));
+    const { error } = await admin.rpc("record_site_build", { p_build: row(ids, "short") });
     expect(error).not.toBeNull();
   });
 
   it("can have their link turned off by a writer, once, and not by a viewer or an outsider", async () => {
     const ids = await newSpec();
     const build = row(ids);
-    expect((await admin.from("site_builds").insert(build)).error).toBeNull();
+    expect((await admin.rpc("record_site_build", { p_build: build })).error).toBeNull();
     expect((await viewer.client.rpc("revoke_site_build", { p_build: build.id })).error).not.toBeNull();
     expect((await outsider.client.rpc("revoke_site_build", { p_build: build.id })).error).not.toBeNull();
     const first = await owner.client.rpc("revoke_site_build", { p_build: build.id });
     expect(first.error).toBeNull();
     const again = await owner.client.rpc("revoke_site_build", { p_build: build.id });
     expect(again.data).toBe(first.data);
-    const stored = (await admin.from("site_builds").select("revoked_at").eq("id", build.id).single()).data!;
-    expect(stored.revoked_at).not.toBeNull();
+    const found = (await admin.rpc("site_build_by_token", { p_token: build.share_token })).data as { revoked_at: string | null }[];
+    expect(found[0].revoked_at).not.toBeNull();
   });
 
   it("keep their files out of every person's reach", async () => {

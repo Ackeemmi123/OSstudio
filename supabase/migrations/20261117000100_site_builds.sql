@@ -41,10 +41,11 @@ create table public.site_builds (
 create index site_builds_spec on public.site_builds (spec_id, created_at desc);
 
 -- Every role starts with nothing (default privileges are revoked in 20261027000300 and
--- 20261028000100). People read; the server (service role) reads, creates and deletes.
+-- 20261028000100). People read their studio's builds. The server's service role gets no
+-- table rights (tests/db/agent-runner.test.ts keeps that list exact): it records a build
+-- and finds one by its link only through the two functions below.
 revoke all on public.site_builds from public, anon, authenticated, service_role;
 grant select on public.site_builds to authenticated;
-grant select, insert, delete on public.site_builds to service_role;
 
 alter table public.site_builds enable row level security;
 
@@ -72,3 +73,27 @@ $$;
 
 revoke all on function public.revoke_site_build(uuid) from public, anon;
 grant execute on function public.revoke_site_build(uuid) to authenticated;
+
+/* The server records a build after storing its files. Service role only. */
+create function public.record_site_build(p_build jsonb) returns void
+  language plpgsql security definer set search_path = '' as $$
+begin
+  insert into public.site_builds (id, studio_id, client_id, project_id, spec_id, spec_version, design_system,
+    storage_prefix, file_count, byte_count, checks, share_token, expires_at, created_by)
+  values ((p_build ->> 'id')::uuid, (p_build ->> 'studio_id')::uuid, (p_build ->> 'client_id')::uuid,
+    (p_build ->> 'project_id')::uuid, (p_build ->> 'spec_id')::uuid, (p_build ->> 'spec_version')::int,
+    p_build ->> 'design_system', p_build ->> 'storage_prefix', (p_build ->> 'file_count')::int,
+    (p_build ->> 'byte_count')::bigint, coalesce(p_build -> 'checks', '[]'::jsonb), p_build ->> 'share_token',
+    (p_build ->> 'expires_at')::timestamptz, p_build -> 'created_by');
+end;
+$$;
+
+/* The server finds the build behind a link. Service role only; a token is never listed. */
+create function public.site_build_by_token(p_token text)
+  returns table (storage_prefix text, expires_at timestamptz, revoked_at timestamptz)
+  language sql stable security definer set search_path = '' as $$
+  select b.storage_prefix, b.expires_at, b.revoked_at from public.site_builds b where b.share_token = p_token;
+$$;
+
+revoke all on function public.record_site_build(jsonb), public.site_build_by_token(text) from public, anon, authenticated;
+grant execute on function public.record_site_build(jsonb), public.site_build_by_token(text) to service_role;
