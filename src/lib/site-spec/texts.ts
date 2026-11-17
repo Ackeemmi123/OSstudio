@@ -20,6 +20,11 @@ export function isPlaceholderText(text: string): boolean {
   return /^\[[\s\S]*\]$/.test(text.trim());
 }
 
+/** Words in brackets inside finished text: an instruction someone wrote around instead of replacing. */
+export function hasInstructionInside(text: string): boolean {
+  return /\[[^\]\n]*\p{L}{2}[^\]\n]*\]/u.test(text);
+}
+
 /** A page's name in the default language, whatever else is missing. */
 export function pageLabel(spec: SiteSpec, page: SiteSpecPage, index: number): string {
   return page.title[spec.locales.default]?.trim() || page.title.en?.trim() || (index === 0 ? "Home page" : `Page ${index + 1}`);

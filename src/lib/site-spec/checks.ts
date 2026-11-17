@@ -113,7 +113,8 @@ function journeyWarnings(spec: SiteSpec, written: { path: string; name: string; 
 
   // A shop must say these things, and nothing here pretends they are set up.
   if (spec.integrations.store.enabled || spec.pages.some((page) => page.id === "shop")) {
-    const all = written.map((entry) => entry.text).join(" ");
+    // An instruction about delivery already blocks approval, so it needs no second look.
+    const all = visibleTexts(spec).map((entry) => entry.text).join(" ");
     for (const { what, pattern } of SHOP_TERMS) {
       if (!pattern.test(all)) warnings.push({ path: "pages", message: `The shop doesn't mention ${what} anywhere, and shoppers look for this before buying.` });
     }

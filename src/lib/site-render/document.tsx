@@ -159,7 +159,7 @@ function Items({ section }: { section: RenderSection }) {
   }
   const card = (item: RenderItem) => (
     <>
-      {item.image || kind === "team" ? <ImageBox image={item.image} small /> : null}
+      {item.image || kind === "team" || kind === "products" ? <ImageBox image={item.image} small /> : null}
       <Text value={item.title} as="h3" />
       <Text value={item.body} as="p" />
       <Text value={item.price} as="p" className="sp-price" />

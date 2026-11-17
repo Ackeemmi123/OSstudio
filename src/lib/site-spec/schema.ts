@@ -105,6 +105,8 @@ export const sectionSchema = z.discriminatedUnion("kind", [
   section("text_media", { heading: localized(120), body: localized(4000, true), mediaAssetId: idSchema.optional(), buttons: z.array(button).max(1) }),
   section("features", { heading: localized(120), items: z.array(item({ title: localized(80), body: localized(400, true) })).max(12) }),
   section("services", { heading: localized(120), items: z.array(item({ title: localized(80), body: localized(1000, true), price: localized(60).optional() })).max(24) }),
+  /** Shown on the page. The shop platform, not the spec, owns the live catalogue. */
+  section("products", { heading: localized(120), items: z.array(item({ title: localized(80), body: localized(1000, true), price: localized(60).optional(), assetId: idSchema.optional() })).max(24) }),
   section("testimonials", { heading: localized(120), mediaAssetId: idSchema.optional(), items: z.array(item({ quote: localized(600, true), author: text(80) })).max(12) }),
   section("gallery", { heading: localized(120), assetIds: z.array(idSchema).max(24) }),
   section("team", { heading: localized(120), items: z.array(item({ name: text(80), role: localized(80), assetId: idSchema.optional() })).max(24) }),

@@ -47,7 +47,7 @@ function everySection(): SiteSpec {
       if (kind === "gallery") section.assetIds = ["stored", "waiting"];
       if ("items" in section) {
         const filled = { price: { en: "From 100 euros" }, title: { en: "A title" }, body: { en: "Some text about it." }, quote: { en: "They made our day." }, author: "A customer", name: "A person", role: { en: "Baker" }, question: { en: "A question?" }, answer: { en: "An answer." }, assetId: "stored" };
-        section.items = [newItem(spec, kind), { ...newItem(spec, kind), id: "second" }].map((item) => Object.fromEntries(Object.keys(item).concat(kind === "team" ? ["assetId"] : kind === "services" ? ["price"] : []).map((key) => [key, key === "id" ? item.id : filled[key as keyof typeof filled]])));
+        section.items = [newItem(spec, kind), { ...newItem(spec, kind), id: "second" }].map((item) => Object.fromEntries(Object.keys(item).concat(kind === "team" ? ["assetId"] : kind === "services" ? ["price"] : kind === "products" ? ["price", "assetId"] : []).map((key) => [key, key === "id" ? item.id : filled[key as keyof typeof filled]])));
       }
       page.sections.push(section as never);
     }

@@ -137,6 +137,10 @@ p{margin:0 0 calc(1rem * var(--sp-space));text-wrap:pretty}
 .sp-gallery .sp-image{aspect-ratio:1/1}
 .sp-gallery--masonry .sp-image:nth-child(2),.sp-gallery--masonry .sp-figure:nth-child(2){margin-top:4rem}
 
+.sp-products .sp-card{border-top:0;padding-top:0}
+.sp-products .sp-image,.sp-products .sp-figure{margin-bottom:1.25rem}
+.sp-products .sp-card h3{font-size:clamp(1.2rem,1.8vw,1.5rem)}
+
 .sp-team .sp-card{border-top:0;padding-top:0}
 .sp-team .sp-image,.sp-team .sp-figure{margin-bottom:1.25rem}
 .sp-team .sp-image{aspect-ratio:4/5}

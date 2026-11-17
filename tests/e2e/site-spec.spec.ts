@@ -342,7 +342,7 @@ test("starts a first draft from a template, with instructions to write and the b
 
   // Suggested from the project type; another can be chosen. The size follows the choice.
   await expect(page.getByLabel("Services business")).toBeChecked();
-  await expect(page.getByTestId("draft-size")).toContainText("5 pages");
+  await expect(page.getByTestId("draft-size")).toContainText("4 pages");
   await page.getByLabel("Single page").check();
   await expect(page.getByTestId("draft-size")).toContainText("2 pages");
   await page.getByLabel("Online shop").check();
@@ -360,8 +360,8 @@ test("starts a first draft from a template, with instructions to write and the b
   // It opens in the editor, with its pages, the instructions and the preview.
   await expect(page.getByRole("heading", { level: 1, name: "Website spec v1" })).toBeVisible();
   const frame = page.getByTestId("live-preview-frame");
-  await expect(frame).toHaveAttribute("srcdoc", /\[Say what /);
-  await expect(page.getByRole("navigation", { name: "Website spec sections" })).toContainText("Services");
+  await expect(frame).toHaveAttribute("srcdoc", /\[Headline: the outcome /);
+  await expect(page.getByRole("navigation", { name: "Website spec sections" })).toContainText("About");
   await expect(page.getByRole("navigation", { name: "Website spec sections" })).toContainText("Privacy");
 
   // What is left to write is a list that leads to each field. It blocks submission.
@@ -372,11 +372,12 @@ test("starts a first draft from a template, with instructions to write and the b
   const groups = blockers.getByTestId("problem-group");
   await expect(groups.first()).toContainText("Start here: goal and brand");
   await expect(groups.first().getByRole("button").first()).toBeVisible();
-  await expect(blockers.getByRole("button", { name: /Hero: heading still needs writing/ })).toBeHidden();
+  // The home page is split by section, and its hero is open as where to go next.
+  await expect(groups.filter({ hasText: /^Home › Hero/ }).getByRole("button", { name: /Hero: heading still needs writing/ }).first()).toBeVisible();
+  await expect(groups.filter({ hasText: /^Home › What they take off/ }).getByRole("button").first()).toBeHidden();
   const legal = groups.filter({ hasText: "Privacy and consent" });
   await legal.locator("summary").click();
   await expect(legal).toContainText("need client-specific details and legal review");
-  await groups.filter({ hasText: /^Home/ }).locator("summary").click();
   await blockers.getByRole("button", { name: /Hero: heading still needs writing/ }).first().click();
   const heading = page.getByLabel("Heading (English)", { exact: true }).first();
   await expect(heading).toBeFocused();

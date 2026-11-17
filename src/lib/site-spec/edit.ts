@@ -54,6 +54,7 @@ export function newSection(spec: SiteSpec, kind: SectionKind): SiteSpecSection {
     text_media: { heading: {}, body: {}, buttons: [] },
     features: { heading: {}, items: [] },
     services: { heading: {}, items: [] },
+    products: { heading: {}, items: [] },
     testimonials: { heading: {}, items: [] },
     gallery: { heading: {}, assetIds: [] },
     team: { heading: {}, items: [] },
@@ -71,6 +72,7 @@ export function newItem(spec: SiteSpec, kind: SectionKind): Record<string, unkno
   switch (kind) {
     case "features":
     case "services":
+    case "products":
       return { id, title: {}, body: {} };
     case "testimonials":
       return { id, quote: {}, author: "" };
