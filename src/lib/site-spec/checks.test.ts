@@ -51,7 +51,9 @@ describe("what must be fixed before approval", () => {
 
 describe("what is worth checking", () => {
   it("has nothing else to say about a complete spec of a test client with short descriptions", () => {
-    expect(warnings(spec()).filter((w) => !/search description is short|says "\(test\)"/.test(w))).toEqual([]);
+    const s = spec();
+    s.forms[0].replyNote = { en: "We reply within a day." };
+    expect(warnings(s).filter((w) => !/search description is short|says "\(test\)"/.test(w))).toEqual([]);
   });
 
   it("notices test text", () => {

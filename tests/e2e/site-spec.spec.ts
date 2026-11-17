@@ -233,6 +233,25 @@ test("the fields a premium page needs reach the preview and stay saved", async (
   await expect(page.getByTestId("spec-section").first().getByLabel("Part of that page", { exact: true })).not.toHaveValue("");
 });
 
+test("asks about a claim and a form that doesn't say what happens next, without stopping approval", async ({ page }) => {
+  const { url } = await completeDraft("Honest Bakery (TEST)");
+  await signIn(page, fixture().member);
+  await page.goto(url);
+  const warnings = page.getByTestId("spec-warnings");
+  const eyebrow = page.getByLabel("Small line above the heading", { exact: true }).first();
+
+  await eyebrow.fill("Award-winning bakers in Turku");
+  await expect(warnings).toContainText("makes a claim (an award)");
+  await expect(page.getByText("Nothing blocks approval")).toBeVisible();
+  await eyebrow.fill("Bakers in Turku");
+  await expect(warnings).not.toContainText("makes a claim");
+
+  await expect(warnings).toContainText("The contact form doesn't say what happens after sending");
+  await page.getByRole("button", { name: /Contact/ }).first().click();
+  await page.getByLabel("What happens next", { exact: true }).fill("We reply within a day.");
+  await expect(warnings).not.toContainText("after sending");
+});
+
 test("does not overwrite a change someone else made", async ({ page }) => {
   const { repository, draft, url } = await completeDraft("Conflict Bakery (TEST)");
   await signIn(page, fixture().member);
