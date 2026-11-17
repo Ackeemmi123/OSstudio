@@ -317,6 +317,7 @@ export type ActivityEventType =
   | "site_spec.submitted"
   | "site_spec.changes_requested"
   | "site_spec.approved"
+  | "site_spec.built"
   | "site_asset.uploaded"
   | "site_asset.approved"
   | "site_asset.rejected"
