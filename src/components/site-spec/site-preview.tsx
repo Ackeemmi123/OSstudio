@@ -14,6 +14,7 @@ import { SITE_SPEC_STATUS_LABELS } from "@/lib/domain/labels";
 import { isWebsiteProject, openSiteSpec } from "@/lib/domain/site-specs";
 import type { SiteSpecRecord } from "@/lib/domain/types";
 import { renderPreviewDocument } from "@/lib/site-render/document";
+import { previewPage as associationPreview } from "../../../design-systems/association";
 import { buildRenderModel, type RenderImageFile } from "@/lib/site-render/model";
 import { parseSiteSpec } from "@/lib/site-spec/validate";
 import { PreviewFrame, ViewportButtons, type Viewport } from "./preview-frame";
@@ -99,10 +100,13 @@ export function SitePreviewRoute({ clientId, projectId }: { clientId: string; pr
       specHref={specHref}
       pageId={search.get("page") ?? undefined}
       locale={search.get("lang") ?? undefined}
+      design={search.get("design") ?? undefined}
       onChange={setParam}
     />
   );
 }
+
+type Design = "template" | "association";
 
 function Preview({
   record,
@@ -111,8 +115,10 @@ function Preview({
   specHref,
   pageId,
   locale,
+  design: wantedDesign,
   onChange,
 }: {
+  design?: string;
   record: SiteSpecRecord;
   versions: SiteSpecRecord[];
   title: string;
@@ -152,11 +158,43 @@ function Preview({
   }, []);
 
   const parsed = useMemo(() => parseSiteSpec(record.spec), [record.spec]);
+  // Which design draws the preview: Studio OS's own template, or a design system a site is built with.
+  // Remembered per spec on this computer; the address can override it.
+  const designKey = `studio-os:preview-design:${record.id}`;
+  // The preview is drawn only in the browser, after the versions have loaded, so storage can be read here.
+  const [storedDesign, setStoredDesign] = useState<Design>(() => {
+    try {
+      const saved = typeof window === "undefined" ? null : window.localStorage.getItem(designKey);
+      return saved === "association" ? "association" : "template";
+    } catch {
+      // Private windows may refuse storage; the template is the default.
+      return "template";
+    }
+  });
+  const design: Design = wantedDesign === "association" || wantedDesign === "template" ? wantedDesign : storedDesign;
+  const chooseDesign = (next: Design) => {
+    setStoredDesign(next);
+    try {
+      window.localStorage.setItem(designKey, next);
+    } catch {
+      // Not remembered, but still shown.
+    }
+    onChange({ design: next });
+  };
+
   const rendered = useMemo(() => {
     if (!parsed.ok) return null;
     const model = buildRenderModel(parsed.spec, { pageId, locale, showMissing, imageFiles });
-    return { model, html: renderPreviewDocument(parsed.spec, model) };
-  }, [parsed, pageId, locale, showMissing, imageFiles]);
+    if (design === "association") {
+      try {
+        const files = Object.fromEntries(parsed.spec.assets.flatMap((asset) => (asset.fileId && imageFiles[asset.fileId] ? [[asset.id, imageFiles[asset.fileId].url]] : [])));
+        return { model, html: associationPreview(parsed.spec, { files, today: new Date() }, model.page.id).html, designError: null };
+      } catch (error) {
+        return { model, html: renderPreviewDocument(parsed.spec, model), designError: error instanceof Error ? error.message : String(error) };
+      }
+    }
+    return { model, html: renderPreviewDocument(parsed.spec, model), designError: null };
+  }, [parsed, pageId, locale, showMissing, imageFiles, design]);
 
   return (
     <div className="flex flex-col gap-5">
@@ -207,6 +245,12 @@ function Preview({
                 </Select>
               </Field>
             ) : null}
+            <Field id="preview-design" label="Design" className="w-56">
+              <Select id="preview-design" value={design} onChange={(e) => chooseDesign(e.target.value as Design)}>
+                <option value="template">Studio OS template</option>
+                <option value="association">Association (association@0.1)</option>
+              </Select>
+            </Field>
             <ViewportButtons viewport={viewport} onChange={setViewport} />
             <label className="flex h-9 items-center gap-2 text-[13px] text-ink">
               <input type="checkbox" checked={showMissing} onChange={(e) => setShowMissing(e.target.checked)} />
@@ -215,6 +259,7 @@ function Preview({
             </label>
           </div>
 
+          {rendered.designError ? <p className="text-[13px] text-caution">The association design cannot draw this spec, so the template is shown: {rendered.designError}</p> : design === "association" ? <p className="text-[13px] text-ink-subtle">Drawn as the site is built. Document files and the hosted forms are added at build time, so downloads and sending are not shown here.</p> : null}
           <PreviewFrame html={rendered.html} title={`Preview of ${rendered.model.page.title.text || "the page"}`} viewport={viewport} height="75vh" />
         </>
       )}

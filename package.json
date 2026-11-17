@@ -20,7 +20,12 @@
     "db:start": "sh scripts/supabase-start.sh",
     "db:stop": "supabase stop",
     "db:reset": "supabase db reset",
-    "eval:intake": "vitest run -c vitest.eval.config.mts"
+    "eval:intake": "vitest run -c vitest.eval.config.mts",
+    "proof:build": "vitest run -c vitest.proof.config.mts proof/build.render.ts",
+    "proof:test": "vitest run -c vitest.proof.config.mts",
+    "proof:qa": "node proof/qa/run.mjs",
+    "proof:preview": "node proof/preview.mjs",
+    "proof:qa:planted": "node proof/qa/planted.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^1.3.0",
