@@ -1,0 +1,28 @@
+import { createClient } from "@supabase/supabase-js";
+import { serverSupabase } from "@/server/config";
+import { BUILD_BUCKET } from "@/server/site-builds/build";
+import { serveBuild } from "@/server/site-builds/serve";
+
+/**
+ * A built site behind its private link: /s/<token>/ and the pages under it.
+ * No sign-in: the long random token is the key, and it expires or can be
+ * turned off. Only the server reads the stored files.
+ */
+export async function GET(_request: Request, { params }: { params: Promise<{ token: string; path?: string[] }> }) {
+  const { token, path = [] } = await params;
+  const supabase = serverSupabase();
+  if (!supabase.ok) return new Response("Not available.", { status: 503 });
+  const asServer = createClient(supabase.url, supabase.serviceRoleKey, { auth: { persistSession: false, autoRefreshToken: false } });
+  return serveBuild(token, path, {
+    find: async (value) => {
+      const { data } = await asServer.from("site_builds").select("storage_prefix, expires_at, revoked_at").eq("share_token", value).maybeSingle();
+      return data ? { storagePrefix: data.storage_prefix, expiresAt: data.expires_at, revokedAt: data.revoked_at } : null;
+    },
+    read: async (file) => {
+      const { data, error } = await asServer.storage.from(BUILD_BUCKET).download(file);
+      if (error || !data) return null;
+      return new Uint8Array(await data.arrayBuffer());
+    },
+    now: () => new Date(),
+  });
+}
