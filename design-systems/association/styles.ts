@@ -100,6 +100,7 @@ label{font-weight:700;font-size:15px;display:block;margin-bottom:6px}
 input,textarea{width:100%;font:inherit;padding:12px 14px;border:1px solid var(--muted);border-radius:var(--r);background:#fff;color:var(--ink)}
 textarea{min-height:140px}
 .check{display:flex;gap:12px;align-items:flex-start}.check input{width:22px;height:22px;margin-top:3px;flex:none}.check label{font-family:var(--body);font-weight:400;font-size:16px}
+.nofile{display:flex;align-items:center;justify-content:center;text-align:center;aspect-ratio:3/4;padding:16px;background:var(--line);color:var(--muted);font-size:14px}
 .trap{position:absolute;left:-9999px;height:1px;overflow:hidden}
 .off{font-size:14px;color:var(--muted);margin:0}
 .gallery{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}

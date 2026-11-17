@@ -30,6 +30,8 @@ export interface AssociationOptions {
   status: "prototype" | "approved";
   /** Today, for sorting events into upcoming and past. */
   today: Date;
+  /** A preview draws an image without a file as a labelled box; a build refuses it. */
+  missingImages?: "refuse" | "box";
 }
 
 export interface BuiltFile {
@@ -173,8 +175,14 @@ function image(site: Site, assetId: string | undefined, attrs: string): string {
   if (!assetId) return "";
   const asset = site.spec.assets.find((entry) => entry.id === assetId);
   const file = site.options.files[assetId];
+  if (asset && !file && site.options.missingImages === "box") return `<div class="nofile" role="img" aria-label="${escapeHtml(text(asset.alt, site.locale))}">${escapeHtml(asset.description || text(asset.alt, site.locale) || assetId)}</div>`;
   if (!asset || !file) throw new Error(`No file for the image ${assetId}.`);
-  return `<img src="/${escapeHtml(file)}" alt="${escapeHtml(text(asset.alt, site.locale))}" ${attrs}>`;
+  return `<img src="${escapeHtml(fileUrl(file))}" alt="${escapeHtml(text(asset.alt, site.locale))}" ${attrs}>`;
+}
+
+/** A file in the site's folder, or a full address (a preview's short-lived links). */
+function fileUrl(file: string): string {
+  return /^https?:\/\//.test(file) ? file : `/${file}`;
 }
 
 function eventRow(event: EventItem, past: boolean): string {
@@ -284,8 +292,9 @@ function document(site: Site, page: SiteSpecPage | null, title: string, descript
   const contactPage = spec.pages.find((entry) => entry.id !== site.ctaPageId && entry.sections.some((s) => s.kind === "contact"));
   const contactSection = contactPage?.sections.find((s) => s.kind === "contact");
   const contactLines = contactSection ? (text(contactSection.body, locale).split(/\n{2,}/).find((block) => block.split("\n").every((line) => DETAIL.test(line.trim()))) ?? "") : "";
-  const small = options.smallLogo ? image(site, options.smallLogo, 'width="150" height="91"') : "";
-  const brandLogo = options.smallLogo ? image(site, options.smallLogo, 'width="64" height="39"').replace(/alt="[^"]*"/, `alt="${escapeHtml(siteName)}"`) : "";
+  const smallLogo = options.smallLogo ?? spec.brand.logoAssetId;
+  const small = smallLogo ? image(site, smallLogo, 'width="150" height="91"') : "";
+  const brandLogo = smallLogo ? image(site, smallLogo, 'width="64" height="39"').replace(/alt="[^"]*"/, `alt="${escapeHtml(siteName)}"`) : "";
   const noindex = options.status !== "approved";
   return [
     "<!doctype html>",
@@ -296,7 +305,7 @@ function document(site: Site, page: SiteSpecPage | null, title: string, descript
     ...(noindex ? ['<meta name="robots" content="noindex,nofollow">'] : []),
     `<title>${escapeHtml(title)}</title>`,
     `<meta name="description" content="${escapeHtml(description)}">`,
-    options.smallLogo ? `<link rel="icon" href="/${escapeHtml(options.files[options.smallLogo])}">` : "",
+    smallLogo && options.files[smallLogo] ? `<link rel="icon" href="${escapeHtml(fileUrl(options.files[smallLogo]))}">` : "",
     '<link rel="stylesheet" href="/site.css">',
     '<meta name="generator" content="association@0.1">',
     "</head>",
@@ -343,4 +352,18 @@ export function build(input: unknown, options: AssociationOptions): BuiltFile[] 
   }
   if (options.status !== "approved") files.push({ path: "robots.txt", text: "User-agent: *\nDisallow: /\n" });
   return files;
+}
+
+/**
+ * One page as a single document for Studio OS's sandboxed preview frame: the
+ * stylesheet inline, images through the given links, missing images as boxes.
+ */
+export function previewPage(input: unknown, options: Omit<AssociationOptions, "status" | "missingImages">, pageId?: string): { html: string; pageId: string } {
+  const spec = siteSpecSchema.parse(input);
+  const page = spec.pages.find((entry) => entry.id === pageId) ?? spec.pages[0];
+  const files = build(spec, { ...options, documents: undefined, status: "prototype", missingImages: "box" });
+  const slug = page.slug[spec.locales.default] ?? "";
+  const html = files.find((file) => file.path === (slug ? `${slug}/index.html` : "index.html"))!.text;
+  const css = files.find((file) => file.path === "site.css")!.text;
+  return { pageId: page.id, html: html.replace('<link rel="stylesheet" href="/site.css">', `<style>${css}</style>`) };
 }

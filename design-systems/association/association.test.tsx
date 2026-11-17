@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { build, eventsOf, parseWhen, richText } from "./index";
+import { build, eventsOf, parseWhen, previewPage, richText } from "./index";
 import { siteSpecSchema } from "@/lib/site-spec/schema";
 
 /** An invented association, so the tests carry no real person or client. */
@@ -101,5 +101,24 @@ describe("association design system", () => {
 
   it("refuses an image without a file", () => {
     expect(() => build(spec(), { ...options, files: {} })).toThrow(/No file for the image logo/);
+  });
+
+  it("draws one page for the Studio OS preview, with inline styles, linked images and boxes for missing ones", () => {
+    const linked = previewPage(spec(), { files: { logo: "https://storage.example/signed/logo.png?token=x" }, today: options.today }, "events");
+    expect(linked.pageId).toBe("events");
+    expect(linked.html).toContain("<style>");
+    expect(linked.html).not.toContain('href="/site.css"');
+    expect(linked.html).toContain("<h1>Evenemang</h1>");
+    const home = previewPage(spec(), { files: { logo: "https://storage.example/signed/logo.png?token=x" }, today: options.today });
+    expect(home.html).toContain('src="https://storage.example/signed/logo.png?token=x"');
+    const missing = previewPage(spec(), { files: {}, today: options.today });
+    expect(missing.html).toContain('class="nofile"');
+    expect(previewPage(spec(), { files: {}, today: options.today }, "nope").pageId).toBe("home");
+  });
+
+  it("uses the brand's logo in the header when no small logo is given", () => {
+    const withLogo = { ...spec(), brand: { ...spec().brand, logoAssetId: "logo" } };
+    const html = page(build(withLogo, { ...options, smallLogo: undefined }), "index.html");
+    expect(html).toMatch(/<a class="brand" href="\/"><img src="\/img\/logo.png"/);
   });
 });

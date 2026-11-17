@@ -153,6 +153,26 @@ export function BrandEditor({ spec, editing }: { spec: SiteSpec; editing: SpecEd
             ))}
           </Select>
         </Field>
+        <Field id="brand-logo" label="Logo" hint="Shown in the header and footer, where the design uses one.">
+          <Select
+            id="brand-logo"
+            value={brand.logoAssetId ?? ""}
+            disabled={!editable}
+            onChange={(e) =>
+              brandChange((s) => {
+                if (e.target.value) s.brand.logoAssetId = e.target.value;
+                else delete s.brand.logoAssetId;
+              })
+            }
+          >
+            <option value="">No logo</option>
+            {spec.assets.map((asset) => (
+              <option key={asset.id} value={asset.id}>
+                {asset.description || asset.id}
+              </option>
+            ))}
+          </Select>
+        </Field>
         <Field id="brand-density" label="Spacing">
           <Select id="brand-density" value={brand.density} disabled={!editable} onChange={(e) => brandChange((s) => void (s.brand.density = e.target.value as SiteSpec["brand"]["density"]))}>
             {DENSITIES.map((v) => (
