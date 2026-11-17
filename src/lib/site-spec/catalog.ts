@@ -17,6 +17,7 @@ export const SECTION_VARIANTS = {
   text_media: ["image_right", "image_left"],
   features: ["grid_3", "grid_4", "list"],
   services: ["cards", "list", "detailed"],
+  products: ["grid_3", "grid_4"],
   testimonials: ["quotes", "carousel"],
   gallery: ["grid", "masonry"],
   team: ["grid", "list"],
@@ -35,6 +36,7 @@ export const SECTION_LABELS: Record<SectionKind, { label: string; description: s
   text_media: { label: "Text and image", description: "Body text beside one image." },
   features: { label: "Features", description: "Short points, each with a title and a sentence." },
   services: { label: "Services", description: "What the business offers, one item per service." },
+  products: { label: "Products", description: "What a shop sells, shown on the page. The shop platform keeps the live catalogue." },
   testimonials: { label: "Testimonials", description: "Quotes from customers, with their permission." },
   gallery: { label: "Gallery", description: "A set of images." },
   team: { label: "Team", description: "People, with their role. Only with each person's consent." },
@@ -124,31 +126,34 @@ export interface ItemFieldDefinition {
 }
 
 const HEADING: SectionFieldDefinition = { key: "heading", label: "Heading", type: "text" };
+const EYEBROW: SectionFieldDefinition = { key: "eyebrow", label: "Small line above the heading", type: "text" };
 
 export const SECTION_FIELDS: Record<SectionKind, SectionFieldDefinition[]> = {
-  hero: [HEADING, { key: "subheading", label: "Short line under the heading", type: "longText" }, { key: "mediaAssetId", label: "Image", type: "image" }, { key: "buttons", label: "Buttons", type: "buttons", max: 2 }],
-  text: [HEADING, { key: "body", label: "Text", type: "longText" }],
-  text_media: [HEADING, { key: "body", label: "Text", type: "longText" }, { key: "mediaAssetId", label: "Image", type: "image" }, { key: "buttons", label: "Button", type: "buttons", max: 1 }],
-  features: [HEADING, { key: "items", label: "Features", type: "items" }],
-  services: [HEADING, { key: "items", label: "Services", type: "items" }],
-  testimonials: [HEADING, { key: "items", label: "Quotes", type: "items" }],
-  gallery: [HEADING, { key: "assetIds", label: "Images", type: "images" }],
-  team: [HEADING, { key: "items", label: "People", type: "items" }],
-  faq: [HEADING, { key: "items", label: "Questions", type: "items" }],
-  cta: [HEADING, { key: "body", label: "Text", type: "longText" }, { key: "button", label: "Button", type: "button" }],
-  contact: [HEADING, { key: "body", label: "Text", type: "longText" }, { key: "formId", label: "Form", type: "form" }],
-  map: [HEADING],
+  hero: [EYEBROW, HEADING, { key: "emphasis", label: "End of the heading to set apart", type: "text" }, { key: "subheading", label: "Short line under the heading", type: "longText" }, { key: "mediaAssetId", label: "Image", type: "image" }, { key: "buttons", label: "Buttons", type: "buttons", max: 2 }, { key: "reassurance", label: "Reassurance under the buttons", type: "longText" }],
+  text: [EYEBROW, HEADING, { key: "body", label: "Text", type: "longText" }],
+  text_media: [EYEBROW, HEADING, { key: "body", label: "Text", type: "longText" }, { key: "mediaAssetId", label: "Image", type: "image" }, { key: "buttons", label: "Button", type: "buttons", max: 1 }],
+  features: [EYEBROW, HEADING, { key: "items", label: "Features", type: "items" }],
+  services: [EYEBROW, HEADING, { key: "items", label: "Services", type: "items" }],
+  products: [EYEBROW, HEADING, { key: "items", label: "Products", type: "items" }],
+  testimonials: [EYEBROW, HEADING, { key: "mediaAssetId", label: "Image beside the quotes", type: "image" }, { key: "items", label: "Quotes", type: "items" }],
+  gallery: [EYEBROW, HEADING, { key: "assetIds", label: "Images", type: "images" }],
+  team: [EYEBROW, HEADING, { key: "items", label: "People", type: "items" }],
+  faq: [EYEBROW, HEADING, { key: "items", label: "Questions", type: "items" }],
+  cta: [EYEBROW, HEADING, { key: "body", label: "Text", type: "longText" }, { key: "button", label: "Button", type: "button" }],
+  contact: [EYEBROW, HEADING, { key: "body", label: "Text", type: "longText" }, { key: "formId", label: "Form", type: "form" }],
+  map: [EYEBROW, HEADING],
 };
 
 export const ITEM_FIELDS: Partial<Record<SectionKind, ItemFieldDefinition[]>> = {
   features: [{ key: "title", label: "Title", type: "text" }, { key: "body", label: "Text", type: "longText" }],
-  services: [{ key: "title", label: "Service", type: "text" }, { key: "body", label: "Description", type: "longText" }],
+  services: [{ key: "title", label: "Service", type: "text" }, { key: "body", label: "Description", type: "longText" }, { key: "price", label: "Price (only if the client confirmed it)", type: "text" }],
+  products: [{ key: "title", label: "Product", type: "text" }, { key: "body", label: "Description", type: "longText" }, { key: "price", label: "Price (only if the client confirmed it)", type: "text" }, { key: "assetId", label: "Photo", type: "image" }],
   testimonials: [{ key: "quote", label: "Quote", type: "longText" }, { key: "author", label: "Who said it", type: "plain" }],
   team: [{ key: "name", label: "Name", type: "plain" }, { key: "role", label: "Role", type: "text" }, { key: "assetId", label: "Photo", type: "image" }],
   faq: [{ key: "question", label: "Question", type: "text" }, { key: "answer", label: "Answer", type: "longText" }],
 };
 
-export const ITEM_LIMITS: Partial<Record<SectionKind, number>> = { features: 12, services: 24, testimonials: 12, team: 24, faq: 30 };
+export const ITEM_LIMITS: Partial<Record<SectionKind, number>> = { features: 12, services: 24, products: 24, testimonials: 12, team: 24, faq: 30 };
 
 export const FORM_FIELD_LABELS: Record<FormField, string> = { name: "Name", email: "Email", phone: "Phone", company: "Company", date: "Date", message: "Message" };
 export const FORM_PURPOSE_LABELS: Record<(typeof FORM_PURPOSES)[number], string> = { contact: "Contact", quote: "Quote request", booking_request: "Booking request" };

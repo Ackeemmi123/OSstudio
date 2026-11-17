@@ -54,6 +54,34 @@ confirmed brief values are copied, each with its source. Everything only a perso
 can write is an instruction in square brackets, shown in the preview and in English
 for now. A whole field in brackets blocks approval. It uses no AI.
 
+Each template follows its own journey, from the approved design references. A
+services business tells the whole story on its home page, from promises and services
+to how the start goes, proof and questions. A shop goes from wanting a product to
+choosing one and knowing the terms before buying. A single page walks towards the
+form at its end. Headings a visitor reads are written for the client, not fixed
+words, except for questions and contact, which visitors look for. A section of
+quotes asks for real words with permission, or for the section to be removed. Only
+new drafts are affected: a draft already started keeps its structure.
+
+A shop's range uses its own Products section, with a name, description, optional
+confirmed price and a photo for each. It is what the page shows, not a catalogue: the
+shop platform owns live products, prices and stock.
+
+The list of what is left splits a page with more than 8 things to do into its
+sections, such as "Home › Hero", and opens only where to start: the goal and brand,
+then the home page's hero.
+
+An instruction can never pass as finished text: a whole field in brackets, or words
+in brackets inside other text, blocks approval on the server. Finished standard
+headings such as "Frequently asked questions" do not. Instructions can stay in
+English, because no visitor ever reads them.
+
+The services template has no separate Services page, so nothing is written twice.
+A business with a lot to say about its services, or specific search needs, can still
+add its own pages with Add page. Sections keep stable ids and buttons can already
+lead to one, so the menu can later link to sections on the home page without changing
+how a page is stored.
+
 ## Editing
 
 A draft saves itself about 2 seconds after typing stops, one save at a time
@@ -63,6 +91,22 @@ someone else changed the draft, saving stops without overwriting anything and
 the text stays on screen. The activity gets one "Edited" entry per 10 minutes of
 editing, not one per save. Clicking a problem under "Before approval" goes to
 its field (`data-spec-path` in the editors, `src/lib/site-spec/paths.ts`).
+
+## Optional fields a design can use
+
+Every one of these is optional, so existing specs stay valid and no migration is needed. They hold what a premium
+page needs and a template can't invent:
+
+- A small line above any section's heading.
+- In a hero: the end of the heading to set apart, and an honest line under the buttons.
+- A price on a service. Use only a price the client confirmed.
+- An image beside testimonials, under the same image-rights rules as any other.
+- A button can go to a section of a page, not only to the top.
+- A form's send button, a note on what happens next, and its field labels in the website's own language.
+
+An optional text can be left out, but one written in some languages only blocks approval. Bracketed instructions
+in these fields block approval too. The live product catalogue is not part of the SiteSpec: clients manage it on
+the shop platform.
 
 ## What blocks approval
 
@@ -133,7 +177,13 @@ Content carries where it came from:
 look and stops nothing: test text, text that may not be translated, vague
 alternative texts, duplicate or short search texts, pages nothing leads to, a
 home page without the main call to action, lists without a heading, unused
-images and forms, images too small for their place, and heavy pages. The review
+images and forms, images too small for their place, and heavy pages. It also
+looks for claims that need the client's confirmation (percentages, customer
+numbers, awards, certifications, guarantees, rankings), pressure such as "last
+chance", headings that could be on any website, a hero without a button or with a
+very long heading, quotes with nobody named, three similar sections in a row, a
+form that doesn't say what happens next, and a shop that doesn't mention delivery,
+returns or payment. These match words, so they ask for a look and never block. The review
 shows a short reminder of what no check can judge. The preview's templates are
 checked for accessibility in CI (`tests/e2e/preview-accessibility.spec.ts`).
 

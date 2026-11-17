@@ -198,15 +198,44 @@ function ImagePicker({ id, label, spec, value, disabled, onChange }: { id: strin
   );
 }
 
+function withoutSection(button: SiteSpecButton): SiteSpecButton {
+  return { label: button.label, targetPageId: button.targetPageId };
+}
+
 function ButtonEditor({ id, path, spec, button, disabled, onChange }: { id: string; path: string; spec: SiteSpec; button: SiteSpecButton; disabled: boolean; onChange: (next: SiteSpecButton) => void }) {
+  const targetSections = spec.pages.find((page) => page.id === button.targetPageId)?.sections ?? [];
   return (
     <div className="grid gap-3 sm:grid-cols-2">
       <LocalizedInput label="Button label" path={`${path}.label`} value={button.label} locales={spec.locales.available} maxLength={40} disabled={disabled} onChange={(label) => onChange({ ...button, label })} />
       <Field id={`${id}-target`} label="It leads to">
-        <Select id={`${id}-target`} value={button.targetPageId} disabled={disabled} onChange={(e) => onChange({ ...button, targetPageId: e.target.value })}>
+        <Select
+            id={`${id}-target`}
+            value={button.targetPageId}
+            disabled={disabled}
+            onChange={(e) => {
+              onChange({ ...withoutSection(button), targetPageId: e.target.value });
+            }}
+          >
           {spec.pages.map((page) => (
             <option key={page.id} value={page.id}>
               {page.title[spec.locales.default] || page.id}
+            </option>
+          ))}
+        </Select>
+      </Field>
+      <Field id={`${id}-section`} label="Part of that page">
+        <Select
+          id={`${id}-section`}
+          value={button.targetSectionId ?? ""}
+          disabled={disabled}
+          onChange={(e) => {
+            onChange(e.target.value ? { ...withoutSection(button), targetSectionId: e.target.value } : withoutSection(button));
+          }}
+        >
+          <option value="">The top of the page</option>
+          {targetSections.map((section) => (
+            <option key={section.id} value={section.id}>
+              {section.heading[spec.locales.default]?.trim() || SECTION_LABELS[section.kind].label}
             </option>
           ))}
         </Select>

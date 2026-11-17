@@ -194,6 +194,64 @@ test("leads from a problem to its field, opening the page it is on", async ({ pa
   await expect(page.getByTestId("live-preview-frame")).toHaveAttribute("srcdoc", /<h1>Contact<\/h1>/);
 });
 
+test("the fields a premium page needs reach the preview and stay saved", async ({ page }) => {
+  const { url } = await completeDraft("Premium Bakery (TEST)");
+  await signIn(page, fixture().member);
+  await page.goto(url);
+  const frame = page.getByTestId("live-preview-frame");
+  const eyebrow = page.getByLabel("Small line above the heading", { exact: true }).first();
+
+  await eyebrow.fill("Bakers in Turku");
+  await expect(frame).toHaveAttribute("srcdoc", /class="sp-eyebrow">Bakers in Turku</);
+
+  await page.getByLabel("End of the heading to set apart", { exact: true }).fill("made to order");
+  await expect(frame).toHaveAttribute("srcdoc", /<em class="sp-emphasis">made to order<\/em>/);
+  await page.getByLabel("Reassurance under the buttons", { exact: true }).fill("A free first chat.");
+  await expect(frame).toHaveAttribute("srcdoc", /class="sp-reassurance">A free first chat\.</);
+
+  // A button can lead to one part of a page. Choosing another page clears that.
+  const hero = page.getByTestId("spec-section").first();
+  const part = hero.getByLabel("Part of that page", { exact: true });
+  await part.selectOption({ index: 1 });
+  await expect(frame).toHaveAttribute("srcdoc", /title="\/contact#/);
+  await hero.getByLabel("It leads to", { exact: true }).selectOption({ label: "Home" });
+  await expect(part).toHaveValue("");
+  await hero.getByLabel("It leads to", { exact: true }).selectOption({ label: "Contact" });
+  await part.selectOption({ index: 1 });
+
+  await page.getByRole("button", { name: /Contact/ }).first().click();
+  await page.getByLabel("Send button", { exact: true }).fill("Ask us");
+  await page.getByLabel("What happens next", { exact: true }).fill("We reply within a day.");
+  await page.getByLabel("Label for Name", { exact: true }).fill("Your name");
+  await expect(frame).toHaveAttribute("srcdoc", /Ask us/);
+  await expect(frame).toHaveAttribute("srcdoc", /We reply within a day\./);
+  await expect(frame).toHaveAttribute("srcdoc", /Your name/);
+  await expect(page.getByTestId("save-status")).toHaveText("Saved");
+
+  await page.reload();
+  await expect(page.getByLabel("Small line above the heading", { exact: true }).first()).toHaveValue("Bakers in Turku");
+  await expect(page.getByTestId("spec-section").first().getByLabel("Part of that page", { exact: true })).not.toHaveValue("");
+});
+
+test("asks about a claim and a form that doesn't say what happens next, without stopping approval", async ({ page }) => {
+  const { url } = await completeDraft("Honest Bakery (TEST)");
+  await signIn(page, fixture().member);
+  await page.goto(url);
+  const warnings = page.getByTestId("spec-warnings");
+  const eyebrow = page.getByLabel("Small line above the heading", { exact: true }).first();
+
+  await eyebrow.fill("Award-winning bakers in Turku");
+  await expect(warnings).toContainText("makes a claim (an award)");
+  await expect(page.getByText("Nothing blocks approval")).toBeVisible();
+  await eyebrow.fill("Bakers in Turku");
+  await expect(warnings).not.toContainText("makes a claim");
+
+  await expect(warnings).toContainText("The contact form doesn't say what happens after sending");
+  await page.getByRole("button", { name: /Contact/ }).first().click();
+  await page.getByLabel("What happens next", { exact: true }).fill("We reply within a day.");
+  await expect(warnings).not.toContainText("after sending");
+});
+
 test("does not overwrite a change someone else made", async ({ page }) => {
   const { repository, draft, url } = await completeDraft("Conflict Bakery (TEST)");
   await signIn(page, fixture().member);
@@ -284,7 +342,7 @@ test("starts a first draft from a template, with instructions to write and the b
 
   // Suggested from the project type; another can be chosen. The size follows the choice.
   await expect(page.getByLabel("Services business")).toBeChecked();
-  await expect(page.getByTestId("draft-size")).toContainText("5 pages");
+  await expect(page.getByTestId("draft-size")).toContainText("4 pages");
   await page.getByLabel("Single page").check();
   await expect(page.getByTestId("draft-size")).toContainText("2 pages");
   await page.getByLabel("Online shop").check();
@@ -302,8 +360,8 @@ test("starts a first draft from a template, with instructions to write and the b
   // It opens in the editor, with its pages, the instructions and the preview.
   await expect(page.getByRole("heading", { level: 1, name: "Website spec v1" })).toBeVisible();
   const frame = page.getByTestId("live-preview-frame");
-  await expect(frame).toHaveAttribute("srcdoc", /\[Say what /);
-  await expect(page.getByRole("navigation", { name: "Website spec sections" })).toContainText("Services");
+  await expect(frame).toHaveAttribute("srcdoc", /\[Headline: the outcome /);
+  await expect(page.getByRole("navigation", { name: "Website spec sections" })).toContainText("About");
   await expect(page.getByRole("navigation", { name: "Website spec sections" })).toContainText("Privacy");
 
   // What is left to write is a list that leads to each field. It blocks submission.
@@ -314,11 +372,12 @@ test("starts a first draft from a template, with instructions to write and the b
   const groups = blockers.getByTestId("problem-group");
   await expect(groups.first()).toContainText("Start here: goal and brand");
   await expect(groups.first().getByRole("button").first()).toBeVisible();
-  await expect(blockers.getByRole("button", { name: /Hero: heading still needs writing/ })).toBeHidden();
+  // The home page is split by section, and its hero is open as where to go next.
+  await expect(groups.filter({ hasText: /^Home › Hero/ }).getByRole("button", { name: /Hero: heading still needs writing/ }).first()).toBeVisible();
+  await expect(groups.filter({ hasText: /^Home › What they take off/ }).getByRole("button").first()).toBeHidden();
   const legal = groups.filter({ hasText: "Privacy and consent" });
   await legal.locator("summary").click();
   await expect(legal).toContainText("need client-specific details and legal review");
-  await groups.filter({ hasText: /^Home/ }).locator("summary").click();
   await blockers.getByRole("button", { name: /Hero: heading still needs writing/ }).first().click();
   const heading = page.getByLabel("Heading (English)", { exact: true }).first();
   await expect(heading).toBeFocused();

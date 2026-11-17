@@ -27,7 +27,7 @@ describe("removing and rearranging a draft", () => {
     const spec = draft();
     const hero = spec.pages[0].sections[0];
     const image = hero.kind === "hero" ? hero.mediaAssetId! : "";
-    const about = spec.pages[2].sections[0];
+    const about = spec.pages.find((p) => p.id === "about")!.sections[0];
     if (about.kind === "text_media") about.mediaAssetId = image;
     removeSection(spec, 0, 0);
     expect(spec.assets.some((a) => a.id === image)).toBe(true);

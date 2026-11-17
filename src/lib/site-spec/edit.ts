@@ -5,7 +5,7 @@
  */
 import type { Client, ContextFieldKey, SiteAssetRecord } from "@/lib/domain/types";
 import { SECTION_VARIANTS, type SectionKind } from "./catalog";
-import type { SiteSpec, SiteSpecAsset, SiteSpecForm, SiteSpecPage, SiteSpecSection, SiteSpecSource } from "./schema";
+import type { SiteSpec, SiteSpecAsset, SiteSpecButton, SiteSpecForm, SiteSpecPage, SiteSpecSection, SiteSpecSource } from "./schema";
 import { isPlaceholderText } from "./texts";
 import { assetIdsOf, buttonsOf } from "./validate";
 
@@ -54,6 +54,7 @@ export function newSection(spec: SiteSpec, kind: SectionKind): SiteSpecSection {
     text_media: { heading: {}, body: {}, buttons: [] },
     features: { heading: {}, items: [] },
     services: { heading: {}, items: [] },
+    products: { heading: {}, items: [] },
     testimonials: { heading: {}, items: [] },
     gallery: { heading: {}, assetIds: [] },
     team: { heading: {}, items: [] },
@@ -71,6 +72,7 @@ export function newItem(spec: SiteSpec, kind: SectionKind): Record<string, unkno
   switch (kind) {
     case "features":
     case "services":
+    case "products":
       return { id, title: {}, body: {} };
     case "testimonials":
       return { id, quote: {}, author: "" };
@@ -121,9 +123,19 @@ function dropWhatOnlyTheyUsed(spec: SiteSpec, removed: SiteSpecSection[]) {
   spec.forms = spec.forms.filter((form) => !removedForms.has(form.id) || formsInUse.has(form.id) || !Object.values(form.consentText).every((text) => text === undefined || isPlaceholderText(text)));
 }
 
+function allButtons(spec: SiteSpec): SiteSpecButton[] {
+  const inSections = spec.pages.flatMap((page) => page.sections.flatMap(buttonsOf));
+  return spec.strategy.primaryCta ? [...inSections, spec.strategy.primaryCta] : inSections;
+}
+
 export function removeSection(spec: SiteSpec, pageIndex: number, sectionIndex: number) {
   const [removed] = spec.pages[pageIndex].sections.splice(sectionIndex, 1);
-  if (removed) dropWhatOnlyTheyUsed(spec, [removed]);
+  if (!removed) return;
+  // A button that went to this section now goes to the top of its page.
+  for (const button of allButtons(spec)) {
+    if (button.targetSectionId === removed.id) delete button.targetSectionId;
+  }
+  dropWhatOnlyTheyUsed(spec, [removed]);
 }
 
 /** Removes a page. Buttons that led to it lead home instead, and pages under it move up, so the draft stays valid. */
@@ -133,13 +145,13 @@ export function removePage(spec: SiteSpec, pageIndex: number) {
   const home = spec.pages[0].id;
   for (const page of spec.pages) {
     if (page.parentId === removed.id) delete page.parentId;
-    for (const section of page.sections) {
-      for (const button of buttonsOf(section)) {
-        if (button.targetPageId === removed.id) button.targetPageId = home;
-      }
+  }
+  for (const button of allButtons(spec)) {
+    if (button.targetPageId === removed.id) {
+      button.targetPageId = home;
+      delete button.targetSectionId;
     }
   }
-  if (spec.strategy.primaryCta?.targetPageId === removed.id) spec.strategy.primaryCta.targetPageId = home;
   dropWhatOnlyTheyUsed(spec, removed.sections);
 }
 

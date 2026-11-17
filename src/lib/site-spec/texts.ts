@@ -20,6 +20,11 @@ export function isPlaceholderText(text: string): boolean {
   return /^\[[\s\S]*\]$/.test(text.trim());
 }
 
+/** Words in brackets inside finished text: an instruction someone wrote around instead of replacing. */
+export function hasInstructionInside(text: string): boolean {
+  return /\[[^\]\n]*\p{L}{2}[^\]\n]*\]/u.test(text);
+}
+
 /** A page's name in the default language, whatever else is missing. */
 export function pageLabel(spec: SiteSpec, page: SiteSpecPage, index: number): string {
   return page.title[spec.locales.default]?.trim() || page.title.en?.trim() || (index === 0 ? "Home page" : `Page ${index + 1}`);
@@ -67,6 +72,11 @@ export function visibleTexts(spec: SiteSpec): SpecText[] {
   });
 
   spec.assets.forEach((asset, a) => localized(asset.alt, `assets.${a}.alt`, `${asset.description.trim() || `Image ${a + 1}`}: the alternative text`));
-  spec.forms.forEach((form, f) => localized(form.consentText, `forms.${f}.consentText`, "A form's consent text"));
+  spec.forms.forEach((form, f) => {
+    localized(form.consentText, `forms.${f}.consentText`, "A form's consent text");
+    localized(form.submitLabel, `forms.${f}.submitLabel`, "A form's send button");
+    localized(form.replyNote, `forms.${f}.replyNote`, "A form's note on what happens next");
+    for (const name of form.fields) localized(form.fieldLabels?.[name], `forms.${f}.fieldLabels.${name}`, "A form's field label");
+  });
   return found;
 }
