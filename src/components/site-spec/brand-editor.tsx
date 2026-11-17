@@ -3,7 +3,7 @@
 import { Button } from "@/components/ui/button";
 import { Field, Select, TextInput } from "@/components/ui/field";
 import { StatusLabel } from "@/components/ui/status";
-import { DENSITIES, RADII, TYPE_SCALES } from "@/lib/site-spec/catalog";
+import { DENSITIES, DESIGN_SYSTEM_LABELS, DESIGN_SYSTEMS, RADII, TYPE_SCALES, type DesignSystem } from "@/lib/site-spec/catalog";
 import type { SiteSpec } from "@/lib/site-spec/schema";
 import { CONTRAST_MINIMUM, contrastRatio } from "@/lib/site-spec/validate";
 import type { SpecEditing } from "./site-spec-editor";
@@ -149,6 +149,26 @@ export function BrandEditor({ spec, editing }: { spec: SiteSpec; editing: SpecEd
             {RADII.map((v) => (
               <option key={v} value={v}>
                 {v === "none" ? "Square" : v === "soft" ? "Slightly rounded" : "Round"}
+              </option>
+            ))}
+          </Select>
+        </Field>
+        <Field id="brand-design" label="Design" hint="What draws the preview and builds the site.">
+          <Select
+            id="brand-design"
+            value={brand.designSystem ?? "template"}
+            disabled={!editable}
+            onChange={(e) =>
+              brandChange((s) => {
+                const next = e.target.value as DesignSystem;
+                if (next === "template") delete s.brand.designSystem;
+                else s.brand.designSystem = next;
+              })
+            }
+          >
+            {DESIGN_SYSTEMS.map((system) => (
+              <option key={system} value={system}>
+                {DESIGN_SYSTEM_LABELS[system]}
               </option>
             ))}
           </Select>

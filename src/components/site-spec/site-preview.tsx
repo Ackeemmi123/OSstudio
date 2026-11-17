@@ -158,29 +158,10 @@ function Preview({
   }, []);
 
   const parsed = useMemo(() => parseSiteSpec(record.spec), [record.spec]);
-  // Which design draws the preview: Studio OS's own template, or a design system a site is built with.
-  // Remembered per spec on this computer; the address can override it.
-  const designKey = `studio-os:preview-design:${record.id}`;
-  // The preview is drawn only in the browser, after the versions have loaded, so storage can be read here.
-  const [storedDesign, setStoredDesign] = useState<Design>(() => {
-    try {
-      const saved = typeof window === "undefined" ? null : window.localStorage.getItem(designKey);
-      return saved === "association" ? "association" : "template";
-    } catch {
-      // Private windows may refuse storage; the template is the default.
-      return "template";
-    }
-  });
-  const design: Design = wantedDesign === "association" || wantedDesign === "template" ? wantedDesign : storedDesign;
-  const chooseDesign = (next: Design) => {
-    setStoredDesign(next);
-    try {
-      window.localStorage.setItem(designKey, next);
-    } catch {
-      // Not remembered, but still shown.
-    }
-    onChange({ design: next });
-  };
+  // The spec says which design draws it; the address can show the other one for comparison.
+  const specDesign: Design = record.spec.brand?.designSystem === "association@0.1" ? "association" : "template";
+  const design: Design = wantedDesign === "association" || wantedDesign === "template" ? wantedDesign : specDesign;
+  const chooseDesign = (next: Design) => onChange({ design: next === specDesign ? null : next });
 
   const rendered = useMemo(() => {
     if (!parsed.ok) return null;
@@ -247,8 +228,8 @@ function Preview({
             ) : null}
             <Field id="preview-design" label="Design" className="w-56">
               <Select id="preview-design" value={design} onChange={(e) => chooseDesign(e.target.value as Design)}>
-                <option value="template">Studio OS template</option>
-                <option value="association">Association (association@0.1)</option>
+                <option value="template">Studio OS template{specDesign === "template" ? " (the spec's)" : ""}</option>
+                <option value="association">Association{specDesign === "association" ? " (the spec's)" : ""}</option>
               </Select>
             </Field>
             <ViewportButtons viewport={viewport} onChange={setViewport} />

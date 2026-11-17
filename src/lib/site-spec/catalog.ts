@@ -7,6 +7,15 @@
  */
 
 export const SITE_LOCALES = ["en", "sv", "fi"] as const;
+
+/**
+ * What draws and builds the site. "template" is Studio OS's own preview
+ * template; the others are design systems in design-systems/, by name and
+ * version. Absent from a spec: the template.
+ */
+export const DESIGN_SYSTEMS = ["template", "association@0.1"] as const;
+export type DesignSystem = (typeof DESIGN_SYSTEMS)[number];
+export const DESIGN_SYSTEM_LABELS: Record<DesignSystem, string> = { template: "Studio OS template", "association@0.1": "Association (association@0.1)" };
 export type SiteLocale = (typeof SITE_LOCALES)[number];
 
 export const SITE_LOCALE_LABELS: Record<SiteLocale, string> = { en: "English", sv: "Swedish", fi: "Finnish" };

@@ -22,6 +22,15 @@ images (WF-2). There is no external renderer, AI or publishing yet.
 | Storage, access and database rules | `supabase/migrations/20261030000200_site_specs.sql` |
 | Page | `/clients/<client>/projects/<project>/site`, linked from website project cards |
 
+## Design system
+
+`brand.designSystem` names what draws the preview and builds the site:
+absent or `template` is Studio OS's own preview template;
+`association@0.1` is `design-systems/association`, which builds a member
+association's site straight from the spec. It is chosen under Brand, and the
+preview follows it (the address `?design=` can show the other one). The
+services design system reads its own content file and is not a choice here yet.
+
 ## Versions
 
 - Each project has numbered versions (v1, v2, …), one row each in
