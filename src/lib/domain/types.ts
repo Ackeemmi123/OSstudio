@@ -574,6 +574,22 @@ export const SITE_ASSET_STATUSES = ["uploading", "pending_review", "approved", "
 export type SiteAssetStatus = (typeof SITE_ASSET_STATUSES)[number];
 
 /** One stored image of a client (src/lib/site-assets), with its provenance and rights decision. */
+/** A website spec version built into a static site, behind a private link (POST /api/site-builds). */
+export interface SiteBuildRecord {
+  id: string;
+  specId: string;
+  specVersion: number;
+  designSystem: string;
+  /** The path of the link on this server: /s/<token>/. */
+  link: string;
+  checks: { level: "warning" | "error"; message: string }[];
+  fileCount: number;
+  expiresAt: string;
+  revokedAt: string | null;
+  createdBy: string;
+  createdAt: string;
+}
+
 export interface SiteAssetRecord extends ImageProvenance {
   id: string;
   clientId: string;

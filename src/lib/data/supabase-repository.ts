@@ -30,6 +30,7 @@ import {
   type ProjectUpdateInput,
   type ProposalDecision,
   type SiteAssetRecord,
+  type SiteBuildRecord,
   type SiteSpecRecord,
   type SourceDocument,
   type StudioSnapshot,
@@ -458,6 +459,62 @@ export class SupabaseRepository implements StudioRepository {
       .order("version", { ascending: false });
     if (error) throw toRepositoryError(error);
     return (data as unknown as Row[]).map(toSiteSpecRecord);
+  }
+
+  async buildSite(spec: SiteSpecRecord): Promise<SiteBuildRecord> {
+    if (!this.current.canWrite) throw new RepositoryError("You have read-only access to this studio. Ask an owner for member access.", "permission");
+    const { data } = await this.client.auth.getSession();
+    const token = data.session?.access_token;
+    if (!token) throw new RepositoryError("Your session has ended. Sign in again to continue.", "session");
+    let response: Response;
+    try {
+      response = await this.fetchImpl("/api/site-builds", {
+        method: "POST",
+        headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
+        body: JSON.stringify({ studioId: this.studioId, specId: spec.id }),
+      });
+    } catch {
+      throw new RepositoryError("Studio OS could not reach the server. Check your connection and try again.", "network");
+    }
+    const body = (await response.json().catch(() => null)) as { id?: string; error?: string; checks?: { level: string; message: string }[] } | null;
+    if (!response.ok) {
+      const reasons = (body?.checks ?? []).filter((check) => check.level === "error").map((check) => check.message);
+      const codes: Record<number, RepositoryErrorCode> = { 401: "session", 403: "permission", 404: "not_found", 422: "validation" };
+      throw new RepositoryError([body?.error ?? "The site could not be built. Try again in a moment.", ...reasons].join(" "), codes[response.status] ?? "storage");
+    }
+    const stored = (await this.listSiteBuilds(spec.id)).find((build) => build.id === body?.id);
+    if (!stored) throw new RepositoryError("The site was built, but could not be read back. Reload the page.", "storage");
+    return stored;
+  }
+
+  async listSiteBuilds(specId: string): Promise<SiteBuildRecord[]> {
+    const { data, error } = await this.client
+      .from("site_builds")
+      .select("id, spec_id, spec_version, design_system, share_token, checks, file_count, expires_at, revoked_at, created_by, created_at")
+      .eq("studio_id", this.studioId)
+      .eq("spec_id", specId)
+      .order("created_at", { ascending: false })
+      .limit(20);
+    if (error) throw toRepositoryError(error);
+    return (data ?? []).map((row) => ({
+      id: row.id,
+      specId: row.spec_id,
+      specVersion: row.spec_version,
+      designSystem: row.design_system,
+      link: `/s/${row.share_token}/`,
+      checks: Array.isArray(row.checks) ? row.checks : [],
+      fileCount: row.file_count,
+      expiresAt: row.expires_at,
+      revokedAt: row.revoked_at,
+      createdBy: String((row.created_by as { name?: string } | null)?.name ?? "Studio member"),
+      createdAt: row.created_at,
+    }));
+  }
+
+  async revokeSiteBuild(build: SiteBuildRecord): Promise<void> {
+    if (!this.current.canWrite) throw new RepositoryError("You have read-only access to this studio. Ask an owner for member access.", "permission");
+    const { error } = await this.client.rpc("revoke_site_build", { p_build: build.id });
+    if (error) throw toRepositoryError(error);
   }
 
   async listSiteAssets(clientId: string): Promise<SiteAssetRecord[]> {

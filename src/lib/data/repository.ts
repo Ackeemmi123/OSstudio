@@ -21,6 +21,7 @@ import type {
   ProjectUpdateInput,
   ProposalDecision,
   SiteAssetRecord,
+  SiteBuildRecord,
   SiteSpecRecord,
   SourceDocument,
   StudioSnapshot,
@@ -105,6 +106,12 @@ export interface StudioRepository {
   deleteSiteAsset?(asset: SiteAssetRecord): Promise<void>;
   /** Signed links (at most 15 minutes) for the given images, by image id. Images that cannot be read are left out. */
   imageLinks?(assets: Pick<SiteAssetRecord, "id" | "storagePath">[]): Promise<Record<string, string>>;
+  /** Builds a version with its spec's design system, behind a private link. Only server workspaces build. */
+  buildSite?(spec: SiteSpecRecord): Promise<SiteBuildRecord>;
+  /** A spec version's builds, newest first. */
+  listSiteBuilds?(specId: string): Promise<SiteBuildRecord[]>;
+  /** Turns a build's link off for good. */
+  revokeSiteBuild?(build: SiteBuildRecord): Promise<void>;
   /** Restores the demonstration workspace. Only meaningful for demo repositories. */
   resetDemoData(): Promise<StudioSnapshot>;
 }
