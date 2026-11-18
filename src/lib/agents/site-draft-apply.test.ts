@@ -72,6 +72,18 @@ describe("applySiteDraft", () => {
     expect(spec.brand.designSystem).toBe("template");
   });
 
+  it("drops placeholder images no page uses and keeps real ones", () => {
+    const withImages = {
+      ...current,
+      assets: [
+        { id: "hero-photo", kind: "photo" as const, alt: { en: "" }, origin: "placeholder" as const, description: "The work" },
+        { id: "logo", kind: "logo" as const, alt: { en: "Logo" }, origin: "client_supplied" as const, description: "The logo" },
+      ],
+    };
+    const spec = applySiteDraft(withImages, draft, takeEverything(draft), "Anna");
+    expect(spec.assets.map((a) => a.id)).toEqual(["logo"]);
+  });
+
   it("refuses to take nothing", () => {
     expect(() => applySiteDraft(current, draft, { sections: new Set(), strategy: true, brand: true }, "Anna")).toThrow("at least one section");
   });
