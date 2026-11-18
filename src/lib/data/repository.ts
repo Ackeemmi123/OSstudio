@@ -68,6 +68,8 @@ export interface StudioRepository {
    * The run's result holds them; nothing is created.
    */
   suggestTasks(clientId: string, projectType: ProjectType): Promise<AgentRunRecord>;
+  /** Asks the server to draft a project's website spec from the client's material. The draft is stored on the run. */
+  requestSiteDraft?(clientId: string, projectId: string, options?: { force?: boolean }): Promise<AgentRunRecord>;
   /** This month's AI spend across all agents, for owners. Only server workspaces have one. */
   aiSpend?(): Promise<AiSpend>;
   /**

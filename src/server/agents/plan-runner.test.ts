@@ -29,12 +29,15 @@ class PlanModel implements AgentModel {
   readonly runner = "counting";
   readonly model = "claude-opus-5-5";
   readonly test = true;
-  readonly maxOutputTokens = { intake: 16_000, plan: 4_000 };
+  readonly maxOutputTokens = { intake: 16_000, plan: 4_000, draft: 48_000 };
   calls = 0;
   inputs: PlanInput[] = [];
   constructor(private readonly behaviour: (input: PlanInput, signal: AbortSignal) => Promise<unknown> = (input, signal) => new FixtureModel().suggestTasks(input, signal).then((a) => a.output)) {}
   async analyze(): Promise<ModelAnswer> {
     return { output: null, usage: USAGE, servedBy: this.model };
+  }
+  async draftSite(): Promise<ModelAnswer> {
+    throw new Error("Not used by the plan runner.");
   }
   async suggestTasks(input: PlanInput, signal: AbortSignal): Promise<ModelAnswer> {
     this.calls++;

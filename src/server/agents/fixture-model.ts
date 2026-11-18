@@ -1,5 +1,6 @@
 import type { IntakeInput, IntakeModelOutput } from "@/lib/agents/intake";
 import type { PlanInput, PlanModelOutput } from "@/lib/agents/plan";
+import { textSources, type SiteDraftInput, type SiteDraftModelOutput } from "@/lib/agents/site-draft";
 import { CONTEXT_FIELD_KEYS, type ProposalTarget } from "@/lib/domain/types";
 import { ModelError, type AgentModel, type ModelAnswer } from "./model";
 
@@ -22,7 +23,7 @@ export class FixtureModel implements AgentModel {
   readonly runner = "fixture";
   readonly model = "test-fixture";
   readonly test = true;
-  readonly maxOutputTokens = { intake: 16000, plan: 4000 };
+  readonly maxOutputTokens = { intake: 16000, plan: 4000, draft: 48000 };
 
   async analyze(input: IntakeInput, signal: AbortSignal): Promise<ModelAnswer> {
     if (signal.aborted) throw new ModelError("The analysis took too long and was stopped.", true, "nothing");
@@ -44,6 +45,61 @@ export class FixtureModel implements AgentModel {
     const usage = { inputTokens: Math.ceil(brief.length / 4) + 1200, outputTokens: 300, cacheReadTokens: 0, cacheWriteTokens: 0 };
     if (brief.includes("FIXTURE_MALFORMED")) return { output: { add: "not a list" }, usage, servedBy: this.model };
     return { output: this.plan(input), usage, servedBy: this.model };
+  }
+
+  /**
+   * A website draft with a home page that quotes the first line of each text
+   * source, a contact page, and one invented sentence the checks must drop.
+   */
+  async draftSite(input: SiteDraftInput, signal: AbortSignal): Promise<ModelAnswer> {
+    if (signal.aborted) throw new ModelError("The request took too long and was stopped.", true, "nothing");
+    const sources = textSources(input);
+    if (sources.some((s) => s.content.includes("FIXTURE_FAIL"))) throw new ModelError("The test provider was asked to fail.", true, "nothing");
+    const characters = sources.reduce((sum, s) => sum + s.content.length, 0);
+    const usage = { inputTokens: Math.ceil(characters / 4) + 3000, outputTokens: 2000, cacheReadTokens: 0, cacheWriteTokens: 0 };
+    if (sources.some((s) => s.content.includes("FIXTURE_MALFORMED"))) return { output: { pages: "not a list" }, usage, servedBy: this.model };
+    return { output: this.draft(input), usage, servedBy: this.model };
+  }
+
+  private draft(input: SiteDraftInput): SiteDraftModelOutput {
+    const empty = { text: "", refs: [], generic: false };
+    const label = (text: string) => ({ text, refs: [], generic: true });
+    const quoted = (sourceId: string, text: string) => ({ text, refs: [{ sourceId, quote: text, page: null }], generic: false });
+    const firstLines = textSources(input)
+      .map((s) => ({ id: s.id, line: s.content.split(/\r?\n/).map((l) => l.trim()).find((l) => l.length >= 10) }))
+      .filter((s): s is { id: string; line: string } => Boolean(s.line))
+      .map((s) => ({ id: s.id, line: s.line.slice(0, 300) }));
+    const section = (kind: SiteDraftModelOutput["pages"][number]["sections"][number]["kind"], variant: string, fields: Partial<SiteDraftModelOutput["pages"][number]["sections"][number]>) => ({
+      kind, variant, eyebrow: empty, heading: empty, subheading: empty, body: empty, items: [], button: null, ...fields,
+    });
+    return {
+      designSystem: "template",
+      language: "en",
+      siteName: label(input.client.name.slice(0, 60)),
+      siteDescription: empty,
+      goal: firstLines[0] ? quoted(firstLines[0].id, firstLines[0].line) : empty,
+      tone: "Plain and friendly",
+      audiences: [],
+      primaryCta: { label: label("Contact"), targetPageId: "contact" },
+      colors: { primary: "#7A1F2B", accent: "", basis: "test" },
+      contactFormFields: ["name", "email", "message"],
+      pages: [
+        {
+          id: "home",
+          title: label("Home"),
+          slug: "",
+          nav: "main",
+          seoDescription: empty,
+          sections: [
+            section("hero", "centered", { heading: label(input.client.name.slice(0, 60)), subheading: { text: "Founded in 1850 and trusted by thousands.", refs: [], generic: false }, button: { label: label("Contact"), targetPageId: "contact" } }),
+            ...firstLines.map((s) => section("text", "single_column", { heading: label("About"), body: quoted(s.id, s.line) })),
+          ],
+        },
+        { id: "contact", title: label("Contact"), slug: "contact", nav: "main", seoDescription: empty, sections: [section("contact", "form_only", { heading: label("Get in touch") })] },
+      ],
+      summary: `Test draft for ${input.client.name} from ${firstLines.length} source(s).`,
+      questions: ["Which photos may the site use?"],
+    };
   }
 
   private plan(input: PlanInput): PlanModelOutput {

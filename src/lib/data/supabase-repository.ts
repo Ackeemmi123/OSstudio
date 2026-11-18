@@ -420,6 +420,10 @@ export class SupabaseRepository implements StudioRepository {
     return this.runAgent(this.agentEndpoint.replace(/\/intake$/, "/plan"), { clientId, projectType }, "Suggestions could not be requested.");
   }
 
+  requestSiteDraft(clientId: string, projectId: string, options: { force?: boolean } = {}): Promise<AgentRunRecord> {
+    return this.runAgent(this.agentEndpoint.replace(/\/intake$/, "/site-draft"), { clientId, projectId, force: options.force ?? false }, "The draft could not be started.");
+  }
+
   private async runAgent(endpoint: string, request: Record<string, unknown>, fallback: string): Promise<AgentRunRecord> {
     const { data } = await this.client.auth.getSession();
     const token = data.session?.access_token;
