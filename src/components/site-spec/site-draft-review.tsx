@@ -43,6 +43,8 @@ function Proposed({ label, text, sources }: { label: string; text: string; sourc
   );
 }
 
+const FIELD_ORDER = ["title", "name", "question", "role", "author", "price", "body", "answer", "quote"];
+
 function sectionTexts(section: SiteSpecSection, path: string, provenance: SiteDraftResult["provenance"]) {
   const out: { label: string; text: string; sources: DraftRef[] | "generic" | undefined }[] = [];
   for (const key of ["eyebrow", "heading", "subheading", "body"] as const) {
@@ -54,7 +56,10 @@ function sectionTexts(section: SiteSpecSection, path: string, provenance: SiteDr
   if ("items" in section) {
     for (const item of section.items as { id: string }[]) {
       const at = `${path}.items.${Number(item.id.slice(5)) - 1}`;
-      const fields = Object.entries(item).filter(([key]) => key !== "id" && key !== "source");
+      // Stored drafts come back from the database with their keys reordered, so show them in reading order.
+      const fields = Object.entries(item)
+        .filter(([key]) => key !== "id" && key !== "source")
+        .sort(([a], [b]) => FIELD_ORDER.indexOf(a) - FIELD_ORDER.indexOf(b));
       for (const [key, value] of fields) {
         const text = first(value);
         const field = key === "name" || key === "question" ? "title" : key === "answer" || key === "quote" ? "body" : key === "role" || key === "author" || key === "price" ? "extra" : key;

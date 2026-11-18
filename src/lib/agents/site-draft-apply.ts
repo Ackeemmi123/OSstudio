@@ -3,10 +3,12 @@
  * which sections to take; taking them is accepting them, so their proposal
  * sources get `acceptedBy`. Pages left without sections, and buttons to
  * them, are dropped. Images, typography and other choices already in the
- * spec are kept; pages, texts and forms come from the draft.
+ * spec are kept; pages, texts and forms come from the draft. Placeholder
+ * images that no page uses any more are dropped; real images stay.
  */
 import type { SiteSpec, SiteSpecSection, SiteSpecSource } from "@/lib/site-spec/schema";
 import { siteSpecSchema } from "@/lib/site-spec/schema";
+import { assetIdsOf } from "@/lib/site-spec/validate";
 import type { SiteDraftResult } from "./site-draft";
 
 export interface DraftChoice {
@@ -80,8 +82,12 @@ export function applySiteDraft(current: SiteSpec, draft: SiteDraftResult, choice
   const own = current.forms.find((f) => f.id === "contact-form");
   const forms = hasContact ? from.forms.map((f) => (own && f.id === own.id ? { ...f, consentText: own.consentText, ...(own.replyNote ? { replyNote: own.replyNote } : {}), ...(own.submitLabel ? { submitLabel: own.submitLabel } : {}) } : f)) : [];
 
+  const used = new Set([...pages.flatMap((p) => p.sections.flatMap(assetIdsOf)), ...(brand.logoAssetId ? [brand.logoAssetId] : [])]);
+  const assets = current.assets.filter((asset) => asset.origin !== "placeholder" || used.has(asset.id));
+
   return siteSpecSchema.parse({
     ...current,
+    assets,
     locales: from.locales,
     strategy,
     brand,
