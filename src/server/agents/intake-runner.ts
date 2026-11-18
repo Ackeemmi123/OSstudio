@@ -8,6 +8,7 @@
  * recorded with its inputs, outputs, status and errors.
  */
 import { intakeIdempotencyKey, type AgentRunRecord, type EntityRef, type IntakeResult, type PlanResult } from "@/lib/agents/contract";
+import type { SiteDraftResult } from "@/lib/agents/site-draft";
 import { checkIntakeInput, intakeFingerprint, normalizeIntakeOutput, type IntakeInput, type IntakeSource, type ProposalDraft } from "@/lib/agents/intake";
 import { INTAKE_PROMPT_VERSION, intakeRequestBytes } from "@/lib/agents/intake-prompt";
 import { authorize } from "@/lib/agents/permissions";
@@ -39,7 +40,7 @@ export interface NewRun {
 
 export interface RunPatch {
   status: AgentRunRecord["status"];
-  result?: IntakeResult | PlanResult | null;
+  result?: IntakeResult | PlanResult | SiteDraftResult | null;
   outputs?: EntityRef[];
   error?: { message: string; retryable: boolean } | null;
   /** What the model call used, when one was made and the provider said. */

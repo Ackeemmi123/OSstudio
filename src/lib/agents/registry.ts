@@ -37,9 +37,9 @@ export const AGENTS: Record<AgentId, AgentDefinition> = {
   design: {
     id: "design",
     label: AGENT_LABELS.design,
-    purpose: "Proposes structure and visual directions from the confirmed brief.",
-    status: "planned",
-    taskTypes: ["design.direction", "design.review"],
+    purpose: "Drafts the whole website spec from the client's material: pages, texts and layout, each text with the line of material it comes from. A person reviews the draft before anything is built.",
+    status: "available",
+    taskTypes: ["design.site_draft", "design.direction", "design.review"],
     allowedActions: READ_AND_PROPOSE,
   },
   development: {

@@ -5,6 +5,8 @@ import { buildIntakeMessage, INTAKE_SYSTEM_PROMPT } from "@/lib/agents/intake-pr
 import { planModelOutput, type PlanInput } from "@/lib/agents/plan";
 import { buildPlanMessage, PLAN_SYSTEM_PROMPT } from "@/lib/agents/plan-prompt";
 import type { CallAttempt, TokenUsage } from "@/lib/agents/pricing";
+import { siteDraftModelOutput, type SiteDraftInput } from "@/lib/agents/site-draft";
+import { buildSiteDraftMessage, SITE_DRAFT_SYSTEM_PROMPT } from "@/lib/agents/site-draft-prompt";
 import { ModelError, type AgentModel, type ModelAnswer, type Spent } from "./model";
 
 /** Where the API key is sent. Never taken from ANTHROPIC_BASE_URL implicitly. */
@@ -17,13 +19,15 @@ export const ANTHROPIC_API_URL = "https://api.anthropic.com";
 export class AnthropicModel implements AgentModel {
   readonly runner = "anthropic";
   readonly test = false;
-  readonly maxOutputTokens = { intake: 16000, plan: 4000 };
+  readonly maxOutputTokens = { intake: 16000, plan: 4000, draft: 48000 };
   private readonly client: Anthropic;
 
   constructor(
     apiKey: string,
     readonly model: string,
     private readonly timeoutMs: number,
+    /** A website draft writes far more, so it gets longer. */
+    private readonly draftTimeoutMs = 280_000,
   ) {
     // The SDK would otherwise pick up ANTHROPIC_BASE_URL from the environment
     // and send the key wherever it points.
@@ -44,25 +48,56 @@ export class AnthropicModel implements AgentModel {
     );
   }
 
+  /**
+   * Kept PDFs and images go first as their own blocks, then the text. The
+   * answer is long, so it is streamed and read whole at the end.
+   */
+  draftSite(input: SiteDraftInput, signal: AbortSignal): Promise<ModelAnswer> {
+    const files: Anthropic.Beta.Messages.BetaContentBlockParam[] = input.files.map((file) =>
+      file.mimeType === "application/pdf"
+        ? { type: "document", source: { type: "base64", media_type: "application/pdf", data: file.data }, title: file.title.slice(0, 200) }
+        : { type: "image", source: { type: "base64", media_type: file.mimeType, data: file.data } },
+    );
+    return this.call(
+      {
+        system: SITE_DRAFT_SYSTEM_PROMPT,
+        message: [...files, { type: "text", text: buildSiteDraftMessage(input) }],
+        schema: siteDraftModelOutput,
+        maxTokens: this.maxOutputTokens.draft,
+        effort: "medium",
+        stream: true,
+        timeoutMs: this.draftTimeoutMs,
+      },
+      signal,
+    );
+  }
+
   private async call(
-    request: { system: string; message: string; schema: typeof intakeModelOutput | typeof planModelOutput; maxTokens: number; effort: "low" | "medium" },
+    request: {
+      system: string;
+      message: string | Anthropic.Beta.Messages.BetaContentBlockParam[];
+      schema: typeof intakeModelOutput | typeof planModelOutput | typeof siteDraftModelOutput;
+      maxTokens: number;
+      effort: "low" | "medium";
+      stream?: boolean;
+      timeoutMs?: number;
+    },
     signal: AbortSignal,
   ): Promise<ModelAnswer> {
+    const params = {
+      model: this.model,
+      max_tokens: request.maxTokens,
+      system: request.system,
+      messages: [{ role: "user" as const, content: request.message }],
+      output_config: { effort: request.effort, format: betaZodOutputFormat(request.schema) },
+      // If the model declines, the API retries on a fallback model it chooses.
+      betas: ["server-side-fallback-2026-07-01"],
+      fallbacks: "default" as const,
+    };
+    const options = { signal, timeout: request.timeoutMs ?? this.timeoutMs };
     let response;
     try {
-      response = await this.client.beta.messages.parse(
-        {
-          model: this.model,
-          max_tokens: request.maxTokens,
-          system: request.system,
-          messages: [{ role: "user", content: request.message }],
-          output_config: { effort: request.effort, format: betaZodOutputFormat(request.schema) },
-          // If the model declines, the API retries on a fallback model it chooses.
-          betas: ["server-side-fallback-2026-07-01"],
-          fallbacks: "default",
-        },
-        { signal, timeout: this.timeoutMs },
-      );
+      response = request.stream ? await this.client.beta.messages.stream(params, options).finalMessage() : await this.client.beta.messages.parse(params, options);
     } catch (error) {
       throw toModelError(error);
     }

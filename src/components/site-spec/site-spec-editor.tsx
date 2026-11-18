@@ -33,6 +33,7 @@ import { LivePreview } from "./live-preview";
 import { DocumentLibraryProvider } from "./document-picker";
 import { PagesEditor } from "./pages-editor";
 import { SettingsEditor } from "./settings-editor";
+import { SiteDraftPanel } from "./site-draft-panel";
 import { StrategyEditor } from "./strategy-editor";
 
 /** What every part of the editor gets: whether it may edit, how to change the draft, and who is editing. */
@@ -399,6 +400,7 @@ export function SiteSpecEditor({
             onRefresh={() => editing.change((s) => void Object.assign(s, refreshFromBrief(s, client).spec))}
             onProblem={goToProblem}
           />
+          {editable ? <SiteDraftPanel clientId={client.id} projectId={project.id} /> : null}
           <Section id="strategy" title="Strategy" className="scroll-mt-32">
             <div data-spec-path="strategy">
               <StrategyEditor spec={draft} client={client} editing={editing} />

@@ -10,6 +10,7 @@
 import type { ActivityEventType, AgentId, ContextFieldKey, ISODateString, ProjectStage, ProjectType, ProposalTarget } from "@/lib/domain/types";
 import type { AgentAction } from "./permissions";
 import type { TokenUsage } from "./pricing";
+import type { SiteDraftResult } from "./site-draft";
 
 /** A pointer to a record in the shared studio data. Agents never keep their own copy of client context. */
 export type EntityRef =
@@ -25,6 +26,7 @@ export const AGENT_TASK_TYPES = [
   "research.intake",
   "research.competitors",
   "design.direction",
+  "design.site_draft",
   "design.review",
   "development.build",
   "qa.review",
@@ -66,7 +68,7 @@ export interface AgentRunRecord {
   inputs: EntityRef[];
   outputs: EntityRef[];
   /** An intake run's result, or a coordination run's task suggestions (see `intakeResultOf`). */
-  result: IntakeResult | PlanResult | null;
+  result: IntakeResult | PlanResult | SiteDraftResult | null;
   /** Why the run stopped, in plain language. */
   blocker: string | null;
   error: { message: string; retryable: boolean } | null;
@@ -93,7 +95,12 @@ export function intakeResultOf(run: AgentRunRecord | undefined): IntakeResult | 
 
 /** The task suggestions of a run, or null for any other kind of run. */
 export function planResultOf(run: AgentRunRecord | undefined): PlanResult | null {
-  return run?.taskType === "coordination.plan" && run.result && "kind" in run.result ? run.result : null;
+  return run?.taskType === "coordination.plan" && run.result && "kind" in run.result && run.result.kind === "plan" ? run.result : null;
+}
+
+/** The website draft of a run, or null for any other kind of run. */
+export function siteDraftResultOf(run: AgentRunRecord | undefined): SiteDraftResult | null {
+  return run?.taskType === "design.site_draft" && run.result && "kind" in run.result && run.result.kind === "site_draft" ? run.result : null;
 }
 
 /** Statuses after which a run will not change again. */

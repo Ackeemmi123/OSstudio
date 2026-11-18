@@ -5,8 +5,8 @@ import { AGENTS } from "./registry";
 import { agentsTriggeredBy, TRIGGER_RULES } from "./triggers";
 
 describe("agent permissions", () => {
-  it("connects only the intake and coordination agents, and only to read and propose", () => {
-    expect(Object.values(AGENTS).filter((agent) => agent.status === "available").map((agent) => agent.id)).toEqual(["research", "coordination"]);
+  it("connects only the intake, coordination and design agents, and only to read, propose and draft", () => {
+    expect(Object.values(AGENTS).filter((agent) => agent.status === "available").map((agent) => agent.id)).toEqual(["research", "design", "coordination"]);
     for (const agent of ["research", "coordination"] as const) {
       expect(authorize(agent, "read_context")).toEqual({ allowed: true, requiresApproval: false });
       expect(authorize(agent, "propose_context")).toEqual({ allowed: true, requiresApproval: false });
@@ -14,7 +14,13 @@ describe("agent permissions", () => {
         expect(authorize(agent, action)).toMatchObject({ allowed: false });
       }
     }
-    expect(authorize("design", "read_context")).toMatchObject({ allowed: false });
+    // The website draft: reads and drafts; everything binding stays with a person.
+    expect(authorize("design", "read_context")).toEqual({ allowed: true, requiresApproval: false });
+    expect(authorize("design", "create_draft")).toEqual({ allowed: true, requiresApproval: false });
+    for (const action of ["update_task_status", "send_client_message", "send_proposal", "change_production", "change_approved_scope", "launch_website"] as const) {
+      expect(authorize("design", action)).toMatchObject({ allowed: false });
+    }
+    for (const agent of ["development", "qa", "sales"] as const) expect(authorize(agent, "read_context")).toMatchObject({ allowed: false });
   });
 
   it("starts no agent automatically from events", () => {
