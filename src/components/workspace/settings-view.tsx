@@ -14,6 +14,7 @@ import { AGENTS } from "@/lib/agents/registry";
 import type { AiSpend } from "@/lib/data/repository";
 import { BRAND } from "@/lib/brand";
 import { errorMessage } from "@/lib/data/studio-store";
+import { AgencyBrandSection } from "./agency-brand-section";
 import { ImportSection } from "./import-section";
 import { PeopleSection } from "./people-section";
 
@@ -90,6 +91,8 @@ export function SettingsView() {
             </ul>
           </Surface>
         </Section>
+
+        <AgencyBrandSection />
 
         <AgentsSection serverAvailable={Boolean(supabase)} owner={supabase?.role === "owner"} />
 

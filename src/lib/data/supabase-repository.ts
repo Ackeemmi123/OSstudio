@@ -1,3 +1,4 @@
+import { BRAND_LOGO_BUCKET, cleanBrand, type AgencyBrand } from "@/lib/domain/agency-brand";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { AgentRunRecord } from "@/lib/agents/contract";
 import { buildNewClient, DomainConflictError, DomainError, setContextField, updateClientDetails, type DomainDeps } from "@/lib/domain/clients";
@@ -418,6 +419,40 @@ export class SupabaseRepository implements StudioRepository {
 
   suggestTasks(clientId: string, projectType: ProjectType): Promise<AgentRunRecord> {
     return this.runAgent(this.agentEndpoint.replace(/\/intake$/, "/plan"), { clientId, projectType }, "Suggestions could not be requested.");
+  }
+
+  async agencyBrand(): Promise<AgencyBrand> {
+    const { data, error } = await this.client.from("studios").select("brand").eq("id", this.studioId).maybeSingle();
+    if (error) throw toRepositoryError(error);
+    return (data?.brand ?? {}) as AgencyBrand;
+  }
+
+  async saveAgencyBrand(brand: AgencyBrand): Promise<AgencyBrand> {
+    const { data, error } = await this.client.rpc("update_studio_brand", { p_studio: this.studioId, p_brand: cleanBrand(brand) });
+    if (error) throw toRepositoryError(error);
+    return data as AgencyBrand;
+  }
+
+  async uploadBrandLogo(file: Blob): Promise<string> {
+    const { data } = await this.client.auth.getSession();
+    const token = data.session?.access_token;
+    if (!token) throw new RepositoryError("Your session has ended. Sign in again to continue.", "session");
+    const form = new FormData();
+    form.set("studioId", this.studioId);
+    form.set("file", file);
+    let response: Response;
+    try {
+      response = await this.fetchImpl("/api/studio-brand/logo", { method: "POST", headers: { authorization: `Bearer ${token}` }, body: form });
+    } catch {
+      throw new RepositoryError("Studio OS could not reach the server. Check your connection and try again.", "network");
+    }
+    const body = (await response.json().catch(() => null)) as { path?: string; error?: string } | null;
+    if (response.ok && body?.path) return body.path;
+    throw new RepositoryError(body?.error ?? "The logo was not stored.", response.status === 403 ? "permission" : "storage");
+  }
+
+  brandLogoUrl(path: string): string {
+    return this.client.storage.from(BRAND_LOGO_BUCKET).getPublicUrl(path).data.publicUrl;
   }
 
   requestSiteDraft(clientId: string, projectId: string, options: { force?: boolean } = {}): Promise<AgentRunRecord> {
