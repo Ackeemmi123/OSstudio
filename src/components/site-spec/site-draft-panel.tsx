@@ -1,19 +1,24 @@
 "use client";
 
 import { Sparkles } from "lucide-react";
+import { useState } from "react";
 import { useAgentStatus } from "@/components/agents/use-agent-status";
 import { useStudio } from "@/components/providers/studio-provider";
 import { useStudioAction } from "@/components/providers/use-studio-action";
 import { Button } from "@/components/ui/button";
 import { siteDraftResultOf, type AgentRunRecord } from "@/lib/agents/contract";
 import { formatUsd } from "@/lib/agents/pricing";
+import { SiteDraftReview } from "./site-draft-review";
+import type { SpecEditing } from "./site-spec-editor";
 
 /**
  * Asks the Design agent to draft the whole website from the client's
  * material, and shows what came back. The draft is stored on the run; the
- * spec below does not change. Reviewing and taking the draft comes next.
+ * spec below does not change until a person reviews the draft and takes
+ * the sections they choose.
  */
-export function SiteDraftPanel({ clientId, projectId }: { clientId: string; projectId: string }) {
+export function SiteDraftPanel({ clientId, projectId, editing }: { clientId: string; projectId: string; editing: SpecEditing }) {
+  const [reviewing, setReviewing] = useState(false);
   const state = useStudio();
   const supabase = state.status === "ready" && state.info.kind === "supabase";
   const status = useAgentStatus(supabase);
@@ -64,7 +69,15 @@ export function SiteDraftPanel({ clientId, projectId }: { clientId: string; proj
               </ul>
             </div>
           ) : null}
-          <p className="text-[11.5px] text-ink-subtle">Reviewing and taking the draft into this spec comes in the next step.</p>
+          {reviewing ? (
+            <SiteDraftReview result={result} editing={editing} onDone={() => setReviewing(false)} />
+          ) : canEdit ? (
+            <div>
+              <Button size="xs" variant="primary" onClick={() => setReviewing(true)}>
+                Review the draft
+              </Button>
+            </div>
+          ) : null}
         </div>
       ) : null}
       {latest ? (
