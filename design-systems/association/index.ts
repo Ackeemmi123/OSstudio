@@ -30,6 +30,8 @@ export interface AssociationOptions {
   status: "prototype" | "approved";
   /** Today, for sorting events into upcoming and past. */
   today: Date;
+  /** The agency named on a prototype ("Prototyp av …"). Default Axivo. */
+  madeBy?: string;
   /** A preview draws an image without a file as a labelled box; a build refuses it. */
   missingImages?: "refuse" | "box";
 }
@@ -314,7 +316,7 @@ function document(site: Site, page: SiteSpecPage | null, title: string, descript
     `<a class="skip" href="#main">${chrome.skip}</a>`,
     `<header class="top"><div class="wrap bar"><a class="brand" href="/">${brandLogo}<span${brandLogo ? ' aria-hidden="true"' : ""}>${escapeHtml(siteName)}</span></a><nav class="nav" aria-label="${chrome.mainNav}">${nav}</nav><details class="menu"><summary>${chrome.menu}</summary><nav aria-label="${chrome.menu}">${nav}</nav></details></div></header>`,
     `<main id="main">${main}</main>`,
-    `<footer class="foot"><div class="wrap"><div class="foot-grid"><div>${small}<p>${escapeHtml(text(spec.seo.defaultDescription, locale))}</p></div>${contactLines ? `<div><h2>${chrome.contact}</h2>${richText(contactLines)}</div>` : ""}<div><h2>${chrome.pages}</h2><ul>${footerPages.map((entry) => `<li>${link(entry)}</li>`).join("")}</ul></div></div><div class="fine"><span>© ${options.today.getUTCFullYear()} ${escapeHtml(siteName)}</span>${noindex ? `<span>${chrome.prototype}</span>` : ""}</div></div></footer>`,
+    `<footer class="foot"><div class="wrap"><div class="foot-grid"><div>${small}<p>${escapeHtml(text(spec.seo.defaultDescription, locale))}</p></div>${contactLines ? `<div><h2>${chrome.contact}</h2>${richText(contactLines)}</div>` : ""}<div><h2>${chrome.pages}</h2><ul>${footerPages.map((entry) => `<li>${link(entry)}</li>`).join("")}</ul></div></div><div class="fine"><span>© ${options.today.getUTCFullYear()} ${escapeHtml(siteName)}</span>${noindex ? `<span>${escapeHtml(chrome.prototype.replace("Axivo", (options.madeBy ?? "Axivo").trim() || "Axivo"))}</span>` : ""}</div></div></footer>`,
     "</body>",
     "</html>",
     "",

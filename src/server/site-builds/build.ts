@@ -92,7 +92,7 @@ function token(): string {
   return randomBytes(24).toString("base64url");
 }
 
-export async function buildSite(input: { studioId: string; specVersion: number; spec: unknown }, deps: BuildDeps): Promise<BuiltSite> {
+export async function buildSite(input: { studioId: string; specVersion: number; spec: unknown; madeBy?: string }, deps: BuildDeps): Promise<BuiltSite> {
   const parsed = parseSiteSpec(input.spec);
   if (!parsed.ok) throw new BuildRefused("This version is not a valid website spec. Open it in the editor to see why.");
   const spec: SiteSpec = parsed.spec;
@@ -148,7 +148,7 @@ export async function buildSite(input: { studioId: string; specVersion: number; 
 
   let built;
   try {
-    built = buildAssociation(spec, { files: imageFiles, documents: documentFiles, status: "prototype", today: deps.now() });
+    built = buildAssociation(spec, { files: imageFiles, documents: documentFiles, status: "prototype", today: deps.now(), madeBy: input.madeBy });
   } catch (failure) {
     throw new BuildRefused(failure instanceof Error ? failure.message : "The design system could not build this spec.", checks);
   }

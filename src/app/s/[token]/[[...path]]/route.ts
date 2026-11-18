@@ -1,4 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
+import { brandLogoUrl, shownBrand, type AgencyBrand } from "@/lib/domain/agency-brand";
 import { serverSupabase } from "@/server/config";
 import { BUILD_BUCKET } from "@/server/site-builds/build";
 import { serveBuild } from "@/server/site-builds/serve";
@@ -25,5 +26,11 @@ export async function GET(_request: Request, { params }: { params: Promise<{ tok
       return new Uint8Array(await data.arrayBuffer());
     },
     now: () => new Date(),
+    brand: async (studioId) => {
+      const { data } = await asServer.rpc("studio_brand", { p_studio: studioId });
+      if (!data) return null;
+      const brand = data as AgencyBrand & { studioName?: string };
+      return shownBrand(brand, brand.studioName ?? "", (path) => brandLogoUrl(supabase.url, path));
+    },
   });
 }

@@ -57,3 +57,32 @@ describe("serving a build behind its link", () => {
     expect(underPrefix('<a href="//cdn.example">', "/s/x")).toBe('<a href="//cdn.example">');
   });
 });
+
+describe("closed links in the agency's brand", () => {
+  const token = "c".repeat(40);
+  const brand = { name: "Byrå <Test>", website: "https://byra.example", email: "hej@byra.example", color: "#7A1F2B", logoUrl: null };
+  const base = (over: Partial<{ expiresAt: string; revokedAt: string | null }>) => ({
+    find: async () => ({ storagePrefix: "studio-1/build-1", expiresAt: "2026-12-01T00:00:00Z", revokedAt: null, ...over }),
+    read: async () => null,
+    now: () => new Date("2026-11-18T00:00:00Z"),
+  });
+
+  it("shows the agency, never Studio OS, on an expired link", async () => {
+    let asked = "";
+    const response = await serveBuild(token, [], { ...base({ expiresAt: "2026-11-01T00:00:00Z" }), brand: async (studio) => ((asked = studio), brand) });
+    expect(response.status).toBe(410);
+    expect(asked).toBe("studio-1");
+    const html = await response.text();
+    expect(html).toContain("Länken har gått ut");
+    expect(html).toContain("Byrå &lt;Test&gt;");
+    expect(html).toContain("mailto:hej@byra.example");
+    expect(html).not.toContain("Studio OS");
+    expect(response.headers.get("x-robots-tag")).toContain("noindex");
+  });
+
+  it("falls back to plain text when the brand cannot be read", async () => {
+    const response = await serveBuild(token, [], { ...base({ revokedAt: "2026-11-10T00:00:00Z" }), brand: async () => { throw new Error("down"); } });
+    expect(response.status).toBe(410);
+    expect(await response.text()).toBe("This link has been turned off. Ask for a new one.");
+  });
+});

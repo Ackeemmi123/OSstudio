@@ -1,3 +1,4 @@
+import type { AgencyBrand } from "@/lib/domain/agency-brand";
 import type { FirstDraft } from "@/lib/domain/site-specs";
 import type { AgentRunRecord } from "@/lib/agents/contract";
 import type { ImageProvenance } from "@/lib/site-assets/limits";
@@ -68,6 +69,14 @@ export interface StudioRepository {
    * The run's result holds them; nothing is created.
    */
   suggestTasks(clientId: string, projectType: ProjectType): Promise<AgentRunRecord>;
+  /** The agency brand clients see instead of Studio OS. Only server workspaces have one. */
+  agencyBrand?(): Promise<AgencyBrand>;
+  /** Owners only. Empty values are left out. Returns the brand as stored. */
+  saveAgencyBrand?(brand: AgencyBrand): Promise<AgencyBrand>;
+  /** Owners only. Stores a logo and returns its path, to save with the brand. */
+  uploadBrandLogo?(file: Blob): Promise<string>;
+  /** The public address of a stored logo. */
+  brandLogoUrl?(path: string): string;
   /** Asks the server to draft a project's website spec from the client's material. The draft is stored on the run. */
   requestSiteDraft?(clientId: string, projectId: string, options?: { force?: boolean }): Promise<AgentRunRecord>;
   /** This month's AI spend across all agents, for owners. Only server workspaces have one. */

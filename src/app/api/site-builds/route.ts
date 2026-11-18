@@ -50,8 +50,11 @@ export async function POST(request: Request) {
   const actor = { kind: "human", name: String(membership.display_name ?? auth.user.email ?? "Studio member"), userId: auth.user.id };
   const asServer = createClient(supabase.url, supabase.serviceRoleKey, options);
   try {
+    // The prototype names the agency in its own brand, never Studio OS.
+    const { data: studio } = await asUser.from("studios").select("name, brand").eq("id", studioId).maybeSingle();
+    const madeBy = String((studio?.brand as { name?: string } | null)?.name || studio?.name || "").trim() || undefined;
     const site = await buildSite(
-      { studioId, specVersion: record.version, spec: record.spec },
+      { studioId, specVersion: record.version, spec: record.spec, madeBy },
       {
         images: async (ids) => {
           if (!ids.length) return [];

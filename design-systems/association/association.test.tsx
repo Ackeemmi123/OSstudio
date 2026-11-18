@@ -72,6 +72,14 @@ describe("association design system", () => {
     expect(approved.some((file) => file.path === "robots.txt")).toBe(false);
   });
 
+  it("names the agency that made the prototype, never Studio OS", () => {
+    expect(page(build(spec(), options), "index.html")).toContain("Prototyp av Axivo. Inte offentlig.");
+    const other = page(build(spec(), { ...options, madeBy: "Byrå & Co" }), "index.html");
+    expect(other).toContain("Prototyp av Byrå &amp; Co. Inte offentlig.");
+    expect(other).not.toContain("Axivo");
+    expect(other).not.toContain("Studio OS");
+  });
+
   it("reads dated list items as events and sorts them by the build date", () => {
     expect(parseWhen("15.10.2026")).toMatchObject({ day: "15", month: "okt 2026" });
     expect(parseWhen("Vecka 51, december 2026")).toMatchObject({ day: "v. 51", month: "dec 2026" });
