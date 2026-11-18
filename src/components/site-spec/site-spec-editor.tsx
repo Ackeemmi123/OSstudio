@@ -400,7 +400,7 @@ export function SiteSpecEditor({
             onRefresh={() => editing.change((s) => void Object.assign(s, refreshFromBrief(s, client).spec))}
             onProblem={goToProblem}
           />
-          {editable ? <SiteDraftPanel clientId={client.id} projectId={project.id} /> : null}
+          {editable ? <SiteDraftPanel clientId={client.id} projectId={project.id} editing={editing} /> : null}
           <Section id="strategy" title="Strategy" className="scroll-mt-32">
             <div data-spec-path="strategy">
               <StrategyEditor spec={draft} client={client} editing={editing} />
