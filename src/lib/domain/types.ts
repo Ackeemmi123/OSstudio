@@ -574,6 +574,23 @@ export const SITE_ASSET_STATUSES = ["uploading", "pending_review", "approved", "
 export type SiteAssetStatus = (typeof SITE_ASSET_STATUSES)[number];
 
 /** One stored image of a client (src/lib/site-assets), with its provenance and rights decision. */
+/** A file a client sent, kept as it is for the AI draft (POST /api/client-materials). */
+export interface ClientMaterialRecord {
+  id: string;
+  clientId: string;
+  title: string;
+  mimeType: "application/pdf" | "image/jpeg" | "image/png" | "image/webp";
+  byteSize: number;
+  createdAt: string;
+}
+
+/** Text read out of a Word document or a web page, in parts that each fit one source. */
+export interface ReadMaterial {
+  title: string;
+  url?: string;
+  parts: string[];
+}
+
 /** A PDF a client's website offers for download (POST /api/site-documents). */
 export interface SiteDocumentRecord {
   id: string;

@@ -23,6 +23,8 @@ import type {
   SiteAssetRecord,
   SiteBuildRecord,
   SiteDocumentRecord,
+  ClientMaterialRecord,
+  ReadMaterial,
   SiteSpecRecord,
   SourceDocument,
   StudioSnapshot,
@@ -117,6 +119,14 @@ export interface StudioRepository {
   listSiteDocuments?(clientId: string): Promise<SiteDocumentRecord[]>;
   /** Sends one PDF to the server, which checks it before storing it. */
   uploadSiteDocument?(clientId: string, file: Blob, title: string): Promise<SiteDocumentRecord>;
+  /** The files a client sent, newest first, without deleted ones. */
+  listClientMaterials?(clientId: string): Promise<ClientMaterialRecord[]>;
+  /** Sends one file: a Word document comes back as text to keep as sources; a PDF or image is kept as a file. */
+  addClientMaterial?(clientId: string, file: Blob, title: string): Promise<{ kind: "text"; read: ReadMaterial } | { kind: "file"; material: ClientMaterialRecord }>;
+  /** Reads a public web page into text to keep as sources. */
+  readClientWebPage?(clientId: string, url: string): Promise<ReadMaterial>;
+  /** Hides a kept file; it is left out of every AI draft. */
+  deleteClientMaterial?(material: ClientMaterialRecord): Promise<void>;
   /** Restores the demonstration workspace. Only meaningful for demo repositories. */
   resetDemoData(): Promise<StudioSnapshot>;
 }
