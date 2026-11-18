@@ -26,6 +26,14 @@ export async function GET(_request: Request, { params }: { params: Promise<{ tok
       return new Uint8Array(await data.arrayBuffer());
     },
     now: () => new Date(),
+    review: async (value) => {
+      const { data: state } = await asServer.rpc("site_review_state", { p_token: value });
+      const studioId = (state as { studioId?: string } | null)?.studioId;
+      if (!studioId) return null;
+      const { data } = await asServer.rpc("studio_brand", { p_studio: studioId });
+      const brand = (data ?? {}) as AgencyBrand & { studioName?: string };
+      return shownBrand(brand, brand.studioName ?? "", (path) => brandLogoUrl(supabase.url, path));
+    },
     brand: async (studioId) => {
       const { data } = await asServer.rpc("studio_brand", { p_studio: studioId });
       if (!data) return null;

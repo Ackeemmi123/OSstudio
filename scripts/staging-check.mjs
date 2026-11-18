@@ -37,9 +37,9 @@ const skip = (label, detail) => record("skip", label, detail);
 const TABLES = [
   "studios", "studio_members", "clients", "client_context_fields", "client_context_items", "client_sources",
   "projects", "tasks", "import_batches", "activity_events", "agent_runs", "agent_proposals", "client_onboardings",
-  "inquiries", "inquiry_rate_limits", "site_specs", "site_assets", "site_builds", "site_documents", "client_materials",
+  "inquiries", "inquiry_rate_limits", "site_specs", "site_assets", "site_builds", "site_documents", "client_materials", "site_review_comments", "site_approvals",
 ];
-const FUNCTIONS = ["my_studios", "create_studio", "load_studio", "apply_changes", "apply_onboarding_changes", "import_browser_data", "receive_inquiry", "decide_inquiry", "apply_site_spec_changes", "begin_site_asset_upload", "review_site_asset", "delete_site_asset", "revoke_site_build", "delete_site_document", "delete_client_material", "update_studio_brand"];
+const FUNCTIONS = ["my_studios", "create_studio", "load_studio", "apply_changes", "apply_onboarding_changes", "import_browser_data", "receive_inquiry", "decide_inquiry", "apply_site_spec_changes", "begin_site_asset_upload", "review_site_asset", "delete_site_asset", "revoke_site_build", "delete_site_document", "delete_client_material", "update_studio_brand", "answer_review_comment", "set_build_reviews"];
 
 checkConfiguration();
 if (config.url && config.anonKey) await checkSupabase();

@@ -126,6 +126,10 @@ export interface StudioRepository {
   listSiteBuilds?(specId: string): Promise<SiteBuildRecord[]>;
   /** Turns a build's link off for good. */
   revokeSiteBuild?(build: SiteBuildRecord): Promise<void>;
+  /** Turns the client's review on a build's link on or off. */
+  setBuildReviews?(build: SiteBuildRecord, enabled: boolean): Promise<void>;
+  /** Answers a client's comment (a null reply keeps the earlier one) and marks it resolved or open. */
+  answerReviewComment?(commentId: string, reply: string | null, resolve: boolean): Promise<void>;
   /** The client's documents for download, newest first, without deleted ones. */
   listSiteDocuments?(clientId: string): Promise<SiteDocumentRecord[]>;
   /** Sends one PDF to the server, which checks it before storing it. */

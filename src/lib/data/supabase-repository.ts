@@ -532,7 +532,9 @@ export class SupabaseRepository implements StudioRepository {
   async listSiteBuilds(specId: string): Promise<SiteBuildRecord[]> {
     const { data, error } = await this.client
       .from("site_builds")
-      .select("id, spec_id, spec_version, design_system, share_token, checks, file_count, expires_at, revoked_at, created_by, created_at")
+      .select(
+        "id, spec_id, spec_version, design_system, share_token, checks, file_count, expires_at, revoked_at, created_by, created_at, reviews_enabled, site_approvals(approver_name, approver_role, approver_email, created_at), site_review_comments(id, page_path, target, body, author_name, status, reply, created_at)",
+      )
       .eq("studio_id", this.studioId)
       .eq("spec_id", specId)
       .order("created_at", { ascending: false })
@@ -550,12 +552,32 @@ export class SupabaseRepository implements StudioRepository {
       revokedAt: row.revoked_at,
       createdBy: String((row.created_by as { name?: string } | null)?.name ?? "Studio member"),
       createdAt: row.created_at,
+      reviewsEnabled: row.reviews_enabled !== false,
+      approval: (() => {
+        const found = ([] as Row[]).concat((row.site_approvals as Row | Row[] | null) ?? [])[0];
+        return found ? { name: String(found.approver_name), role: String(found.approver_role ?? ""), email: String(found.approver_email), at: String(found.created_at) } : null;
+      })(),
+      comments: ((row.site_review_comments as Row[] | null) ?? [])
+        .map((c) => ({ id: String(c.id), page: String(c.page_path), target: String(c.target ?? ""), body: String(c.body), author: String(c.author_name), status: c.status === "resolved" ? ("resolved" as const) : ("open" as const), reply: (c.reply as string | null) ?? null, createdAt: String(c.created_at) }))
+        .sort((a, b) => a.createdAt.localeCompare(b.createdAt)),
     }));
   }
 
   async revokeSiteBuild(build: SiteBuildRecord): Promise<void> {
     if (!this.current.canWrite) throw new RepositoryError("You have read-only access to this studio. Ask an owner for member access.", "permission");
     const { error } = await this.client.rpc("revoke_site_build", { p_build: build.id });
+    if (error) throw toRepositoryError(error);
+  }
+
+  async setBuildReviews(build: SiteBuildRecord, enabled: boolean): Promise<void> {
+    if (!this.current.canWrite) throw new RepositoryError("You have read-only access to this studio. Ask an owner for member access.", "permission");
+    const { error } = await this.client.rpc("set_build_reviews", { p_build: build.id, p_enabled: enabled });
+    if (error) throw toRepositoryError(error);
+  }
+
+  async answerReviewComment(commentId: string, reply: string | null, resolve: boolean): Promise<void> {
+    if (!this.current.canWrite) throw new RepositoryError("You have read-only access to this studio. Ask an owner for member access.", "permission");
+    const { error } = await this.client.rpc("answer_review_comment", { p_comment: commentId, p_reply: reply, p_resolve: resolve, p_actor: this.actor() });
     if (error) throw toRepositoryError(error);
   }
 

@@ -6,6 +6,7 @@
  * Studio OS's); a page that is not there answers the build's own 404 page.
  */
 import type { ShownBrand } from "@/lib/domain/agency-brand";
+import { reviewBar, withReviewBar } from "@/server/site-reviews/bar";
 import { contentTypeOf } from "./build";
 
 export interface ServedBuild {
@@ -20,6 +21,8 @@ export interface ServeDeps {
   now: () => Date;
   /** The brand of the agency that owns a studio, for the pages of expired and turned-off links. */
   brand?: (studioId: string) => Promise<ShownBrand | null>;
+  /** The agency's brand when the link is open for review, so its pages get the review bar; null otherwise. */
+  review?: (token: string) => Promise<ShownBrand | null>;
 }
 
 const TOKEN = /^[A-Za-z0-9_-]{32,64}$/;
@@ -100,6 +103,12 @@ export async function serveBuild(token: string, segments: readonly string[], dep
     if (!body) return text(404, "This page does not exist.");
   }
   const type = contentTypeOf(file);
-  const out = type.startsWith("text/html") ? new TextEncoder().encode(underPrefix(new TextDecoder().decode(body), prefix)) : body;
+  let out: Uint8Array = body;
+  if (type.startsWith("text/html")) {
+    let html = underPrefix(new TextDecoder().decode(body), prefix);
+    const brand = deps.review ? await deps.review(token).catch(() => null) : null;
+    if (brand) html = withReviewBar(html, reviewBar(token, brand));
+    out = new TextEncoder().encode(html);
+  }
   return new Response(out as BodyInit, { status, headers: { ...HEADERS, "Content-Type": type } });
 }
