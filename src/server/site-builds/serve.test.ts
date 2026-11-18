@@ -86,3 +86,28 @@ describe("closed links in the agency's brand", () => {
     expect(await response.text()).toBe("This link has been turned off. Ask for a new one.");
   });
 });
+
+describe("the review bar", () => {
+  const token = "d".repeat(40);
+  const brand = { name: "Byrå </script><b>", website: null, email: null, color: "#7A1F2B", logoUrl: null };
+  const deps = (open: boolean) => ({
+    find: async () => ({ storagePrefix: "studio-1/build-1", expiresAt: "2026-12-01T00:00:00Z", revokedAt: null }),
+    read: async (path: string) => (path.endsWith(".html") ? new TextEncoder().encode('<html><body><a href="/om/">Om</a></body></html>') : null),
+    now: () => new Date("2026-11-18T00:00:00Z"),
+    review: async () => (open ? brand : null),
+  });
+
+  it("is added to pages of a link open for review, with the agency's name kept as data", async () => {
+    const html = await (await serveBuild(token, [], deps(true))).text();
+    expect(html).toContain("rv-bar");
+    expect(html).toContain(`/s/${token}/om/`);
+    expect(html.indexOf("<script>")).toBeLessThan(html.lastIndexOf("</body>"));
+    // The name is inside a JSON string with "<" escaped, so it cannot close the script.
+    expect(html).not.toContain("Byrå </script>");
+    expect(html).toContain("Byrå \\u003c/script>\\u003cb>");
+  });
+
+  it("is left out when review is off", async () => {
+    expect(await (await serveBuild(token, [], deps(false))).text()).not.toContain("rv-bar");
+  });
+});

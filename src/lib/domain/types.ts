@@ -318,6 +318,7 @@ export type ActivityEventType =
   | "site_spec.changes_requested"
   | "site_spec.approved"
   | "site_spec.built"
+  | "site_spec.client_approved"
   | "site_asset.uploaded"
   | "site_asset.approved"
   | "site_asset.rejected"
@@ -613,6 +614,23 @@ export interface SiteBuildRecord {
   expiresAt: string;
   revokedAt: string | null;
   createdBy: string;
+  createdAt: string;
+  /** Whether the client can comment and approve on the link. */
+  reviewsEnabled: boolean;
+  /** The client's written approval of this build, if given. */
+  approval: { name: string; role: string; email: string; at: string } | null;
+  comments: SiteReviewComment[];
+}
+
+/** A client's comment on a page of a build, from the review bar on its link. */
+export interface SiteReviewComment {
+  id: string;
+  page: string;
+  target: string;
+  body: string;
+  author: string;
+  status: "open" | "resolved";
+  reply: string | null;
   createdAt: string;
 }
 
