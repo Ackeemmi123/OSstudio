@@ -38,3 +38,36 @@ export async function purgeSiteAssets(steps: PurgeSteps, maxRounds = 20): Promis
   }
   return report;
 }
+
+/**
+ * Files queued in storage_purge_queue: a client's own files and site
+ * documents a person deleted, and everything of an anonymised client,
+ * including whole built sites (a folder each). Same shape as the image
+ * purge: remove through the Storage API, then forget the queue rows.
+ */
+export interface QueuedPurgeSteps {
+  /** storage_files_due_for_purge(limit). */
+  due(limit: number): Promise<{ id: number; bucket: string; path: string; is_prefix: boolean }[]>;
+  /** Every file under a folder, at any depth. */
+  list(bucket: string, prefix: string): Promise<string[]>;
+  remove(bucket: string, paths: string[]): Promise<void>;
+  /** forget_purged_storage_files(ids). */
+  forget(ids: number[]): Promise<number>;
+}
+
+export async function purgeQueuedFiles(steps: QueuedPurgeSteps, maxRounds = 20): Promise<PurgeReport> {
+  const report: PurgeReport = { filesRemoved: 0, rowsForgotten: 0, rounds: 0 };
+  while (report.rounds < maxRounds) {
+    const due = await steps.due(PURGE_BATCH);
+    if (!due.length) break;
+    report.rounds++;
+    for (const row of due) {
+      const paths = row.is_prefix ? await steps.list(row.bucket, row.path) : [row.path];
+      for (let i = 0; i < paths.length; i += PURGE_BATCH) await steps.remove(row.bucket, paths.slice(i, i + PURGE_BATCH));
+      report.filesRemoved += paths.length;
+    }
+    report.rowsForgotten += await steps.forget(due.map((row) => row.id));
+    if (due.length < PURGE_BATCH) break;
+  }
+  return report;
+}

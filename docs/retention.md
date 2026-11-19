@@ -50,6 +50,9 @@ Active), `archived_at` (set when archived, cleared when reopened) and
 | Agent proposals (they quote the sources) | Deleted |
 | Website specs, every version (they hold client copy) | Deleted (`20261030000200_site_specs.sql`) |
 | Website images | Marked deleted at once (no new links; existing links expire within 15 minutes); files purged from Storage within 24 hours ([site-images.md](site-images.md)) |
+| The client's own files (`client_materials`) and the documents its site offered (`site_documents`) | Deleted; the files are queued and removed from Storage by the nightly purge (`20261123000100_anonymise_new_tables.sql`) |
+| Built sites (`site_builds`) | Links turned off and closed for review, checks emptied; every file of each build queued and removed by the nightly purge. The row (dates, version, who built it) is kept |
+| Comments and approvals from the review link | Deleted |
 | Agent runs | Trigger, inputs, outputs, result, blocker and error emptied; agent, status and timing kept |
 | Projects and tasks | Titles replaced ("Former project", "Task"), blocked reasons cleared; status, stage and dates kept |
 | Activity | Every summary replaced with "Details removed when the client was anonymised."; type, time and the team member kept |
@@ -107,6 +110,15 @@ the hold is released.
 | Inquiries from the same person that did not become this client | They belong to no client. | They follow the inquiry rule (12 months). |
 | Copies outside Studio OS | Staff email, exports, screenshots, the local demo in a browser. | Covered by staff practice, not by the app. |
 | What the minimal record keeps | Dates, status, project type, source type, project stages, task statuses and due dates, event types and times, and team members' names stay so counts and history add up. None identifies the client alone, but combined with outside knowledge (the only e-commerce client that started in a given month) they could. | Accepted as the minimal record; for the adviser to confirm. |
+
+## Deleted files
+
+Storage refuses deletes from SQL. Images are marked and purged as described
+in [site-images.md](site-images.md). Everything else (a client file or a site
+document a person deletes, and all of an anonymised client's files and built
+sites) goes into `public.storage_purge_queue`; the nightly `/api/storage/purge`
+removes the files through the Storage API and then forgets the queue rows.
+A removal that fails stays queued for the next night.
 
 ## Not done yet
 
