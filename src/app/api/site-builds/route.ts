@@ -1,10 +1,9 @@
 import { randomUUID } from "node:crypto";
 import { createClient } from "@supabase/supabase-js";
-import { STORAGE_BUCKET } from "@/lib/site-assets/limits";
 import { logAgentError } from "@/server/agents/agent-request";
 import { serverSupabase } from "@/server/config";
-import { DOCUMENT_BUCKET } from "@/server/site-documents/upload";
-import { BUILD_BUCKET, BuildRefused, buildSite, type StoredImage } from "@/server/site-builds/build";
+import { BUILD_BUCKET, BuildRefused, buildSite } from "@/server/site-builds/build";
+import { buildDeps } from "@/server/site-builds/deps";
 
 // Fetches the images, builds, checks and stores a site: a minute is plenty for a few dozen images.
 export const maxDuration = 60;
@@ -55,30 +54,7 @@ export async function POST(request: Request) {
     const madeBy = String((studio?.brand as { name?: string } | null)?.name || studio?.name || "").trim() || undefined;
     const site = await buildSite(
       { studioId, specVersion: record.version, spec: record.spec, madeBy },
-      {
-        images: async (ids) => {
-          if (!ids.length) return [];
-          const { data, error: readError } = await asUser.from("site_assets").select("id, storage_path, mime_type, status").eq("studio_id", studioId).eq("client_id", record.client_id).in("id", ids);
-          if (readError) throw readError;
-          return (data ?? []).map((row) => ({ id: row.id, storagePath: row.storage_path, mimeType: row.mime_type, status: row.status }) as StoredImage);
-        },
-        download: async (path) => {
-          const { data, error: downloadError } = await asServer.storage.from(STORAGE_BUCKET).download(path);
-          if (downloadError || !data) throw downloadError ?? new Error("Empty image.");
-          return new Uint8Array(await data.arrayBuffer());
-        },
-        documents: async (ids) => {
-          const { data, error: readError } = await asUser.from("site_documents").select("id, storage_path, deleted_at").eq("studio_id", studioId).eq("client_id", record.client_id).in("id", ids);
-          if (readError) throw readError;
-          return (data ?? []).map((row) => ({ id: row.id, storagePath: row.storage_path, deleted: row.deleted_at !== null }));
-        },
-        downloadDocument: async (path) => {
-          const { data, error: downloadError } = await asServer.storage.from(DOCUMENT_BUCKET).download(path);
-          if (downloadError || !data) throw downloadError ?? new Error("Empty document.");
-          return new Uint8Array(await data.arrayBuffer());
-        },
-        now: () => new Date(),
-      },
+      buildDeps(asUser, asServer, studioId, record.client_id),
     );
 
     for (const file of site.files) {

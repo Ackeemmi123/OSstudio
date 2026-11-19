@@ -23,6 +23,8 @@ import type {
   ProposalDecision,
   SiteAssetRecord,
   SiteBuildRecord,
+  SitePublicationRecord,
+  DomainSetup,
   SiteDocumentRecord,
   ClientMaterialRecord,
   ReadMaterial,
@@ -126,6 +128,11 @@ export interface StudioRepository {
   listSiteBuilds?(specId: string): Promise<SiteBuildRecord[]>;
   /** Turns a build's link off for good. */
   revokeSiteBuild?(build: SiteBuildRecord): Promise<void>;
+  /** Publishes an approved spec version to the hosting and, if given, the client's domain. */
+  publishSite?(spec: SiteSpecRecord, domain: string): Promise<{ url: string; domain: DomainSetup | null }>;
+  listPublications?(projectId: string): Promise<SitePublicationRecord[]>;
+  restorePublication?(publication: SitePublicationRecord): Promise<void>;
+  domainStatus?(publication: SitePublicationRecord): Promise<DomainSetup>;
   /** Turns the client's review on a build's link on or off. */
   setBuildReviews?(build: SiteBuildRecord, enabled: boolean): Promise<void>;
   /** Answers a client's comment (a null reply keeps the earlier one) and marks it resolved or open. */

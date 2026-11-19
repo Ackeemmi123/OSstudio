@@ -150,6 +150,26 @@ export function aiMonthlyBudget(env: Env = process.env): AiBudgetConfig {
   return { ok: true, capMicros: Math.round(usd * 1_000_000) };
 }
 
+export type PublishConfig = { ok: true; token: string; teamId?: string } | { ok: false; reason: string };
+
+/** The hosting key that publishes client sites (Vercel). Set by an administrator, never sent to the browser. */
+export function publishConfig(env: Env = process.env): PublishConfig {
+  const token = clean(env.VERCEL_TOKEN);
+  if (!token) return { ok: false, reason: "Publishing is not set up: VERCEL_TOKEN is missing on the server." };
+  return { ok: true, token, teamId: clean(env.VERCEL_TEAM_ID) };
+}
+
+export type FormMailConfig = { ok: true; apiKey: string; from: string } | { ok: false; reason: string };
+
+/** The mail service that sends a published site's form messages to the client (Resend). */
+export function formMailConfig(env: Env = process.env): FormMailConfig {
+  const apiKey = clean(env.RESEND_API_KEY);
+  const from = clean(env.FORM_FROM_ADDRESS);
+  if (!apiKey || !from) return { ok: false, reason: "Form mail is not set up: RESEND_API_KEY and FORM_FROM_ADDRESS are needed on the server." };
+  if (!/^(?:[^<>@\n]+<)?[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+>?$/.test(from)) return { ok: false, reason: "FORM_FROM_ADDRESS is not an e-mail address." };
+  return { ok: true, apiKey, from };
+}
+
 export function intakeTimeoutMs(env: Env = process.env): number {
   return clamp(Number(env.STUDIO_AGENT_TIMEOUT_MS) || 90_000, 10_000, 110_000);
 }

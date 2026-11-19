@@ -72,6 +72,15 @@ describe("association design system", () => {
     expect(approved.some((file) => file.path === "robots.txt")).toBe(false);
   });
 
+  it("sends a published site's forms to the given server, and nowhere else", () => {
+    const live = page(build(spec(), { ...options, status: "approved", formAction: "https://studio.example/api/site-forms/abc" }), "kontakt/index.html");
+    expect(live).toContain('action="https://studio.example/api/site-forms/abc"');
+    expect(live).toMatch(/<input type="hidden" name="form" value="[^"]+">/);
+    expect(live).not.toContain("disabled>");
+    const odd = page(build(spec(), { ...options, status: "approved", formAction: 'javascript:alert(1)"' }), "kontakt/index.html");
+    expect(odd).toContain('action="/api/contact"');
+  });
+
   it("names the agency that made the prototype, never Studio OS", () => {
     expect(page(build(spec(), options), "index.html")).toContain("Prototyp av Axivo. Inte offentlig.");
     const other = page(build(spec(), { ...options, madeBy: "Byrå & Co" }), "index.html");

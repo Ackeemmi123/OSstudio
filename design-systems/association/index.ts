@@ -30,6 +30,8 @@ export interface AssociationOptions {
   status: "prototype" | "approved";
   /** Today, for sorting events into upcoming and past. */
   today: Date;
+  /** Where a published site's forms send to: an absolute https address on the server that mails the client. Default /api/contact. */
+  formAction?: string;
   /** The agency named on a prototype ("Prototyp av …"). Default Axivo. */
   madeBy?: string;
   /** A preview draws an image without a file as a labelled box; a build refuses it. */
@@ -206,7 +208,8 @@ function formHtml(site: Site, formId: string | undefined): string {
   }).join("");
   const consent = text(form.consentText, site.locale);
   const trap = `<div class="trap" aria-hidden="true"><label for="${id("website")}">${site.chrome.trap}</label><input id="${id("website")}" name="website" tabindex="-1" autocomplete="off"></div>`;
-  return `<form class="form" method="post" action="/api/contact">${fields}${trap}${consent ? `<div class="check"><input id="${id("consent")}" name="consent" type="checkbox" required><label for="${id("consent")}">${escapeHtml(consent)}</label></div>` : ""}<div><button class="btn" type="submit"${off ? " disabled" : ""}>${site.chrome.send}</button></div>${off ? `<p class="off">${site.chrome.formOff}</p>` : ""}</form>`;
+  const action = site.options.formAction && /^https:\/\/[^\s"<>]+$/.test(site.options.formAction) ? site.options.formAction : "/api/contact";
+  return `<form class="form" method="post" action="${escapeHtml(action)}"><input type="hidden" name="form" value="${escapeHtml(formId)}">${fields}${trap}${consent ? `<div class="check"><input id="${id("consent")}" name="consent" type="checkbox" required><label for="${id("consent")}">${escapeHtml(consent)}</label></div>` : ""}<div><button class="btn" type="submit"${off ? " disabled" : ""}>${site.chrome.send}</button></div>${off ? `<p class="off">${site.chrome.formOff}</p>` : ""}</form>`;
 }
 
 /** One section. The first heading on a page is its h1. */

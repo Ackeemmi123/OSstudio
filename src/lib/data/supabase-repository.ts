@@ -32,6 +32,8 @@ import {
   type ProposalDecision,
   type SiteAssetRecord,
   type SiteBuildRecord,
+  type SitePublicationRecord,
+  type DomainSetup,
   type SiteDocumentRecord,
   type ClientMaterialRecord,
   type ReadMaterial,
@@ -567,6 +569,57 @@ export class SupabaseRepository implements StudioRepository {
     if (!this.current.canWrite) throw new RepositoryError("You have read-only access to this studio. Ask an owner for member access.", "permission");
     const { error } = await this.client.rpc("revoke_site_build", { p_build: build.id });
     if (error) throw toRepositoryError(error);
+  }
+
+  private async publishRequest<T>(path: string, request: Record<string, unknown>, failure: string): Promise<T> {
+    if (!this.current.canWrite) throw new RepositoryError("You have read-only access to this studio. Ask an owner for member access.", "permission");
+    const { data } = await this.client.auth.getSession();
+    const token = data.session?.access_token;
+    if (!token) throw new RepositoryError("Your session has ended. Sign in again to continue.", "session");
+    let response: Response;
+    try {
+      response = await this.fetchImpl(path, { method: "POST", headers: { authorization: `Bearer ${token}`, "content-type": "application/json" }, body: JSON.stringify({ studioId: this.studioId, ...request }) });
+    } catch {
+      throw new RepositoryError("Studio OS could not reach the server. Check your connection and try again.", "network");
+    }
+    const body = (await response.json().catch(() => null)) as (T & { error?: string; reasons?: string[] }) | null;
+    if (!response.ok) {
+      const codes: Record<number, RepositoryErrorCode> = { 401: "session", 403: "permission", 404: "not_found", 409: "validation", 422: "validation", 503: "unavailable" };
+      throw new RepositoryError([body?.error ?? failure, ...(body?.reasons ?? [])].join(" "), codes[response.status] ?? "storage");
+    }
+    return body as T;
+  }
+
+  publishSite(spec: SiteSpecRecord, domain: string) {
+    return this.publishRequest<{ url: string; domain: DomainSetup | null }>("/api/site-publish", { specId: spec.id, domain }, "The site was not published.");
+  }
+
+  async restorePublication(publication: SitePublicationRecord): Promise<void> {
+    await this.publishRequest("/api/site-publish/restore", { publicationId: publication.id }, "The earlier version was not restored.");
+  }
+
+  domainStatus(publication: SitePublicationRecord) {
+    return this.publishRequest<DomainSetup>("/api/site-publish/domain", { publicationId: publication.id }, "The domain could not be checked.");
+  }
+
+  async listPublications(projectId: string): Promise<SitePublicationRecord[]> {
+    const { data, error } = await this.client
+      .from("site_publications")
+      .select("id, spec_version, deployment_url, domain, status, published_by, created_at")
+      .eq("studio_id", this.studioId)
+      .eq("project_id", projectId)
+      .order("created_at", { ascending: false })
+      .limit(20);
+    if (error) throw toRepositoryError(error);
+    return (data ?? []).map((row) => ({
+      id: String(row.id),
+      specVersion: Number(row.spec_version),
+      url: row.domain ? `https://${row.domain}` : String(row.deployment_url),
+      domain: (row.domain as string | null) ?? null,
+      status: row.status === "live" ? ("live" as const) : ("previous" as const),
+      publishedBy: String((row.published_by as { name?: string } | null)?.name ?? "Studio member"),
+      createdAt: String(row.created_at),
+    }));
   }
 
   async setBuildReviews(build: SiteBuildRecord, enabled: boolean): Promise<void> {
