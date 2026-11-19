@@ -121,13 +121,11 @@ create or replace function private.anonymise_client(p_id uuid, p_force boolean d
     delete from public.client_context_items where client_id = p_id;
     delete from public.client_sources where client_id = p_id;
     delete from public.client_onboardings where client_id = p_id;
-    delete from public.site_specs where client_id = p_id;
-    update public.site_assets set status = 'deleted' where client_id = p_id and status <> 'deleted';
-
-    -- The client's own files, the documents its site offered, and every built
-    -- site: the files are queued for the nightly purge (Storage refuses deletes
-    -- from SQL), the links are turned off, and the records are removed. Comments
-    -- and approvals from the review link name the client's people, so they go too.
+    -- First, while the built sites still exist (they go with the specs, below):
+    -- the client's own files, the documents its site offered and every built
+    -- site are queued for the nightly purge (Storage refuses deletes from SQL),
+    -- and their records removed. Comments and approvals from the review link
+    -- name the client's people, so they go too.
     insert into public.storage_purge_queue (bucket, path, is_prefix)
       select 'client-materials', storage_path, false from public.client_materials where client_id = p_id
       union all
@@ -138,8 +136,11 @@ create or replace function private.anonymise_client(p_id uuid, p_force boolean d
     delete from public.site_documents where client_id = p_id;
     delete from public.site_review_comments where client_id = p_id;
     delete from public.site_approvals where client_id = p_id;
-    update public.site_builds set revoked_at = coalesce(revoked_at, now()), reviews_enabled = false, checks = '[]'
-      where client_id = p_id;
+    delete from public.site_builds where client_id = p_id;
+
+    delete from public.site_specs where client_id = p_id;
+    update public.site_assets set status = 'deleted' where client_id = p_id and status <> 'deleted';
+
 
     -- Agent runs keep their agent, status and timing only.
     update public.agent_runs set "trigger" = '{}', inputs = '[]', outputs = '[]', result = null, blocker = null, error = null

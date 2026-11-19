@@ -1,7 +1,7 @@
 /**
  * Anonymising a client removes what later parts of Studio OS keep about it:
- * its files, its site's documents, its built sites (links off, files queued
- * for the purge), and the comments and approvals from the review link. And a
+ * its files, its site's documents, its built sites (files queued for the
+ * purge), and the comments and approvals from the review link. And a
  * person deleting a file queues it instead of keeping it. Every client and
  * file is invented.
  */
@@ -48,7 +48,7 @@ async function queued(): Promise<{ bucket: string; path: string; is_prefix: bool
 }
 
 describe("anonymising a client's newer records", () => {
-  it("removes files, documents, comments and approvals, turns links off and queues the files", async () => {
+  it("removes files, documents, built sites, comments and approvals, and queues the files", async () => {
     const c = await fullClient();
     await asDatabaseOwner((db) => db.query("select private.anonymise_client($1, true)", [c.clientId]));
 
@@ -56,9 +56,7 @@ describe("anonymising a client's newer records", () => {
     expect((await owner.client.from("site_documents").select("id").eq("client_id", c.clientId)).data).toEqual([]);
     expect((await owner.client.from("site_review_comments").select("id").eq("client_id", c.clientId)).data).toEqual([]);
     expect((await owner.client.from("site_approvals").select("id").eq("client_id", c.clientId)).data).toEqual([]);
-    const build = (await owner.client.from("site_builds").select("revoked_at, reviews_enabled, checks").eq("id", c.build).single()).data!;
-    expect(build.revoked_at).not.toBeNull();
-    expect(build).toMatchObject({ reviews_enabled: false, checks: [] });
+    expect((await owner.client.from("site_builds").select("id").eq("id", c.build)).data).toEqual([]);
     expect((await admin.rpc("site_review_state", { p_token: c.token })).data).toBeNull();
 
     const paths = (await queued()).map((q) => `${q.bucket}:${q.path}:${q.is_prefix}`);

@@ -51,7 +51,7 @@ Active), `archived_at` (set when archived, cleared when reopened) and
 | Website specs, every version (they hold client copy) | Deleted (`20261030000200_site_specs.sql`) |
 | Website images | Marked deleted at once (no new links; existing links expire within 15 minutes); files purged from Storage within 24 hours ([site-images.md](site-images.md)) |
 | The client's own files (`client_materials`) and the documents its site offered (`site_documents`) | Deleted; the files are queued and removed from Storage by the nightly purge (`20261123000100_anonymise_new_tables.sql`) |
-| Built sites (`site_builds`) | Links turned off and closed for review, checks emptied; every file of each build queued and removed by the nightly purge. The row (dates, version, who built it) is kept |
+| Built sites (`site_builds`) | Deleted, so their links stop working; every file of each build queued and removed by the nightly purge |
 | Comments and approvals from the review link | Deleted |
 | Agent runs | Trigger, inputs, outputs, result, blocker and error emptied; agent, status and timing kept |
 | Projects and tasks | Titles replaced ("Former project", "Task"), blocked reasons cleared; status, stage and dates kept |
