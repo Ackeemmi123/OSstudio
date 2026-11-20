@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { filePath, serveBuild, underPrefix } from "./serve";
+import { filePath, serveBuild, underPrefix, withBase } from "./serve";
 
 const token = "a".repeat(32);
 const now = new Date("2026-11-17T10:00:00Z");
@@ -47,6 +47,15 @@ describe("serving a build behind its link", () => {
     expect((await serveBuild(token, [], deps({ expiresAt: "2026-11-01T00:00:00Z" }))).status).toBe(410);
     expect((await serveBuild(token, [], deps({ revokedAt: "2026-11-16T00:00:00Z" }))).status).toBe(410);
     expect((await serveBuild(token, ["..", "other", "index.html"], deps())).status).toBe(400);
+  });
+
+  it("pins relative links to the page's own folder, with or without a closing slash", async () => {
+    files["s/b/kontakt/index.html"] = '<html><head><link rel="stylesheet" href="../site.css"></head><body></body></html>';
+    const html = await (await serveBuild(token, ["kontakt"], deps())).text();
+    expect(html).toContain(`<head><base href="/s/${token}/kontakt/"><link rel="stylesheet" href="../site.css">`);
+    expect(new URL("../site.css", new URL(`/s/${token}/kontakt/`, "https://studio.example")).pathname).toBe(`/s/${token}/site.css`);
+    expect(withBase("<html><head></head></html>", "/s/x", "404.html")).toContain('<base href="/s/x/">');
+    expect(withBase("<h1>No head</h1>", "/s/x", "index.html")).toBe("<h1>No head</h1>");
   });
 
   it("maps paths to files", () => {

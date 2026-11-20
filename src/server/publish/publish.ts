@@ -66,7 +66,9 @@ export async function publishSite(
   }
 
   try {
-    const files = await inBatches(site.files, 6, async (file) => ({ path: file.path, ...(await deps.hosting.upload(file.body)) }));
+    // Folder addresses always end in a slash, so the pages' relative links resolve the same however a visitor types them.
+    const hosted = [...site.files.filter((file) => file.path !== "vercel.json"), { path: "vercel.json", body: new TextEncoder().encode(JSON.stringify({ trailingSlash: true })) }];
+    const files = await inBatches(hosted, 6, async (file) => ({ path: file.path, ...(await deps.hosting.upload(file.body)) }));
     const deployment = await deps.hosting.deploy(hostingProjectName(context.client.name, context.spec.projectId), files);
     await deps.hosting.waitReady(deployment.id);
     await deps.hosting.openToPublic(deployment.projectId);
