@@ -10,10 +10,10 @@ import type { Asset, SiteContent, SiteDesign } from "./content";
 type Language = SiteContent["language"];
 
 /** The system's own words: its interface, never anything about the business. */
-export const CHROME: Record<Language, { skip: string; menu: string; mainNav: string; footerNav: string; trap: string; testNote: string; conceptNote: string; sent: string; notSent: string; backHome: string }> = {
-  en: { skip: "Skip to content", menu: "Menu", mainNav: "Main", footerNav: "Footer", trap: "Leave this empty", testNote: "Test site. This business and everything about it are invented.", conceptNote: "Concept by Axivo, from public information. This is not the website of the firm.", sent: "Thank you. Your message was sent.", notSent: "Your message could not be sent. Please call or email us instead.", backHome: "Back to the front page" },
-  sv: { skip: "Till innehållet", menu: "Meny", mainNav: "Huvudmeny", footerNav: "Sidfot", trap: "Lämna tomt", testNote: "Testsida. Företaget och allt om det är påhittat.", conceptNote: "Koncept av Axivo, utifrån offentlig information. Det här är inte företagets webbplats.", sent: "Tack! Ditt meddelande har skickats.", notSent: "Meddelandet kunde inte skickas. Ring eller mejla oss i stället.", backHome: "Till startsidan" },
-  fi: { skip: "Siirry sisältöön", menu: "Valikko", mainNav: "Päävalikko", footerNav: "Alatunniste", trap: "Jätä tyhjäksi", testNote: "Testisivusto. Yritys ja kaikki sen tiedot on keksitty.", conceptNote: "Axivon konseptiluonnos julkisten tietojen pohjalta. Tämä ei ole yrityksen verkkosivusto.", sent: "Kiitos! Viestisi on lähetetty.", notSent: "Viestiä ei voitu lähettää. Soita tai lähetä sähköpostia.", backHome: "Etusivulle" },
+export const CHROME: Record<Language, { skip: string; menu: string; mainNav: string; footerNav: string; trap: string; testNote: string; conceptNote: string; prototypeNote: string; formOff: string; sent: string; notSent: string; backHome: string }> = {
+  en: { skip: "Skip to content", menu: "Menu", mainNav: "Main", footerNav: "Footer", trap: "Leave this empty", testNote: "Test site. This business and everything about it are invented.", prototypeNote: "Prototype by {madeBy}. Not public.", formOff: "The form is switched off in the prototype.", conceptNote: "Concept by Axivo, from public information. This is not the website of the firm.", sent: "Thank you. Your message was sent.", notSent: "Your message could not be sent. Please call or email us instead.", backHome: "Back to the front page" },
+  sv: { skip: "Till innehållet", menu: "Meny", mainNav: "Huvudmeny", footerNav: "Sidfot", trap: "Lämna tomt", testNote: "Testsida. Företaget och allt om det är påhittat.", prototypeNote: "Prototyp av {madeBy}. Inte offentlig.", formOff: "Formuläret är avstängt i prototypen.", conceptNote: "Koncept av Axivo, utifrån offentlig information. Det här är inte företagets webbplats.", sent: "Tack! Ditt meddelande har skickats.", notSent: "Meddelandet kunde inte skickas. Ring eller mejla oss i stället.", backHome: "Till startsidan" },
+  fi: { skip: "Siirry sisältöön", menu: "Valikko", mainNav: "Päävalikko", footerNav: "Alatunniste", trap: "Jätä tyhjäksi", testNote: "Testisivusto. Yritys ja kaikki sen tiedot on keksitty.", prototypeNote: "Prototyyppi: {madeBy}. Ei julkinen.", formOff: "Lomake ei ole käytössä prototyypissä.", conceptNote: "Axivon konseptiluonnos julkisten tietojen pohjalta. Tämä ei ole yrityksen verkkosivusto.", sent: "Kiitos! Viestisi on lähetetty.", notSent: "Viestiä ei voitu lähettää. Soita tai lähetä sähköpostia.", backHome: "Etusivulle" },
 };
 
 export interface PageContext {
@@ -22,6 +22,8 @@ export interface PageContext {
   /** The way back to the site's root from this page: "./" or "../". */
   root: string;
   page: "home" | "about" | "contact" | "privacy" | "notFound";
+  /** Where the forms post on a published client site. */
+  formAction?: string;
 }
 
 /** Longer headlines and longer words take a smaller display size, so the composition holds whatever the message is. */
@@ -129,7 +131,7 @@ export function Frame({ context, children }: { context: PageContext; children: R
   return (
     <>
       <a className="skip" href="#main">{chrome.skip}</a>
-      {content.client ? null : <p className="test-note">{content.concept ? chrome.conceptNote : chrome.testNote}</p>}
+      {content.client ? null : <p className="test-note">{content.prototype ? chrome.prototypeNote.replace("{madeBy}", content.prototype.madeBy) : content.concept ? chrome.conceptNote : chrome.testNote}</p>}
       <header className="site-header">
         <a className="mark" href={root}>{business.name}</a>
         <nav className="menu-wide" aria-label={chrome.mainNav}>
@@ -170,11 +172,14 @@ function SectionHead({ label, heading, id }: { label: string; heading: string; i
   );
 }
 
-function ContactForm({ content, formId }: { content: SiteContent; formId: string }) {
+function ContactForm({ content, formId, formAction }: { content: SiteContent; formId: string; formAction?: string }) {
   const { form } = content;
   const chrome = CHROME[content.language];
+  const off = Boolean(content.prototype);
+  const action = formAction && /^https:\/\/[^\s"<>]+$/.test(formAction) ? formAction : "/api/contact";
   return (
-    <form className="form" method="post" action="/api/contact">
+    <form className="form" method="post" action={action}>
+      <input type="hidden" name="form" value={formId} />
       <div className="field">
         <label htmlFor={`${formId}-name`}>{form.nameLabel}</label>
         <input id={`${formId}-name`} name="name" autoComplete="name" required />
@@ -198,8 +203,8 @@ function ContactForm({ content, formId }: { content: SiteContent; formId: string
         <input id={`${formId}-website`} name="website" tabIndex={-1} autoComplete="off" />
       </div>
       <p className="consent">{form.consent.text}</p>
-      <button className="button button--send" type="submit">{form.send}</button>
-      <p className="next">{form.whatHappensNext.text}</p>
+      <button className="button button--send" type="submit" disabled={off}>{form.send}</button>
+      <p className="next">{off ? chrome.formOff : form.whatHappensNext.text}</p>
     </form>
   );
 }
@@ -305,7 +310,7 @@ export function Questions({ content }: { content: SiteContent }) {
   );
 }
 
-export function Closing({ content, emphasise }: { content: SiteContent; emphasise?: boolean }) {
+export function Closing({ content, emphasise, formAction }: { content: SiteContent; emphasise?: boolean; formAction?: string }) {
   const { closing } = content;
   return (
     <section className="closing" aria-labelledby="form">
@@ -317,7 +322,7 @@ export function Closing({ content, emphasise }: { content: SiteContent; emphasis
           {content.business.email ? <p><a href={`mailto:${content.business.email}`}>{content.business.email}</a></p> : null}
         </div>
       </div>
-      <ContactForm content={content} formId="home" />
+      <ContactForm content={content} formId="home" formAction={formAction} />
     </section>
   );
 }
@@ -386,7 +391,7 @@ export function ContactPage({ context }: { context: PageContext }) {
             {business.hours ? <p>{business.hours}</p> : null}
           </div>
         </div>
-        <ContactForm content={content} formId="contact" />
+        <ContactForm content={content} formId="contact" formAction={context.formAction} />
       </section>
     </Frame>
   );

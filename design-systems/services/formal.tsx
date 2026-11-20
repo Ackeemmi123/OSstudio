@@ -73,7 +73,7 @@ export function FormalHome({ context }: { context: PageContext }) {
       <FirstSteps content={content} />
       <Proof content={content} />
       <Questions content={content} />
-      <Closing content={content} emphasise />
+      <Closing content={content} formAction={context.formAction} emphasise />
     </Frame>
   );
 }

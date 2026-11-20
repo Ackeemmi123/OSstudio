@@ -48,6 +48,8 @@ import { validateIdentity } from "./local-repository";
 import { RepositoryError, SiteSpecBlockedError, type AiSpend, type RepositoryErrorCode, type RepositoryInfo, type StudioRepository } from "./repository";
 import { approvalBlockers, parseSiteSpec } from "@/lib/site-spec/validate";
 import { toRepositoryError } from "./supabase-errors";
+import type { RenderImageFile } from "@/lib/site-render/model";
+import type { SiteSpec } from "@/lib/site-spec/schema";
 import {
   clientRow,
   contextFieldRow,
@@ -503,6 +505,26 @@ export class SupabaseRepository implements StudioRepository {
       .order("version", { ascending: false });
     if (error) throw toRepositoryError(error);
     return (data as unknown as Row[]).map(toSiteSpecRecord);
+  }
+
+  async previewServices(spec: SiteSpec, images: Readonly<Record<string, RenderImageFile>>, pageId: string): Promise<{ html: string } | { missing: string[] }> {
+    const { data } = await this.client.auth.getSession();
+    const token = data.session?.access_token;
+    if (!token) throw new RepositoryError("Your session has ended. Sign in again to continue.", "session");
+    let response: Response;
+    try {
+      response = await this.fetchImpl("/api/site-preview/services", {
+        method: "POST",
+        headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
+        body: JSON.stringify({ studioId: this.studioId, spec, images, pageId }),
+      });
+    } catch {
+      throw new RepositoryError("Studio OS could not reach the server. Check your connection and try again.", "network");
+    }
+    const body = (await response.json().catch(() => null)) as { html?: string; missing?: string[]; error?: string } | null;
+    if (!response.ok || !body) throw new RepositoryError(body?.error ?? "The preview could not be drawn. Try again in a moment.", response.status === 401 ? "session" : "storage");
+    if (typeof body.html === "string") return { html: body.html };
+    return { missing: body.missing ?? [] };
   }
 
   async buildSite(spec: SiteSpecRecord): Promise<SiteBuildRecord> {

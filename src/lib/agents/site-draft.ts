@@ -96,7 +96,7 @@ const page = z.object({
 });
 
 export const siteDraftModelOutput = z.object({
-  designSystem: z.enum(DESIGN_SYSTEMS).describe("association@0.1 for associations, clubs and societies; template otherwise."),
+  designSystem: z.enum(DESIGN_SYSTEMS).describe("association@0.1 for associations, clubs and societies; services@0.1 for companies and firms that sell services; template otherwise."),
   language: z.enum(SITE_LOCALES).describe("The language the client's material and website are in."),
   siteName: value,
   siteDescription: value,

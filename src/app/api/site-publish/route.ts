@@ -24,7 +24,7 @@ export async function POST(request: Request) {
     if (!record) return null;
     const [{ data: client }, { data: builds }, { data: earlier }] = await Promise.all([
       asUser.from("clients").select("name, email").eq("id", record.client_id).maybeSingle(),
-      asUser.from("site_builds").select("id, created_at, site_approvals(id)").eq("spec_id", record.id).eq("spec_version", record.version).order("created_at", { ascending: false }),
+      asUser.from("site_builds").select("id, created_at, site_approvals(id, approver_name, created_at)").eq("spec_id", record.id).eq("spec_version", record.version).order("created_at", { ascending: false }),
       asUser.from("site_publications").select("form_key").eq("project_id", record.project_id).order("created_at", { ascending: false }).limit(1),
     ]);
     // Only a build made after the spec was approved shows the content that will be published.
@@ -35,6 +35,10 @@ export async function POST(request: Request) {
       spec: { id: record.id, version: record.version, status: record.status, spec: record.spec, clientId: record.client_id, projectId: record.project_id, hasForms: (spec.forms?.length ?? 0) > 0 },
       client: { name: String(client?.name ?? "client"), email: (client?.email as string | null) ?? null },
       approvedBuildId: approved?.id ?? null,
+      approval: (() => {
+        const row = ([] as { approver_name?: string; created_at?: string }[]).concat((approved?.site_approvals as never) ?? [])[0];
+        return row?.approver_name ? { name: String(row.approver_name), on: String(row.created_at ?? "").slice(0, 10) } : null;
+      })(),
       formKey: (earlier?.[0]?.form_key as string | undefined) ?? null,
       siteName: Object.values(spec.seo?.siteName ?? {}).find(Boolean) ?? String(client?.name ?? "Website"),
     };
@@ -45,7 +49,7 @@ export async function POST(request: Request) {
       { specId: body.specId, domain, origin: new URL(request.url).origin, actor, studioId },
       {
         load,
-        build: (context, formAction) => buildSite({ studioId, specVersion: context.spec.version, spec: context.spec.spec, production: { formAction } }, buildDeps(asUser, asServer, studioId, context.spec.clientId)),
+        build: (context, formAction) => buildSite({ studioId, specVersion: context.spec.version, spec: context.spec.spec, production: { formAction, approvedBy: context.approval?.name, approvedOn: context.approval?.on } }, buildDeps(asUser, asServer, studioId, context.spec.clientId)),
         hosting,
         record: async (publication) => {
           const { error } = await asServer.rpc("record_site_publication", { p_publication: publication });

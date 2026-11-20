@@ -13,9 +13,16 @@ export const SITE_LOCALES = ["en", "sv", "fi"] as const;
  * template; the others are design systems in design-systems/, by name and
  * version. Absent from a spec: the template.
  */
-export const DESIGN_SYSTEMS = ["template", "association@0.1"] as const;
+export const DESIGN_SYSTEMS = ["template", "association@0.1", "services@0.1"] as const;
 export type DesignSystem = (typeof DESIGN_SYSTEMS)[number];
-export const DESIGN_SYSTEM_LABELS: Record<DesignSystem, string> = { template: "Studio OS template", "association@0.1": "Association (association@0.1)" };
+export const DESIGN_SYSTEM_LABELS: Record<DesignSystem, string> = { template: "Studio OS template", "association@0.1": "Association (association@0.1)", "services@0.1": "Company (services@0.1)" };
+
+/** The company design's style choices (design-systems/services/content.ts siteDesign; a test keeps them equal). */
+export const SERVICES_DIRECTIONS = ["editorial", "formal", "statement"] as const;
+export const SERVICES_PALETTES = ["pine", "oxblood", "signal", "harbor", "dry", "measure", "brick", "verdigris", "ember", "cobalt", "gold", "navy", "timber", "plum", "hazard", "slate", "forest", "indigo", "steel", "terracotta", "teal", "ochre"] as const;
+export const SERVICES_TYPES = ["wide", "grotesk"] as const;
+export const SERVICES_MOTIFS = ["pipe", "drain", "scale", "ripple", "courses"] as const;
+export const SERVICES_DIRECTION_LABELS: Record<(typeof SERVICES_DIRECTIONS)[number], string> = { editorial: "Editorial: a story, warm and calm", formal: "Formal: established and serious", statement: "Statement: direct and bold" };
 export type SiteLocale = (typeof SITE_LOCALES)[number];
 
 export const SITE_LOCALE_LABELS: Record<SiteLocale, string> = { en: "English", sv: "Swedish", fi: "Finnish" };

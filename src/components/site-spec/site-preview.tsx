@@ -108,7 +108,7 @@ export function SitePreviewRoute({ clientId, projectId }: { clientId: string; pr
   );
 }
 
-type Design = "template" | "association";
+type Design = "template" | "association" | "services";
 
 function Preview({
   record,
@@ -160,14 +160,21 @@ function Preview({
   }, []);
 
   const parsed = useMemo(() => parseSiteSpec(record.spec), [record.spec]);
+  // The company design renders on the server; the page is asked for there.
+  const [servicesDrawn, setServicesDrawn] = useState<{ key: string; html?: string; problem?: string } | null>(null);
   // The spec says which design draws it; the address can show the other one for comparison.
-  const specDesign: Design = record.spec.brand?.designSystem === "association@0.1" ? "association" : "template";
-  const design: Design = wantedDesign === "association" || wantedDesign === "template" ? wantedDesign : specDesign;
+  const specDesign: Design = record.spec.brand?.designSystem === "association@0.1" ? "association" : record.spec.brand?.designSystem === "services@0.1" ? "services" : "template";
+  const design: Design = wantedDesign === "association" || wantedDesign === "template" || wantedDesign === "services" ? wantedDesign : specDesign;
   const chooseDesign = (next: Design) => onChange({ design: next === specDesign ? null : next });
 
   const rendered = useMemo(() => {
     if (!parsed.ok) return null;
     const model = buildRenderModel(parsed.spec, { pageId, locale, showMissing, imageFiles });
+    if (design === "services") {
+      const drawn = servicesDrawn?.key === `${record.id}:${model.page.id}` ? servicesDrawn : null;
+      if (drawn?.html) return { model, html: drawn.html, designError: null };
+      return { model, html: renderPreviewDocument(parsed.spec, model), designError: drawn?.problem ?? null, drawing: !drawn };
+    }
     if (design === "association") {
       try {
         const files = Object.fromEntries(parsed.spec.assets.flatMap((asset) => (asset.fileId && imageFiles[asset.fileId] ? [[asset.id, imageFiles[asset.fileId].url]] : [])));
@@ -177,7 +184,23 @@ function Preview({
       }
     }
     return { model, html: renderPreviewDocument(parsed.spec, model), designError: null };
-  }, [parsed, pageId, locale, showMissing, imageFiles, design]);
+  }, [parsed, pageId, locale, showMissing, imageFiles, design, servicesDrawn, record.id]);
+
+  const drawPageId = rendered?.model.page.id;
+  useEffect(() => {
+    if (design !== "services" || !parsed.ok || !drawPageId) return;
+    let active = true;
+    const key = `${record.id}:${drawPageId}`;
+    store
+      .read((r) => (r.previewServices ? r.previewServices(parsed.spec, imageFiles, drawPageId) : Promise.resolve({ missing: ["The company design previews only in a signed-in workspace."] })))
+      .then(
+        (drawn) => active && setServicesDrawn("html" in drawn ? { key, html: drawn.html } : { key, problem: `It still needs: ${drawn.missing.join(" ")}` }),
+        (error: unknown) => active && setServicesDrawn({ key, problem: errorMessage(error) }),
+      );
+    return () => {
+      active = false;
+    };
+  }, [design, parsed, drawPageId, imageFiles, record.id, store]);
 
   return (
     <div className="flex flex-col gap-5">
@@ -232,6 +255,7 @@ function Preview({
               <Select id="preview-design" value={design} onChange={(e) => chooseDesign(e.target.value as Design)}>
                 <option value="template">Studio OS template{specDesign === "template" ? " (the spec's)" : ""}</option>
                 <option value="association">Association{specDesign === "association" ? " (the spec's)" : ""}</option>
+                <option value="services">Company{specDesign === "services" ? " (the spec's)" : ""}</option>
               </Select>
             </Field>
             <ViewportButtons viewport={viewport} onChange={setViewport} />
@@ -244,7 +268,8 @@ function Preview({
 
           <SiteBuilds record={record} />
           <SitePublish record={record} />
-          {rendered.designError ? <p className="text-[13px] text-caution">The association design cannot draw this spec, so the template is shown: {rendered.designError}</p> : design === "association" ? <p className="text-[13px] text-ink-subtle">Drawn as the site is built. Document files and the hosted forms are added at build time, so downloads and sending are not shown here.</p> : null}
+          {"drawing" in rendered && rendered.drawing ? <p className="text-[13px] text-ink-subtle">Drawing the page with the company design…</p> : null}
+          {rendered.designError ? <p className="text-[13px] text-caution">The {design === "services" ? "company" : "association"} design cannot draw this spec, so the template is shown. {rendered.designError}</p> : design === "association" || design === "services" ? <p className="text-[13px] text-ink-subtle">Drawn as the site is built. Document files and the hosted forms are added at build time, so downloads and sending are not shown here.</p> : null}
           <PreviewFrame html={rendered.html} title={`Preview of ${rendered.model.page.title.text || "the page"}`} viewport={viewport} height="75vh" />
         </>
       )}

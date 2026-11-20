@@ -165,7 +165,28 @@ describe("what the design system adds", () => {
 describe("the built site", () => {
   it("has all its pages, with a way back from each", () => {
     const paths = build(lindqvist).map((file) => file.path);
-    expect(paths).toEqual(["site.css", "index.html", "about/index.html", "contact/index.html", "privacy/index.html", "sent/index.html", "not-sent/index.html", "404.html"]);
+    expect(paths).toEqual(["site.css", "index.html", "about/index.html", "contact/index.html", "privacy/index.html", "sent/index.html", "not-sent/index.html", "404.html", "robots.txt"]);
+  });
+
+  it("as a client's prototype: names the agency, switches the form off and stays out of search engines", () => {
+    const { invented: _invented, ...rest } = lindqvist.content;
+    void _invented;
+    const files = build({ ...lindqvist, content: { ...rest, prototype: { madeBy: "Byrå & Co" } } });
+    const home = files.find((file) => file.path === "index.html")!.text;
+    expect(home).toContain(CHROME[lindqvist.content.language].prototypeNote.replace("{madeBy}", "Byrå &amp; Co"));
+    expect(home).toMatch(/type="submit" disabled=""/);
+    expect(home).toContain('content="noindex,nofollow"');
+    expect(files.some((file) => file.path === "robots.txt")).toBe(true);
+  });
+
+  it("posts the forms to the given address only", () => {
+    const { invented: _invented, ...rest } = lindqvist.content;
+    void _invented;
+    const site = { ...lindqvist, content: { ...rest, prototype: { madeBy: "Axivo" } }, formAction: "https://studio.example/api/site-forms/abc" };
+    const contact = build(site).find((file) => file.path === `${rest.contact.slug}/index.html`)!.text;
+    expect(contact).toContain('action="https://studio.example/api/site-forms/abc"');
+    expect(contact).toContain('name="form" value="contact"');
+    expect(build({ ...site, formAction: 'javascript:x"' }).find((file) => file.path === "index.html")!.text).toContain('action="/api/contact"');
   });
 
   it("runs no scripts, stays out of search engines, and says it is a test", () => {
