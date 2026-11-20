@@ -8,6 +8,7 @@ import type { SiteAssetRecord } from "@/lib/domain/types";
 import { FORM_PURPOSE_LABELS, SECTION_LABELS, SITE_LOCALE_LABELS, type SiteLocale } from "./catalog";
 import type { SiteSpec, SiteSpecSection } from "./schema";
 import { isPlaceholderText, pageLabel, visibleTexts } from "./texts";
+import { stockPhrase } from "./industries";
 import { assetIdsOf, buttonsOf, type SpecIssue } from "./validate";
 
 /** What a warning needs to know about a stored image. */
@@ -72,6 +73,8 @@ function journeyWarnings(spec: SiteSpec, written: { path: string; name: string; 
     const claim = CLAIMS.find(({ pattern }) => pattern.test(text));
     if (claim) warnings.push({ path, message: `${name} makes a claim (${claim.what}). Keep it only if the client confirmed it.` });
     if (PRESSURE.test(text)) warnings.push({ path, message: `${name} puts pressure on visitors. Keep it only if it is really true.` });
+    const stock = stockPhrase(text);
+    if (stock) warnings.push({ path, message: `${name} uses stock web copy ("${stock}"). Say it the way this client would.` });
   }
 
   spec.pages.forEach((page, p) => {

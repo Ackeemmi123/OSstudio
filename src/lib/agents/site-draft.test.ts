@@ -25,6 +25,7 @@ const section = (fields: Partial<SiteDraftModelOutput["pages"][number]["sections
 
 function output(overrides: Partial<SiteDraftModelOutput> = {}): SiteDraftModelOutput {
   return {
+    industry: "other",
     designSystem: "association@0.1",
     language: "sv",
     siteName: label("Testsällskapet"),
@@ -141,7 +142,23 @@ describe("style proposals for the company design", () => {
       { direction: "statement", palette: "hazard", type: "wide", reason: "Rak och kraftfull." },
     ]);
     expect(chosen.servicesStyle).toEqual({ direction: "editorial", palette: "timber" });
-    expect(styleChoice([])).toEqual({});
+    expect(styleChoice([]).styleProposals).toHaveLength(3);
+  });
+
+  it("keeps only styles that suit the kind of business, and fills up from its profile", () => {
+    const law = styleChoice(styles, "law_finance");
+    expect(law.styleProposals?.map((p) => `${p.direction}/${p.palette}`)).toEqual(["formal/navy", "formal/oxblood", "editorial/slate"]);
+    // The model's formal/navy came with a masonry motif, which does not suit a law firm: the profile's own style replaces it.
+    expect(law.styleProposals?.[0]).toMatchObject({ motif: "scale", reason: "A starting style for law, accounting and finance." });
+    const fitting = styleChoice([{ direction: "formal", palette: "oxblood", type: "", motif: "scale", reason: "Lugn och trovärdig." }], "law_finance");
+    expect(fitting.styleProposals?.[0]).toEqual({ direction: "formal", palette: "oxblood", motif: "scale", reason: "Lugn och trovärdig." });
+    const cafe = styleChoice([], "cafe_restaurant");
+    expect(cafe.styleProposals?.map((p) => p.palette)).toEqual(["terracotta", "ember", "plum"]);
+    expect(cafe.styleProposals?.every((p) => !p.motif)).toBe(true);
+  });
+
+  it("records the kind of business in the spec", () => {
+    expect(normalizeSiteDraft(output({ industry: "cafe_restaurant" }), INPUT, RUN).spec.strategy.industry).toBe("cafe_restaurant");
   });
 
   it("puts them in the spec only for the company design, and carries them when the draft is applied", () => {
@@ -156,11 +173,13 @@ describe("style proposals for the company design", () => {
     expect(applied.brand.servicesStyle).toEqual(company.brand.servicesStyle);
   });
 
-  it("offers the three directions in the current colours when the draft proposed nothing", () => {
+  it("offers the kind of business's starting styles, or the three directions, when the spec has no proposals", () => {
     const spec = normalizeSiteDraft(output({ designSystem: "services@0.1" }), INPUT, RUN).spec;
-    const { options, proposed } = styleOptions(spec);
-    expect(proposed).toBe(false);
-    expect(options.map((o) => o.style.direction)).toEqual(["editorial", "formal", "statement"]);
+    delete spec.brand.styleProposals;
+    delete spec.strategy.industry;
+    expect(styleOptions(spec)).toMatchObject({ proposed: false, options: [{ style: { direction: "editorial" } }, { style: { direction: "formal" } }, { style: { direction: "statement" } }] });
+    spec.strategy.industry = "law_finance";
+    expect(styleOptions(spec).options.map((o) => o.style.palette)).toEqual(["navy", "oxblood", "slate"]);
     expect(styleOptions(normalizeSiteDraft(output({ designSystem: "services@0.1", styles }), INPUT, RUN).spec).proposed).toBe(true);
   });
 });

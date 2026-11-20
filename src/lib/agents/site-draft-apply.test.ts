@@ -15,6 +15,7 @@ const section = (fields: Partial<SiteDraftModelOutput["pages"][number]["sections
   kind: "text", variant: "single_column", eyebrow: empty, heading: empty, subheading: empty, body: empty, items: [], button: null, ...fields,
 });
 const OUTPUT: SiteDraftModelOutput = {
+  industry: "other",
   designSystem: "template",
   language: "sv",
   siteName: label("Testlunds Snickeri"),

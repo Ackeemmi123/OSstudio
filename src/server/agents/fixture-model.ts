@@ -73,6 +73,7 @@ export class FixtureModel implements AgentModel {
       kind, variant, eyebrow: empty, heading: empty, subheading: empty, body: empty, items: [], button: null, ...fields,
     });
     return {
+      industry: "other",
       designSystem: "template",
       language: "en",
       siteName: label(input.client.name.slice(0, 60)),

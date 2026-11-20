@@ -8,6 +8,7 @@ import { errorMessage } from "@/lib/data/studio-store";
 import type { SiteSpecRecord } from "@/lib/domain/types";
 import type { RenderImageFile } from "@/lib/site-render/model";
 import { SERVICES_DIRECTION_LABELS, SERVICES_DIRECTIONS, SERVICES_MOTIF_NOTES, SERVICES_PALETTE_NOTES } from "@/lib/site-spec/catalog";
+import { INDUSTRY_PROFILES } from "@/lib/site-spec/industries";
 import type { SiteSpec } from "@/lib/site-spec/schema";
 import { PreviewFrame } from "./preview-frame";
 
@@ -16,10 +17,12 @@ type Option = { style: Style; reason: string };
 
 const sameStyle = (a: Style | undefined, b: Style) => !!a && a.direction === b.direction && a.palette === b.palette && (a.type ?? "") === (b.type ?? "") && (a.motif ?? "") === (b.motif ?? "");
 
-/** The AI draft's proposals; without them, the three directions in the spec's current colours. */
+/** The AI draft's proposals; without them, the kind of business's starting styles, or the three directions in the spec's current colours. */
 export function styleOptions(spec: SiteSpec): { options: Option[]; proposed: boolean } {
   const proposals = spec.brand.styleProposals ?? [];
   if (proposals.length) return { options: proposals.map(({ reason, ...style }) => ({ style, reason })), proposed: true };
+  const industry = spec.strategy.industry;
+  if (industry) return { options: INDUSTRY_PROFILES[industry].defaults.map((style) => ({ style: { ...style }, reason: `A starting style for ${INDUSTRY_PROFILES[industry].label.toLowerCase()}.` })), proposed: false };
   const palette = spec.brand.servicesStyle?.palette ?? "pine";
   return { options: SERVICES_DIRECTIONS.map((direction) => ({ style: { direction, palette }, reason: "" })), proposed: false };
 }
@@ -72,7 +75,11 @@ export function StyleComparison({ record, spec, imageFiles, pageId, onSaved }: {
           Compare styles
         </h2>
         <p className="text-[13px] text-ink-subtle">
-          {proposed ? "The AI draft's three proposals, drawn with this page's real content." : "No proposals from the AI draft yet, so these are the three directions in the spec's current colours."}
+          {proposed
+            ? "The AI draft's three proposals, drawn with this page's real content."
+            : spec.strategy.industry
+              ? `No proposals from the AI draft yet, so these are the starting styles for ${INDUSTRY_PROFILES[spec.strategy.industry].label.toLowerCase()}.`
+              : "No proposals from the AI draft yet, so these are the three directions in the spec's current colours. Choose the kind of business under Strategy for styles that suit it."}
           {editable ? " Choosing one saves it in this draft." : record.status === "draft" ? "" : " Start a new version to change the style."}
         </p>
       </div>

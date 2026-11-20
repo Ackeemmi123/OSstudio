@@ -151,3 +151,13 @@ describe("what is worth checking", () => {
     for (const warning of qualityWarnings(s)) expect(warning.path).not.toBe("");
   });
 });
+
+describe("stock web copy", () => {
+  it("warns about phrases that read as a template, in each language, and leaves plain words alone", async () => {
+    const { stockPhrase } = await import("./industries");
+    expect(stockPhrase("Vi brinner för att bygga kök.")).toBe("brinner för");
+    expect(stockPhrase("Tailored solutions for every home")).toBe("tailored solutions");
+    expect(stockPhrase("Tarjoamme räätälöidyt ratkaisut")).toBe("räätälöidyt ratkaisut");
+    expect(stockPhrase("Vi bygger kök i massiv ek i Borgå sedan 2009.")).toBeNull();
+  });
+});
