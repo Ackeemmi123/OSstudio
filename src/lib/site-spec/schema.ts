@@ -34,6 +34,7 @@ import {
   STRUCTURED_DATA_TYPES,
   TYPE_SCALES,
 } from "./catalog";
+import { INDUSTRIES } from "./industries";
 
 export const SITE_SPEC_VERSION = 1;
 
@@ -186,6 +187,8 @@ export const siteSpecSchema = z.strictObject({
     audiences: z.array(z.strictObject({ id: idSchema, text: text(300), source: sourceSchema.optional() })).max(SPEC_LIMITS.audiences),
     primaryCta: button.optional(),
     tone: text(200),
+    /** What kind of business the site is for (industries.ts): its styles, tone and what each part holds. */
+    industry: z.enum(INDUSTRIES).optional(),
   }),
   brand: z.strictObject({
     colors: z.strictObject({

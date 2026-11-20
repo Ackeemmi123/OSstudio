@@ -13,6 +13,7 @@
 import { z } from "zod";
 import type { ProjectType, ProposalTarget } from "@/lib/domain/types";
 import { ACCESSIBILITY_TARGET, DESIGN_SYSTEMS, FORM_FIELDS, ITEM_LIMITS, NAV_PLACEMENTS, SECTION_VARIANTS, SERVICES_DIRECTIONS, SERVICES_MOTIFS, SERVICES_PALETTES, SERVICES_TYPES, SITE_LOCALES, type SectionKind, type SiteLocale } from "@/lib/site-spec/catalog";
+import { fitsIndustry, INDUSTRIES, INDUSTRY_PROFILES, type Industry } from "@/lib/site-spec/industries";
 import { SITE_SPEC_VERSION, siteSpecSchema, type SiteSpec, type SiteSpecPage, type SiteSpecSection, type SiteSpecSource } from "@/lib/site-spec/schema";
 import { containsQuote, type IntakeSource } from "./intake";
 import { utf8Bytes } from "./pricing";
@@ -96,6 +97,7 @@ const page = z.object({
 });
 
 export const siteDraftModelOutput = z.object({
+  industry: z.enum(INDUSTRIES).describe("The kind of business, from the material. other when none fits."),
   designSystem: z.enum(DESIGN_SYSTEMS).describe("association@0.1 for associations, clubs and societies; services@0.1 for companies and firms that sell services; template otherwise."),
   language: z.enum(SITE_LOCALES).describe("The language the client's material and website are in."),
   siteName: value,
@@ -377,6 +379,7 @@ export function normalizeSiteDraft(raw: unknown, input: SiteDraftInput, context:
       audiences,
       ...(ctaLabel && ctaTarget ? { primaryCta: { label: loc(ctaLabel), targetPageId: ctaTarget } } : {}),
       tone: output.tone.trim().slice(0, 200),
+      industry: output.industry,
     },
     brand: {
       colors: { ...DEFAULT_COLORS, ...(primary ? { primary } : {}), ...(accent ? { accent } : {}) },
@@ -384,7 +387,7 @@ export function normalizeSiteDraft(raw: unknown, input: SiteDraftInput, context:
       radius: "soft",
       density: "regular",
       designSystem: output.designSystem,
-      ...(output.designSystem === "services@0.1" ? styleChoice(output.styles) : {}),
+      ...(output.designSystem === "services@0.1" ? styleChoice(output.styles, output.industry) : {}),
       ...(primary ? { source: proposal("brand") } : {}),
     },
     assets: [],
@@ -490,10 +493,14 @@ export function textBytes(input: SiteDraftInput): number {
 type StyleProposal = NonNullable<SiteSpec["brand"]["styleProposals"]>[number];
 
 /** The model's style proposals, distinct and within the design's range; the first is the starting choice. */
-export function styleChoice(styles: SiteDraftModelOutput["styles"]): Pick<SiteSpec["brand"], "servicesStyle" | "styleProposals"> {
+export function styleChoice(styles: SiteDraftModelOutput["styles"], industry: Industry = "other"): Pick<SiteSpec["brand"], "servicesStyle" | "styleProposals"> {
   const seen = new Set<string>();
   const proposals: StyleProposal[] = [];
-  for (const style of styles) {
+  const profile = INDUSTRY_PROFILES[industry];
+  // The model's proposals that fit the kind of business, then the profile's own starting styles to make three.
+  const fitting = styles.filter((style) => fitsIndustry(industry, { direction: style.direction, palette: style.palette, ...(style.motif ? { motif: style.motif } : {}) }));
+  const fallback = profile.defaults.map((style) => ({ direction: style.direction, palette: style.palette, type: style.type ?? "", motif: style.motif ?? "", reason: `A starting style for ${profile.label.toLowerCase()}.` }) as SiteDraftModelOutput["styles"][number]);
+  for (const style of [...fitting, ...fallback]) {
     const reason = style.reason.trim().slice(0, 240);
     const proposal: StyleProposal = {
       direction: style.direction,
@@ -508,7 +515,6 @@ export function styleChoice(styles: SiteDraftModelOutput["styles"]): Pick<SiteSp
     proposals.push(proposal);
     if (proposals.length === 3) break;
   }
-  if (!proposals.length) return {};
   const { reason: _reason, ...first } = proposals[0];
   void _reason;
   return { servicesStyle: first, styleProposals: proposals };

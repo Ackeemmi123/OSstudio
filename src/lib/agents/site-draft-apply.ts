@@ -58,6 +58,7 @@ export function applySiteDraft(current: SiteSpec, draft: SiteDraftResult, choice
         goal: accept(from.strategy.goal, acceptedBy),
         audiences: from.strategy.audiences.map((a) => accept(a, acceptedBy)),
         tone: from.strategy.tone,
+        ...(from.strategy.industry ? { industry: from.strategy.industry } : {}),
         ...(from.strategy.primaryCta && ids.has(from.strategy.primaryCta.targetPageId) ? { primaryCta: from.strategy.primaryCta } : {}),
       }
     : {

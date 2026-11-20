@@ -6,6 +6,7 @@ import { Tag } from "@/components/ui/status";
 import { CONTEXT_FIELD_LABELS } from "@/lib/domain/labels";
 import type { Client, ContextFieldKey } from "@/lib/domain/types";
 import { freshId } from "@/lib/site-spec/edit";
+import { INDUSTRIES, INDUSTRY_PROFILES, type Industry } from "@/lib/site-spec/industries";
 import type { SiteSpec, SiteSpecSource } from "@/lib/site-spec/schema";
 import { LocalizedInput } from "./localized-input";
 import type { SpecEditing } from "./site-spec-editor";
@@ -119,6 +120,27 @@ export function StrategyEditor({ spec, client, editing }: { spec: SiteSpec; clie
           </Select>
         </Field>
       </div>
+
+      <Field id="spec-industry" label="Kind of business" hint="Decides which styles are proposed, how the texts sound and what each part of the company design holds.">
+        <Select
+          id="spec-industry"
+          value={strategy.industry ?? ""}
+          disabled={!editable}
+          onChange={(e) =>
+            change((s) => {
+              if (e.target.value) s.strategy.industry = e.target.value as Industry;
+              else delete s.strategy.industry;
+            })
+          }
+        >
+          <option value="">Not chosen</option>
+          {INDUSTRIES.map((industry) => (
+            <option key={industry} value={industry}>
+              {INDUSTRY_PROFILES[industry].label}
+            </option>
+          ))}
+        </Select>
+      </Field>
 
       <Field id="spec-tone" label="Tone of voice" hint="For example: warm and plain-spoken.">
         <TextInput id="spec-tone" value={strategy.tone} maxLength={200} disabled={!editable} onChange={(e) => change((s) => void (s.strategy.tone = e.target.value))} />

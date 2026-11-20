@@ -5,11 +5,12 @@
 import { z } from "zod";
 import { PROJECT_TYPE_LABELS } from "@/lib/domain/labels";
 import { SECTION_LABELS, SECTION_VARIANTS, SERVICES_MOTIF_NOTES, SERVICES_PALETTE_NOTES, type SectionKind } from "@/lib/site-spec/catalog";
+import { INDUSTRIES, INDUSTRY_PROFILES, STOCK_PHRASES } from "@/lib/site-spec/industries";
 import { utf8Bytes } from "./pricing";
 import { siteDraftModelOutput, siteDraftRequestBytes, textSources, type SiteDraftInput } from "./site-draft";
 
 /** Recorded on every run. Change it whenever the instructions or the message format change. */
-export const SITE_DRAFT_PROMPT_VERSION = "site-draft-2026-11-20.2";
+export const SITE_DRAFT_PROMPT_VERSION = "site-draft-2026-11-20.3";
 
 const sectionList = (Object.keys(SECTION_VARIANTS) as SectionKind[])
   .map((kind) => `- ${kind} (${SECTION_VARIANTS[kind].join(", ")}): ${SECTION_LABELS[kind].description}`)
@@ -17,6 +18,18 @@ const sectionList = (Object.keys(SECTION_VARIANTS) as SectionKind[])
 
 const paletteList = Object.entries(SERVICES_PALETTE_NOTES).map(([name, note]) => `${name} (${note})`).join("; ");
 const motifList = Object.entries(SERVICES_MOTIF_NOTES).map(([name, note]) => `${name} (${note})`).join("; ");
+
+const industryList = INDUSTRIES.map((industry) => {
+  const p = INDUSTRY_PROFILES[industry];
+  return [
+    `- ${industry} (${p.examples})`,
+    `  - Tone: ${p.tone}`,
+    `  - Styles: directions ${p.directions.join(", ")}; palettes ${p.palettes.join(", ")}; motifs ${p.motifs.length ? p.motifs.join(", ") : "none"}`,
+    `  - Reasons hold ${p.parts.reasons}. Services hold ${p.parts.services}. First steps hold ${p.parts.firstSteps}. Proof holds ${p.parts.proof}. Questions cover ${p.parts.questions}. The call to action is ${p.parts.closing}.`,
+  ].join("\n");
+}).join("\n");
+
+const stockList = STOCK_PHRASES.map(({ phrase }) => `"${phrase}"`).join(", ");
 
 export const SITE_DRAFT_SYSTEM_PROMPT = `You draft websites at a small web design studio. From the material a client sent, you propose the whole website: which pages it has, what each page says and how it is laid out. A person at the studio reviews every part before anything is built, and the client approves the site before it is published.
 
@@ -31,12 +44,15 @@ Facts:
 
 Website:
 - Write in the language of the material (Swedish, Finnish or English). One language only.
+- Choose industry: the kind of business, from the material. It decides how the site sounds, which styles fit and what each part holds. Kinds:
+${industryList}
+- Write like the client talks, not like a website. Prefer the client's own words, concrete details (places, materials, dishes, years, names the material gives) and short sentences. Never use stock web phrases such as ${stockList}, or anything like them; if a sentence could be on any other firm's website, rewrite it with something only this client would say, or leave it out.
 - Choose designSystem association@0.1 for associations, student societies, clubs and other membership organisations; services@0.1 for companies and firms that sell services; template only when neither fits.
 - For services@0.1 the site has this shape, and each part is drawn only when it is there:
   - Home: a hero (eyebrow: required, a short phrase on who the firm serves or where it works, copied from the material with a ref, never generic, at most 55 characters (longer is dropped), for example "Privatpersoner i Borgå"; heading: the promise, at most about 100 characters; emphasis: the last words of the heading to stress, optional; subheading: why, at most about 270 characters), a features section with 2 to 4 reasons to choose the firm, a services section, a features section with variant list and 2 to 4 first steps (how working together starts), testimonials only when the material has them, a faq section and a cta section (heading and a short text next to the form).
   - Pages: about (slug om-oss, about or meista) with text sections telling the firm's story and a team section when the material names people; contact (slug kontakt, contact or yhteystiedot) with a contact section whose body gives the email and phone from the material; privacy (slug integritet, privacy or tietosuoja, nav footer).
   - Keep item titles short (at most about 55 characters) and item texts at most about 230 characters.
-- styles (services@0.1 only, otherwise empty): three clearly different styles, the one that fits best first. Judge from the logo and images, the trade and the tone of the client's own writing. Make them differ in direction or in palette, not only in a motif. Each reason is one sentence, in the language of the material, naming what in the material it matches (for example "warm and handmade, like the oak kitchens and the plain local tone"). Use a motif only when the client's own trade matches it.
+- styles (services@0.1 only, otherwise empty): three clearly different styles within the chosen industry's styles, the one that fits best first. Styles outside the industry's range are replaced. Judge from the logo and images, the trade and the tone of the client's own writing. Make them differ in direction or in palette, not only in a motif. Each reason is one sentence, in the language of the material, naming what in the material it matches (for example "warm and handmade, like the oak kitchens and the plain local tone"). Use a motif only when the client's own trade matches it.
   - Directions: editorial (a story, warm and calm), formal (established and serious), statement (direct and bold; type wide or grotesk, or empty for its default).
   - Palettes: ${paletteList}
   - Motifs: ${motifList}
