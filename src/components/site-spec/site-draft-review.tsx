@@ -7,6 +7,7 @@ import { useToast } from "@/components/ui/toast";
 import { applySiteDraft, takeEverything } from "@/lib/agents/site-draft-apply";
 import type { DraftRef, SiteDraftResult } from "@/lib/agents/site-draft";
 import { DESIGN_SYSTEM_LABELS, SECTION_LABELS } from "@/lib/site-spec/catalog";
+import { styleName } from "./style-comparison";
 import type { SiteSpecSection } from "@/lib/site-spec/schema";
 import type { SpecEditing } from "./site-spec-editor";
 
@@ -149,6 +150,19 @@ export function SiteDraftReview({ result, editing, onDone }: { result: SiteDraft
             )}
           </label>
         </legend>
+        {spec.brand.styleProposals?.length ? (
+          <div className="flex flex-col gap-1.5 pt-1">
+            <p className="text-[12px] text-ink-muted">Proposed styles, the first is used until you choose another in the preview:</p>
+            <ol className="flex list-decimal flex-col gap-1 pl-5 text-[12.5px] text-ink">
+              {spec.brand.styleProposals.map((proposal, i) => (
+                <li key={i}>
+                  <span className="font-medium">{styleName(proposal)}</span>
+                  <span className="text-ink-muted">: {proposal.reason}</span>
+                </li>
+              ))}
+            </ol>
+          </div>
+        ) : null}
       </fieldset>
 
       {spec.pages.map((page, pi) => (
