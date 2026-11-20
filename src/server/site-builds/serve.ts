@@ -83,6 +83,17 @@ async function closed(build: ServedBuild, deps: ServeDeps, why: keyof typeof CLO
   return brandedPage(410, brand, `${sv} · ${en}`, `Be ${brand.name} om en ny länk. Ask ${brand.name} for a new one.`);
 }
 
+/**
+ * Pins relative links to the page's own folder. Next.js serves /s/<token>/om-oss/
+ * without its closing slash, so a design that links relatively (./site.css,
+ * ../kontakt/) would otherwise resolve one folder too high.
+ */
+export function withBase(html: string, prefix: string, file: string): string {
+  const folder = file.includes("/") ? file.slice(0, file.lastIndexOf("/") + 1) : "";
+  const tag = `<base href="${prefix}/${folder}">`;
+  return /<head[^>]*>/i.test(html) ? html.replace(/<head[^>]*>/i, (head) => `${head}${tag}`) : html;
+}
+
 export async function serveBuild(token: string, segments: readonly string[], deps: ServeDeps): Promise<Response> {
   if (!TOKEN.test(token)) return text(404, "This link does not exist.");
   const build = await deps.find(token);
@@ -105,7 +116,7 @@ export async function serveBuild(token: string, segments: readonly string[], dep
   const type = contentTypeOf(file);
   let out: Uint8Array = body;
   if (type.startsWith("text/html")) {
-    let html = underPrefix(new TextDecoder().decode(body), prefix);
+    let html = withBase(underPrefix(new TextDecoder().decode(body), prefix), prefix, file);
     const brand = deps.review ? await deps.review(token).catch(() => null) : null;
     if (brand) html = withReviewBar(html, reviewBar(token, brand));
     out = new TextEncoder().encode(html);

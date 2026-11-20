@@ -49,8 +49,8 @@ describe("publishing", () => {
     const outcome = await publishSite({ specId: "spec-1", domain: "https://Forening.FI/", origin: "https://studio.example", actor: ACTOR, studioId: "s1" }, d);
     expect(outcome).toMatchObject({ ok: true, url: "https://forening.fi", domain: { ready: false } });
     expect(String(calls.build[0])).toMatch(/^https:\/\/studio\.example\/api\/site-forms\/[A-Za-z0-9_-]{32}$/);
-    expect(calls.upload).toHaveLength(2);
-    expect(calls.deploy[0]).toMatchObject({ project: "site-forvaltningssallskapet-test-0b5344dc", files: [{ path: "index.html" }, { path: "404.html" }] });
+    expect(calls.upload).toHaveLength(3);
+    expect(calls.deploy[0]).toMatchObject({ project: "site-forvaltningssallskapet-test-0b5344dc", files: [{ path: "index.html" }, { path: "404.html" }, { path: "vercel.json" }] });
     expect(calls.domain).toEqual([{ projectId: "prj_1", domain: "forening.fi" }]);
     expect(calls.record[0]).toMatchObject({ spec_version: 3, approved_build_id: "build-1", hosting_project: "prj_1", deployment_id: "dpl_1", domain: "forening.fi", form_recipient: "kontakt@example.test" });
   });
