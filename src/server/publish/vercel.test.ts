@@ -50,4 +50,21 @@ describe("Vercel", () => {
   it("explains a refused token", async () => {
     await expect(new Vercel("bad", undefined, fake([{ status: 403, body: {} }]).fetchImpl).promote("prj_1", "dpl_1")).rejects.toThrow(/VERCEL_TOKEN/);
   });
+
+  it("opens a site's production address to everyone and finds it", async () => {
+    const { sent, fetchImpl } = fake([
+      { status: 200, body: {} },
+      { status: 200, body: { alias: [
+        { domain: "site-x-git-main-axivo3.vercel.app", environment: "preview", target: "PREVIEW" },
+        { domain: "site-x-axivo3.vercel.app", environment: "production", target: "PRODUCTION" },
+        { domain: "forening.fi", environment: "production", target: "PRODUCTION" },
+      ] } },
+    ]);
+    const v = new Vercel("tok", "team_1", fetchImpl);
+    await v.openToPublic("prj_1");
+    expect(sent[0].url).toBe("https://api.vercel.com/v9/projects/prj_1?teamId=team_1");
+    expect(sent[0].init.method).toBe("PATCH");
+    expect(JSON.parse(String(sent[0].init.body))).toEqual({ ssoProtection: { deploymentType: "preview" } });
+    expect(await v.productionAddress("prj_1")).toBe("https://site-x-axivo3.vercel.app");
+  });
 });

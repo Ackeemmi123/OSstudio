@@ -20,14 +20,16 @@ export async function POST(request: Request) {
   const domain = typeof body.domain === "string" ? body.domain : undefined;
 
   const load = async (specId: string): Promise<PublishContext | null> => {
-    const { data: record } = await asUser.from("site_specs").select("id, client_id, project_id, version, status, spec").eq("id", specId).eq("studio_id", studioId).maybeSingle();
+    const { data: record } = await asUser.from("site_specs").select("id, client_id, project_id, version, status, spec, approved_at").eq("id", specId).eq("studio_id", studioId).maybeSingle();
     if (!record) return null;
     const [{ data: client }, { data: builds }, { data: earlier }] = await Promise.all([
       asUser.from("clients").select("name, email").eq("id", record.client_id).maybeSingle(),
       asUser.from("site_builds").select("id, created_at, site_approvals(id)").eq("spec_id", record.id).eq("spec_version", record.version).order("created_at", { ascending: false }),
       asUser.from("site_publications").select("form_key").eq("project_id", record.project_id).order("created_at", { ascending: false }).limit(1),
     ]);
-    const approved = (builds ?? []).find((b) => ([] as unknown[]).concat((b.site_approvals as unknown) ?? []).length > 0);
+    // Only a build made after the spec was approved shows the content that will be published.
+    const approvedAt = record.approved_at ? Date.parse(record.approved_at) : Infinity;
+    const approved = (builds ?? []).find((b) => Date.parse(b.created_at) >= approvedAt && ([] as unknown[]).concat((b.site_approvals as unknown) ?? []).length > 0);
     const spec = record.spec as { forms?: unknown[]; seo?: { siteName?: Record<string, string> } };
     return {
       spec: { id: record.id, version: record.version, status: record.status, spec: record.spec, clientId: record.client_id, projectId: record.project_id, hasForms: (spec.forms?.length ?? 0) > 0 },

@@ -128,6 +128,26 @@ export class Vercel {
     return { domain, ready: !config.misconfigured, records };
   }
 
+  /**
+   * Makes the published site open to everyone. A team's standard protection
+   * also puts the project's *.vercel.app production address behind a Vercel
+   * login; this keeps the login on preview deployments only, which a client
+   * site never has.
+   */
+  async openToPublic(projectId: string): Promise<void> {
+    await this.call("PATCH", `/v9/projects/${encodeURIComponent(projectId)}`, { json: { ssoProtection: { deploymentType: "preview" } } });
+  }
+
+  /** The project's lasting production address on the hosting (not one deployment's), or null if it has none yet. */
+  async productionAddress(projectId: string): Promise<string | null> {
+    const project = await this.call<{ alias?: { domain: string; environment?: string; target?: string }[] }>("GET", `/v9/projects/${encodeURIComponent(projectId)}`);
+    const own = (project.alias ?? [])
+      .filter((a) => (a.environment === "production" || a.target === "PRODUCTION") && a.domain.endsWith(".vercel.app"))
+      .map((a) => a.domain)
+      .sort((a, b) => a.length - b.length)[0];
+    return own ? `https://${own}` : null;
+  }
+
   /** Points the site's production traffic back at an earlier deployment (no rebuild). */
   async promote(projectId: string, deploymentId: string): Promise<void> {
     await this.call("POST", `/v10/projects/${encodeURIComponent(projectId)}/promote/${encodeURIComponent(deploymentId)}`);
