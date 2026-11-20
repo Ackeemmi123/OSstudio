@@ -13,7 +13,7 @@ const READY: PublishContext = {
 };
 
 function deps(context: PublishContext | null = READY, hostingFails = false) {
-  const calls: Record<string, unknown[]> = { upload: [], deploy: [], record: [], build: [], domain: [] };
+  const calls: Record<string, unknown[]> = { upload: [], deploy: [], record: [], build: [], domain: [], open: [] };
   const d: PublishDeps = {
     load: async () => context,
     build: async (_c, formAction) => (calls.build.push(formAction), { id: "x", shareToken: "t", storagePrefix: "p", designSystem: "association@0.1", checks: [], expiresAt: new Date(), files: [{ path: "index.html", body: new TextEncoder().encode("<h1>Hej</h1>"), contentType: "text/html" }, { path: "404.html", body: new TextEncoder().encode("404"), contentType: "text/html" }] }),
@@ -25,6 +25,8 @@ function deps(context: PublishContext | null = READY, hostingFails = false) {
         return { id: "dpl_1", url: "https://site-x.vercel.app", projectId: "prj_1", readyState: "READY" };
       },
       waitReady: async () => undefined,
+      openToPublic: async (projectId) => void calls.open.push(projectId),
+      productionAddress: async () => "https://site-x-axivo3.vercel.app",
       connectDomain: async (projectId, domain) => (calls.domain.push({ projectId, domain }), { domain, ready: false, records: [{ type: "A" as const, name: "@", value: "203.0.113.1" }] }),
     },
     record: async (row) => void calls.record.push(row),
@@ -57,7 +59,8 @@ describe("publishing", () => {
     const { d, calls } = deps({ ...READY, formKey: "k".repeat(32) });
     await publishSite({ specId: "spec-1", origin: "https://studio.example", actor: ACTOR, studioId: "s1" }, d);
     expect(calls.build[0]).toBe(`https://studio.example/api/site-forms/${"k".repeat(32)}`);
-    expect(calls.record[0]).toMatchObject({ form_key: "k".repeat(32), domain: "" });
+    expect(calls.record[0]).toMatchObject({ form_key: "k".repeat(32), domain: "", deployment_url: "https://site-x-axivo3.vercel.app" });
+    expect(calls.open).toEqual(["prj_1"]);
   });
 
   it("refuses a domain that is not one, and reports a hosting failure without recording", async () => {

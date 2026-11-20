@@ -10,7 +10,7 @@ import { cleanDomain, hostingProjectName, HostingError, type DomainSetup, type V
 export interface PublishContext {
   spec: { id: string; version: number; status: string; spec: unknown; clientId: string; projectId: string; hasForms: boolean };
   client: { name: string; email: string | null };
-  /** The newest build of this version the client approved on its review link. */
+  /** The newest build the client approved on its review link, made after the spec was approved (so it shows exactly what is published). */
   approvedBuildId: string | null;
   /** The form key of the project's earlier publications, so form addresses stay the same. */
   formKey: string | null;
@@ -20,7 +20,7 @@ export interface PublishContext {
 export interface PublishDeps {
   load: (specId: string) => Promise<PublishContext | null>;
   build: (context: PublishContext, formAction: string) => Promise<BuiltSite>;
-  hosting: Pick<Vercel, "upload" | "deploy" | "waitReady" | "connectDomain">;
+  hosting: Pick<Vercel, "upload" | "deploy" | "waitReady" | "connectDomain" | "openToPublic" | "productionAddress">;
   record: (publication: Record<string, unknown>) => Promise<void>;
 }
 
@@ -32,7 +32,7 @@ export type PublishOutcome =
 export function publishBlockers(context: PublishContext): string[] {
   const reasons: string[] = [];
   if (context.spec.status !== "approved") reasons.push("Approve this version of the spec in Studio OS first.");
-  if (!context.approvedBuildId) reasons.push("The client has not approved this version on its review link.");
+  if (!context.approvedBuildId) reasons.push("The client has not approved this version on its review link. Build the site after approving the spec, and have the client approve that link.");
   if (context.spec.hasForms && !context.client.email) reasons.push("The site has a form, but the client has no contact e-mail to send it to.");
   return reasons;
 }
@@ -67,6 +67,8 @@ export async function publishSite(
     const files = await inBatches(site.files, 6, async (file) => ({ path: file.path, ...(await deps.hosting.upload(file.body)) }));
     const deployment = await deps.hosting.deploy(hostingProjectName(context.client.name, context.spec.projectId), files);
     await deps.hosting.waitReady(deployment.id);
+    await deps.hosting.openToPublic(deployment.projectId);
+    const address = (await deps.hosting.productionAddress(deployment.projectId)) ?? deployment.url;
     const setup = domain ? await deps.hosting.connectDomain(deployment.projectId, domain) : null;
     const id = randomUUID();
     await deps.record({
@@ -79,14 +81,14 @@ export async function publishSite(
       approved_build_id: context.approvedBuildId,
       hosting_project: deployment.projectId,
       deployment_id: deployment.id,
-      deployment_url: deployment.url,
+      deployment_url: address,
       domain: domain ?? "",
       form_key: formKey,
       form_recipient: context.client.email ?? "",
       site_name: context.siteName.slice(0, 120),
       published_by: input.actor,
     });
-    return { ok: true, publicationId: id, url: domain ? `https://${domain}` : deployment.url, domain: setup };
+    return { ok: true, publicationId: id, url: domain ? `https://${domain}` : address, domain: setup };
   } catch (error) {
     if (error instanceof HostingError) return { ok: false, status: 502, error: error.message };
     throw error;
