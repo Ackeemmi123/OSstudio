@@ -4,12 +4,12 @@
  * pages it writes run no scripts.
  */
 import { createElement, type ReactElement } from "react";
-import { renderToStaticMarkup } from "react-dom/server";
 import { siteContent, siteDesign, type Site, type SiteContent } from "./content";
 import { EditorialHome } from "./editorial";
 import { FormalHome } from "./formal";
 import { AboutPage, CHROME, ContactPage, FormResultPage, NotFoundPage, PrivacyPage, type PageContext } from "./pages";
 import { StatementHome } from "./statement";
+import { renderStatic } from "./render";
 import { STYLES } from "./styles";
 
 export const FONT_FILES = ["fraunces-display-normal.woff2", "fraunces-display-italic.woff2", "instrument-sans-latin-wght-normal.woff2", "bodoni-moda-latin-wght-normal.woff2", "bodoni-moda-latin-wght-italic.woff2", "hanken-grotesk-latin-wght-normal.woff2", "big-shoulders-display-latin-wght-normal.woff2", "archivo-latin-wdth-normal.woff2", "LICENSE-fraunces.txt", "LICENSE-instrument-sans.txt", "LICENSE-bodoni-moda.txt", "LICENSE-hanken-grotesk.txt", "LICENSE-big-shoulders-display.txt", "LICENSE-archivo.txt"];
@@ -25,7 +25,9 @@ function escapeHtml(value: string) {
   return value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
 
-function document(site: Site, root: string, seo: SiteContent["home"]["seo"], body: ReactElement): string {
+type Render = (node: ReactElement) => string;
+
+function document(site: Site, root: string, seo: SiteContent["home"]["seo"], body: ReactElement, render: Render): string {
   const { content, design } = site;
   return [
     "<!doctype html>",
@@ -39,7 +41,7 @@ function document(site: Site, root: string, seo: SiteContent["home"]["seo"], bod
     `<link rel="stylesheet" href="${root}site.css">`,
     `<meta name="generator" content="${design.system}">`,
     "</head>",
-    `<body class="d-${design.direction} p-${design.palette}${design.motif ? ` m-${design.motif}` : ""}${design.type ? ` t-${design.type}` : ""}${content.promise.action.by === "phone" && content.business.phone ? " has-call-bar" : ""}">${renderToStaticMarkup(body)}</body>`,
+    `<body class="d-${design.direction} p-${design.palette}${design.motif ? ` m-${design.motif}` : ""}${design.type ? ` t-${design.type}` : ""}${content.promise.action.by === "phone" && content.business.phone ? " has-call-bar" : ""}">${render(body)}</body>`,
     "</html>",
   ].join("\n");
 }
@@ -67,7 +69,8 @@ function checkClientSite(content: SiteContent) {
 }
 
 /** Every page as a file. Fonts are copied by whoever writes the files out. */
-export function build(site: Site): BuiltFile[] {
+/** `render` is for tests that compare the output with React's own server renderer. */
+export function build(site: Site, render: Render = renderStatic): BuiltFile[] {
   const content = siteContent.parse(site.content);
   siteDesign.parse(site.design);
   checkReferences(content);
@@ -75,13 +78,13 @@ export function build(site: Site): BuiltFile[] {
   const context = (page: PageContext["page"], root: string): PageContext => ({ content, design: site.design, root, page, formAction: site.formAction });
   return [
     { path: "site.css", text: STYLES },
-    { path: "index.html", text: document(parsed, "./", content.home.seo, createElement(HOMES[site.design.direction], { context: context("home", "./") })) },
-    { path: `${content.about.slug}/index.html`, text: document(parsed, "../", content.about.seo, <AboutPage context={context("about", "../")} />) },
-    { path: `${content.contact.slug}/index.html`, text: document(parsed, "../", content.contact.seo, <ContactPage context={context("contact", "../")} />) },
-    { path: `${content.privacy.slug}/index.html`, text: document(parsed, "../", content.privacy.seo, <PrivacyPage context={context("privacy", "../")} />) },
-    { path: "sent/index.html", text: document(parsed, "../", { title: CHROME[content.language].sent, description: CHROME[content.language].sent }, <FormResultPage context={context("notFound", "../")} sent />) },
-    { path: "not-sent/index.html", text: document(parsed, "../", { title: CHROME[content.language].notSent, description: CHROME[content.language].notSent }, <FormResultPage context={context("notFound", "../")} sent={false} />) },
-    { path: "404.html", text: document(parsed, "./", { title: content.notFound.heading, description: content.notFound.text }, <NotFoundPage context={context("notFound", "./")} />) },
+    { path: "index.html", text: document(parsed, "./", content.home.seo, createElement(HOMES[site.design.direction], { context: context("home", "./") }), render) },
+    { path: `${content.about.slug}/index.html`, text: document(parsed, "../", content.about.seo, <AboutPage context={context("about", "../")} />, render) },
+    { path: `${content.contact.slug}/index.html`, text: document(parsed, "../", content.contact.seo, <ContactPage context={context("contact", "../")} />, render) },
+    { path: `${content.privacy.slug}/index.html`, text: document(parsed, "../", content.privacy.seo, <PrivacyPage context={context("privacy", "../")} />, render) },
+    { path: "sent/index.html", text: document(parsed, "../", { title: CHROME[content.language].sent, description: CHROME[content.language].sent }, <FormResultPage context={context("notFound", "../")} sent />, render) },
+    { path: "not-sent/index.html", text: document(parsed, "../", { title: CHROME[content.language].notSent, description: CHROME[content.language].notSent }, <FormResultPage context={context("notFound", "../")} sent={false} />, render) },
+    { path: "404.html", text: document(parsed, "./", { title: content.notFound.heading, description: content.notFound.text }, <NotFoundPage context={context("notFound", "./")} />, render) },
     ...(content.client ? [] : [{ path: "robots.txt", text: "User-agent: *\nDisallow: /\n" }]),
   ];
 }

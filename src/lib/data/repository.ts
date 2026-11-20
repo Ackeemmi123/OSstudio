@@ -2,6 +2,8 @@ import type { AgencyBrand } from "@/lib/domain/agency-brand";
 import type { FirstDraft } from "@/lib/domain/site-specs";
 import type { AgentRunRecord } from "@/lib/agents/contract";
 import type { ImageProvenance } from "@/lib/site-assets/limits";
+import type { RenderImageFile } from "@/lib/site-render/model";
+import type { SiteSpec } from "@/lib/site-spec/schema";
 import type {
   AgentProposal,
   Client,
@@ -122,6 +124,8 @@ export interface StudioRepository {
   deleteSiteAsset?(asset: SiteAssetRecord): Promise<void>;
   /** Signed links (at most 15 minutes) for the given images, by image id. Images that cannot be read are left out. */
   imageLinks?(assets: Pick<SiteAssetRecord, "id" | "storagePath">[]): Promise<Record<string, string>>;
+  /** One page drawn with the company design, on the server; or what the design still needs. */
+  previewServices?(spec: SiteSpec, images: Readonly<Record<string, RenderImageFile>>, pageId: string): Promise<{ html: string } | { missing: string[] }>;
   /** Builds a version with its spec's design system, behind a private link. Only server workspaces build. */
   buildSite?(spec: SiteSpecRecord): Promise<SiteBuildRecord>;
   /** A spec version's builds, newest first. */
