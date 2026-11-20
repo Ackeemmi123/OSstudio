@@ -81,9 +81,9 @@ export function StyleComparison({ record, spec, imageFiles, pageId, onSaved }: {
           const current = sameStyle(spec.brand.servicesStyle, option.style);
           const shown = drawn[keyOf(option.style)];
           return (
-            <div key={`${option.style.direction}-${option.style.palette}-${i}`} className="flex flex-col gap-2">
+            <div key={`${option.style.direction}-${option.style.palette}-${i}`} className="flex min-w-0 flex-col gap-2">
               <div className="flex items-start justify-between gap-2">
-                <div className="flex flex-col">
+                <div className="flex min-w-0 flex-col">
                   <span className="text-[13px] font-medium text-ink">{styleName(option.style)}</span>
                   <span className="text-[12.5px] text-ink-subtle">
                     {SERVICES_PALETTE_NOTES[option.style.palette]}
