@@ -135,7 +135,7 @@ export function StatementHome({ context }: { context: PageContext }) {
       <Proof content={content} />
       <Questions content={content} />
       {piped ? <Pipe side="left" from="paper" to="deep" /> : null}
-      <Closing content={content} />
+      <Closing content={content} formAction={context.formAction} />
     </Frame>
   );
 }

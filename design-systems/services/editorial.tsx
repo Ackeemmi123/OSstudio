@@ -76,7 +76,7 @@ export function EditorialHome({ context }: { context: PageContext }) {
       <FirstSteps content={content} />
       <Letter content={content} />
       <Questions content={content} />
-      <Closing content={content} emphasise />
+      <Closing content={content} formAction={context.formAction} emphasise />
     </Frame>
   );
 }

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { SiteSpec } from "@/lib/site-spec/schema";
-import { briefClient, completeSpec } from "@/lib/site-spec/test-helpers";
+import { briefClient, companySpec, completeSpec } from "@/lib/site-spec/test-helpers";
 import { BuildRefused, buildSite, contentTypeOf, pageChecks, type StoredImage } from "./build";
 
 const now = new Date("2026-11-17T10:00:00Z");
@@ -119,6 +119,50 @@ describe("documents in a build", () => {
     });
     expect(site.checks.some((check) => /no longer exists/.test(check.message))).toBe(true);
     expect(site.files.some((file) => file.path.endsWith(".pdf"))).toBe(false);
+  });
+});
+
+describe("building with the company design", () => {
+  const fontDeps = (images: StoredImage[] = []) => ({ ...deps(images), font: (name: string) => new TextEncoder().encode(name) });
+
+  it("builds a prototype with its fonts, kept from search engines, the form switched off", async () => {
+    const value = companySpec();
+    const images = withImages(value, "approved");
+    const site = await buildSite({ studioId, specVersion: 2, spec: value, madeBy: "Axivo" }, fontDeps(images));
+    const paths = site.files.map((file) => file.path);
+    expect(paths).toContain("index.html");
+    expect(paths).toContain("robots.txt");
+    expect(paths.some((path) => path.startsWith("fonts/") && path.endsWith(".woff2"))).toBe(true);
+    expect(site.files.find((file) => file.path.endsWith(".woff2"))?.contentType).toBe("font/woff2");
+    const home = new TextDecoder().decode(site.files.find((file) => file.path === "index.html")!.body);
+    expect(home).toContain("Axivo");
+    expect(home).toContain("noindex");
+    expect(home).toMatch(/disabled/);
+  });
+
+  it("builds the client's site with the approver's name and the hosted form address", async () => {
+    const value = companySpec();
+    value.assets = [];
+    for (const section of value.pages.flatMap((page) => page.sections)) if ("mediaAssetId" in section) delete section.mediaAssetId;
+    const formAction = "https://studio.example/api/site-forms/key";
+    const site = await buildSite({ studioId, specVersion: 2, spec: value, production: { formAction, approvedBy: "Erik Testlund (TEST)", approvedOn: "2026-11-20" } }, fontDeps());
+    const pages = site.files.filter((file) => file.path.endsWith(".html")).map((file) => new TextDecoder().decode(file.body));
+    expect(pages.some((page) => page.includes(`action="${formAction}"`))).toBe(true);
+    expect(pages.every((page) => !page.includes("noindex"))).toBe(true);
+    expect(site.files.some((file) => file.path === "robots.txt")).toBe(false);
+  });
+
+  it("refuses a production build nobody approved", async () => {
+    const value = companySpec();
+    value.assets = [];
+    for (const section of value.pages.flatMap((page) => page.sections)) if ("mediaAssetId" in section) delete section.mediaAssetId;
+    await expect(buildSite({ studioId, specVersion: 2, spec: value, production: { formAction: "https://studio.example/f" } }, fontDeps())).rejects.toBeInstanceOf(BuildRefused);
+  });
+
+  it("refuses, naming the parts, when the company design cannot draw the spec", async () => {
+    const value = companySpec();
+    value.pages = value.pages.filter((page) => !page.sections.some((s) => s.kind === "contact"));
+    await expect(buildSite({ studioId, specVersion: 2, spec: value, madeBy: "Axivo" }, fontDeps(withImages(value, "approved")))).rejects.toThrow();
   });
 });
 

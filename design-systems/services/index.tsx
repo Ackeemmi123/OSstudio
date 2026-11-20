@@ -72,7 +72,7 @@ export function build(site: Site): BuiltFile[] {
   siteDesign.parse(site.design);
   checkReferences(content);
   const parsed = { ...site, content };
-  const context = (page: PageContext["page"], root: string): PageContext => ({ content, design: site.design, root, page });
+  const context = (page: PageContext["page"], root: string): PageContext => ({ content, design: site.design, root, page, formAction: site.formAction });
   return [
     { path: "site.css", text: STYLES },
     { path: "index.html", text: document(parsed, "./", content.home.seo, createElement(HOMES[site.design.direction], { context: context("home", "./") })) },
@@ -82,5 +82,6 @@ export function build(site: Site): BuiltFile[] {
     { path: "sent/index.html", text: document(parsed, "../", { title: CHROME[content.language].sent, description: CHROME[content.language].sent }, <FormResultPage context={context("notFound", "../")} sent />) },
     { path: "not-sent/index.html", text: document(parsed, "../", { title: CHROME[content.language].notSent, description: CHROME[content.language].notSent }, <FormResultPage context={context("notFound", "../")} sent={false} />) },
     { path: "404.html", text: document(parsed, "./", { title: content.notFound.heading, description: content.notFound.text }, <NotFoundPage context={context("notFound", "./")} />) },
+    ...(content.client ? [] : [{ path: "robots.txt", text: "User-agent: *\nDisallow: /\n" }]),
   ];
 }

@@ -1,4 +1,6 @@
 import "server-only";
+import { readFileSync } from "node:fs";
+import path from "node:path";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { STORAGE_BUCKET } from "@/lib/site-assets/limits";
 import { DOCUMENT_BUCKET } from "@/server/site-documents/upload";
@@ -13,9 +15,28 @@ export function buildDeps(asUser: SupabaseClient, asServer: SupabaseClient, stud
   return {
     images: async (ids) => {
       if (!ids.length) return [];
-      const { data, error } = await asUser.from("site_assets").select("id, storage_path, mime_type, status").eq("studio_id", studioId).eq("client_id", clientId).in("id", ids);
+      const { data, error } = await asUser
+        .from("site_assets")
+        .select("id, storage_path, mime_type, status, width, height, source_note, rights_basis, licence_note, identifiable_people")
+        .eq("studio_id", studioId)
+        .eq("client_id", clientId)
+        .in("id", ids);
       if (error) throw error;
-      return (data ?? []).map((row) => ({ id: row.id, storagePath: row.storage_path, mimeType: row.mime_type, status: row.status }) as StoredImage);
+      return (data ?? []).map(
+        (row) =>
+          ({
+            id: row.id,
+            storagePath: row.storage_path,
+            mimeType: row.mime_type,
+            status: row.status,
+            width: row.width,
+            height: row.height,
+            sourceNote: row.source_note,
+            rightsBasis: row.rights_basis,
+            licenceNote: row.licence_note,
+            identifiablePeople: row.identifiable_people,
+          }) as StoredImage,
+      );
     },
     download: async (path) => {
       const { data, error } = await asServer.storage.from(STORAGE_BUCKET).download(path);
@@ -33,5 +54,7 @@ export function buildDeps(asUser: SupabaseClient, asServer: SupabaseClient, stud
       return new Uint8Array(await data.arrayBuffer());
     },
     now: () => new Date(),
+    // Shipped with the server (next.config.ts outputFileTracingIncludes).
+    font: (name) => new Uint8Array(readFileSync(path.join(process.cwd(), "design-systems/services/fonts", path.basename(name)))),
   };
 }

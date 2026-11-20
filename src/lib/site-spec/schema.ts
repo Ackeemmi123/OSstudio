@@ -24,6 +24,10 @@ import {
   MOBILE_BEHAVIOURS,
   NAV_PLACEMENTS,
   RADII,
+  SERVICES_DIRECTIONS,
+  SERVICES_MOTIFS,
+  SERVICES_PALETTES,
+  SERVICES_TYPES,
   SECTION_VARIANTS,
   SITE_LOCALES,
   SPEC_LIMITS,
@@ -120,9 +124,11 @@ export const sectionSchema = z.discriminatedUnion("kind", [
   section("services", { heading: localized(120), items: z.array(item({ title: localized(80), body: localized(1000, true), price: localized(60).optional() })).max(24) }),
   /** Shown on the page. The shop platform, not the spec, owns the live catalogue. */
   section("products", { heading: localized(120), items: z.array(item({ title: localized(80), body: localized(1000, true), price: localized(60).optional(), assetId: idSchema.optional() })).max(24) }),
-  section("testimonials", { heading: localized(120), mediaAssetId: idSchema.optional(), items: z.array(item({ quote: localized(600, true), author: text(80) })).max(12) }),
+  /** `consent`: the person quoted agreed to be shown. The company design shows only those. */
+  section("testimonials", { heading: localized(120), mediaAssetId: idSchema.optional(), items: z.array(item({ quote: localized(600, true), author: text(80), consent: z.boolean().optional() })).max(12) }),
   section("gallery", { heading: localized(120), assetIds: z.array(idSchema).max(24) }),
-  section("team", { heading: localized(120), items: z.array(item({ name: text(80), role: localized(80), assetId: idSchema.optional() })).max(24) }),
+  /** `consent`: the person agreed to be shown by name (and photo). The company design shows only those. */
+  section("team", { heading: localized(120), items: z.array(item({ name: text(80), role: localized(80), assetId: idSchema.optional(), consent: z.boolean().optional() })).max(24) }),
   section("faq", { heading: localized(120), items: z.array(item({ question: localized(200), answer: localized(1000, true) })).max(30) }),
   section("cta", { heading: localized(120), body: localized(300, true), button }),
   section("contact", { heading: localized(120), body: localized(600, true), formId: idSchema.optional() }),
@@ -200,6 +206,10 @@ export const siteSpecSchema = z.strictObject({
     logoAssetId: idSchema.optional(),
     /** The design system the site is drawn and built with. Absent: Studio OS's template. */
     designSystem: z.enum(DESIGN_SYSTEMS).optional(),
+    /** The company design's style: direction, palette and, optionally, type and a motif from the trade. */
+    servicesStyle: z
+      .strictObject({ direction: z.enum(SERVICES_DIRECTIONS), palette: z.enum(SERVICES_PALETTES), type: z.enum(SERVICES_TYPES).optional(), motif: z.enum(SERVICES_MOTIFS).optional() })
+      .optional(),
     /** Set when a person chose the brand. Absent: the starting defaults, which cannot be approved. */
     source: sourceSchema.optional(),
   }),

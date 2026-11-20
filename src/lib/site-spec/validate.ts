@@ -13,6 +13,7 @@ import { CONTEXT_FIELD_LABELS } from "@/lib/domain/labels";
 import type { Client, SiteAssetRecord } from "@/lib/domain/types";
 import { SECTION_LABELS, SITE_LOCALE_LABELS, SITE_LOCALES, SPEC_LIMITS, type SiteLocale } from "./catalog";
 import { hasInstructionInside, isPlaceholderText, visibleTexts } from "./texts";
+import { servicesContent } from "./to-services";
 import { siteSpecSchema, type LocalizedText, type SiteSpec, type SiteSpecButton, type SiteSpecPage, type SiteSpecSection } from "./schema";
 
 export interface SpecIssue {
@@ -298,6 +299,11 @@ export function approvalBlockers(spec: SiteSpec, client: Pick<Client, "id" | "co
     } else if (source.kind === "proposal" && !source.acceptedBy) {
       blockers.push({ path, message: "A suggestion nobody has accepted is still in the spec." });
     }
+  }
+  // The company design needs its own parts: what it cannot draw would be left out of the built site.
+  if (spec.brand.designSystem === "services@0.1") {
+    const drawn = servicesContent(spec, {}, { client: { approvedBy: "check", approvedOn: "2000-01-01" } });
+    if (!drawn.ok) for (const message of drawn.missing) blockers.push({ path: "brand.designSystem", message: `Company design: ${message}` });
   }
   return blockers;
 }

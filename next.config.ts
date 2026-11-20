@@ -6,6 +6,11 @@ const nextConfig: NextConfig = {
   cacheComponents: true,
   partialPrefetching: true,
   poweredByHeader: false,
+  // The company design's fonts are copied into every site it builds.
+  outputFileTracingIncludes: {
+    "/api/site-builds": ["./design-systems/services/fonts/**"],
+    "/api/site-publish": ["./design-systems/services/fonts/**"],
+  },
   // Baseline protections for every page and API route. Studio OS is never
   // embedded in another site and uses no camera, microphone or location.
   async headers() {

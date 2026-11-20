@@ -3,7 +3,7 @@
 import { Button } from "@/components/ui/button";
 import { Field, Select, TextInput } from "@/components/ui/field";
 import { StatusLabel } from "@/components/ui/status";
-import { DENSITIES, DESIGN_SYSTEM_LABELS, DESIGN_SYSTEMS, RADII, TYPE_SCALES, type DesignSystem } from "@/lib/site-spec/catalog";
+import { DENSITIES, DESIGN_SYSTEM_LABELS, DESIGN_SYSTEMS, RADII, SERVICES_DIRECTION_LABELS, SERVICES_DIRECTIONS, SERVICES_MOTIFS, SERVICES_PALETTES, SERVICES_TYPES, TYPE_SCALES, type DesignSystem } from "@/lib/site-spec/catalog";
 import type { SiteSpec } from "@/lib/site-spec/schema";
 import { CONTRAST_MINIMUM, contrastRatio } from "@/lib/site-spec/validate";
 import type { SpecEditing } from "./site-spec-editor";
@@ -173,6 +173,82 @@ export function BrandEditor({ spec, editing }: { spec: SiteSpec; editing: SpecEd
             ))}
           </Select>
         </Field>
+        {brand.designSystem === "services@0.1" ? (
+          <>
+            <Field id="brand-services-direction" label="Company design: direction" hint="How the site carries itself.">
+              <Select
+                id="brand-services-direction"
+                value={brand.servicesStyle?.direction ?? "editorial"}
+                disabled={!editable}
+                onChange={(e) => brandChange((s) => void (s.brand.servicesStyle = { palette: "pine", ...s.brand.servicesStyle, direction: e.target.value as (typeof SERVICES_DIRECTIONS)[number] }))}
+              >
+                {SERVICES_DIRECTIONS.map((v) => (
+                  <option key={v} value={v}>
+                    {SERVICES_DIRECTION_LABELS[v]}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+            <Field id="brand-services-palette" label="Company design: colours">
+              <Select
+                id="brand-services-palette"
+                value={brand.servicesStyle?.palette ?? "pine"}
+                disabled={!editable}
+                onChange={(e) => brandChange((s) => void (s.brand.servicesStyle = { direction: "editorial", ...s.brand.servicesStyle, palette: e.target.value as (typeof SERVICES_PALETTES)[number] }))}
+              >
+                {SERVICES_PALETTES.map((v) => (
+                  <option key={v} value={v}>
+                    {v[0].toUpperCase() + v.slice(1)}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+            <Field id="brand-services-type" label="Company design: lettering">
+              <Select
+                id="brand-services-type"
+                value={brand.servicesStyle?.type ?? ""}
+                disabled={!editable}
+                onChange={(e) =>
+                  brandChange((s) => {
+                    const style = { direction: "editorial" as const, palette: "pine" as const, ...s.brand.servicesStyle };
+                    if (e.target.value) style.type = e.target.value as (typeof SERVICES_TYPES)[number];
+                    else delete style.type;
+                    s.brand.servicesStyle = style;
+                  })
+                }
+              >
+                <option value="">The direction&apos;s own</option>
+                {SERVICES_TYPES.map((v) => (
+                  <option key={v} value={v}>
+                    {v === "wide" ? "Wide" : "Grotesk"}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+            <Field id="brand-services-motif" label="Company design: motif" hint="A drawn detail from the trade. Optional.">
+              <Select
+                id="brand-services-motif"
+                value={brand.servicesStyle?.motif ?? ""}
+                disabled={!editable}
+                onChange={(e) =>
+                  brandChange((s) => {
+                    const style = { direction: "editorial" as const, palette: "pine" as const, ...s.brand.servicesStyle };
+                    if (e.target.value) style.motif = e.target.value as (typeof SERVICES_MOTIFS)[number];
+                    else delete style.motif;
+                    s.brand.servicesStyle = style;
+                  })
+                }
+              >
+                <option value="">None</option>
+                {SERVICES_MOTIFS.map((v) => (
+                  <option key={v} value={v}>
+                    {v[0].toUpperCase() + v.slice(1)}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+          </>
+        ) : null}
         <Field id="brand-logo" label="Logo" hint="Shown in the header and footer, where the design uses one.">
           <Select
             id="brand-logo"

@@ -15,6 +15,7 @@ import { isWebsiteProject, openSiteSpec } from "@/lib/domain/site-specs";
 import type { SiteSpecRecord } from "@/lib/domain/types";
 import { renderPreviewDocument } from "@/lib/site-render/document";
 import { previewPage as associationPreview } from "../../../design-systems/association";
+import { servicesPreview } from "@/lib/site-spec/services-preview";
 import { buildRenderModel, type RenderImageFile } from "@/lib/site-render/model";
 import { parseSiteSpec } from "@/lib/site-spec/validate";
 import { PreviewFrame, ViewportButtons, type Viewport } from "./preview-frame";
@@ -108,7 +109,7 @@ export function SitePreviewRoute({ clientId, projectId }: { clientId: string; pr
   );
 }
 
-type Design = "template" | "association";
+type Design = "template" | "association" | "services";
 
 function Preview({
   record,
@@ -161,13 +162,22 @@ function Preview({
 
   const parsed = useMemo(() => parseSiteSpec(record.spec), [record.spec]);
   // The spec says which design draws it; the address can show the other one for comparison.
-  const specDesign: Design = record.spec.brand?.designSystem === "association@0.1" ? "association" : "template";
-  const design: Design = wantedDesign === "association" || wantedDesign === "template" ? wantedDesign : specDesign;
+  const specDesign: Design = record.spec.brand?.designSystem === "association@0.1" ? "association" : record.spec.brand?.designSystem === "services@0.1" ? "services" : "template";
+  const design: Design = wantedDesign === "association" || wantedDesign === "template" || wantedDesign === "services" ? wantedDesign : specDesign;
   const chooseDesign = (next: Design) => onChange({ design: next === specDesign ? null : next });
 
   const rendered = useMemo(() => {
     if (!parsed.ok) return null;
     const model = buildRenderModel(parsed.spec, { pageId, locale, showMissing, imageFiles });
+    if (design === "services") {
+      try {
+        const drawn = servicesPreview(parsed.spec, imageFiles, model.page.id);
+        if ("html" in drawn) return { model, html: drawn.html, designError: null };
+        return { model, html: renderPreviewDocument(parsed.spec, model), designError: `It still needs: ${drawn.missing.join(" ")}` };
+      } catch (error) {
+        return { model, html: renderPreviewDocument(parsed.spec, model), designError: error instanceof Error ? error.message : String(error) };
+      }
+    }
     if (design === "association") {
       try {
         const files = Object.fromEntries(parsed.spec.assets.flatMap((asset) => (asset.fileId && imageFiles[asset.fileId] ? [[asset.id, imageFiles[asset.fileId].url]] : [])));
@@ -232,6 +242,7 @@ function Preview({
               <Select id="preview-design" value={design} onChange={(e) => chooseDesign(e.target.value as Design)}>
                 <option value="template">Studio OS template{specDesign === "template" ? " (the spec's)" : ""}</option>
                 <option value="association">Association{specDesign === "association" ? " (the spec's)" : ""}</option>
+                <option value="services">Company{specDesign === "services" ? " (the spec's)" : ""}</option>
               </Select>
             </Field>
             <ViewportButtons viewport={viewport} onChange={setViewport} />
@@ -244,7 +255,7 @@ function Preview({
 
           <SiteBuilds record={record} />
           <SitePublish record={record} />
-          {rendered.designError ? <p className="text-[13px] text-caution">The association design cannot draw this spec, so the template is shown: {rendered.designError}</p> : design === "association" ? <p className="text-[13px] text-ink-subtle">Drawn as the site is built. Document files and the hosted forms are added at build time, so downloads and sending are not shown here.</p> : null}
+          {rendered.designError ? <p className="text-[13px] text-caution">The {design === "services" ? "company" : "association"} design cannot draw this spec, so the template is shown. {rendered.designError}</p> : design === "association" || design === "services" ? <p className="text-[13px] text-ink-subtle">Drawn as the site is built. Document files and the hosted forms are added at build time, so downloads and sending are not shown here.</p> : null}
           <PreviewFrame html={rendered.html} title={`Preview of ${rendered.model.page.title.text || "the page"}`} viewport={viewport} height="75vh" />
         </>
       )}

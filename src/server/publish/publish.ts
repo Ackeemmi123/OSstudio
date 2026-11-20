@@ -12,6 +12,8 @@ export interface PublishContext {
   client: { name: string; email: string | null };
   /** The newest build the client approved on its review link, made after the spec was approved (so it shows exactly what is published). */
   approvedBuildId: string | null;
+  /** Who approved that build on the link, and when (YYYY-MM-DD). */
+  approval?: { name: string; on: string } | null;
   /** The form key of the project's earlier publications, so form addresses stay the same. */
   formKey: string | null;
   siteName: string;

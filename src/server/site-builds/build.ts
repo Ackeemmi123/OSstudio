@@ -8,6 +8,8 @@
  */
 import { randomBytes, randomUUID } from "node:crypto";
 import { build as buildAssociation } from "../../../design-systems/association";
+import { build as buildServices, FONT_FILES } from "../../../design-systems/services";
+import { servicesContent, type ServicesImage } from "@/lib/site-spec/to-services";
 import type { SiteSpec } from "@/lib/site-spec/schema";
 import { parseSiteSpec } from "@/lib/site-spec/validate";
 
@@ -23,6 +25,13 @@ export interface StoredImage {
   storagePath: string;
   mimeType: string;
   status: "uploading" | "pending_review" | "approved" | "rejected" | "deleted";
+  /** What the company design shows about the image; read when the spec uses it. */
+  width?: number;
+  height?: number;
+  sourceNote?: string | null;
+  rightsBasis?: string | null;
+  licenceNote?: string | null;
+  identifiablePeople?: boolean;
 }
 
 export interface BuildCheck {
@@ -57,6 +66,8 @@ export interface BuildDeps {
   /** The bytes of one stored document. */
   downloadDocument?: (storagePath: string) => Promise<Uint8Array>;
   now: () => Date;
+  /** The company design's font files, by name (design-systems/services/fonts). */
+  font?: (name: string) => Uint8Array;
 }
 
 export class BuildRefused extends Error {
@@ -69,7 +80,7 @@ export class BuildRefused extends Error {
 }
 
 const EXTENSIONS: Record<string, string> = { "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp" };
-const TYPES: Record<string, string> = { html: "text/html; charset=utf-8", css: "text/css; charset=utf-8", txt: "text/plain; charset=utf-8", jpg: "image/jpeg", png: "image/png", webp: "image/webp", pdf: "application/pdf" };
+const TYPES: Record<string, string> = { html: "text/html; charset=utf-8", css: "text/css; charset=utf-8", txt: "text/plain; charset=utf-8", jpg: "image/jpeg", png: "image/png", webp: "image/webp", pdf: "application/pdf", woff2: "font/woff2" };
 
 export function contentTypeOf(path: string): string {
   return TYPES[path.split(".").pop()?.toLowerCase() ?? ""] ?? "application/octet-stream";
@@ -97,12 +108,12 @@ function token(): string {
  * forms sending to `formAction`. Images whose rights are not approved stop
  * it, where a preview link only warns.
  */
-export async function buildSite(input: { studioId: string; specVersion: number; spec: unknown; madeBy?: string; production?: { formAction: string } }, deps: BuildDeps): Promise<BuiltSite> {
+export async function buildSite(input: { studioId: string; specVersion: number; spec: unknown; madeBy?: string; production?: { formAction: string; approvedBy?: string; approvedOn?: string } }, deps: BuildDeps): Promise<BuiltSite> {
   const parsed = parseSiteSpec(input.spec);
   if (!parsed.ok) throw new BuildRefused("This version is not a valid website spec. Open it in the editor to see why.");
   const spec: SiteSpec = parsed.spec;
   const system = spec.brand.designSystem ?? "template";
-  if (system !== "association@0.1") throw new BuildRefused("This spec is drawn with Studio OS's template, which only previews. Choose a design system under Brand to build a site.");
+  if (system !== "association@0.1" && system !== "services@0.1") throw new BuildRefused("This spec is drawn with Studio OS's template, which only previews. Choose a design system under Brand to build a site.");
 
   const checks: BuildCheck[] = [];
   const fileIds = [...new Set(spec.assets.flatMap((asset) => (asset.fileId ? [asset.fileId] : [])))];
@@ -158,8 +169,13 @@ export async function buildSite(input: { studioId: string; specVersion: number; 
 
   let built;
   try {
-    built = buildAssociation(spec, { files: imageFiles, documents: documentFiles, status: input.production ? "approved" : "prototype", today: deps.now(), madeBy: input.madeBy, formAction: input.production?.formAction });
+    if (system === "services@0.1") {
+      built = servicesFiles(spec, input, stored, imageFiles, deps, files);
+    } else {
+      built = buildAssociation(spec, { files: imageFiles, documents: documentFiles, status: input.production ? "approved" : "prototype", today: deps.now(), madeBy: input.madeBy, formAction: input.production?.formAction });
+    }
   } catch (failure) {
+    if (failure instanceof BuildRefused) throw failure;
     throw new BuildRefused(failure instanceof Error ? failure.message : "The design system could not build this spec.", checks);
   }
   const encoder = new TextEncoder();
@@ -182,4 +198,42 @@ export async function buildSite(input: { studioId: string; specVersion: number; 
     checks,
     expiresAt: new Date(now.getTime() + BUILD_LINK_DAYS * 86400000),
   };
+}
+
+const RIGHTS: Record<string, string> = { client_owns: "The client's own image", studio_created: "Made by the studio", licensed: "Licensed", other: "Other" };
+
+/** The company design: the spec translated to its content, its pages, and its fonts. */
+function servicesFiles(
+  spec: SiteSpec,
+  input: { madeBy?: string; production?: { formAction: string; approvedBy?: string; approvedOn?: string } },
+  stored: Map<string, StoredImage>,
+  imageFiles: Record<string, string>,
+  deps: BuildDeps,
+  files: BuiltSite["files"],
+) {
+  const images: Record<string, ServicesImage> = {};
+  for (const asset of spec.assets) {
+    const image = asset.fileId ? stored.get(asset.fileId) : undefined;
+    const path = imageFiles[asset.id];
+    if (!image || !path || !asset.fileId) continue;
+    images[asset.fileId] = {
+      src: `/${path}`,
+      width: image.width ?? 1600,
+      height: image.height ?? 1000,
+      source: (image.sourceNote || RIGHTS[image.rightsBasis ?? ""] || "The client").slice(0, 120),
+      licence: (image.licenceNote || RIGHTS[image.rightsBasis ?? ""] || "Used with permission").slice(0, 120),
+      showsPerson: Boolean(image.identifiablePeople),
+    };
+  }
+  if (input.production && !input.production.approvedBy) throw new BuildRefused("A published company site names who approved it, and no approval was found.");
+  const mode = input.production
+    ? { client: { approvedBy: input.production.approvedBy!.slice(0, 80), approvedOn: (input.production.approvedOn ?? "").slice(0, 10) || deps.now().toISOString().slice(0, 10) } }
+    : { prototype: { madeBy: (input.madeBy || "Axivo").slice(0, 60) } };
+  const result = servicesContent(spec, images, mode);
+  if (!result.ok) throw new BuildRefused("The company design needs more before it can build this spec.", result.missing.map((message) => ({ level: "error" as const, message })));
+  const pages = buildServices({ content: result.content, design: result.design, formAction: input.production?.formAction });
+  if (deps.font) {
+    for (const name of FONT_FILES) files.push({ path: `fonts/${name}`, body: deps.font(name), contentType: name.endsWith(".woff2") ? "font/woff2" : "text/plain; charset=utf-8" });
+  }
+  return pages;
 }
