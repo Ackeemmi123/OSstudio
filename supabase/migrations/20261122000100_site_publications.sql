@@ -13,10 +13,11 @@ create table public.site_publications (
   studio_id uuid not null,
   client_id uuid not null,
   project_id uuid not null,
-  spec_id uuid not null references public.site_specs (id) on delete cascade,
+  -- Kept when the spec goes (anonymising), so the record of what is live stays.
+  spec_id uuid references public.site_specs (id) on delete set null,
   spec_version int not null check (spec_version between 1 and 10000),
-  -- The build the client approved on the review link.
-  approved_build_id uuid not null references public.site_builds (id),
+  -- The build the client approved on the review link (cleared if the build is removed).
+  approved_build_id uuid references public.site_builds (id) on delete set null,
   hosting_project text not null check (char_length(hosting_project) between 1 and 100),
   deployment_id text not null check (char_length(deployment_id) between 1 and 100),
   deployment_url text not null check (deployment_url ~ '^https://[^\s]+$'),

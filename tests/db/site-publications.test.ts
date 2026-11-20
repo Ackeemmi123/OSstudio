@@ -5,7 +5,7 @@
  */
 import { randomUUID } from "node:crypto";
 import { beforeAll, describe, expect, it } from "vitest";
-import { admin, createStudio, createUser, repositoryFor, type TestUser } from "./helpers";
+import { admin, asDatabaseOwner, createStudio, createUser, repositoryFor, type TestUser } from "./helpers";
 
 let owner: TestUser;
 let outsider: TestUser;
@@ -67,5 +67,16 @@ describe("site publications", () => {
     expect((await owner.client.rpc("take_form_send", { p_key: key })).error).not.toBeNull();
     for (let i = 0; i < 20; i++) expect((await admin.rpc("take_form_send", { p_key: key })).data).toMatchObject({ limited: false, recipient: "kontakt@example.test", siteUrl: "https://forening.example" });
     expect((await admin.rpc("take_form_send", { p_key: key })).data).toEqual({ limited: true });
+  });
+
+  it("keep a record after the client is anonymised, without where its forms went", async () => {
+    const p = await newProject();
+    const key = randomUUID().replace(/-/g, "");
+    const row = publication(p, key);
+    expect((await admin.rpc("record_site_publication", { p_publication: row })).error).toBeNull();
+    await asDatabaseOwner((db) => db.query("select private.anonymise_client($1, true)", [p.clientId]));
+    const kept = (await owner.client.from("site_publications").select("status, form_recipient, site_name, spec_id, approved_build_id, deployment_id").eq("id", row.id).single()).data;
+    expect(kept).toMatchObject({ status: "live", form_recipient: null, site_name: "Former client", spec_id: null, approved_build_id: null, deployment_id: row.deployment_id });
+    expect((await admin.rpc("take_form_send", { p_key: key })).data).toMatchObject({ limited: false, recipient: null });
   });
 });
