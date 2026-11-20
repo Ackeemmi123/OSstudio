@@ -21,6 +21,7 @@ import { PreviewFrame, ViewportButtons, type Viewport } from "./preview-frame";
 import { SiteBuilds } from "./site-builds";
 import { SitePublish } from "./site-publish";
 import { STATUS_TONES } from "./site-spec-editor";
+import { StyleComparison } from "./style-comparison";
 import { SiteSpecSkeleton } from "./site-spec-route";
 
 /**
@@ -104,6 +105,7 @@ export function SitePreviewRoute({ clientId, projectId }: { clientId: string; pr
       locale={search.get("lang") ?? undefined}
       design={search.get("design") ?? undefined}
       onChange={setParam}
+      onSaved={(saved) => setVersions((list) => list && list.map((v) => (v.id === saved.id ? saved : v)))}
     />
   );
 }
@@ -119,7 +121,9 @@ function Preview({
   locale,
   design: wantedDesign,
   onChange,
+  onSaved,
 }: {
+  onSaved: (saved: SiteSpecRecord) => void;
   design?: string;
   record: SiteSpecRecord;
   versions: SiteSpecRecord[];
@@ -271,6 +275,7 @@ function Preview({
           {"drawing" in rendered && rendered.drawing ? <p className="text-[13px] text-ink-subtle">Drawing the page with the company design…</p> : null}
           {rendered.designError ? <p className="text-[13px] text-caution">The {design === "services" ? "company" : "association"} design cannot draw this spec, so the template is shown. {rendered.designError}</p> : design === "association" || design === "services" ? <p className="text-[13px] text-ink-subtle">Drawn as the site is built. Document files and the hosted forms are added at build time, so downloads and sending are not shown here.</p> : null}
           <PreviewFrame html={rendered.html} title={`Preview of ${rendered.model.page.title.text || "the page"}`} viewport={viewport} height="75vh" />
+          {specDesign === "services" && design === "services" && parsed.ok ? <StyleComparison record={record} spec={parsed.spec} imageFiles={imageFiles} pageId={rendered.model.page.id} onSaved={onSaved} /> : null}
         </>
       )}
     </div>

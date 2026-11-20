@@ -210,6 +210,19 @@ export const siteSpecSchema = z.strictObject({
     servicesStyle: z
       .strictObject({ direction: z.enum(SERVICES_DIRECTIONS), palette: z.enum(SERVICES_PALETTES), type: z.enum(SERVICES_TYPES).optional(), motif: z.enum(SERVICES_MOTIFS).optional() })
       .optional(),
+    /** Up to three styles proposed for the company design, each with why it suits the client. A person chooses one. */
+    styleProposals: z
+      .array(
+        z.strictObject({
+          direction: z.enum(SERVICES_DIRECTIONS),
+          palette: z.enum(SERVICES_PALETTES),
+          type: z.enum(SERVICES_TYPES).optional(),
+          motif: z.enum(SERVICES_MOTIFS).optional(),
+          reason: z.string().max(240),
+        }),
+      )
+      .max(3)
+      .optional(),
     /** Set when a person chose the brand. Absent: the starting defaults, which cannot be approved. */
     source: sourceSchema.optional(),
   }),

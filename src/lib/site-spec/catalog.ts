@@ -23,6 +23,39 @@ export const SERVICES_PALETTES = ["pine", "oxblood", "signal", "harbor", "dry", 
 export const SERVICES_TYPES = ["wide", "grotesk"] as const;
 export const SERVICES_MOTIFS = ["pipe", "drain", "scale", "ripple", "courses"] as const;
 export const SERVICES_DIRECTION_LABELS: Record<(typeof SERVICES_DIRECTIONS)[number], string> = { editorial: "Editorial: a story, warm and calm", formal: "Formal: established and serious", statement: "Statement: direct and bold" };
+/** What each palette looks like, for people choosing and for the AI draft's style proposals. */
+export const SERVICES_PALETTE_NOTES: Record<(typeof SERVICES_PALETTES)[number], string> = {
+  pine: "deep pine green on warm paper, copper accent; calm and natural",
+  oxblood: "deep wine red on cream; formal and traditional",
+  signal: "near-black with a lime-green action colour; sharp and modern",
+  harbor: "dark sea teal with an orange action colour; coastal and energetic",
+  dry: "dark navy with a sky-blue action colour; clean and technical",
+  measure: "near-black with a mint action colour; precise and modern",
+  brick: "brick red on warm paper; solid, warm, building trades",
+  verdigris: "patina green with a copper accent; crafted and grounded",
+  ember: "deep red with a bright yellow action colour; urgent and bold",
+  cobalt: "cobalt blue with light blue; trustworthy and fresh",
+  gold: "black with a gold action colour; premium and confident",
+  navy: "navy with a warm gold accent; established and serious",
+  timber: "olive wood green on warm paper, amber accent; joinery and wood",
+  plum: "dark plum with a pink action colour; personal and warm",
+  hazard: "black with safety yellow; industrial and direct",
+  slate: "blue-grey with a rust accent; quiet and professional",
+  forest: "forest green with gold; outdoors, gardens, steady",
+  indigo: "indigo with an orange action colour; creative and lively",
+  steel: "graphite with a lime-green action colour; mechanical and technical",
+  terracotta: "terracotta red on warm paper; Mediterranean, homely",
+  teal: "dark teal with a bright aqua action colour; clean, water, health",
+  ochre: "ochre earth tones on warm paper; rustic and handmade",
+};
+/** The trade each motif comes from. */
+export const SERVICES_MOTIF_NOTES: Record<(typeof SERVICES_MOTIFS)[number], string> = {
+  pipe: "pipes: plumbing, heating",
+  drain: "drainage and flowing water",
+  scale: "a scale: law, accounting, measuring",
+  ripple: "calm concentric rings: advice, water, care",
+  courses: "brick or stone courses: masonry, building, renovation",
+};
 export type SiteLocale = (typeof SITE_LOCALES)[number];
 
 export const SITE_LOCALE_LABELS: Record<SiteLocale, string> = { en: "English", sv: "Swedish", fi: "Finnish" };

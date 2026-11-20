@@ -1,7 +1,9 @@
 /** The checks on a website draft: every text has a source, nothing invented survives, and the result is a valid spec. */
 import { describe, expect, it } from "vitest";
 import { approvalBlockers } from "@/lib/site-spec/validate";
-import { draftTexts, normalizeSiteDraft, pdfPageCount, siteDraftFingerprint, slugify, type SiteDraftInput, type SiteDraftModelOutput } from "./site-draft";
+import { draftTexts, normalizeSiteDraft, pdfPageCount, siteDraftFingerprint, slugify, styleChoice, type SiteDraftInput, type SiteDraftModelOutput } from "./site-draft";
+import { applySiteDraft, takeEverything } from "./site-draft-apply";
+import { styleOptions } from "@/components/site-spec/style-comparison";
 import { SITE_DRAFT_PROMPT_VERSION, siteDraftBytes } from "./site-draft-prompt";
 
 const MINUTES = "Protokoll 4/26. Sällskapet håller vårbal den 12 april 2026 på Arken. Styrelsen: ordförande Anna Testsson, kassör Bo Exempel.";
@@ -33,6 +35,7 @@ function output(overrides: Partial<SiteDraftModelOutput> = {}): SiteDraftModelOu
     primaryCta: { label: label("Bli medlem"), targetPageId: "bli-medlem" },
     colors: { primary: "#8a1c2b", accent: "nope", basis: "logon" },
     contactFormFields: ["name", "email", "message"],
+    styles: [],
     pages: [
       {
         id: "start",
@@ -117,6 +120,48 @@ describe("normalizeSiteDraft", () => {
 
   it("keeps clean questions", () => {
     expect(result.questions).toEqual(["Vilka bilder får vi använda?"]);
+  });
+});
+
+describe("style proposals for the company design", () => {
+  const styles: SiteDraftModelOutput["styles"] = [
+    { direction: "editorial", palette: "timber", type: "", motif: "", reason: "Varm och hantverksmässig, som ekköken." },
+    { direction: "editorial", palette: "timber", type: "", motif: "", reason: "A duplicate." },
+    { direction: "formal", palette: "navy", type: "grotesk", motif: "courses", reason: "Etablerad och seriös." },
+    { direction: "statement", palette: "hazard", type: "wide", motif: "", reason: "Rak och kraftfull." },
+    { direction: "statement", palette: "signal", type: "", motif: "", reason: "A fourth one." },
+    { direction: "formal", palette: "pine", type: "", motif: "", reason: "  " },
+  ];
+
+  it("keeps three distinct proposals with reasons, and starts with the first", () => {
+    const chosen = styleChoice(styles);
+    expect(chosen.styleProposals).toEqual([
+      { direction: "editorial", palette: "timber", reason: "Varm och hantverksmässig, som ekköken." },
+      { direction: "formal", palette: "navy", motif: "courses", reason: "Etablerad och seriös." },
+      { direction: "statement", palette: "hazard", type: "wide", reason: "Rak och kraftfull." },
+    ]);
+    expect(chosen.servicesStyle).toEqual({ direction: "editorial", palette: "timber" });
+    expect(styleChoice([])).toEqual({});
+  });
+
+  it("puts them in the spec only for the company design, and carries them when the draft is applied", () => {
+    const company = normalizeSiteDraft(output({ designSystem: "services@0.1", styles }), INPUT, RUN).spec;
+    expect(company.brand.styleProposals).toHaveLength(3);
+    expect(company.brand.servicesStyle).toEqual({ direction: "editorial", palette: "timber" });
+    expect(normalizeSiteDraft(output({ styles }), INPUT, RUN).spec.brand.styleProposals).toBeUndefined();
+    const draft = normalizeSiteDraft(output({ designSystem: "services@0.1", styles }), INPUT, RUN);
+    const current = normalizeSiteDraft(output(), INPUT, RUN).spec;
+    const applied = applySiteDraft(current, draft, takeEverything(draft), "Alex");
+    expect(applied.brand.styleProposals).toEqual(company.brand.styleProposals);
+    expect(applied.brand.servicesStyle).toEqual(company.brand.servicesStyle);
+  });
+
+  it("offers the three directions in the current colours when the draft proposed nothing", () => {
+    const spec = normalizeSiteDraft(output({ designSystem: "services@0.1" }), INPUT, RUN).spec;
+    const { options, proposed } = styleOptions(spec);
+    expect(proposed).toBe(false);
+    expect(options.map((o) => o.style.direction)).toEqual(["editorial", "formal", "statement"]);
+    expect(styleOptions(normalizeSiteDraft(output({ designSystem: "services@0.1", styles }), INPUT, RUN).spec).proposed).toBe(true);
   });
 });
 
