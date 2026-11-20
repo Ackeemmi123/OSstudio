@@ -19,6 +19,7 @@ import { buildRenderModel, type RenderImageFile } from "@/lib/site-render/model"
 import { parseSiteSpec } from "@/lib/site-spec/validate";
 import { PreviewFrame, ViewportButtons, type Viewport } from "./preview-frame";
 import { SiteBuilds } from "./site-builds";
+import { SitePublish } from "./site-publish";
 import { STATUS_TONES } from "./site-spec-editor";
 import { SiteSpecSkeleton } from "./site-spec-route";
 
@@ -242,6 +243,7 @@ function Preview({
           </div>
 
           <SiteBuilds record={record} />
+          <SitePublish record={record} />
           {rendered.designError ? <p className="text-[13px] text-caution">The association design cannot draw this spec, so the template is shown: {rendered.designError}</p> : design === "association" ? <p className="text-[13px] text-ink-subtle">Drawn as the site is built. Document files and the hosted forms are added at build time, so downloads and sending are not shown here.</p> : null}
           <PreviewFrame html={rendered.html} title={`Preview of ${rendered.model.page.title.text || "the page"}`} viewport={viewport} height="75vh" />
         </>

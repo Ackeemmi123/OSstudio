@@ -53,6 +53,7 @@ Active), `archived_at` (set when archived, cleared when reopened) and
 | The client's own files (`client_materials`) and the documents its site offered (`site_documents`) | Deleted; the files are queued and removed from Storage by the nightly purge (`20261123000100_anonymise_new_tables.sql`) |
 | Built sites (`site_builds`) | Deleted, so their links stop working; every file of each build queued and removed by the nightly purge |
 | Comments and approvals from the review link | Deleted |
+| Publications (`site_publications`) | Kept as a record of what was published, but the form recipient and site name are cleared, so the site's forms stop sending. **A live site stays at the hosting until someone takes it down by hand** (`20261124000100_anonymise_publications.sql`) |
 | Agent runs | Trigger, inputs, outputs, result, blocker and error emptied; agent, status and timing kept |
 | Projects and tasks | Titles replaced ("Former project", "Task"), blocked reasons cleared; status, stage and dates kept |
 | Activity | Every summary replaced with "Details removed when the client was anonymised."; type, time and the team member kept |

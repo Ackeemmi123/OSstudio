@@ -319,6 +319,7 @@ export type ActivityEventType =
   | "site_spec.approved"
   | "site_spec.built"
   | "site_spec.client_approved"
+  | "site_spec.published"
   | "site_asset.uploaded"
   | "site_asset.approved"
   | "site_asset.rejected"
@@ -620,6 +621,23 @@ export interface SiteBuildRecord {
   /** The client's written approval of this build, if given. */
   approval: { name: string; role: string; email: string; at: string } | null;
   comments: SiteReviewComment[];
+}
+
+/** A version of a client's site put on the hosting, and on its domain when one was given. */
+export interface SitePublicationRecord {
+  id: string;
+  specVersion: number;
+  url: string;
+  domain: string | null;
+  status: "live" | "previous";
+  publishedBy: string;
+  createdAt: string;
+}
+
+export interface DomainSetup {
+  domain: string;
+  ready: boolean;
+  records: { type: "A" | "CNAME"; name: string; value: string }[];
 }
 
 /** A client's comment on a page of a build, from the review bar on its link. */

@@ -92,7 +92,12 @@ function token(): string {
   return randomBytes(24).toString("base64url");
 }
 
-export async function buildSite(input: { studioId: string; specVersion: number; spec: unknown; madeBy?: string }, deps: BuildDeps): Promise<BuiltSite> {
+/**
+ * `production`: the site to publish, findable by search engines with its
+ * forms sending to `formAction`. Images whose rights are not approved stop
+ * it, where a preview link only warns.
+ */
+export async function buildSite(input: { studioId: string; specVersion: number; spec: unknown; madeBy?: string; production?: { formAction: string } }, deps: BuildDeps): Promise<BuiltSite> {
   const parsed = parseSiteSpec(input.spec);
   if (!parsed.ok) throw new BuildRefused("This version is not a valid website spec. Open it in the editor to see why.");
   const spec: SiteSpec = parsed.spec;
@@ -113,7 +118,12 @@ export async function buildSite(input: { studioId: string; specVersion: number; 
         return;
       }
       if (image.status === "rejected") checks.push({ level: "error", message: `The rights for "${asset.description || asset.id}" were rejected.` });
-      else if (image.status !== "approved") checks.push({ level: "warning", message: `The rights for "${asset.description || asset.id}" are not decided yet. Fine for a preview link, not for publishing.` });
+      else if (image.status !== "approved")
+        checks.push(
+          input.production
+            ? { level: "error", message: `The rights for "${asset.description || asset.id}" are not approved, so the site cannot be published.` }
+            : { level: "warning", message: `The rights for "${asset.description || asset.id}" are not decided yet. Fine for a preview link, not for publishing.` },
+        );
       const path = `img/${asset.id}.${EXTENSIONS[image.mimeType] ?? "bin"}`;
       imageFiles[asset.id] = path;
       files.push({ path, body: await deps.download(image.storagePath), contentType: image.mimeType });
@@ -148,7 +158,7 @@ export async function buildSite(input: { studioId: string; specVersion: number; 
 
   let built;
   try {
-    built = buildAssociation(spec, { files: imageFiles, documents: documentFiles, status: "prototype", today: deps.now(), madeBy: input.madeBy });
+    built = buildAssociation(spec, { files: imageFiles, documents: documentFiles, status: input.production ? "approved" : "prototype", today: deps.now(), madeBy: input.madeBy, formAction: input.production?.formAction });
   } catch (failure) {
     throw new BuildRefused(failure instanceof Error ? failure.message : "The design system could not build this spec.", checks);
   }
