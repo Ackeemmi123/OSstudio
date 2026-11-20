@@ -4,16 +4,19 @@
  */
 import { z } from "zod";
 import { PROJECT_TYPE_LABELS } from "@/lib/domain/labels";
-import { SECTION_LABELS, SECTION_VARIANTS, type SectionKind } from "@/lib/site-spec/catalog";
+import { SECTION_LABELS, SECTION_VARIANTS, SERVICES_MOTIF_NOTES, SERVICES_PALETTE_NOTES, type SectionKind } from "@/lib/site-spec/catalog";
 import { utf8Bytes } from "./pricing";
 import { siteDraftModelOutput, siteDraftRequestBytes, textSources, type SiteDraftInput } from "./site-draft";
 
 /** Recorded on every run. Change it whenever the instructions or the message format change. */
-export const SITE_DRAFT_PROMPT_VERSION = "site-draft-2026-11-18.1";
+export const SITE_DRAFT_PROMPT_VERSION = "site-draft-2026-11-20.1";
 
 const sectionList = (Object.keys(SECTION_VARIANTS) as SectionKind[])
   .map((kind) => `- ${kind} (${SECTION_VARIANTS[kind].join(", ")}): ${SECTION_LABELS[kind].description}`)
   .join("\n");
+
+const paletteList = Object.entries(SERVICES_PALETTE_NOTES).map(([name, note]) => `${name} (${note})`).join("; ");
+const motifList = Object.entries(SERVICES_MOTIF_NOTES).map(([name, note]) => `${name} (${note})`).join("; ");
 
 export const SITE_DRAFT_SYSTEM_PROMPT = `You draft websites at a small web design studio. From the material a client sent, you propose the whole website: which pages it has, what each page says and how it is laid out. A person at the studio reviews every part before anything is built, and the client approves the site before it is published.
 
@@ -33,6 +36,10 @@ Website:
   - Home: a hero (eyebrow: who the firm is for; heading: the promise, at most about 100 characters; emphasis: the last words of the heading to stress, optional; subheading: why, at most about 270 characters), a features section with 2 to 4 reasons to choose the firm, a services section, a features section with variant list and 2 to 4 first steps (how working together starts), testimonials only when the material has them, a faq section and a cta section (heading and a short text next to the form).
   - Pages: about (slug om-oss, about or meista) with text sections telling the firm's story and a team section when the material names people; contact (slug kontakt, contact or yhteystiedot) with a contact section whose body gives the email and phone from the material; privacy (slug integritet, privacy or tietosuoja, nav footer).
   - Keep item titles short (at most about 55 characters) and item texts at most about 230 characters.
+- styles (services@0.1 only, otherwise empty): three clearly different styles, the one that fits best first. Judge from the logo and images, the trade and the tone of the client's own writing. Make them differ in direction or in palette, not only in a motif. Each reason is one sentence, in the language of the material, naming what in the material it matches (for example "warm and handmade, like the oak kitchens and the plain local tone"). Use a motif only when the client's own trade matches it.
+  - Directions: editorial (a story, warm and calm), formal (established and serious), statement (direct and bold; type wide or grotesk, or empty for its default).
+  - Palettes: ${paletteList}
+  - Motifs: ${motifList}
 - Choose pages from what the material supports. Typical: home, about, what the client offers or does, events, people, documents, join or contact. The first page is the home page. Put privacy or legal pages in the footer (nav footer).
 - Home starts with a hero: what the client is, in its own words, with one button to the most important next step.
 - Use a contact section (kind contact) where visitors should get in touch or apply; it gets a form. Choose its fields.

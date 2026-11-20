@@ -83,6 +83,7 @@ export class FixtureModel implements AgentModel {
       primaryCta: { label: label("Contact"), targetPageId: "contact" },
       colors: { primary: "#7A1F2B", accent: "", basis: "test" },
       contactFormFields: ["name", "email", "message"],
+      styles: [],
       pages: [
         {
           id: "home",

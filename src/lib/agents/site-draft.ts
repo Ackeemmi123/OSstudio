@@ -12,7 +12,7 @@
  */
 import { z } from "zod";
 import type { ProjectType, ProposalTarget } from "@/lib/domain/types";
-import { ACCESSIBILITY_TARGET, DESIGN_SYSTEMS, FORM_FIELDS, ITEM_LIMITS, NAV_PLACEMENTS, SECTION_VARIANTS, SITE_LOCALES, type SectionKind, type SiteLocale } from "@/lib/site-spec/catalog";
+import { ACCESSIBILITY_TARGET, DESIGN_SYSTEMS, FORM_FIELDS, ITEM_LIMITS, NAV_PLACEMENTS, SECTION_VARIANTS, SERVICES_DIRECTIONS, SERVICES_MOTIFS, SERVICES_PALETTES, SERVICES_TYPES, SITE_LOCALES, type SectionKind, type SiteLocale } from "@/lib/site-spec/catalog";
 import { SITE_SPEC_VERSION, siteSpecSchema, type SiteSpec, type SiteSpecPage, type SiteSpecSection, type SiteSpecSource } from "@/lib/site-spec/schema";
 import { containsQuote, type IntakeSource } from "./intake";
 import { utf8Bytes } from "./pricing";
@@ -110,6 +110,17 @@ export const siteDraftModelOutput = z.object({
     basis: z.string().describe("Where the colours come from, e.g. 'the red in the logo'. Empty when unknown."),
   }),
   contactFormFields: z.array(z.enum(FORM_FIELDS)).describe("Fields for the contact form, when the site has one."),
+  styles: z
+    .array(
+      z.object({
+        direction: z.enum(SERVICES_DIRECTIONS),
+        palette: z.enum(SERVICES_PALETTES),
+        type: z.enum(["", ...SERVICES_TYPES]).describe("Only for the statement direction; empty for its default."),
+        motif: z.enum(["", ...SERVICES_MOTIFS]).describe("Empty unless the client's own trade matches one."),
+        reason: z.string().describe("One sentence on why this style suits this client, from its material."),
+      }),
+    )
+    .describe("For services@0.1: three clearly different styles, the best first. Empty for other designs."),
   pages: z.array(page),
   summary: z.string().describe("Two to five sentences for the person who reviews the draft: what the site is and what is missing."),
   questions: z.array(z.string()).describe("Questions to ask the client where the material is thin or contradicts itself."),
@@ -373,6 +384,7 @@ export function normalizeSiteDraft(raw: unknown, input: SiteDraftInput, context:
       radius: "soft",
       density: "regular",
       designSystem: output.designSystem,
+      ...(output.designSystem === "services@0.1" ? styleChoice(output.styles) : {}),
       ...(primary ? { source: proposal("brand") } : {}),
     },
     assets: [],
@@ -473,4 +485,31 @@ export function siteDraftIdempotencyKey(projectId: string, fingerprint: string) 
 
 export function textBytes(input: SiteDraftInput): number {
   return utf8Bytes(...textSources(input).map((s) => s.content));
+}
+
+type StyleProposal = NonNullable<SiteSpec["brand"]["styleProposals"]>[number];
+
+/** The model's style proposals, distinct and within the design's range; the first is the starting choice. */
+export function styleChoice(styles: SiteDraftModelOutput["styles"]): Pick<SiteSpec["brand"], "servicesStyle" | "styleProposals"> {
+  const seen = new Set<string>();
+  const proposals: StyleProposal[] = [];
+  for (const style of styles) {
+    const reason = style.reason.trim().slice(0, 240);
+    const proposal: StyleProposal = {
+      direction: style.direction,
+      palette: style.palette,
+      ...(style.type && style.direction === "statement" ? { type: style.type } : {}),
+      ...(style.motif ? { motif: style.motif } : {}),
+      reason,
+    };
+    const key = `${proposal.direction}/${proposal.palette}/${proposal.type ?? ""}/${proposal.motif ?? ""}`;
+    if (!reason || seen.has(key)) continue;
+    seen.add(key);
+    proposals.push(proposal);
+    if (proposals.length === 3) break;
+  }
+  if (!proposals.length) return {};
+  const { reason: _reason, ...first } = proposals[0];
+  void _reason;
+  return { servicesStyle: first, styleProposals: proposals };
 }

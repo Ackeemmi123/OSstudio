@@ -25,6 +25,7 @@ const OUTPUT: SiteDraftModelOutput = {
   primaryCta: { label: label("Kontakt"), targetPageId: "kontakt" },
   colors: { primary: "", accent: "", basis: "" },
   contactFormFields: ["name", "email", "message"],
+  styles: [],
   pages: [
     { id: "home", title: label("Hem"), slug: "", nav: "main", seoDescription: empty, sections: [
       section({ kind: "hero", variant: "centered", heading: label("Testlunds Snickeri"), subheading: cite("bygger kök, garderober och trappor på beställning i Borgå"), button: { label: label("Kontakt"), targetPageId: "kontakt" } }),

@@ -72,6 +72,7 @@ export function applySiteDraft(current: SiteSpec, draft: SiteDraftResult, choice
         {
           ...current.brand,
           designSystem: from.brand.designSystem,
+          ...(from.brand.servicesStyle ? { servicesStyle: from.brand.servicesStyle, styleProposals: from.brand.styleProposals } : {}),
           ...(from.brand.source ? { colors: { ...current.brand.colors, primary: from.brand.colors.primary, ...(from.brand.colors.accent ? { accent: from.brand.colors.accent } : {}) }, source: from.brand.source } : {}),
         },
         acceptedBy,
