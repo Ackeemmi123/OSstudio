@@ -76,6 +76,10 @@ export const siteContent = z.strictObject({
   }),
   questions: z.strictObject({ label: words(60), heading: statement(110), items: z.array(z.strictObject({ question: statement(140), answer: statement(500) })).min(1).max(12) }),
   closing: z.strictObject({ heading: statement(90), text: statement(200) }),
+  /** The firm's own work in pictures, each with a line about it. Drawn only by directions that lead with images. */
+  gallery: z
+    .strictObject({ label: words(60), heading: statement(110), items: z.array(z.strictObject({ imageId: words(40), caption: statement(120) })).min(2).max(12) })
+    .optional(),
   about: z.strictObject({
     slug: words(30),
     menuLabel: words(24),
@@ -110,7 +114,7 @@ export type Asset = SiteContent["assets"][number];
 /** The design choice, kept out of the content: which version, within a controlled range. */
 export const siteDesign = z.strictObject({
   system: z.literal("services@0.1"),
-  direction: z.enum(["editorial", "formal", "statement"]),
+  direction: z.enum(["editorial", "formal", "statement", "cafe", "atelier"]),
   palette: z.enum(["pine", "oxblood", "signal", "harbor", "dry", "measure", "brick", "verdigris", "ember", "cobalt", "gold", "navy", "timber", "plum", "hazard", "slate", "forest", "indigo", "steel", "terracotta", "teal", "ochre"]),
   /** Only the statement direction takes a type choice: its condensed face is the default. */
   type: z.enum(["wide", "grotesk"]).optional(),

@@ -17,6 +17,23 @@ function variant(base: Site, direction: SiteDesign["direction"], palette: SiteDe
 const { lindqvist, kivela, norrsken } = SITES;
 
 export const STRESS_SITES: Record<string, Site> = {
+  "cafe-priced-note": variant(lindqvist.site, "cafe", "terracotta", (c) => {
+    c.services.items[1] = { ...c.services.items[1], price: w("12 €") };
+  }),
+  "cafe-no-photo-no-hours": variant(lindqvist.site, "cafe", "ochre", (c) => {
+    c.assets = [];
+    delete c.promise.imageId;
+    delete c.proof.imageId;
+    delete c.about.imageId;
+    c.about.people.forEach((person) => delete person.imageId);
+    delete c.business.hours;
+    delete c.business.address;
+    c.services.items.forEach((item) => delete item.price);
+  }),
+  "atelier-gallery": variant(lindqvist.site, "atelier", "slate", (c) => {
+    c.gallery = { label: "Selected work", heading: w("Rooms we have finished"), items: c.assets.map((asset) => ({ imageId: asset.id, caption: w(asset.alt) })) };
+  }),
+  "atelier-no-gallery": variant(kivela.site, "atelier", "verdigris", () => undefined),
   "no-photo-editorial": variant(lindqvist.site, "editorial", "pine", (c) => {
     c.assets = [];
     delete c.promise.imageId;

@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { errorMessage } from "@/lib/data/studio-store";
 import type { SiteSpecRecord } from "@/lib/domain/types";
 import type { RenderImageFile } from "@/lib/site-render/model";
-import { SERVICES_DIRECTION_LABELS, SERVICES_DIRECTIONS, SERVICES_MOTIF_NOTES, SERVICES_PALETTE_NOTES } from "@/lib/site-spec/catalog";
+import { SERVICES_DIRECTION_LABELS, SERVICES_MOTIF_NOTES, SERVICES_PALETTE_NOTES } from "@/lib/site-spec/catalog";
 import { INDUSTRY_PROFILES } from "@/lib/site-spec/industries";
 import type { SiteSpec } from "@/lib/site-spec/schema";
 import { PreviewFrame } from "./preview-frame";
@@ -24,7 +24,7 @@ export function styleOptions(spec: SiteSpec): { options: Option[]; proposed: boo
   const industry = spec.strategy.industry;
   if (industry) return { options: INDUSTRY_PROFILES[industry].defaults.map((style) => ({ style: { ...style }, reason: `A starting style for ${INDUSTRY_PROFILES[industry].label.toLowerCase()}.` })), proposed: false };
   const palette = spec.brand.servicesStyle?.palette ?? "pine";
-  return { options: SERVICES_DIRECTIONS.map((direction) => ({ style: { direction, palette }, reason: "" })), proposed: false };
+  return { options: (["editorial", "formal", "statement"] as const).map((direction) => ({ style: { direction, palette }, reason: "" })), proposed: false };
 }
 
 export function styleName(style: Style): string {

@@ -132,7 +132,7 @@ export const sectionSchema = z.discriminatedUnion("kind", [
   section("team", { heading: localized(120), items: z.array(item({ name: text(80), role: localized(80), assetId: idSchema.optional(), consent: z.boolean().optional() })).max(24) }),
   section("faq", { heading: localized(120), items: z.array(item({ question: localized(200), answer: localized(1000, true) })).max(30) }),
   section("cta", { heading: localized(120), body: localized(300, true), button }),
-  section("contact", { heading: localized(120), body: localized(600, true), formId: idSchema.optional() }),
+  section("contact", { heading: localized(120), body: localized(600, true), formId: idSchema.optional(), address: localized(120).optional(), hours: localized(120).optional() }),
   section("map", { heading: localized(120) }),
 ]);
 

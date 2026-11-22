@@ -20,7 +20,7 @@ const empty = { text: "", refs: [], generic: false };
 const label = (text: string) => ({ text, refs: [], generic: true });
 const cite = (text: string, sourceId: string, quote = text, page: number | null = null) => ({ text, refs: [{ sourceId, quote, page }], generic: false });
 const section = (fields: Partial<SiteDraftModelOutput["pages"][number]["sections"][number]>): SiteDraftModelOutput["pages"][number]["sections"][number] => ({
-  kind: "text", variant: "single_column", eyebrow: empty, heading: empty, subheading: empty, body: empty, items: [], button: null, ...fields,
+  kind: "text", variant: "single_column", eyebrow: empty, heading: empty, subheading: empty, body: empty, address: empty, hours: empty, items: [], button: null, ...fields,
 });
 
 function output(overrides: Partial<SiteDraftModelOutput> = {}): SiteDraftModelOutput {
@@ -153,7 +153,7 @@ describe("style proposals for the company design", () => {
     const fitting = styleChoice([{ direction: "formal", palette: "oxblood", type: "", motif: "scale", reason: "Lugn och trovärdig." }], "law_finance");
     expect(fitting.styleProposals?.[0]).toEqual({ direction: "formal", palette: "oxblood", motif: "scale", reason: "Lugn och trovärdig." });
     const cafe = styleChoice([], "cafe_restaurant");
-    expect(cafe.styleProposals?.map((p) => p.palette)).toEqual(["terracotta", "ember", "plum"]);
+    expect(cafe.styleProposals?.map((p) => `${p.direction}/${p.palette}`)).toEqual(["cafe/terracotta", "cafe/forest", "editorial/plum"]);
     expect(cafe.styleProposals?.every((p) => !p.motif)).toBe(true);
   });
 

@@ -12,6 +12,11 @@ const FONTS = `
 @font-face{font-family:"Hanken Grotesk";src:url(fonts/hanken-grotesk-latin-wght-normal.woff2) format("woff2");font-weight:100 900;font-style:normal;font-display:swap}
 @font-face{font-family:"Big Shoulders Display";src:url(fonts/big-shoulders-display-latin-wght-normal.woff2) format("woff2");font-weight:100 900;font-style:normal;font-display:swap}
 @font-face{font-family:"Archivo";src:url(fonts/archivo-latin-wdth-normal.woff2) format("woff2");font-weight:100 900;font-stretch:62% 125%;font-style:normal;font-display:swap}
+@font-face{font-family:"Young Serif";src:url(fonts/young-serif-latin-normal.woff2) format("woff2");font-weight:400;font-style:normal;font-display:swap}
+@font-face{font-family:"Figtree";src:url(fonts/figtree-latin-wght-normal.woff2) format("woff2");font-weight:300 900;font-style:normal;font-display:swap}
+@font-face{font-family:"Cormorant Garamond";src:url(fonts/cormorant-garamond-latin-wght-normal.woff2) format("woff2");font-weight:300 700;font-style:normal;font-display:swap}
+@font-face{font-family:"Cormorant Garamond";src:url(fonts/cormorant-garamond-latin-wght-italic.woff2) format("woff2");font-weight:300 700;font-style:italic;font-display:swap}
+@font-face{font-family:"Work Sans";src:url(fonts/work-sans-latin-wght-normal.woff2) format("woff2");font-weight:100 900;font-style:normal;font-display:swap}
 `;
 
 const PALETTES = `
@@ -43,6 +48,8 @@ const DIRECTIONS = `
 .d-editorial{--gut:clamp(1.25rem,4vw,4rem);--body:"Instrument Sans",system-ui,sans-serif;--display:"Fraunces",Georgia,serif;--display-weight:300;--display-track:-.018em;--display-lead:1.02;--h1-1:clamp(3.1rem,7.1vw,8rem);--h1-2:clamp(2.7rem,5.6vw,6.4rem);--h1-3:clamp(2.2rem,4.4vw,5rem);--h2:clamp(2.3rem,4.6vw,5rem);--h3:clamp(1.9rem,3.6vw,3.8rem);--h3-weight:300;--radius:999px}
 .d-formal{--gut:clamp(1.25rem,4vw,4rem);--body:"Hanken Grotesk",system-ui,sans-serif;--display:"Bodoni Moda",Didot,serif;--display-weight:400;--display-track:-.012em;--display-lead:1.03;--h1-1:clamp(2.7rem,5.6vw,7rem);--h1-2:clamp(2.35rem,4.5vw,5.6rem);--h1-3:clamp(2rem,3.6vw,4.4rem);--h2:clamp(2.1rem,4.4vw,4.8rem);--h3:clamp(1.95rem,5.5vw,6.6rem);--h3-weight:400;--radius:0}
 .d-statement{--gut:clamp(16px,3vw,48px);--display:"Big Shoulders Display",Impact,sans-serif;--display-weight:900;--display-track:-.005em;--display-lead:.98;--h1-1:clamp(3.2rem,11vw,13rem);--h1-2:clamp(2.8rem,8vw,9.5rem);--h1-3:clamp(2.1rem,5.6vw,6.5rem);--h2:clamp(3rem,8.6vw,10.5rem);--h3:clamp(2.3rem,4.2vw,5rem);--h3-weight:900;--radius:0;--body:"Archivo",system-ui,sans-serif}
+.d-cafe{--gut:clamp(1.25rem,4vw,4rem);--body:"Figtree",system-ui,sans-serif;--display:"Young Serif",Georgia,serif;--display-weight:400;--display-track:-.015em;--display-lead:1.06;--h1-1:clamp(2.6rem,5.2vw,4.9rem);--h1-2:clamp(2.3rem,4.4vw,4.1rem);--h1-3:clamp(2rem,3.6vw,3.4rem);--h2:clamp(2rem,3.6vw,3.3rem);--h3:clamp(1.3rem,2vw,1.6rem);--h3-weight:400;--radius:999px}
+.d-atelier{--gut:clamp(1.25rem,4.5vw,4.5rem);--body:"Work Sans",system-ui,sans-serif;--display:"Cormorant Garamond",Garamond,serif;--display-weight:300;--display-track:-.02em;--display-lead:1.0;--h1-1:clamp(3rem,7vw,6.6rem);--h1-2:clamp(2.6rem,5.6vw,5.4rem);--h1-3:clamp(2.2rem,4.4vw,4.4rem);--h2:clamp(2.2rem,4vw,3.6rem);--h3:clamp(1.15rem,1.6vw,1.3rem);--h3-weight:400;--radius:0}
 `;
 
 const BASE = `
@@ -705,4 +712,123 @@ h1 em{font-style:italic;color:var(--accent)}
 }
 `;
 
-export const STYLES = `${FONTS}${PALETTES}${DIRECTIONS}${BASE}`;
+
+const ROOMS = `
+/* Café: a warm room you can walk into. Opening hours first, a menu card on the counter, the day's priced item pinned to the photo. */
+.d-cafe .label{font-size:.82rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--accent)}
+.d-cafe .site-header{border-bottom:1.5px solid var(--ink)}
+.d-cafe .mark{font-size:clamp(1.4rem,2.2vw,1.9rem)}
+.visit-bar{display:flex;flex-wrap:wrap;justify-content:space-between;gap:.4rem 2rem;background:var(--deep);color:var(--on-deep);padding:.7rem var(--gut);font-size:.95rem}
+.visit-bar strong{color:var(--accent-on-deep);margin-right:.4rem}
+.d-cafe .hero{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));column-gap:24px;align-items:center;padding:clamp(2.5rem,5vw,5rem) var(--gut) clamp(4rem,7vw,6.5rem)}
+.d-cafe .hero-words{grid-column:1/7}
+.d-cafe .hero--type .hero-words{grid-column:1/10}
+.d-cafe .hero-for{margin-bottom:1.25rem}
+.d-cafe .hero-why{font-size:1.2rem;line-height:1.55;margin-top:1.5rem;max-width:32rem}
+.d-cafe .hero-actions{display:flex;flex-wrap:wrap;gap:.75rem;margin-top:2rem}
+.d-cafe .button--quiet{background:transparent;color:var(--ink);box-shadow:inset 0 0 0 1.5px var(--ink)}
+.d-cafe .button--quiet:hover{background:var(--ink);color:var(--paper)}
+.d-cafe .hero-reassurance{margin-top:1.25rem;color:var(--mute);font-size:.98rem}
+.d-cafe .hero-image{grid-column:8/13;position:relative;padding-bottom:2.5rem}
+.d-cafe .arch{overflow:hidden;border-radius:999px 999px 1.1rem 1.1rem}
+.d-cafe .arch img{aspect-ratio:4/5}
+.pinned{position:absolute;left:clamp(-3.5rem,-4vw,-1rem);bottom:0;width:min(17rem,80%);display:flex;flex-direction:column;gap:.35rem;background:var(--paper-2);padding:1.2rem 1.25rem 1.1rem;rotate:-2.2deg;box-shadow:0 1px 1px #1d1a1022,0 16px 30px -14px #1d1a1066}
+.pinned strong{font:400 1.35rem/1.15 var(--display)}
+.pinned span{font-size:.95rem;line-height:1.45}
+.pinned .pinned-price{font-weight:700;font-size:1.05rem}
+.hero--type .pinned,.d-cafe .hero-image:not(:has(.arch)) .pinned{position:static;rotate:-1.2deg;width:auto;max-width:20rem}
+.menu-card{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));column-gap:24px;row-gap:2rem;background:var(--paper-2);border-block:1.5px solid var(--ink);padding:clamp(4rem,7vw,6rem) var(--gut)}
+.menu-card-head{grid-column:1/6;display:flex;flex-direction:column;gap:1.1rem}
+.menu-card-head h2{scroll-margin-top:2rem}
+.menu-card-head figure{margin-top:1rem;overflow:hidden;border-radius:1.1rem}
+.menu-card-head img{aspect-ratio:3/2}
+.menu-lines{grid-column:7/13;align-self:start}
+.menu-lines li{padding:1.15rem 0;border-bottom:1px dashed var(--mute)}
+.menu-lines li:first-child{padding-top:0}
+.menu-line{display:flex;align-items:baseline;gap:.75rem}
+.menu-name{font:400 clamp(1.25rem,1.9vw,1.55rem)/1.2 var(--display)}
+.menu-dots{flex:1 1 2rem;min-width:1rem;border-bottom:2px dotted var(--mute);translate:0 -.3em}
+.menu-price{font-weight:700;white-space:nowrap}
+.menu-text{margin-top:.35rem;color:var(--mute);font-size:.98rem;max-width:34rem}
+.visit{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));column-gap:24px;row-gap:2.5rem;padding:clamp(4.5rem,8vw,7rem) var(--gut) 0}
+.visit-head{grid-column:1/6;display:flex;flex-direction:column;gap:1.1rem}
+.visit-head h2{scroll-margin-top:2rem}
+.visit-card{margin-top:1rem;display:flex;flex-direction:column;gap:1rem;background:var(--paper-2);padding:1.4rem 1.5rem;border-radius:1.1rem}
+.visit-card p{display:flex;flex-direction:column;gap:.25rem;font-size:1.1rem;font-weight:500}
+.visit-list{grid-column:7/13;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:2rem 24px;align-self:start}
+.visit-list h3{font-size:var(--h3);margin-bottom:.4rem}
+.visit-list p{color:var(--ink)}
+.d-cafe .proof,.d-cafe .questions{padding-top:clamp(4.5rem,8vw,7rem)}
+.d-cafe .closing{background:var(--accent);color:#fff}
+.d-cafe .closing-words p,.d-cafe .closing .consent,.d-cafe .closing .next{color:#fffffff0}
+.d-cafe .closing .form{background:var(--paper);color:var(--ink);padding:clamp(1.5rem,3vw,2.25rem);border-radius:1.1rem}
+.d-cafe .closing .field input,.d-cafe .closing .field textarea{border:1.5px solid var(--ink);border-radius:.6rem;padding:.65rem .8rem;color:var(--ink);background:#fffdf9}
+.d-cafe .closing .consent,.d-cafe .closing .next{color:var(--mute)}
+.d-cafe .closing .button--send{background:var(--ink);color:var(--paper)}
+.d-cafe .closing .button--send:hover{background:var(--deep);color:var(--on-deep)}
+.d-cafe .closing :focus-visible{outline-color:var(--ink)}
+.cafe-story{max-width:48rem;margin:0 auto;padding:clamp(4.5rem,8vw,7rem) var(--gut);display:flex;flex-direction:column;gap:1.1rem;align-items:flex-start}
+.cafe-story-lead{font-size:1.2rem;line-height:1.6}
+.d-cafe .site-footer{background:var(--deep);color:var(--on-deep);border-top:0}
+.d-cafe .footer-legal{color:var(--on-deep-mute)}
+
+/* Atelier: light, quiet and led by the work. A large light serif, an uneven gallery, thin rules. */
+.d-atelier .label{font-size:.8rem;letter-spacing:.14em;text-transform:uppercase}
+.d-atelier .site-header{padding-block:2rem}
+.d-atelier .mark{font-size:clamp(1.5rem,2.2vw,1.95rem);font-weight:400}
+.d-atelier .menu-wide ul{gap:2.5rem;letter-spacing:.04em}
+.d-atelier .button{border:1px solid var(--ink);background:var(--ink);color:var(--paper);letter-spacing:.04em}
+.d-atelier .button:hover{background:transparent;color:var(--ink)}
+.d-atelier .hero{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));column-gap:24px;padding:clamp(3rem,7vw,6.5rem) var(--gut) 0}
+.d-atelier .hero-for{grid-column:1/-1;margin-bottom:1.6rem}
+.d-atelier .hero h1{grid-column:1/11}
+.d-atelier h1 em{color:var(--ink)}
+.d-atelier .hero-body{grid-column:8/13;margin-top:2.5rem;display:flex;flex-direction:column;gap:1.4rem;align-items:flex-start}
+.d-atelier .hero-why{color:var(--mute);font-size:1.05rem;line-height:1.7}
+.link-action--arrow{text-decoration:none;border-bottom:1px solid currentColor;padding-bottom:.2rem}
+.link-action--arrow::after{content:" \\2192"}
+.d-atelier .hero-image{grid-column:1/-1;margin-top:clamp(3rem,6vw,5rem)}
+.d-atelier .hero-image img{aspect-ratio:16/7}
+.work{padding:clamp(5rem,9vw,8.5rem) var(--gut) 0}
+.work-head{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:baseline;gap:1rem;border-top:1px solid var(--ink);padding-top:1.25rem;margin-bottom:clamp(2.5rem,4vw,3.5rem)}
+.work-head h2{scroll-margin-top:2rem}
+.work-grid{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));column-gap:28px;row-gap:clamp(2.5rem,5vw,4.5rem)}
+.work-item{display:flex;flex-direction:column;gap:.8rem}
+.work-item figcaption{font-size:.95rem}
+.work-item--1{grid-column:1/8}
+.work-item--2{grid-column:8/13;margin-top:clamp(3rem,7vw,6rem)}
+.work-item--3{grid-column:1/6}
+.work-item--4{grid-column:6/13;margin-top:clamp(4rem,9vw,8.5rem)}
+.approach{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));column-gap:24px;margin-top:clamp(5rem,9vw,8.5rem);background:var(--paper-2);padding:clamp(4.5rem,8vw,7rem) var(--gut)}
+.approach-lead{grid-column:1/11;font:300 clamp(1.7rem,3.2vw,2.9rem)/1.18 var(--display);letter-spacing:-.01em;margin-bottom:clamp(3rem,6vw,5rem)}
+.approach .label{grid-column:1/-1;margin-bottom:.8rem}
+.approach h2{grid-column:1/-1;margin-bottom:2.5rem;scroll-margin-top:2rem}
+.approach-steps{grid-column:1/-1;display:grid;grid-template-columns:repeat(var(--count,3),minmax(0,1fr));gap:40px;counter-reset:step}
+.approach-steps[data-count="2"]{--count:2}.approach-steps[data-count="4"]{--count:4}
+.approach-steps li{counter-increment:step;border-top:1px solid var(--ink);padding-top:1.25rem}
+.approach-steps li::before{content:counter(step,decimal-leading-zero);display:block;font:300 2rem/1 var(--display);margin-bottom:1rem}
+.approach-steps h3{font:500 1.05rem/1.3 var(--body);letter-spacing:0;margin-bottom:.5rem}
+.approach-steps p{color:var(--mute);line-height:1.65}
+.d-atelier .ledger{border-top:1px solid var(--ink)}
+.d-atelier .ledger-row h3{font-family:var(--display);font-size:clamp(1.4rem,2.2vw,1.9rem);font-weight:400}
+.d-atelier .closing{background:transparent;color:var(--ink);border-top:1px solid var(--ink)}
+.d-atelier .closing-words p,.d-atelier .closing .consent,.d-atelier .closing .next{color:var(--mute)}
+.d-atelier .closing .field input,.d-atelier .closing .field textarea{border-bottom-color:var(--ink);color:var(--ink)}
+.d-atelier .closing .button--send{background:var(--ink);color:var(--paper)}
+.d-atelier .closing .button--send:hover{background:transparent;color:var(--ink)}
+.d-atelier .closing :focus-visible{outline-color:var(--accent)}
+
+@media (max-width:820px){
+ .d-cafe .hero-words,.d-cafe .hero--type .hero-words,.d-cafe .hero-image{grid-column:1/-1}
+ .d-cafe .hero-image{margin-top:2.5rem}
+ .pinned{left:.75rem}
+ .menu-card-head,.menu-lines,.visit-head,.visit-list{grid-column:1/-1}
+ .visit-list{grid-template-columns:1fr}
+ .d-atelier .hero h1,.d-atelier .hero-body,.approach-lead{grid-column:1/-1}
+ .d-atelier .hero-image img{aspect-ratio:4/3}
+ .work-item--1,.work-item--2,.work-item--3,.work-item--4{grid-column:1/-1;margin-top:0}
+ .approach-steps,.approach-steps[data-count]{grid-template-columns:1fr;gap:2rem}
+}
+`;
+
+export const STYLES = `${FONTS}${PALETTES}${DIRECTIONS}${BASE}${ROOMS}`;
