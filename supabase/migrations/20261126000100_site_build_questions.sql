@@ -80,7 +80,7 @@ begin
   insert into public.client_sources (id, studio_id, client_id, type, label, content, added_by)
   values (gen_random_uuid(), v_build.studio_id, v_build.client_id, 'other',
     left(format('Svar på frågor via granskningslänken (version %s): %s', v_build.spec_version, v_author), 160),
-    btrim(v_text), jsonb_build_object('kind', 'human', 'name', left(v_author || ' (kunden, via granskningslänken)', 160)));
+    btrim(v_text, E' \n'), jsonb_build_object('kind', 'human', 'name', left(v_author || ' (kunden, via granskningslänken)', 160)));
   update public.site_builds set questions_answered_at = now() where id = v_build.id;
   insert into public.activity_events (id, studio_id, entity_type, entity_id, event_type, description, actor)
   values (gen_random_uuid(), v_build.studio_id, 'client', v_build.client_id, 'site_spec.client_answered',
