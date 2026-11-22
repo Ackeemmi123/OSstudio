@@ -27,6 +27,7 @@ const OUTPUT: SiteDraftModelOutput = {
   colors: { primary: "", accent: "", basis: "" },
   contactFormFields: ["name", "email", "message"],
   styles: [],
+  formTexts: { submitLabel: { text: "", refs: [], generic: true }, replyNote: { text: "", refs: [], generic: false } },
   pages: [
     { id: "home", title: label("Hem"), slug: "", nav: "main", seoDescription: empty, sections: [
       section({ kind: "hero", variant: "centered", heading: label("Testlunds Snickeri"), subheading: cite("bygger kök, garderober och trappor på beställning i Borgå"), button: { label: label("Kontakt"), targetPageId: "kontakt" } }),
@@ -84,6 +85,17 @@ describe("applySiteDraft", () => {
     };
     const spec = applySiteDraft(withImages, draft, takeEverything(draft), "Anna");
     expect(spec.assets.map((a) => a.id)).toEqual(["logo"]);
+  });
+
+  it("puts the draft's form texts in place of a template's placeholders, and keeps a person's own", () => {
+    const withTexts = normalizeSiteDraft({ ...OUTPUT, formTexts: { submitLabel: label("Skicka förfrågan"), replyNote: { text: "", refs: [], generic: false } } }, INPUT, { runId: "run-2", projectId: "p1" });
+    const placeholders = structuredClone(current);
+    placeholders.forms[0] = { ...placeholders.forms[0], submitLabel: { sv: "[The action, in 2 or 3 words]" } };
+    expect(applySiteDraft(placeholders, withTexts, takeEverything(withTexts), "Alex").forms[0].submitLabel).toEqual({ sv: "Skicka förfrågan" });
+    const own = structuredClone(current);
+    own.forms[0] = { ...own.forms[0], submitLabel: { sv: "Boka en tid" } };
+    expect(applySiteDraft(own, withTexts, takeEverything(withTexts), "Alex").forms[0].submitLabel).toEqual({ sv: "Boka en tid" });
+    expect(applySiteDraft(own, withTexts, takeEverything(withTexts), "Alex").forms[0].consentText).toEqual(own.forms[0].consentText);
   });
 
   it("refuses to take nothing", () => {

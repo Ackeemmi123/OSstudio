@@ -319,6 +319,7 @@ export type ActivityEventType =
   | "site_spec.approved"
   | "site_spec.built"
   | "site_spec.client_approved"
+  | "site_spec.client_answered"
   | "site_spec.published"
   | "site_asset.uploaded"
   | "site_asset.approved"
@@ -621,6 +622,9 @@ export interface SiteBuildRecord {
   /** The client's written approval of this build, if given. */
   approval: { name: string; role: string; email: string; at: string } | null;
   comments: SiteReviewComment[];
+  /** Questions for the client on the link; they answer once, and the answers become source material. */
+  clientQuestions: string[];
+  questionsAnsweredAt: string | null;
 }
 
 /** A version of a client's site put on the hosting, and on its domain when one was given. */

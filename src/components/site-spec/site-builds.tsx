@@ -2,10 +2,11 @@
 
 import { ExternalLink, Hammer } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
-import { useStudioStore } from "@/components/providers/studio-provider";
+import { useStudio, useStudioStore } from "@/components/providers/studio-provider";
 import { useStudioAction } from "@/components/providers/use-studio-action";
 import { Button } from "@/components/ui/button";
 import { TextArea } from "@/components/ui/field";
+import { siteDraftResultOf } from "@/lib/agents/contract";
 import type { SiteBuildRecord, SiteReviewComment, SiteSpecRecord } from "@/lib/domain/types";
 
 const DATE = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
@@ -68,6 +69,15 @@ export function SiteBuilds({ record }: { record: SiteSpecRecord }) {
             : b,
         ),
       );
+  }
+
+  async function saveQuestions(target: SiteBuildRecord, questions: string[]) {
+    const done = await run(async (r) => {
+      await r.setBuildQuestions!(target, questions);
+      return true;
+    }, "The questions were not saved.");
+    if (done) setBuilds((list) => (list ?? []).map((b) => (b.id === target.id ? { ...b, clientQuestions: questions } : b)));
+    return Boolean(done);
   }
 
   async function turnOff(target: SiteBuildRecord) {
@@ -133,6 +143,7 @@ export function SiteBuilds({ record }: { record: SiteSpecRecord }) {
                     </Button>
                   ) : null}
                 </div>
+                {status === "live" && b.reviewsEnabled ? <ClientQuestions build={b} record={record} canEdit={canEdit} pending={pending} onSave={saveQuestions} /> : null}
                 {b.comments.length ? <ReviewComments build={b} canEdit={canEdit} pending={pending} onAnswer={answer} /> : null}
                 {warnings.length ? (
                   <ul className="list-disc pl-5 text-caution">
@@ -218,3 +229,68 @@ function ReviewComments({
     </details>
   );
 }
+
+/**
+ * Questions for the client on one link, one per line, at most eight. The AI
+ * draft's questions can be taken as a start. The client answers once on the
+ * link, and the answers are added to the client's source material.
+ */
+function ClientQuestions({ build, record, canEdit, pending, onSave }: { build: SiteBuildRecord; record: SiteSpecRecord; canEdit: boolean; pending: boolean; onSave: (build: SiteBuildRecord, questions: string[]) => Promise<boolean> }) {
+  const state = useStudio();
+  const [text, setText] = useState(build.clientQuestions.join("\n"));
+  const [open, setOpen] = useState(false);
+  const runs = state.status === "ready" ? state.snapshot.agentRuns.filter((r) => r.taskType === "design.site_draft" && r.inputs.some((i) => i.type === "project" && i.id === record.projectId)) : [];
+  const latest = [...runs].sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0];
+  const drafted = siteDraftResultOf(latest)?.questions ?? [];
+  const lines = text.split("\n").map((line) => line.trim()).filter(Boolean);
+  const tooMany = lines.length > 8;
+  const tooLong = lines.some((line) => line.length > 300);
+
+  if (build.questionsAnsweredAt) {
+    return <p className="text-[12.5px] font-medium text-positive">The client answered the questions on {DATE.format(new Date(build.questionsAnsweredAt))}. The answers are under the client&apos;s source material.</p>;
+  }
+  if (!open) {
+    return (
+      <div className="flex flex-wrap items-center gap-3 text-[12.5px]">
+        <span className="text-ink-subtle">{build.clientQuestions.length ? `${build.clientQuestions.length} questions for the client on the link` : "No questions for the client on the link"}</span>
+        {canEdit ? (
+          <Button variant="ghost" size="xs" onClick={() => setOpen(true)} disabled={pending}>
+            {build.clientQuestions.length ? "Change the questions" : "Ask the client questions"}
+          </Button>
+        ) : null}
+      </div>
+    );
+  }
+  return (
+    <div className="flex flex-col gap-2 rounded-[var(--radius-control)] border border-line p-3">
+      <label htmlFor={`questions-${build.id}`} className="text-[13px] font-medium text-ink">
+        Questions for the client, one per line (at most 8)
+      </label>
+      <p className="text-[12.5px] text-ink-subtle">The client sees them on the link as &ldquo;A few questions from us&rdquo; and answers in their own words. Ask for what makes the site personal: how it started, who works there, work they are proud of, and whether names, photos and quotes may be shown.</p>
+      <TextArea id={`questions-${build.id}`} rows={6} value={text} onChange={(e) => setText(e.target.value)} disabled={!canEdit} />
+      {tooMany ? <p className="text-[12.5px] text-caution">Keep it to eight questions.</p> : null}
+      {tooLong ? <p className="text-[12.5px] text-caution">Each question can be at most 300 characters.</p> : null}
+      <div className="flex flex-wrap gap-2">
+        {drafted.length ? (
+          <Button variant="ghost" size="xs" onClick={() => setText(drafted.slice(0, 8).join("\n"))} disabled={pending}>
+            Use the AI draft&apos;s questions
+          </Button>
+        ) : null}
+        <Button
+          variant="primary"
+          size="xs"
+          disabled={pending || tooMany || tooLong}
+          onClick={async () => {
+            if (await onSave(build, lines)) setOpen(false);
+          }}
+        >
+          {lines.length ? "Save the questions" : "Take the questions off"}
+        </Button>
+        <Button variant="ghost" size="xs" onClick={() => setOpen(false)} disabled={pending}>
+          Cancel
+        </Button>
+      </div>
+    </div>
+  );
+}
+

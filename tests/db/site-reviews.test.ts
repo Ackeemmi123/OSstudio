@@ -86,3 +86,34 @@ describe("client review", () => {
     expect(events.map((e) => e.event_type)).toContain("site_spec.client_approved");
   });
 });
+
+describe("questions for the client on the link", () => {
+  const QUESTIONS = ["Hur började det? (test)", "Får vi visa era namn och bilder? (test)"];
+
+  it("are set by a writer, at most eight, and answered once by the client through the server", async () => {
+    const build = await newBuild();
+    expect((await viewer.client.rpc("set_build_questions", { p_build: build.id, p_questions: QUESTIONS })).error).not.toBeNull();
+    expect((await owner.client.rpc("set_build_questions", { p_build: build.id, p_questions: Array.from({ length: 9 }, (_, i) => `Fråga ${i}`) })).error?.code).toBe("22023");
+    expect((await owner.client.rpc("set_build_questions", { p_build: build.id, p_questions: QUESTIONS })).error).toBeNull();
+    expect((await admin.rpc("site_review_state", { p_token: build.token })).data).toMatchObject({ questions: QUESTIONS, answered: false });
+
+    expect((await owner.client.rpc("record_review_answers", { p_token: build.token, p_answers: { author: "Sara Test", answers: ["x", "y"] } })).error).not.toBeNull();
+    expect((await admin.rpc("record_review_answers", { p_token: build.token, p_answers: { author: "Sara Test", answers: ["bara ett svar"] } })).error?.code).toBe("22023");
+    expect((await admin.rpc("record_review_answers", { p_token: build.token, p_answers: { author: "Sara Test", answers: ["Vi öppnade 2019 (test).", ""] } })).error).toBeNull();
+    expect((await admin.rpc("record_review_answers", { p_token: build.token, p_answers: { author: "Sara Test", answers: ["igen", ""] } })).error?.code).toBe("23505");
+    expect((await admin.rpc("site_review_state", { p_token: build.token })).data).toMatchObject({ questions: [], answered: true });
+    expect((await owner.client.rpc("set_build_questions", { p_build: build.id, p_questions: [] })).error?.code).toBe("23505");
+  });
+
+  it("turns the answers into the client's source material, for the studio only", async () => {
+    const build = await newBuild();
+    await owner.client.rpc("set_build_questions", { p_build: build.id, p_questions: QUESTIONS });
+    await admin.rpc("record_review_answers", { p_token: build.token, p_answers: { author: "Sara Test", answers: ["", "Ja, med förnamn (test)."] } });
+    const { data } = await owner.client.from("client_sources").select("label, content, type").eq("client_id", build.clientId);
+    expect(data).toHaveLength(1);
+    expect(data![0].label).toMatch(/granskningslänken.*Sara Test/);
+    expect(data![0].content).toBe("Fråga: Får vi visa era namn och bilder? (test)\nSvar: Ja, med förnamn (test).");
+    expect((await outsider.client.from("client_sources").select("id").eq("client_id", build.clientId)).data).toHaveLength(0);
+  });
+});
+
