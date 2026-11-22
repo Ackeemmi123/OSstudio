@@ -34,7 +34,7 @@ values, never the staging ones.
 | # | Item | Status | Evidence / what to do |
 | - | ---- | ------ | --------------------- |
 | 1 | Separate production Supabase project, **EU region** | Owner action | Create; record the region. Apply all migrations with `supabase db push --dry-run` first (12 files, `20261027000100` … `20261030000100`). |
-| 2 | Separate production Vercel project, EU function region | Owner action | New project; never reuse `studio-os-staging`. |
+| 2 | Separate production Vercel project, EU function region | Owner action | New project; never reuse `studio-os-staging`. `vercel.json` pins every function to `dub1` (Dublin), next to the database in eu-west-1; check the project shows it under Settings › Functions. |
 | 3 | Processor agreements (DPA): Supabase, Vercel, Resend, Microsoft 365, Anthropic if AI is used | Owner action | Accept/download each DPA; note transfer safeguards. |
 | 4 | Privacy notice names Studio OS processing (Supabase, Vercel; Anthropic if AI) and the retention periods | Owner action (adviser) | The privacy text drafted in the handoff contract (section 12, https://claude.ai/artifact/SS53XHpDBTYpWeWngFaK6M) still has open brackets; the published Axivo policy does not mention Studio OS. **Blocking.** |
 | 5 | Backups on a plan that has them, and a documented **restore test** | Owner action | See [Restore test](#restore-test). Not done for staging either. |
