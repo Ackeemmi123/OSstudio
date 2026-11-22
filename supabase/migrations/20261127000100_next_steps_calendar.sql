@@ -31,15 +31,30 @@ create index client_next_steps_due on public.client_next_steps (studio_id, statu
 create index client_next_steps_client on public.client_next_steps (client_id);
 
 revoke all on public.client_next_steps from public, anon, authenticated, service_role;
-grant select, insert, update, delete on public.client_next_steps to authenticated;
+grant select, insert, update on public.client_next_steps to authenticated;
 alter table public.client_next_steps enable row level security;
 create policy "members read" on public.client_next_steps for select to authenticated using (private.is_member(studio_id));
 create policy "writers insert" on public.client_next_steps for insert to authenticated
   with check (private.can_write(studio_id) and private.acts_as_caller(created_by));
 create policy "writers update" on public.client_next_steps for update to authenticated
   using (private.can_write(studio_id)) with check (private.can_write(studio_id));
-create policy "writers delete" on public.client_next_steps for delete to authenticated using (private.can_write(studio_id));
 create trigger keep_studio before update on public.client_next_steps for each row execute function private.keep_studio();
+
+/* A writer deletes a next step made by mistake. People never delete rows directly; this checks who may. */
+create function public.delete_next_step(p_step uuid) returns void
+  language plpgsql security definer set search_path = '' as $$
+declare
+  v_studio uuid;
+begin
+  select studio_id into v_studio from public.client_next_steps where id = p_step;
+  if v_studio is null or not private.can_write(v_studio) then
+    raise exception 'This next step does not exist, or you cannot delete it.' using errcode = '42501';
+  end if;
+  delete from public.client_next_steps where id = p_step;
+end;
+$$;
+revoke all on function public.delete_next_step(uuid) from public, anon, authenticated;
+grant execute on function public.delete_next_step(uuid) to authenticated;
 
 create table public.calendar_feeds (
   id uuid primary key default gen_random_uuid(),

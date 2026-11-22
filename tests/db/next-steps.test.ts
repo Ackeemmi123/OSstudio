@@ -40,6 +40,10 @@ describe("next steps", () => {
     expect((await viewer.client.from("client_next_steps").update({ title: "Ändrad" }).eq("id", step.id).select("id")).data ?? []).toHaveLength(0);
     const insert = await viewer.client.from("client_next_steps").insert({ studio_id: studio, client_id: client.id, title: "x", due_on: "2026-12-01", created_by: { kind: "human", name: "Vera", userId: viewer.id } });
     expect(insert.error).not.toBeNull();
+    expect((await viewer.client.rpc("delete_next_step", { p_step: step.id })).error?.code).toBe("42501");
+    expect((await owner.client.from("client_next_steps").delete().eq("id", step.id).select("id")).data ?? []).toHaveLength(0);
+    await repository.deleteNextStep(done);
+    expect((await owner.client.from("client_next_steps").select("id").eq("id", step.id)).data).toHaveLength(0);
     const pretend = await owner.client.from("client_next_steps").insert({ studio_id: studio, client_id: client.id, title: "x", due_on: "2026-12-01", created_by: { kind: "human", name: "Someone else", userId: viewer.id } });
     expect(pretend.error).not.toBeNull();
   });

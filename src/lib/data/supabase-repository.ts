@@ -701,7 +701,7 @@ export class SupabaseRepository implements StudioRepository {
 
   async deleteNextStep(step: NextStep): Promise<void> {
     if (!this.current.canWrite) throw new RepositoryError("You have read-only access to this studio. Ask an owner for member access.", "permission");
-    const { error } = await this.client.from("client_next_steps").delete().eq("id", step.id).eq("studio_id", this.studioId);
+    const { error } = await this.client.rpc("delete_next_step", { p_step: step.id });
     if (error) throw toRepositoryError(error);
   }
 
