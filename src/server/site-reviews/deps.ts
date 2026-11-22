@@ -16,5 +16,6 @@ export function reviewDeps(): ReviewDeps | null {
     },
     comment: async (token, comment) => db.rpc("record_review_comment", { p_token: token, p_comment: comment }),
     approve: async (token, approval) => db.rpc("record_site_approval", { p_token: token, p_approval: approval }),
+    answer: async (token, answers) => db.rpc("record_review_answers", { p_token: token, p_answers: answers }),
   };
 }

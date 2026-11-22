@@ -28,9 +28,18 @@ export const approvalInput = z.object({
   website: z.string().max(0).optional(),
 });
 
+export const answersInput = z.object({
+  author: plain(120),
+  answers: z.array(z.string().trim().max(3000)).min(1).max(8),
+  website: z.string().max(0).optional(),
+});
+
 export interface ReviewState {
   buildId: string;
   studioId: string;
+  /** The studio's questions for the client, until they are answered. Older links have none. */
+  questions?: string[];
+  answered?: boolean;
   comments: { page: string; target: string; body: string; author: string; status: "open" | "resolved"; reply: string | null; at: string }[];
   approval: { name: string; role: string; at: string } | null;
 }
@@ -39,6 +48,7 @@ export interface ReviewDeps {
   state: (token: string) => Promise<ReviewState | null>;
   comment: (token: string, comment: { page: string; target: string; body: string; author: string }) => Promise<{ error?: { code?: string } | null }>;
   approve: (token: string, approval: { name: string; role: string; email: string; statement: string }) => Promise<{ error?: { code?: string } | null }>;
+  answer: (token: string, answers: { author: string; answers: string[] }) => Promise<{ error?: { code?: string } | null }>;
 }
 
 const json = (status: number, body: unknown) => Response.json(body, { status, headers: { "Cache-Control": "no-store", "X-Robots-Tag": "noindex" } });
@@ -48,7 +58,7 @@ export async function readReview(token: string, deps: ReviewDeps): Promise<Respo
   if (!TOKEN.test(token)) return closed();
   const state = await deps.state(token);
   if (!state) return closed();
-  return json(200, { comments: state.comments, approval: state.approval });
+  return json(200, { comments: state.comments, approval: state.approval, questions: state.questions ?? [], answered: state.answered ?? false });
 }
 
 export async function postComment(token: string, body: unknown, deps: ReviewDeps): Promise<Response> {
@@ -74,5 +84,20 @@ export async function postApproval(token: string, body: unknown, deps: ReviewDep
   if (error?.code === "42501") return closed();
   if (error?.code === "23505") return json(409, { error: "This version is already approved." });
   if (error) return json(500, { error: "The approval was not saved. Try again." });
+  return json(201, { ok: true });
+}
+
+/** The client's answers to the studio's questions, all at once. They become the client's source material. */
+export async function postAnswers(token: string, body: unknown, deps: ReviewDeps): Promise<Response> {
+  if (!TOKEN.test(token)) return closed();
+  const parsed = answersInput.safeParse(body);
+  if (!parsed.success || !parsed.data.answers.some((answer) => answer)) return json(400, { error: "Answer at least one question, and write your name." });
+  if (parsed.data.website) return json(200, { ok: true });
+  const { author, answers } = parsed.data;
+  const { error } = await deps.answer(token, { author, answers });
+  if (error?.code === "42501") return closed();
+  if (error?.code === "23505") return json(409, { error: "The questions are already answered." });
+  if (error?.code === "22023") return json(400, { error: "The answers do not match the questions. Reload the page and try again." });
+  if (error) return json(500, { error: "The answers were not saved. Try again." });
   return json(201, { ok: true });
 }

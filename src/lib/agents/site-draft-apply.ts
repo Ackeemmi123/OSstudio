@@ -81,8 +81,14 @@ export function applySiteDraft(current: SiteSpec, draft: SiteDraftResult, choice
     : current.brand;
 
   // A consent text or reply note a person already wrote for the contact form is kept.
+  // A person's own form texts stay; a template's placeholders give way to the draft's.
   const own = current.forms.find((f) => f.id === "contact-form");
-  const forms = hasContact ? from.forms.map((f) => (own && f.id === own.id ? { ...f, consentText: own.consentText, ...(own.replyNote ? { replyNote: own.replyNote } : {}), ...(own.submitLabel ? { submitLabel: own.submitLabel } : {}) } : f)) : [];
+  const written = (text: Partial<Record<string, string>> | undefined) => Boolean(text && Object.values(text).some((v) => v?.trim() && !v.includes("[")));
+  const forms = hasContact
+    ? from.forms.map((f) =>
+        own && f.id === own.id ? { ...f, consentText: own.consentText, ...(written(own.replyNote) ? { replyNote: own.replyNote } : {}), ...(written(own.submitLabel) ? { submitLabel: own.submitLabel } : {}) } : f,
+      )
+    : [];
 
   const used = new Set([...pages.flatMap((p) => p.sections.flatMap(assetIdsOf)), ...(brand.logoAssetId ? [brand.logoAssetId] : [])]);
   const assets = current.assets.filter((asset) => asset.origin !== "placeholder" || used.has(asset.id));

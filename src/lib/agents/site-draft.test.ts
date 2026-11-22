@@ -37,6 +37,7 @@ function output(overrides: Partial<SiteDraftModelOutput> = {}): SiteDraftModelOu
     colors: { primary: "#8a1c2b", accent: "nope", basis: "logon" },
     contactFormFields: ["name", "email", "message"],
     styles: [],
+    formTexts: { submitLabel: { text: "", refs: [], generic: true }, replyNote: { text: "", refs: [], generic: false } },
     pages: [
       {
         id: "start",

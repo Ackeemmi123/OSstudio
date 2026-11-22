@@ -1,7 +1,7 @@
 /** Taking a client's comment and approval on a preview link. */
 import { describe, expect, it } from "vitest";
 import { reviewBar } from "./bar";
-import { APPROVAL_STATEMENT, postApproval, postComment, readReview, type ReviewDeps } from "./review";
+import { APPROVAL_STATEMENT, postAnswers, postApproval, postComment, readReview, type ReviewDeps } from "./review";
 
 const TOKEN = "e".repeat(40);
 
@@ -11,6 +11,7 @@ function deps(error: { code?: string } | null = null) {
     state: async (token) => (token === TOKEN ? { buildId: "b1", studioId: "s1", comments: [], approval: null } : null),
     comment: async (_t, c) => (calls.push(c), { error }),
     approve: async (_t, a) => (calls.push(a), { error }),
+    answer: async (_t, a) => (calls.push(a), { error }),
   };
   return { d, calls };
 }
@@ -53,5 +54,20 @@ describe("the review bar script", () => {
     const script = html.slice(html.indexOf("<script>") + 8, html.lastIndexOf("</script>"));
     expect(() => new Function(script)).not.toThrow();
     expect(script).toContain(`"token":"${TOKEN}"`);
+  });
+
+  it("takes the client's answers, trimmed, and refuses an empty set", async () => {
+    const { d, calls } = deps();
+    expect((await postAnswers(TOKEN, { author: " Sara ", answers: [" Vi öppnade 2019. ", ""] }, d)).status).toBe(201);
+    expect(calls).toEqual([{ author: "Sara", answers: ["Vi öppnade 2019.", ""] }]);
+    expect((await postAnswers(TOKEN, { author: "Sara", answers: ["", " "] }, d)).status).toBe(400);
+    expect((await postAnswers(TOKEN, { author: "", answers: ["x"] }, d)).status).toBe(400);
+    expect((await postAnswers("short", { author: "Sara", answers: ["x"] }, d)).status).toBe(404);
+  });
+
+  it("says when the answers are already in, or do not match the questions", async () => {
+    expect((await postAnswers(TOKEN, { author: "Sara", answers: ["x"] }, deps({ code: "23505" }).d)).status).toBe(409);
+    expect((await postAnswers(TOKEN, { author: "Sara", answers: ["x"] }, deps({ code: "22023" }).d)).status).toBe(400);
+    expect((await postAnswers(TOKEN, { author: "Sara", answers: ["x"] }, deps({ code: "42501" }).d)).status).toBe(404);
   });
 });

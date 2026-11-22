@@ -139,6 +139,8 @@ export interface StudioRepository {
   domainStatus?(publication: SitePublicationRecord): Promise<DomainSetup>;
   /** Turns the client's review on a build's link on or off. */
   setBuildReviews?(build: SiteBuildRecord, enabled: boolean): Promise<void>;
+  /** Up to eight questions the client answers on the link. An empty list takes them off. */
+  setBuildQuestions?(build: SiteBuildRecord, questions: string[]): Promise<void>;
   /** Answers a client's comment (a null reply keeps the earlier one) and marks it resolved or open. */
   answerReviewComment?(commentId: string, reply: string | null, resolve: boolean): Promise<void>;
   /** The client's documents for download, newest first, without deleted ones. */

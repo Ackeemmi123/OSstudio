@@ -10,7 +10,7 @@ import { utf8Bytes } from "./pricing";
 import { siteDraftModelOutput, siteDraftRequestBytes, textSources, type SiteDraftInput } from "./site-draft";
 
 /** Recorded on every run. Change it whenever the instructions or the message format change. */
-export const SITE_DRAFT_PROMPT_VERSION = "site-draft-2026-11-22.1";
+export const SITE_DRAFT_PROMPT_VERSION = "site-draft-2026-11-22.2";
 
 const sectionList = (Object.keys(SECTION_VARIANTS) as SectionKind[])
   .map((kind) => `- ${kind} (${SECTION_VARIANTS[kind].join(", ")}): ${SECTION_LABELS[kind].description}`)
@@ -58,7 +58,7 @@ ${industryList}
   - Motifs: ${motifList}
 - Choose pages from what the material supports. Typical: home, about, what the client offers or does, events, people, documents, join or contact. The first page is the home page. Put privacy or legal pages in the footer (nav footer).
 - Home starts with a hero: what the client is, in its own words, with one button to the most important next step.
-- Use a contact section (kind contact) where visitors should get in touch or apply; it gets a form. Choose its fields.
+- Use a contact section (kind contact) where visitors should get in touch or apply; it gets a form. Choose its fields. Write formTexts: the send button in two or three words, and what happens after sending only as the material says it. Never write the consent text: the client's own, legally reviewed wording goes there.
 - Events: a features section where each item's title is the event, extra is when it is (as the material says it), and body is what it is.
 - Team: items with the person's name as title and role as extra. Only people the material names in that role.
 - Colours: from the logo or the client's material, when one is given. Otherwise leave them empty.

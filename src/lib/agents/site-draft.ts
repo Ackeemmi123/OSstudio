@@ -114,6 +114,10 @@ export const siteDraftModelOutput = z.object({
     basis: z.string().describe("Where the colours come from, e.g. 'the red in the logo'. Empty when unknown."),
   }),
   contactFormFields: z.array(z.enum(FORM_FIELDS)).describe("Fields for the contact form, when the site has one."),
+  formTexts: z.object({
+    submitLabel: value.describe("The contact form's send button, two or three words, such as 'Skicka förfrågan'. Generic."),
+    replyNote: value.describe("What happens after sending and how soon, only as the material says it (for example a reply time). Empty when the material does not say."),
+  }),
   styles: z
     .array(
       z.object({
@@ -374,6 +378,8 @@ export function normalizeSiteDraft(raw: unknown, input: SiteDraftInput, context:
   });
   const ctaTarget = output.primaryCta ? target(output.primaryCta.targetPageId) : null;
   const ctaLabel = output.primaryCta && ctaTarget ? take(output.primaryCta.label, "strategy.primaryCta.label", 40) : "";
+  const submitLabel = take(output.formTexts.submitLabel, "forms.0.submitLabel", 40);
+  const replyNote = take(output.formTexts.replyNote, "forms.0.replyNote", 160);
   const primary = hex(output.colors.primary);
   const accent = hex(output.colors.accent);
 
@@ -399,7 +405,17 @@ export function normalizeSiteDraft(raw: unknown, input: SiteDraftInput, context:
     assets: [],
     pages,
     forms: hasContact
-      ? [{ id: "contact-form", purpose: "contact", fields: output.contactFormFields.length ? [...new Set(output.contactFormFields)] : ["name", "email", "message"], consentText: loc(""), recipient: "client_contact" }]
+      ? [
+          {
+            id: "contact-form",
+            purpose: "contact",
+            fields: output.contactFormFields.length ? [...new Set(output.contactFormFields)] : ["name", "email", "message"],
+            consentText: loc(""),
+            ...(submitLabel ? { submitLabel: loc(submitLabel) } : {}),
+            ...(replyNote ? { replyNote: loc(replyNote) } : {}),
+            recipient: "client_contact",
+          },
+        ]
       : [],
     integrations: { analytics: { enabled: false }, maps: { enabled: false }, booking: { enabled: false }, newsletter: { enabled: false }, store: { enabled: false } },
     seo: {
