@@ -83,6 +83,8 @@ const section = z.object({
   heading: value,
   subheading: value.describe("Hero only. Otherwise empty."),
   body: value.describe("For text, text_media, cta and contact. Otherwise empty."),
+  address: value.describe("Contact only: the street address exactly as the material gives it, in one line. Otherwise empty."),
+  hours: value.describe("Contact only: the opening hours exactly as the material gives them, in one line. Otherwise empty."),
   items: z.array(item).describe("For features, services, team, faq and testimonials. Otherwise empty."),
   button: z.object({ label: value, targetPageId: z.string() }).nullable(),
 });
@@ -342,7 +344,11 @@ export function normalizeSiteDraft(raw: unknown, input: SiteDraftInput, context:
         }
         case "contact":
           hasContact = true;
-          sections.push({ ...common, kind, variant, ...withEyebrow, heading: loc(heading), body: loc(take(s.body, `${path}.body`, 600)), formId: "contact-form" } as SiteSpecSection);
+          {
+            const address = take(s.address, `${path}.address`, 120);
+            const hours = take(s.hours, `${path}.hours`, 120);
+            sections.push({ ...common, kind, variant, ...withEyebrow, heading: loc(heading), body: loc(take(s.body, `${path}.body`, 600)), ...(address ? { address: loc(address) } : {}), ...(hours ? { hours: loc(hours) } : {}), formId: "contact-form" } as SiteSpecSection);
+          }
           break;
         case "map":
           sections.push({ ...common, kind, variant, ...withEyebrow, heading: loc(heading) } as SiteSpecSection);

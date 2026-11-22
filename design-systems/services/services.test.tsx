@@ -162,6 +162,42 @@ describe("what the design system adds", () => {
   });
 });
 
+describe("the café and atelier directions", () => {
+  const home = (site: Site) => htmlOf(site).find((file) => file.path === "index.html")!.text;
+
+  it("café: opening hours first, the menu as a card, and the priced item pinned as a note", () => {
+    const page = home(STRESS_SITES["cafe-priced-note"]);
+    expect(page).toContain('class="visit-bar"');
+    expect(page).toContain(CHROME.en.hours);
+    expect(page).toContain('class="menu-lines"');
+    expect(page).toMatch(/class="pinned"[\s\S]*12 €/);
+  });
+
+  it("café: draws no note, hours or address that the content does not have", () => {
+    const page = home(STRESS_SITES["cafe-no-photo-no-hours"]);
+    expect(page).not.toContain("visit-bar");
+    expect(page).not.toContain("pinned");
+    expect(page).not.toContain("visit-card");
+    expect(page).not.toContain("<img");
+    expect(page).not.toContain("menu-price");
+  });
+
+  it("atelier: leads with the gallery, and puts the services there when it has none", () => {
+    const withGallery = home(STRESS_SITES["atelier-gallery"]);
+    expect(withGallery).toContain('class="work-grid"');
+    expect(withGallery.indexOf("work-grid")).toBeLessThan(withGallery.indexOf('class="ledger"'));
+    const without = home(STRESS_SITES["atelier-no-gallery"]);
+    expect(without).not.toContain("work-grid");
+    expect(without).toContain('class="ledger"');
+  });
+
+  it("refuses a gallery picture that does not exist", () => {
+    const site = structuredClone(STRESS_SITES["atelier-gallery"]);
+    site.content.gallery!.items[0].imageId = "nowhere";
+    expect(() => build(site)).toThrow(/nowhere/);
+  });
+});
+
 describe("the built site", () => {
   it("has all its pages, with a way back from each", () => {
     const paths = build(lindqvist).map((file) => file.path);

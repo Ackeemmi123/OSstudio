@@ -70,7 +70,7 @@ export class FixtureModel implements AgentModel {
       .filter((s): s is { id: string; line: string } => Boolean(s.line))
       .map((s) => ({ id: s.id, line: s.line.slice(0, 300) }));
     const section = (kind: SiteDraftModelOutput["pages"][number]["sections"][number]["kind"], variant: string, fields: Partial<SiteDraftModelOutput["pages"][number]["sections"][number]>) => ({
-      kind, variant, eyebrow: empty, heading: empty, subheading: empty, body: empty, items: [], button: null, ...fields,
+      kind, variant, eyebrow: empty, heading: empty, subheading: empty, body: empty, address: empty, hours: empty, items: [], button: null, ...fields,
     });
     return {
       industry: "other",

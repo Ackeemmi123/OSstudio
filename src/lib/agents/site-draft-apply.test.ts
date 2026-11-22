@@ -12,7 +12,7 @@ const empty = { text: "", refs: [], generic: false };
 const label = (text: string) => ({ text, refs: [], generic: true });
 const cite = (text: string) => ({ text, refs: [{ sourceId: "s1", quote: text, page: null }], generic: false });
 const section = (fields: Partial<SiteDraftModelOutput["pages"][number]["sections"][number]>): SiteDraftModelOutput["pages"][number]["sections"][number] => ({
-  kind: "text", variant: "single_column", eyebrow: empty, heading: empty, subheading: empty, body: empty, items: [], button: null, ...fields,
+  kind: "text", variant: "single_column", eyebrow: empty, heading: empty, subheading: empty, body: empty, address: empty, hours: empty, items: [], button: null, ...fields,
 });
 const OUTPUT: SiteDraftModelOutput = {
   industry: "other",

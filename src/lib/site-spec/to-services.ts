@@ -27,10 +27,10 @@ export type ServicesMode = { prototype: { madeBy: string } } | { client: { appro
 
 export type ServicesResult = { ok: true; content: SiteContent; design: SiteDesign; pages: Record<string, string> } | { ok: false; missing: string[] };
 
-const WORDS: Record<SiteLocale, { services: string; steps: string; questions: string; reasons: string; people: string; details: string; name: string; email: string; phone: string; message: string; send: string; notFound: string; notFoundText: string; back: string; menuServices: string; menuQuestions: string; contact: string; privacy: string; about: string }> = {
-  sv: { services: "Tjänster", steps: "Så går det till", questions: "Frågor", reasons: "Därför", people: "Vi som jobbar här", details: "Kontaktuppgifter", name: "Namn", email: "E-post", phone: "Telefon", message: "Meddelande", send: "Skicka", notFound: "Sidan hittades inte", notFoundText: "Adressen finns inte längre, eller så skrevs den fel.", back: "Till startsidan", menuServices: "Tjänster", menuQuestions: "Frågor", contact: "Kontakt", privacy: "Integritet", about: "Om oss" },
-  fi: { services: "Palvelut", steps: "Näin edetään", questions: "Kysymykset", reasons: "Miksi me", people: "Meillä töissä", details: "Yhteystiedot", name: "Nimi", email: "Sähköposti", phone: "Puhelin", message: "Viesti", send: "Lähetä", notFound: "Sivua ei löytynyt", notFoundText: "Osoite ei ole enää käytössä, tai siinä on kirjoitusvirhe.", back: "Etusivulle", menuServices: "Palvelut", menuQuestions: "Kysymykset", contact: "Yhteystiedot", privacy: "Tietosuoja", about: "Meistä" },
-  en: { services: "Services", steps: "How it works", questions: "Questions", reasons: "Why us", people: "The people", details: "Contact details", name: "Name", email: "Email", phone: "Phone", message: "Message", send: "Send", notFound: "Page not found", notFoundText: "This address no longer exists, or it was mistyped.", back: "Back to the front page", menuServices: "Services", menuQuestions: "Questions", contact: "Contact", privacy: "Privacy", about: "About" },
+const WORDS: Record<SiteLocale, { services: string; steps: string; questions: string; reasons: string; people: string; details: string; name: string; email: string; phone: string; message: string; send: string; notFound: string; notFoundText: string; back: string; menuServices: string; menuQuestions: string; contact: string; privacy: string; about: string; work: string }> = {
+  sv: { services: "Tjänster", steps: "Så går det till", questions: "Frågor", reasons: "Därför", people: "Vi som jobbar här", details: "Kontaktuppgifter", name: "Namn", email: "E-post", phone: "Telefon", message: "Meddelande", send: "Skicka", notFound: "Sidan hittades inte", notFoundText: "Adressen finns inte längre, eller så skrevs den fel.", back: "Till startsidan", menuServices: "Tjänster", menuQuestions: "Frågor", contact: "Kontakt", privacy: "Integritet", about: "Om oss", work: "Arbeten" },
+  fi: { services: "Palvelut", steps: "Näin edetään", questions: "Kysymykset", reasons: "Miksi me", people: "Meillä töissä", details: "Yhteystiedot", name: "Nimi", email: "Sähköposti", phone: "Puhelin", message: "Viesti", send: "Lähetä", notFound: "Sivua ei löytynyt", notFoundText: "Osoite ei ole enää käytössä, tai siinä on kirjoitusvirhe.", back: "Etusivulle", menuServices: "Palvelut", menuQuestions: "Kysymykset", contact: "Yhteystiedot", privacy: "Tietosuoja", about: "Meistä", work: "Töitämme" },
+  en: { services: "Services", steps: "How it works", questions: "Questions", reasons: "Why us", people: "The people", details: "Contact details", name: "Name", email: "Email", phone: "Phone", message: "Message", send: "Send", notFound: "Page not found", notFoundText: "This address no longer exists, or it was mistyped.", back: "Back to the front page", menuServices: "Services", menuQuestions: "Questions", contact: "Contact", privacy: "Privacy", about: "About", work: "Our work" },
 };
 
 const ABOUT = /^(om|about|om-oss|meista|meist|tietoa|about-us)/;
@@ -226,6 +226,29 @@ export function servicesContent(spec: SiteSpec, images: Record<string, ServicesI
     seo: { title: ((privacyPage && t(privacyPage.title, locale)) || w.privacy).slice(0, 70), description: ((privacyPage && t(privacyPage.seo.description, locale)) || w.privacy).slice(0, 170) },
   };
 
+  // Address and opening hours, exactly as written in the contact section.
+  const address = t(contactSection?.address, locale).slice(0, 120);
+  const hours = t(contactSection?.hours, locale).slice(0, 120);
+
+  // The firm's own work: the first gallery with at least two pictures that have files.
+  const gallerySection = firstOf("gallery");
+  const galleryItems = (gallerySection?.assetIds ?? []).flatMap((id) => {
+    const asset = spec.assets.find((a) => a.id === id);
+    const shown = imageId(id.slice(0, 40));
+    if (!asset || !shown) return [];
+    const caption = (t(asset.alt, locale) || asset.description || "").slice(0, 120);
+    return caption ? [{ imageId: shown, caption: { text: caption, origin: "person" as const } }] : [];
+  });
+  const gallery: SiteContent["gallery"] =
+    // Only the directions that draw a gallery need one; the others are not held up by it.
+    gallerySection && galleryItems.length >= 2 && ["atelier", "cafe"].includes(spec.brand.servicesStyle?.direction ?? "")
+      ? {
+          label: (t(gallerySection.eyebrow, locale) || w.work).slice(0, 60),
+          heading: need("The gallery's heading", t(gallerySection.heading, locale), 110, originOf(gallerySection.source)),
+          items: galleryItems.slice(0, 12),
+        }
+      : undefined;
+
   const siteName = t(spec.seo.siteName, locale);
   if (!siteName) missing.push("The site name is empty (Site settings).");
   const homeDescription = t(home.seo.description, locale) || t(spec.seo.defaultDescription, locale);
@@ -237,7 +260,7 @@ export function servicesContent(spec: SiteSpec, images: Record<string, ServicesI
   const content = {
     ...mode,
     language: locale,
-    business: { name: siteName.slice(0, 60), ...(email ? { email } : {}), ...(phone ? { phone: phone.slice(0, 30) } : {}) },
+    business: { name: siteName.slice(0, 60), ...(email ? { email } : {}), ...(phone ? { phone: phone.slice(0, 30) } : {}), ...(address ? { address } : {}), ...(hours ? { hours } : {}) },
     assets,
     promise,
     reasons,
@@ -246,6 +269,7 @@ export function servicesContent(spec: SiteSpec, images: Record<string, ServicesI
     proof,
     questions,
     closing,
+    ...(gallery ? { gallery } : {}),
     about,
     contact,
     form: formContent,

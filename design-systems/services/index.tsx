@@ -5,6 +5,8 @@
  */
 import { createElement, type ReactElement } from "react";
 import { siteContent, siteDesign, type Site, type SiteContent } from "./content";
+import { AtelierHome } from "./atelier";
+import { CafeHome } from "./cafe";
 import { EditorialHome } from "./editorial";
 import { FormalHome } from "./formal";
 import { AboutPage, CHROME, ContactPage, FormResultPage, NotFoundPage, PrivacyPage, type PageContext } from "./pages";
@@ -12,9 +14,9 @@ import { StatementHome } from "./statement";
 import { renderStatic } from "./render";
 import { STYLES } from "./styles";
 
-export const FONT_FILES = ["fraunces-display-normal.woff2", "fraunces-display-italic.woff2", "instrument-sans-latin-wght-normal.woff2", "bodoni-moda-latin-wght-normal.woff2", "bodoni-moda-latin-wght-italic.woff2", "hanken-grotesk-latin-wght-normal.woff2", "big-shoulders-display-latin-wght-normal.woff2", "archivo-latin-wdth-normal.woff2", "LICENSE-fraunces.txt", "LICENSE-instrument-sans.txt", "LICENSE-bodoni-moda.txt", "LICENSE-hanken-grotesk.txt", "LICENSE-big-shoulders-display.txt", "LICENSE-archivo.txt"];
+export const FONT_FILES = ["fraunces-display-normal.woff2", "fraunces-display-italic.woff2", "instrument-sans-latin-wght-normal.woff2", "bodoni-moda-latin-wght-normal.woff2", "bodoni-moda-latin-wght-italic.woff2", "hanken-grotesk-latin-wght-normal.woff2", "big-shoulders-display-latin-wght-normal.woff2", "archivo-latin-wdth-normal.woff2", "young-serif-latin-normal.woff2", "figtree-latin-wght-normal.woff2", "cormorant-garamond-latin-wght-normal.woff2", "cormorant-garamond-latin-wght-italic.woff2", "work-sans-latin-wght-normal.woff2", "LICENSE-fraunces.txt", "LICENSE-instrument-sans.txt", "LICENSE-bodoni-moda.txt", "LICENSE-hanken-grotesk.txt", "LICENSE-big-shoulders-display.txt", "LICENSE-archivo.txt", "LICENSE-young-serif.txt", "LICENSE-figtree.txt", "LICENSE-cormorant-garamond.txt", "LICENSE-work-sans.txt"];
 
-const HOMES = { editorial: EditorialHome, formal: FormalHome, statement: StatementHome };
+const HOMES = { editorial: EditorialHome, formal: FormalHome, statement: StatementHome, cafe: CafeHome, atelier: AtelierHome };
 
 export interface BuiltFile {
   path: string;
@@ -49,7 +51,7 @@ function document(site: Site, root: string, seo: SiteContent["home"]["seo"], bod
 /** What the types cannot say: a picture must exist, and a headline must really end with its turn. */
 function checkReferences(content: SiteContent) {
   const ids = new Set(content.assets.map((asset) => asset.id));
-  const used = [content.promise.imageId, content.proof.imageId, content.about.imageId, ...content.about.people.map((person) => person.imageId)];
+  const used = [content.promise.imageId, content.proof.imageId, content.about.imageId, ...content.about.people.map((person) => person.imageId), ...(content.gallery?.items ?? []).map((item) => item.imageId)];
   for (const id of used) {
     if (id && !ids.has(id)) throw new Error(`No image called ${id}.`);
   }
