@@ -259,6 +259,23 @@ function ItemsEditor({ path, spec, section, editable, edit }: { path: string; sp
         </Field>
       );
     }
+    if (def.type === "consent") {
+      return (
+        <label key={key} className="flex items-start gap-2 text-[13px] text-ink">
+          <input
+            type="checkbox"
+            className="mt-0.5 size-4 accent-[var(--color-primary)]"
+            checked={item[def.key] === true}
+            disabled={!editable}
+            onChange={(e) => edit((t) => void (e.target.checked ? ((t.items as Values[])[i][def.key] = true) : delete (t.items as Values[])[i][def.key]))}
+          />
+          <span>
+            {def.label}
+            <span className="block text-[12px] text-ink-subtle">The company design shows only people and quotes with this ticked.</span>
+          </span>
+        </label>
+      );
+    }
     if (def.type === "image") {
       return <ImagePicker key={key} id={key} label={def.label} spec={spec} value={item[def.key] as string | undefined} disabled={!editable} onChange={(id) => edit((t) => void (id ? ((t.items as Values[])[i][def.key] = id) : delete (t.items as Values[])[i][def.key]))} />;
     }

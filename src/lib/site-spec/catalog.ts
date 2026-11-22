@@ -164,7 +164,7 @@ export const SPEC_LIMITS = {
  * the schema in schema.ts defines the same fields.
  */
 export type SectionFieldType = "text" | "longText" | "buttons" | "button" | "image" | "images" | "form" | "items";
-export type ItemFieldType = "text" | "longText" | "plain" | "image" | "document";
+export type ItemFieldType = "text" | "longText" | "plain" | "image" | "document" | "consent";
 
 export interface SectionFieldDefinition {
   key: string;
@@ -203,8 +203,8 @@ export const ITEM_FIELDS: Partial<Record<SectionKind, ItemFieldDefinition[]>> = 
   features: [{ key: "title", label: "Title", type: "text" }, { key: "body", label: "Text", type: "longText" }, { key: "documentFileId", label: "Document to download (PDF)", type: "document" }],
   services: [{ key: "title", label: "Service", type: "text" }, { key: "body", label: "Description", type: "longText" }, { key: "price", label: "Price (only if the client confirmed it)", type: "text" }],
   products: [{ key: "title", label: "Product", type: "text" }, { key: "body", label: "Description", type: "longText" }, { key: "price", label: "Price (only if the client confirmed it)", type: "text" }, { key: "assetId", label: "Photo", type: "image" }],
-  testimonials: [{ key: "quote", label: "Quote", type: "longText" }, { key: "author", label: "Who said it", type: "plain" }],
-  team: [{ key: "name", label: "Name", type: "plain" }, { key: "role", label: "Role", type: "text" }, { key: "assetId", label: "Photo", type: "image" }],
+  testimonials: [{ key: "quote", label: "Quote", type: "longText" }, { key: "author", label: "Who said it", type: "plain" }, { key: "consent", label: "They agreed, in writing, to be quoted on the site", type: "consent" }],
+  team: [{ key: "name", label: "Name", type: "plain" }, { key: "role", label: "Role", type: "text" }, { key: "assetId", label: "Photo", type: "image" }, { key: "consent", label: "They agreed, in writing, to be shown by name (and photo)", type: "consent" }],
   faq: [{ key: "question", label: "Question", type: "text" }, { key: "answer", label: "Answer", type: "longText" }],
 };
 

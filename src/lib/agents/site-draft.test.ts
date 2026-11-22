@@ -4,7 +4,8 @@ import { approvalBlockers } from "@/lib/site-spec/validate";
 import { draftTexts, normalizeSiteDraft, pdfPageCount, siteDraftFingerprint, slugify, styleChoice, type SiteDraftInput, type SiteDraftModelOutput } from "./site-draft";
 import { applySiteDraft, takeEverything } from "./site-draft-apply";
 import { styleOptions } from "@/components/site-spec/style-comparison";
-import { SITE_DRAFT_PROMPT_VERSION, siteDraftBytes } from "./site-draft-prompt";
+import { readFileSync } from "node:fs";
+import { SITE_DRAFT_PROMPT_VERSION, SITE_DRAFT_SYSTEM_PROMPT, siteDraftBytes } from "./site-draft-prompt";
 
 const MINUTES = "Protokoll 4/26. Sällskapet håller vårbal den 12 april 2026 på Arken. Styrelsen: ordförande Anna Testsson, kassör Bo Exempel.";
 const INPUT: SiteDraftInput = {
@@ -182,6 +183,15 @@ describe("style proposals for the company design", () => {
     spec.strategy.industry = "law_finance";
     expect(styleOptions(spec).options.map((o) => o.style.palette)).toEqual(["navy", "oxblood", "slate"]);
     expect(styleOptions(normalizeSiteDraft(output({ designSystem: "services@0.1", styles }), INPUT, RUN).spec).proposed).toBe(true);
+  });
+});
+
+describe("the client's own answers", () => {
+  it("are named in the draft's instructions exactly as the review link stores them", () => {
+    const label = "Svar på frågor via granskningslänken";
+    expect(readFileSync("supabase/migrations/20261126000100_site_build_questions.sql", "utf8")).toContain(label);
+    expect(SITE_DRAFT_SYSTEM_PROMPT).toContain(label);
+    expect(SITE_DRAFT_SYSTEM_PROMPT).toMatch(/never by you/);
   });
 });
 
