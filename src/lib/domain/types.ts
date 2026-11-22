@@ -739,3 +739,30 @@ export interface StudioSnapshot {
   /** Website inquiries. Only a signed-in workspace receives them; always empty in the local demo. */
   inquiries: Inquiry[];
 }
+
+/** Something a person at the studio will do for a client on a day, at a time if it has one. */
+export interface NextStep {
+  id: string;
+  clientId: string;
+  title: string;
+  note: string;
+  /** YYYY-MM-DD, in Helsinki. */
+  dueOn: string;
+  /** HH:MM, or null for any time that day. */
+  dueTime: string | null;
+  assignee: { kind: "human"; name: string; userId?: string } | null;
+  status: "open" | "done";
+  doneAt: ISODateString | null;
+  createdBy: Actor;
+  createdAt: ISODateString;
+}
+
+export interface NewNextStep {
+  clientId: string;
+  title: string;
+  note?: string;
+  dueOn: string;
+  dueTime?: string | null;
+  assignee?: { kind: "human"; name: string; userId?: string } | null;
+}
+

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { ActivityTimeline } from "@/components/activity-timeline";
 import { NewClientDialog } from "@/components/clients/new-client-dialog";
+import { TodayNextSteps } from "@/components/next-steps/next-steps";
 import { LoadError } from "@/components/load-error";
 import { useCanEdit, useStudio, useStudioStore } from "@/components/providers/studio-provider";
 import { useStudioAction } from "@/components/providers/use-studio-action";
@@ -72,6 +73,7 @@ function Workspace({ snapshot }: { snapshot: StudioSnapshot }) {
   return (
     <div className="grid gap-x-12 gap-y-12 lg:grid-cols-[minmax(0,1fr)_320px]">
       <div className="flex min-w-0 flex-col gap-12">
+        <TodayNextSteps />
         {followUps.length > 0 ? (
           <Section id="follow-up" title="Follow up" count={followUps.length}>
             <Surface>

@@ -3,6 +3,7 @@
 import { ArrowRight } from "lucide-react";
 import Link from "next/link";
 import { ActivityTimeline } from "@/components/activity-timeline";
+import { ClientNextSteps } from "@/components/next-steps/next-steps";
 import { useCanEdit } from "@/components/providers/studio-provider";
 import { ButtonLink } from "@/components/ui/button";
 import { Section, Surface } from "@/components/ui/surface";
@@ -25,6 +26,7 @@ export function ClientOverview({ client, snapshot }: { client: Client; snapshot:
   return (
     <div className="grid gap-x-12 gap-y-10 lg:grid-cols-[minmax(0,1fr)_300px]">
       <div className="flex min-w-0 flex-col gap-10">
+        <ClientNextSteps clientId={client.id} clientName={client.name} />
         <Section id="overview-projects" title="Projects" action={<TabLink hash="projects">All projects</TabLink>}>
           {projects.length === 0 ? (
             <p className="text-[13.5px] text-ink-subtle">No projects yet.</p>

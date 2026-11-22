@@ -1,5 +1,6 @@
 "use client";
 
+import { CalendarFeedSettings } from "@/components/next-steps/next-steps";
 import { LogOut, RotateCcw } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useAgentStatus } from "@/components/agents/use-agent-status";
@@ -95,6 +96,8 @@ export function SettingsView() {
         <AgencyBrandSection />
 
         <AgentsSection serverAvailable={Boolean(supabase)} owner={supabase?.role === "owner"} />
+
+        <CalendarFeedSettings />
 
         <Section id="brand" title="Brand">
           <p className="text-[13.5px] leading-relaxed text-ink-muted">

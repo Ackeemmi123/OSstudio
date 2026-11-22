@@ -43,6 +43,8 @@ import {
   type Task,
   type TaskDetailsInput,
   type TaskStatus,
+  type NewNextStep,
+  type NextStep,
 } from "@/lib/domain/types";
 import { validateIdentity } from "./local-repository";
 import { RepositoryError, SiteSpecBlockedError, type AiSpend, type RepositoryErrorCode, type RepositoryInfo, type StudioRepository } from "./repository";
@@ -652,6 +654,74 @@ export class SupabaseRepository implements StudioRepository {
     if (error) throw toRepositoryError(error);
   }
 
+  async listNextSteps(clientId?: string): Promise<NextStep[]> {
+    let query = this.client.from("client_next_steps").select("*").eq("studio_id", this.studioId);
+    if (clientId) query = query.eq("client_id", clientId);
+    const { data, error } = await query.order("status", { ascending: false }).order("due_on").order("due_time", { nullsFirst: true }).limit(500);
+    if (error) throw toRepositoryError(error);
+    return (data ?? []).map(toNextStep);
+  }
+
+  async addNextStep(step: NewNextStep): Promise<NextStep> {
+    if (!this.current.canWrite) throw new RepositoryError("You have read-only access to this studio. Ask an owner for member access.", "permission");
+    const { data, error } = await this.client
+      .from("client_next_steps")
+      .insert({
+        studio_id: this.studioId,
+        client_id: step.clientId,
+        title: step.title.trim(),
+        note: (step.note ?? "").trim(),
+        due_on: step.dueOn,
+        due_time: step.dueTime || null,
+        assignee: step.assignee ?? null,
+        created_by: this.actor(),
+      })
+      .select("*")
+      .single();
+    if (error) throw toRepositoryError(error);
+    return toNextStep(data);
+  }
+
+  async updateNextStep(step: NextStep, change: Partial<Pick<NextStep, "title" | "note" | "dueOn" | "dueTime" | "assignee" | "status">>): Promise<NextStep> {
+    if (!this.current.canWrite) throw new RepositoryError("You have read-only access to this studio. Ask an owner for member access.", "permission");
+    const row: Record<string, unknown> = { updated_at: new Date().toISOString() };
+    if (change.title !== undefined) row.title = change.title.trim();
+    if (change.note !== undefined) row.note = change.note.trim();
+    if (change.dueOn !== undefined) row.due_on = change.dueOn;
+    if (change.dueTime !== undefined) row.due_time = change.dueTime || null;
+    if (change.assignee !== undefined) row.assignee = change.assignee;
+    if (change.status !== undefined) {
+      row.status = change.status;
+      row.done_at = change.status === "done" ? new Date().toISOString() : null;
+    }
+    const { data, error } = await this.client.from("client_next_steps").update(row).eq("id", step.id).eq("studio_id", this.studioId).select("*").single();
+    if (error) throw toRepositoryError(error);
+    return toNextStep(data);
+  }
+
+  async deleteNextStep(step: NextStep): Promise<void> {
+    if (!this.current.canWrite) throw new RepositoryError("You have read-only access to this studio. Ask an owner for member access.", "permission");
+    const { error } = await this.client.from("client_next_steps").delete().eq("id", step.id).eq("studio_id", this.studioId);
+    if (error) throw toRepositoryError(error);
+  }
+
+  async hasCalendarFeed(): Promise<boolean> {
+    const { data, error } = await this.client.from("calendar_feeds").select("id").eq("studio_id", this.studioId).eq("user_id", this.user.id).is("revoked_at", null).limit(1);
+    if (error) throw toRepositoryError(error);
+    return (data ?? []).length > 0;
+  }
+
+  async createCalendarFeed(): Promise<string> {
+    const { data, error } = await this.client.rpc("create_calendar_feed", { p_studio: this.studioId });
+    if (error) throw toRepositoryError(error);
+    return String(data);
+  }
+
+  async revokeCalendarFeed(): Promise<void> {
+    const { error } = await this.client.rpc("revoke_calendar_feed", { p_studio: this.studioId });
+    if (error) throw toRepositoryError(error);
+  }
+
   async setBuildQuestions(build: SiteBuildRecord, questions: string[]): Promise<void> {
     if (!this.current.canWrite) throw new RepositoryError("You have read-only access to this studio. Ask an owner for member access.", "permission");
     const { error } = await this.client.rpc("set_build_questions", { p_build: build.id, p_questions: questions });
@@ -1057,3 +1127,21 @@ function find<T extends { id: string }>(items: T[], id: string, what: string): T
   if (!item) throw new RepositoryError(`This ${what} no longer exists, or you do not have access to it.`, "not_found");
   return item;
 }
+
+function toNextStep(row: Record<string, unknown>): NextStep {
+  const assignee = row.assignee as NextStep["assignee"];
+  return {
+    id: String(row.id),
+    clientId: String(row.client_id),
+    title: String(row.title),
+    note: String(row.note ?? ""),
+    dueOn: String(row.due_on),
+    dueTime: row.due_time ? String(row.due_time).slice(0, 5) : null,
+    assignee: assignee && assignee.kind === "human" ? assignee : null,
+    status: row.status === "done" ? "done" : "open",
+    doneAt: (row.done_at as string | null) ?? null,
+    createdBy: row.created_by as NextStep["createdBy"],
+    createdAt: String(row.created_at),
+  };
+}
+
