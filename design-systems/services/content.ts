@@ -121,6 +121,18 @@ export const siteContent = z.strictObject({
     people: z.array(z.strictObject({ name: words(60), role: statement(70), imageId: words(40).optional(), consent: z.enum(["given", "invented_test_data"]) })).max(12),
     seo,
   }),
+  /** A page listing what the firm's people published or presented, for experts whose work is in print. */
+  publications: z
+    .strictObject({
+      slug: words(30),
+      menuLabel: words(24),
+      label: words(60),
+      heading: statement(110),
+      lead: statement(300).optional(),
+      groups: z.array(z.strictObject({ heading: words(80), items: z.array(z.strictObject({ text: statement(300), year: words(12).optional(), href: z.url().optional() })).min(1).max(120) })).min(1).max(8),
+      seo,
+    })
+    .optional(),
   contact: z.strictObject({ slug: words(30), menuLabel: words(24), heading: statement(110), text: statement(280), detailsLabel: words(40), seo }),
   form: z.strictObject({
     nameLabel: words(40),

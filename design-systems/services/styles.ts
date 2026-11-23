@@ -369,6 +369,7 @@ h3{font-family:var(--display);font-size:var(--h3);font-weight:var(--h3-weight);l
 .d-formal .site-header{background:var(--deep);color:var(--on-deep)}
 .d-formal .site-header .menu-narrow nav{color:var(--ink)}
 .d-formal .mark{font:500 clamp(.92rem,1.3vw,1.05rem)/1.1 var(--display);letter-spacing:.16em;text-transform:uppercase}
+.d-formal .footer-mark{font-weight:500;font-size:clamp(1rem,1.5vw,1.2rem);letter-spacing:.16em;text-transform:uppercase}
 .d-formal .site-header .button{background:var(--on-deep);color:var(--deep)}
 .d-formal .site-header .menu-narrow .button{background:var(--deep);color:var(--on-deep)}
 .d-formal .button{transition:background-color .4s,color .4s,box-shadow .5s cubic-bezier(.2,.7,.2,1)}
@@ -874,6 +875,21 @@ const ROOMS = `
 
 /* The concept: what sets one firm's site apart from another's in the same direction. */
 const CONCEPT = `
+/* Publications page: groups as a reference list, year in its own column. */
+.pub-group{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));column-gap:24px;padding:clamp(2.5rem,5vw,4.5rem) var(--gut) 0}
+.pub-group:last-of-type{padding-bottom:clamp(4rem,8vw,7rem)}
+.pub-group h2{grid-column:1/4;font-size:clamp(1.5rem,2.2vw,2rem);align-self:start;position:sticky;top:1.5rem}
+.pub-list{grid-column:4/12;list-style:none;margin:0;padding:0;border-top:1px solid var(--ink)}
+.pub-list li{display:grid;grid-template-columns:5.5rem minmax(0,1fr);gap:1rem;padding:.95rem 0;border-bottom:1px solid var(--line)}
+.pub-year{font-variant-numeric:tabular-nums lining-nums;color:var(--mute)}
+.pub-text{line-height:1.5}
+.pub-text a{color:inherit;text-decoration-thickness:1px;text-underline-offset:.18em}
+@media (max-width:820px){
+ .pub-group h2,.pub-list{grid-column:1/-1}
+ .pub-group h2{position:static;margin-bottom:1rem}
+ .pub-list li{grid-template-columns:4rem minmax(0,1fr)}
+}
+
 /* Signature parts. Each takes its direction's type and colours; nothing here switches voice mid-sentence. */
 .sig{padding:clamp(4.5rem,9vw,8.5rem) var(--gut)}
 .sig h2{font-family:var(--display);font-weight:var(--display-weight);letter-spacing:var(--display-track);line-height:1.04;hyphens:manual;overflow-wrap:normal}
