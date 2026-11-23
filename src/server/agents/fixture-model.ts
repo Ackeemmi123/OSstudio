@@ -105,6 +105,8 @@ export class FixtureModel implements AgentModel {
       colors: { primary: "#7A1F2B", accent: "", basis: "test" },
       contactFormFields: ["name", "email", "message"],
       styles: [],
+      concept: { idea: "", hero: "split", signature: "", feel: "natural", motion: "calm" },
+      signature: { label: { text: "", refs: [], generic: false }, heading: { text: "", refs: [], generic: false }, text: { text: "", refs: [], generic: false }, year: "", who: "", items: [] },
       formTexts: { submitLabel: { text: "", refs: [], generic: true }, replyNote: { text: "", refs: [], generic: false } },
       pages: [
         {

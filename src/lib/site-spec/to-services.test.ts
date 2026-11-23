@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { build } from "../../../design-systems/services";
 import { siteContent } from "../../../design-systems/services/content";
 import { briefClient, companySpec } from "./test-helpers";
-import { servicesContent } from "./to-services";
+import { servicesContent, signatureFor } from "./to-services";
 import { approvalBlockers } from "./validate";
 
 describe("drawing a spec with the company design", () => {
@@ -96,3 +96,41 @@ describe("the café and atelier directions from a spec", () => {
     expect(formal.ok && formal.content.gallery).toBeUndefined();
   });
 });
+
+describe("the concept", () => {
+  const P = { prototype: { madeBy: "Axivo" } } as const;
+
+  it("carries the hero, feel and motion into the design, and draws the chosen signature", () => {
+    const spec = companySpec();
+    spec.brand.concept = { idea: "Händerna och årtalet.", hero: "type", signature: "year", feel: "warm", motion: "lively" };
+    spec.signature = { year: { year: "1987", heading: { sv: "Sedan 1987 i samma verkstad." }, events: [{ when: "1987", text: { sv: "Verkstaden öppnar." } }, { when: "", text: { sv: "Utan år, utelämnas." } }] } };
+    const result = servicesContent(spec, {}, P);
+    expect(result.ok && result.design).toMatchObject({ hero: "type", signature: "year", feel: "warm", motion: "lively" });
+    expect(result.ok && result.content.signature?.year).toEqual({ year: "1987", heading: { text: "Sedan 1987 i samma verkstad.", origin: "person" }, events: [{ when: "1987", text: { text: "Verkstaden öppnar.", origin: "person" } }] });
+    if (result.ok) expect(build({ content: result.content, design: result.design }).find((f) => f.path === "index.html")?.text).toContain("sig--year");
+  });
+
+  it("leaves a signature out, and says why, until it is whole", () => {
+    const spec = companySpec();
+    const none = (id: string | undefined) => id;
+    spec.brand.concept = { signature: "ownerLine" };
+    spec.signature = { ownerLine: { text: { sv: "Vi svarar samma dag." }, who: "Anna (TEST)", consent: false } };
+    expect(signatureFor(spec, "sv", none)).toEqual({ kind: null, reason: expect.stringContaining("agreed to be quoted") });
+    const built = servicesContent(spec, {}, P);
+    expect(built.ok && built.design.signature).toBeUndefined();
+    spec.signature.ownerLine!.consent = true;
+    expect(signatureFor(spec, "sv", none).kind).toBe("ownerLine");
+
+    spec.brand.concept = { signature: "numbers" };
+    spec.signature = { numbers: { label: { sv: "I siffror" }, items: [{ value: "214", text: { sv: "kök" }, confirmed: true }, { value: "3", text: { sv: "snickare" }, confirmed: false }] } };
+    expect(signatureFor(spec, "sv", none)).toEqual({ kind: null, reason: expect.stringContaining("confirmed by the client") });
+    spec.signature.numbers!.items[1].confirmed = true;
+    const numbers = signatureFor(spec, "sv", none);
+    expect(numbers.kind === "numbers" && numbers.content.numbers?.items.every((i) => i.text.origin === "client_confirmed")).toBe(true);
+
+    spec.brand.concept = { signature: "everyday" };
+    spec.signature = { everyday: { label: {}, heading: { sv: "En tisdag" }, items: [{ assetId: "missing", text: { sv: "Utan bild" } }] } };
+    expect(signatureFor(spec, "sv", () => undefined)).toEqual({ kind: null, reason: expect.stringContaining("three") });
+  });
+});
+

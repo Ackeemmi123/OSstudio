@@ -12,7 +12,7 @@
  */
 import { z } from "zod";
 import type { ProjectType, ProposalTarget } from "@/lib/domain/types";
-import { ACCESSIBILITY_TARGET, DESIGN_SYSTEMS, FORM_FIELDS, ITEM_LIMITS, NAV_PLACEMENTS, SECTION_VARIANTS, SERVICES_DIRECTIONS, SERVICES_MOTIFS, SERVICES_PALETTES, SERVICES_TYPES, SITE_LOCALES, type SectionKind, type SiteLocale } from "@/lib/site-spec/catalog";
+import { ACCESSIBILITY_TARGET, DESIGN_SYSTEMS, FORM_FIELDS, ITEM_LIMITS, NAV_PLACEMENTS, SECTION_VARIANTS, SERVICES_DIRECTIONS, SERVICES_FEELS, SERVICES_HEROES, SERVICES_MOTIFS, SERVICES_MOTIONS, SERVICES_PALETTES, SERVICES_TYPES, SITE_LOCALES, type SectionKind, type SiteLocale } from "@/lib/site-spec/catalog";
 import { fitsIndustry, INDUSTRIES, INDUSTRY_PROFILES, type Industry } from "@/lib/site-spec/industries";
 import { SITE_SPEC_VERSION, siteSpecSchema, type SiteSpec, type SiteSpecPage, type SiteSpecSection, type SiteSpecSource } from "@/lib/site-spec/schema";
 import { containsQuote, type IntakeSource } from "./intake";
@@ -57,6 +57,9 @@ export interface SiteDraftInput {
 /* -------------------------------------------------------------------------- */
 /* What the model must answer                                                 */
 /* -------------------------------------------------------------------------- */
+
+/** Signature parts the draft may choose: the others need the client's own photos, which a person adds later. */
+const DRAFT_SIGNATURES = ["year", "ownerLine", "area", "numbers", "season", "books"] as const;
 
 const ref = z.object({
   sourceId: z.string().describe("The id of the source, exactly as given."),
@@ -129,6 +132,27 @@ export const siteDraftModelOutput = z.object({
       }),
     )
     .describe("For services@0.1: three clearly different styles, the best first. Empty for other designs."),
+  concept: z
+    .object({
+      idea: z.string().describe("One sentence, in the site's language: what makes this client unlike others in its trade, from its own material."),
+      hero: z.enum(SERVICES_HEROES).describe("split: a good photo beside the words. full: a strong, wide photo behind the words. type: no suitable photo, or words carry it better."),
+      signature: z.enum(["", ...DRAFT_SIGNATURES]).describe("The one part only this client has, chosen from what the material supports. Empty when nothing fits."),
+      feel: z.enum(SERVICES_FEELS).describe("How photos are treated: natural, warm, mono (black and white) or grain."),
+      motion: z.enum(SERVICES_MOTIONS).describe("calm for serious trades (law, finance, health); lively for warm, local, hands-on ones."),
+    })
+    .describe("For services@0.1: the concept. For other designs, anything; it is ignored."),
+  signature: z
+    .object({
+      label: value.describe("A short label above the part. Generic is fine."),
+      heading: value.describe("year: a heading with the year. area: where they work. books: e.g. 'Main works'. season: the title of what is on now. ownerLine: the owner's role."),
+      text: value.describe("ownerLine: the owner's own words, quoted exactly from their writing. area or season: one line. Otherwise empty."),
+      year: z.string().describe("year: the founding year, four digits, exactly as the material gives it. Otherwise empty."),
+      who: z.string().describe("ownerLine: the owner's name exactly as the material gives it. Otherwise empty."),
+      items: z
+        .array(z.object({ title: value, text: value, extra: z.string() }))
+        .describe("year: events (extra = when, text = what happened). area: places (title = place name, text = a note). numbers: 2 or 3 (title = the number, text = what it counts). books: books (title, text = publisher/edition/co-authors, extra = year). season: one item, extra = its price if the material gives one. ownerLine: empty."),
+    })
+    .describe("The content of the chosen signature part, from the material with refs. Empty values when no signature."),
   pages: z.array(page),
   summary: z.string().describe("Two to five sentences for the person who reviews the draft: what the site is and what is missing."),
   questions: z.array(z.string()).describe("Questions to ask the client where the material is thin or contradicts itself."),
@@ -383,6 +407,94 @@ export function normalizeSiteDraft(raw: unknown, input: SiteDraftInput, context:
   const primary = hex(output.colors.primary);
   const accent = hex(output.colors.accent);
 
+  // The concept and its signature part: only for the company design, and only what the material supports.
+  const services = output.designSystem === "services@0.1";
+  const quotesOf = (path: string) => {
+    const refs = provenance[path];
+    return Array.isArray(refs) ? refs.map((r) => r.quote) : [];
+  };
+  /** A short fact (a year, a number, a place) counts only when a quote that was found in the material contains it. */
+  const quoted = (fact: string, ...paths: string[]) => paths.some((path) => quotesOf(path).some((quote) => containsQuote(quote, fact)));
+  const inMaterial = (fact: string) => [...texts.values()].some((source) => containsQuote(source.content, fact));
+  const sig = output.signature;
+  let signature: SiteSpec["signature"];
+  let signatureKind: NonNullable<SiteSpec["brand"]["concept"]>["signature"];
+  if (services && output.concept.signature) {
+    const kind = output.concept.signature;
+    const P = (part: string) => `signature.${kind}.${part}`;
+    const source = proposal("signature");
+    if (kind === "year") {
+      const heading = take(sig.heading, P("heading"), 110);
+      const year = /^\d{4}$/.test(sig.year.trim()) ? sig.year.trim() : "";
+      const events = sig.items.slice(0, 4).flatMap((item, i) => {
+        const text = take(item.text, P(`events.${i}`), 160);
+        const when = item.extra.trim().slice(0, 12);
+        return text && when && quoted(when, P(`events.${i}`)) ? [{ when, text: loc(text) }] : [];
+      });
+      if (heading && year && quoted(year, P("heading"), ...events.map((_, i) => P(`events.${i}`)))) {
+        signature = { year: { year, heading: loc(heading), events }, source };
+        signatureKind = kind;
+      }
+    } else if (kind === "ownerLine") {
+      const words = take(sig.text, P("text"), 220);
+      const who = sig.who.trim().slice(0, 80);
+      if (words && who && inMaterial(who)) {
+        const role = take(sig.heading, P("role"), 70);
+        // Consent is ticked by a person, never by the draft.
+        signature = { ownerLine: { text: loc(words), who, ...(role ? { role: loc(role) } : {}), consent: false }, source };
+        signatureKind = kind;
+      }
+    } else if (kind === "area") {
+      const heading = take(sig.heading, P("heading"), 110);
+      const text = take(sig.text, P("text"), 240);
+      const places = sig.items.slice(0, 8).flatMap((item, i) => {
+        const name = item.title.text.trim().slice(0, 40);
+        if (!name || !inMaterial(name)) return [];
+        const note = take(item.text, P(`places.${i}.note`), 60);
+        return [{ name, ...(note ? { note: loc(note) } : {}) }];
+      });
+      if (heading && places.length >= 2) {
+        signature = { area: { label: loc(take(sig.label, P("label"), 60)), heading: loc(heading), ...(text ? { text: loc(text) } : {}), places }, source };
+        signatureKind = kind;
+      }
+    } else if (kind === "numbers") {
+      const items = sig.items.slice(0, 3).flatMap((item, i) => {
+        const text = take(item.text, P(`items.${i}`), 80);
+        const value = item.title.text.trim().slice(0, 12);
+        // Each number must be in the quote that supports it. The client still confirms it before it is shown.
+        return text && value && quoted(value, P(`items.${i}`)) ? [{ value, text: loc(text), confirmed: false }] : [];
+      });
+      if (items.length >= 2) {
+        signature = { numbers: { label: loc(take(sig.label, P("label"), 60)), items }, source };
+        signatureKind = kind;
+      }
+    } else if (kind === "season") {
+      const title = take(sig.heading, P("title"), 70);
+      const text = take(sig.text, P("text"), 200);
+      const price = sig.items[0]?.extra.trim().slice(0, 40) ?? "";
+      if (title && text) {
+        signature = { season: { label: loc(take(sig.label, P("label"), 40)), title: loc(title), text: loc(text), ...(price && quoted(price, P("title"), P("text")) ? { price: loc(price) } : {}) }, source };
+        signatureKind = kind;
+      }
+    } else if (kind === "books") {
+      const heading = take(sig.heading, P("heading"), 110);
+      const items = sig.items.slice(0, 8).flatMap((item, i) => {
+        const title = take(item.title, P(`books.${i}.title`), 140);
+        const detail = take(item.text, P(`books.${i}.detail`), 140);
+        const year = item.extra.trim();
+        return title && detail && /^\d{4}$/.test(year) && quoted(year, P(`books.${i}.title`), P(`books.${i}.detail`)) ? [{ title: loc(title), detail: loc(detail), year }] : [];
+      });
+      if (heading && items.length >= 2) {
+        signature = { books: { label: loc(take(sig.label, P("label"), 60)), heading: loc(heading), items }, source };
+        signatureKind = kind;
+      }
+    }
+  }
+  const idea = output.concept.idea.trim().slice(0, 240);
+  const concept: SiteSpec["brand"]["concept"] = services
+    ? { ...(idea ? { idea } : {}), hero: output.concept.hero, ...(signatureKind ? { signature: signatureKind } : {}), feel: output.concept.feel, motion: output.concept.motion }
+    : undefined;
+
   const spec: SiteSpec = {
     specVersion: SITE_SPEC_VERSION,
     locales: { available: [locale], default: locale },
@@ -400,9 +512,11 @@ export function normalizeSiteDraft(raw: unknown, input: SiteDraftInput, context:
       density: "regular",
       designSystem: output.designSystem,
       ...(output.designSystem === "services@0.1" ? styleChoice(output.styles, output.industry) : {}),
+      ...(concept ? { concept } : {}),
       ...(primary ? { source: proposal("brand") } : {}),
     },
     assets: [],
+    ...(signature ? { signature } : {}),
     pages,
     forms: hasContact
       ? [

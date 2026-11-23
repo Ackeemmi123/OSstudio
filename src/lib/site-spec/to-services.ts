@@ -55,6 +55,82 @@ function paragraphs(text: string): string[] {
     .filter(Boolean);
 }
 
+type SignatureKind = NonNullable<SiteDesign["signature"]>;
+
+/** The small label above a signature part when the spec has none, in the site's language. */
+const SIGNATURE_LABELS: Record<SiteLocale, Record<"everyday" | "area" | "numbers" | "season" | "books", string>> = {
+  sv: { everyday: "En vanlig dag", area: "Här jobbar vi", numbers: "I siffror", season: "Just nu", books: "Böcker" },
+  fi: { everyday: "Tavallinen päivä", area: "Missä toimimme", numbers: "Lukuina", season: "Nyt", books: "Kirjat" },
+  en: { everyday: "An ordinary day", area: "Where we work", numbers: "In numbers", season: "Now", books: "Books" },
+};
+
+/**
+ * The signature part the concept chose, as the company design reads it, or why it cannot be
+ * shown yet. A part is shown only when it is whole: enough items, the owner's consent ticked,
+ * every number confirmed by the client, photos with files. Otherwise the site is built without it.
+ */
+export function signatureFor(
+  spec: SiteSpec,
+  locale: SiteLocale,
+  imageId: (id: string | undefined) => string | undefined,
+): { kind: SignatureKind; content: NonNullable<SiteContent["signature"]> } | { kind: null; reason: string | null } {
+  const kind = spec.brand.concept?.signature;
+  if (!kind) return { kind: null, reason: null };
+  const data = spec.signature;
+  const origin = originOf(data?.source);
+  const st = (text: string, max: number, from: Statement["origin"] = origin): Statement => ({ text: text.slice(0, max), origin: from });
+  const L = (value: Partial<Record<SiteLocale, string>> | undefined) => t(value, locale);
+  const not = (reason: string) => ({ kind: null, reason });
+  switch (kind) {
+    case "year": {
+      const part = data?.year;
+      if (!part || !L(part.heading)) return not("The founding year needs a year and a heading.");
+      const events = part.events.filter((e) => e.when.trim() && L(e.text)).map((e) => ({ when: e.when.trim().slice(0, 12), text: st(L(e.text), 160) }));
+      return { kind, content: { year: { year: part.year, heading: st(L(part.heading), 110), events: events.slice(0, 4) } } };
+    }
+    case "ownerLine": {
+      const part = data?.ownerLine;
+      if (!part || !L(part.text) || !part.who.trim()) return not("The owner's line needs their words and their name.");
+      if (!part.consent) return not("Tick that the owner agreed to be quoted.");
+      const portrait = imageId(part.assetId);
+      return { kind, content: { ownerLine: { text: st(L(part.text), 220), who: part.who.trim().slice(0, 80), ...(L(part.role) ? { role: L(part.role).slice(0, 70) } : {}), ...(portrait ? { imageId: portrait } : {}), consent: "given" } } };
+    }
+    case "everyday": {
+      const part = data?.everyday;
+      const items = (part?.items ?? []).flatMap((item) => {
+        const shown = imageId(item.assetId);
+        return shown && L(item.text) ? [{ imageId: shown, ...(item.when?.trim() ? { when: item.when.trim().slice(0, 20) } : {}), text: st(L(item.text), 140) }] : [];
+      });
+      if (!part || !L(part.heading) || items.length < 3) return not("An ordinary day needs a heading and at least three of the client's own photos, each with a line.");
+      return { kind, content: { everyday: { label: (L(part.label) || SIGNATURE_LABELS[locale].everyday).slice(0, 60), heading: st(L(part.heading), 110), items: items.slice(0, 5) } } };
+    }
+    case "area": {
+      const part = data?.area;
+      const places = (part?.places ?? []).filter((p) => p.name.trim()).map((p) => ({ name: p.name.trim().slice(0, 40), ...(L(p.note) ? { note: st(L(p.note), 60) } : {}) }));
+      if (!part || !L(part.heading) || places.length < 2) return not("Where they work needs a heading and at least two places.");
+      return { kind, content: { area: { label: (L(part.label) || SIGNATURE_LABELS[locale].area).slice(0, 60), heading: st(L(part.heading), 110), ...(L(part.text) ? { text: st(L(part.text), 240) } : {}), places: places.slice(0, 8) } } };
+    }
+    case "numbers": {
+      const part = data?.numbers;
+      const items = (part?.items ?? []).filter((i) => i.value.trim() && L(i.text));
+      if (!part || items.length < 2) return not("Numbers need at least two, each with a line.");
+      if (items.some((i) => !i.confirmed)) return not("Every number must be confirmed by the client before it is shown.");
+      return { kind, content: { numbers: { label: (L(part.label) || SIGNATURE_LABELS[locale].numbers).slice(0, 60), items: items.slice(0, 3).map((i) => ({ value: i.value.trim().slice(0, 12), text: st(L(i.text), 80, "client_confirmed") })) } } };
+    }
+    case "season": {
+      const part = data?.season;
+      if (!part || !L(part.title) || !L(part.text)) return not("What is on now needs a title and a line.");
+      return { kind, content: { season: { label: (L(part.label) || SIGNATURE_LABELS[locale].season).slice(0, 40), title: st(L(part.title), 70), text: st(L(part.text), 200), ...(L(part.price) ? { price: st(L(part.price), 40) } : {}) } } };
+    }
+    case "books": {
+      const part = data?.books;
+      const items = (part?.items ?? []).filter((b) => L(b.title) && L(b.detail)).map((b) => ({ title: st(L(b.title), 140), detail: st(L(b.detail), 140), year: b.year, ...(b.href ? { href: b.href } : {}) }));
+      if (!part || !L(part.heading) || items.length < 2) return not("Books need a heading and at least two books.");
+      return { kind, content: { books: { label: (L(part.label) || SIGNATURE_LABELS[locale].books).slice(0, 60), heading: st(L(part.heading), 110), items: items.slice(0, 8) } } };
+    }
+  }
+}
+
 export function servicesContent(spec: SiteSpec, images: Record<string, ServicesImage>, mode: ServicesMode): ServicesResult {
   const locale = spec.locales.default;
   const w = WORDS[locale];
@@ -256,6 +332,7 @@ export function servicesContent(spec: SiteSpec, images: Record<string, ServicesI
   if (new Set([about.slug, contact.slug, privacy.slug]).size < 3) missing.push("The About, Contact and Privacy pages need different addresses.");
 
   if (missing.length) return { ok: false, missing: [...new Set(missing)] };
+  const signature = signatureFor(spec, locale, imageId);
 
   const content = {
     ...mode,
@@ -277,9 +354,21 @@ export function servicesContent(spec: SiteSpec, images: Record<string, ServicesI
     notFound: { heading: w.notFound, text: w.notFoundText, back: w.back },
     menu: { servicesLabel: w.menuServices, questionsLabel: w.menuQuestions },
     home: { seo: { title: (t(home.seo.title, locale) || siteName).slice(0, 70), description: homeDescription.slice(0, 170) } },
+    ...(signature.kind ? { signature: signature.content } : {}),
   } as SiteContent;
   const style = spec.brand.servicesStyle ?? { direction: "editorial" as const, palette: "pine" as const };
-  const design: SiteDesign = { system: "services@0.1", direction: style.direction, palette: style.palette, ...(style.type ? { type: style.type } : {}), ...(style.motif ? { motif: style.motif } : {}) };
+  const concept = spec.brand.concept;
+  const design: SiteDesign = {
+    system: "services@0.1",
+    direction: style.direction,
+    palette: style.palette,
+    ...(style.type ? { type: style.type } : {}),
+    ...(style.motif ? { motif: style.motif } : {}),
+    ...(concept?.hero ? { hero: concept.hero } : {}),
+    ...(signature.kind ? { signature: signature.kind } : {}),
+    ...(concept?.feel ? { feel: concept.feel } : {}),
+    ...(concept?.motion ? { motion: concept.motion } : {}),
+  };
   // Which built file shows each page of the spec, for the preview.
   const pagesMap: Record<string, string> = { [home.id]: "index.html" };
   if (aboutPage) pagesMap[aboutPage.id] = `${about.slug}/index.html`;
