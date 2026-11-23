@@ -12,6 +12,7 @@ import type { AgentAction } from "./permissions";
 import type { TokenUsage } from "./pricing";
 import type { SiteDraftResult } from "./site-draft";
 import type { WarmTextResult } from "./warm-text";
+import type { BenchmarkResult } from "@/lib/benchmark/result";
 
 /** A pointer to a record in the shared studio data. Agents never keep their own copy of client context. */
 export type EntityRef =
@@ -32,6 +33,7 @@ export const AGENT_TASK_TYPES = [
   "design.warm_text",
   "development.build",
   "qa.review",
+  "qa.benchmark",
   "sales.proposal_draft",
   "coordination.plan",
 ] as const;
@@ -70,7 +72,7 @@ export interface AgentRunRecord {
   inputs: EntityRef[];
   outputs: EntityRef[];
   /** An intake run's result, or a coordination run's task suggestions (see `intakeResultOf`). */
-  result: IntakeResult | PlanResult | SiteDraftResult | WarmTextResult | null;
+  result: IntakeResult | PlanResult | SiteDraftResult | WarmTextResult | BenchmarkResult | null;
   /** Why the run stopped, in plain language. */
   blocker: string | null;
   error: { message: string; retryable: boolean } | null;
@@ -108,6 +110,11 @@ export function siteDraftResultOf(run: AgentRunRecord | undefined): SiteDraftRes
 /** The warmer-text proposals of a run, or null for any other kind of run. */
 export function warmTextResultOf(run: AgentRunRecord | undefined): WarmTextResult | null {
   return run?.taskType === "design.warm_text" && run.result && "kind" in run.result && run.result.kind === "warm_text" ? run.result : null;
+}
+
+/** The competitor comparison of a run, or null for any other kind of run. */
+export function benchmarkResultOf(run: AgentRunRecord | undefined): BenchmarkResult | null {
+  return run?.taskType === "qa.benchmark" && run.result && "kind" in run.result && run.result.kind === "benchmark" ? run.result : null;
 }
 
 /** Statuses after which a run will not change again. */

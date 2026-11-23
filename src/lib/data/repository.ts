@@ -82,6 +82,8 @@ export interface StudioRepository {
   brandLogoUrl?(path: string): string;
   /** Asks the server to draft a project's website spec from the client's material. The draft is stored on the run. */
   requestSiteDraft?(clientId: string, projectId: string, options?: { force?: boolean }): Promise<AgentRunRecord>;
+  /** Compares the project's site with up to three competitors' public sites. No AI. */
+  requestBenchmark?(clientId: string, projectId: string, competitors: string[]): Promise<AgentRunRecord>;
   /** Asks the Design agent for warmer wordings of a saved spec version's texts. Proposals only. */
   requestWarmText?(clientId: string, projectId: string, specId: string, options?: { force?: boolean }): Promise<AgentRunRecord>;
   /** This month's AI spend across all agents, for owners. Only server workspaces have one. */
