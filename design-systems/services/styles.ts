@@ -937,7 +937,7 @@ const CONCEPT = `
 .hero--full .hero-image::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,#0000 30%,#000000a8 100%),linear-gradient(90deg,#00000066,#0000 60%)}
 .hero--full .hero-image figcaption,.hero--full .hero-note{display:none}
 .hero--full .hero-words,.hero--full .hero-for,.hero--full h1,.hero--full .hero-body,.hero--full .hero-why,.hero--full .hero-reassurance{color:var(--on-deep)}
-.hero--full .hero-for{color:var(--accent-on-deep)}
+.hero.hero--full .hero-for{color:var(--on-deep)}
 .hero--full .hero-why,.hero--full .hero-reassurance{color:#ffffffe6}
 .hero--full .button{background:var(--on-deep);color:var(--deep)}
 .hero--full .link-action{color:var(--on-deep)}
