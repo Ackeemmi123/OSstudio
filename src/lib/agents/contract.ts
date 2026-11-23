@@ -11,6 +11,7 @@ import type { ActivityEventType, AgentId, ContextFieldKey, ISODateString, Projec
 import type { AgentAction } from "./permissions";
 import type { TokenUsage } from "./pricing";
 import type { SiteDraftResult } from "./site-draft";
+import type { WarmTextResult } from "./warm-text";
 
 /** A pointer to a record in the shared studio data. Agents never keep their own copy of client context. */
 export type EntityRef =
@@ -28,6 +29,7 @@ export const AGENT_TASK_TYPES = [
   "design.direction",
   "design.site_draft",
   "design.review",
+  "design.warm_text",
   "development.build",
   "qa.review",
   "sales.proposal_draft",
@@ -68,7 +70,7 @@ export interface AgentRunRecord {
   inputs: EntityRef[];
   outputs: EntityRef[];
   /** An intake run's result, or a coordination run's task suggestions (see `intakeResultOf`). */
-  result: IntakeResult | PlanResult | SiteDraftResult | null;
+  result: IntakeResult | PlanResult | SiteDraftResult | WarmTextResult | null;
   /** Why the run stopped, in plain language. */
   blocker: string | null;
   error: { message: string; retryable: boolean } | null;
@@ -101,6 +103,11 @@ export function planResultOf(run: AgentRunRecord | undefined): PlanResult | null
 /** The website draft of a run, or null for any other kind of run. */
 export function siteDraftResultOf(run: AgentRunRecord | undefined): SiteDraftResult | null {
   return run?.taskType === "design.site_draft" && run.result && "kind" in run.result && run.result.kind === "site_draft" ? run.result : null;
+}
+
+/** The warmer-text proposals of a run, or null for any other kind of run. */
+export function warmTextResultOf(run: AgentRunRecord | undefined): WarmTextResult | null {
+  return run?.taskType === "design.warm_text" && run.result && "kind" in run.result && run.result.kind === "warm_text" ? run.result : null;
 }
 
 /** Statuses after which a run will not change again. */

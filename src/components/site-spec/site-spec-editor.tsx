@@ -34,6 +34,7 @@ import { DocumentLibraryProvider } from "./document-picker";
 import { PagesEditor } from "./pages-editor";
 import { SettingsEditor } from "./settings-editor";
 import { SiteDraftPanel } from "./site-draft-panel";
+import { WarmTextPanel } from "./warm-text-panel";
 import { StrategyEditor } from "./strategy-editor";
 
 /** What every part of the editor gets: whether it may edit, how to change the draft, and who is editing. */
@@ -401,6 +402,7 @@ export function SiteSpecEditor({
             onProblem={goToProblem}
           />
           {editable ? <SiteDraftPanel clientId={client.id} projectId={project.id} editing={editing} /> : null}
+          {editable ? <WarmTextPanel clientId={client.id} projectId={project.id} specId={record.id} spec={draft} editing={editing} /> : null}
           <Section id="strategy" title="Strategy" className="scroll-mt-32">
             <div data-spec-path="strategy">
               <StrategyEditor spec={draft} client={client} editing={editing} />

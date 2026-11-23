@@ -1,6 +1,7 @@
 import type { IntakeInput, IntakeModelOutput } from "@/lib/agents/intake";
 import type { PlanInput, PlanModelOutput } from "@/lib/agents/plan";
 import { textSources, type SiteDraftInput, type SiteDraftModelOutput } from "@/lib/agents/site-draft";
+import type { WarmTextInput } from "@/lib/agents/warm-text";
 import { CONTEXT_FIELD_KEYS, type ProposalTarget } from "@/lib/domain/types";
 import { ModelError, type AgentModel, type ModelAnswer } from "./model";
 
@@ -23,7 +24,7 @@ export class FixtureModel implements AgentModel {
   readonly runner = "fixture";
   readonly model = "test-fixture";
   readonly test = true;
-  readonly maxOutputTokens = { intake: 16000, plan: 4000, draft: 48000 };
+  readonly maxOutputTokens = { intake: 16000, plan: 4000, draft: 48000, warm: 12000 };
 
   async analyze(input: IntakeInput, signal: AbortSignal): Promise<ModelAnswer> {
     if (signal.aborted) throw new ModelError("The analysis took too long and was stopped.", true, "nothing");
@@ -51,6 +52,25 @@ export class FixtureModel implements AgentModel {
    * A website draft with a home page that quotes the first line of each text
    * source, a contact page, and one invented sentence the checks must drop.
    */
+  /**
+   * Warmer text: the first text is cut to its first sentence (or gets a
+   * short line added), and the second gets an invented year the checks must
+   * drop. A text containing "FIXTURE_FAIL" makes it fail.
+   */
+  async warmText(input: WarmTextInput, signal: AbortSignal): Promise<ModelAnswer> {
+    if (signal.aborted) throw new ModelError("The request took too long and was stopped.", true, "nothing");
+    if (input.texts.some((t) => t.text.includes("FIXTURE_FAIL"))) throw new ModelError("The test provider was asked to fail.", true, "nothing");
+    const characters = input.texts.reduce((sum, t) => sum + t.text.length, 0) + input.voice.reduce((sum, v) => sum + v.content.length, 0);
+    const usage = { inputTokens: Math.ceil(characters / 4) + 1500, outputTokens: 400, cacheReadTokens: 0, cacheWriteTokens: 0 };
+    const [first, second] = input.texts;
+    const sentence = first.text.split(/(?<=[.!?])\s/)[0];
+    const suggestions = [
+      { path: first.path, text: sentence !== first.text ? sentence : `${first.text} Välkommen in.`, reason: "Kortare. (test)" },
+      ...(second ? [{ path: second.path, text: `${second.text} Sedan 1999.`, reason: "Lägger till ett årtal. (test)" }] : []),
+    ];
+    return { output: { summary: "Testförslag från testleverantören.", suggestions }, usage, servedBy: this.model };
+  }
+
   async draftSite(input: SiteDraftInput, signal: AbortSignal): Promise<ModelAnswer> {
     if (signal.aborted) throw new ModelError("The request took too long and was stopped.", true, "nothing");
     const sources = textSources(input);
