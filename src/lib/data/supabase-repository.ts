@@ -465,6 +465,10 @@ export class SupabaseRepository implements StudioRepository {
     return this.runAgent(this.agentEndpoint.replace(/\/intake$/, "/site-draft"), { clientId, projectId, force: options.force ?? false }, "The draft could not be started.");
   }
 
+  requestBenchmark(clientId: string, projectId: string, competitors: string[]): Promise<AgentRunRecord> {
+    return this.runAgent(this.agentEndpoint.replace(/\/intake$/, "/benchmark"), { clientId, projectId, competitors }, "The comparison could not be started.");
+  }
+
   requestWarmText(clientId: string, projectId: string, specId: string, options: { force?: boolean } = {}): Promise<AgentRunRecord> {
     return this.runAgent(this.agentEndpoint.replace(/\/intake$/, "/warm-text"), { clientId, projectId, specId, force: options.force ?? false }, "The text pass could not be started.");
   }

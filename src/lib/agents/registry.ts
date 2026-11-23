@@ -53,10 +53,10 @@ export const AGENTS: Record<AgentId, AgentDefinition> = {
   qa: {
     id: "qa",
     label: AGENT_LABELS.qa,
-    purpose: "Checks deliverables against requirements, accessibility and quality standards.",
-    status: "planned",
-    taskTypes: ["qa.review"],
-    allowedActions: READ_AND_PROPOSE,
+    purpose: "Compares the client's site with up to three competitors' sites: what a visitor finds on the home page (phone, address, hours, prices, a form), plain words, and Google's speed and accessibility scores on a phone. It reads public pages only and uses no AI.",
+    status: "available",
+    taskTypes: ["qa.benchmark", "qa.review"],
+    allowedActions: ["read_context"],
   },
   sales: {
     id: "sales",

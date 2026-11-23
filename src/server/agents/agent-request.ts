@@ -4,6 +4,8 @@ import type { z } from "zod";
 import { agentModel, aiMonthlyBudget, serverSupabase } from "@/server/config";
 import type { AgentModel } from "./model";
 
+export type MemberRequest<T> = { ok: false; response: Response } | { ok: true; data: T; userId: string; asUser: SupabaseClient; asRunner: SupabaseClient };
+
 export type AgentRequest<T> =
   | { ok: false; response: Response }
   | { ok: true; data: T; userId: string; asUser: SupabaseClient; asRunner: SupabaseClient; model: AgentModel; capMicros: number };
@@ -14,6 +16,17 @@ export type AgentRequest<T> =
  * not run agents. `action` completes "Sign in to …" and "Viewers cannot …".
  */
 export async function agentRequest<T extends { studioId: string }>(request: Request, body: z.ZodType<T>, action: string): Promise<AgentRequest<T>> {
+  const member = await memberRequest(request, body, action);
+  if (!member.ok) return member;
+  const model = agentModel();
+  if (!model.ok) return fail(503, model.reason);
+  const budget = aiMonthlyBudget();
+  if (!budget.ok) return fail(503, budget.reason);
+  return { ...member, model: model.model, capMicros: budget.capMicros };
+}
+
+/** The same checks for an agent that uses no AI model, such as the competitor comparison. */
+export async function memberRequest<T extends { studioId: string }>(request: Request, body: z.ZodType<T>, action: string): Promise<MemberRequest<T>> {
   const supabase = serverSupabase();
   if (!supabase.ok) return fail(503, supabase.reason);
   const token = request.headers.get("authorization")?.match(/^Bearer (.+)$/)?.[1];
@@ -37,13 +50,8 @@ export async function agentRequest<T extends { studioId: string }>(request: Requ
   if (!membership) return fail(404, "This client does not exist, or you do not have access to it.");
   if (membership.role === "viewer") return fail(403, `Viewers cannot ${action}. Ask an owner for member access.`);
 
-  const model = agentModel();
-  if (!model.ok) return fail(503, model.reason);
-  const budget = aiMonthlyBudget();
-  if (!budget.ok) return fail(503, budget.reason);
-
   const asRunner = createClient(supabase.url, supabase.serviceRoleKey, options);
-  return { ok: true, data: parsed.data, userId: auth.user.id, asUser, asRunner, model: model.model, capMicros: budget.capMicros };
+  return { ok: true, data: parsed.data, userId: auth.user.id, asUser, asRunner };
 }
 
 /** Logs only an error's code and message: a database error's details can quote the row, which holds client material. */

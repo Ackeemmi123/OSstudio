@@ -5,8 +5,8 @@ import { AGENTS } from "./registry";
 import { agentsTriggeredBy, TRIGGER_RULES } from "./triggers";
 
 describe("agent permissions", () => {
-  it("connects only the intake, coordination and design agents, and only to read, propose and draft", () => {
-    expect(Object.values(AGENTS).filter((agent) => agent.status === "available").map((agent) => agent.id)).toEqual(["research", "design", "coordination"]);
+  it("connects only the intake, coordination, design and quality agents, and only to read, propose and draft", () => {
+    expect(Object.values(AGENTS).filter((agent) => agent.status === "available").map((agent) => agent.id)).toEqual(["research", "design", "qa", "coordination"]);
     for (const agent of ["research", "coordination"] as const) {
       expect(authorize(agent, "read_context")).toEqual({ allowed: true, requiresApproval: false });
       expect(authorize(agent, "propose_context")).toEqual({ allowed: true, requiresApproval: false });
@@ -20,7 +20,12 @@ describe("agent permissions", () => {
     for (const action of ["update_task_status", "send_client_message", "send_proposal", "change_production", "change_approved_scope", "launch_website"] as const) {
       expect(authorize("design", action)).toMatchObject({ allowed: false });
     }
-    for (const agent of ["development", "qa", "sales"] as const) expect(authorize(agent, "read_context")).toMatchObject({ allowed: false });
+    // The competitor comparison only reads: it proposes and drafts nothing.
+    expect(authorize("qa", "read_context")).toEqual({ allowed: true, requiresApproval: false });
+    for (const action of ["propose_context", "create_draft", "update_task_status", "send_client_message", "change_production", "launch_website"] as const) {
+      expect(authorize("qa", action)).toMatchObject({ allowed: false });
+    }
+    for (const agent of ["development", "sales"] as const) expect(authorize(agent, "read_context")).toMatchObject({ allowed: false });
   });
 
   it("starts no agent automatically from events", () => {

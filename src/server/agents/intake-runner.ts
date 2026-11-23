@@ -9,6 +9,7 @@
  */
 import { intakeIdempotencyKey, type AgentRunRecord, type EntityRef, type IntakeResult, type PlanResult } from "@/lib/agents/contract";
 import type { WarmTextResult } from "@/lib/agents/warm-text";
+import type { BenchmarkResult } from "@/lib/benchmark/result";
 import type { SiteDraftResult } from "@/lib/agents/site-draft";
 import { checkIntakeInput, intakeFingerprint, normalizeIntakeOutput, type IntakeInput, type IntakeSource, type ProposalDraft } from "@/lib/agents/intake";
 import { INTAKE_PROMPT_VERSION, intakeRequestBytes } from "@/lib/agents/intake-prompt";
@@ -41,7 +42,7 @@ export interface NewRun {
 
 export interface RunPatch {
   status: AgentRunRecord["status"];
-  result?: IntakeResult | PlanResult | SiteDraftResult | WarmTextResult | null;
+  result?: IntakeResult | PlanResult | SiteDraftResult | WarmTextResult | BenchmarkResult | null;
   outputs?: EntityRef[];
   error?: { message: string; retryable: boolean } | null;
   /** What the model call used, when one was made and the provider said. */
