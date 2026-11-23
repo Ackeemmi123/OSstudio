@@ -163,7 +163,14 @@ function toUsage(usage: ReportedUsage): TokenUsage {
   };
 }
 
-function toModelError(error: unknown): ModelError {
+/** The provider's own words for a rejected request, short, so staff can see what to fix. */
+function providerMessage(error: InstanceType<typeof Anthropic.APIError>): string {
+  const body = error.error as { error?: { message?: unknown } } | undefined;
+  const said = typeof body?.error?.message === "string" ? body.error.message : "";
+  return said.replace(/\s+/g, " ").trim().slice(0, 240);
+}
+
+export function toModelError(error: unknown): ModelError {
   if (error instanceof Anthropic.APIUserAbortError || (error instanceof Error && error.name === "AbortError")) {
     // The provider may have started and billed the call.
     return new ModelError("The request took too long and was stopped.", true, null);
@@ -172,7 +179,15 @@ function toModelError(error: unknown): ModelError {
     return new ModelError("The AI provider rejected the server's credentials. An administrator needs to check the configuration.", false, "nothing");
   }
   if (error instanceof Anthropic.BadRequestError || error instanceof Anthropic.NotFoundError) {
-    return new ModelError("The AI provider rejected the request. An administrator needs to check the model configuration.", false, "nothing");
+    const said = providerMessage(error);
+    if (/credit balance/i.test(said)) {
+      return new ModelError("The AI account has run out of credit. An administrator needs to add credit in the Claude Console.", false, "nothing");
+    }
+    return new ModelError(
+      `The AI provider rejected the request${said ? `: ${said}` : ""}. An administrator needs to check the model configuration.`,
+      false,
+      "nothing",
+    );
   }
   if (error instanceof Anthropic.RateLimitError) {
     return new ModelError("The AI provider is busy. Try again in a minute.", true, "nothing");
