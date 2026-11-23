@@ -76,6 +76,26 @@ export const siteContent = z.strictObject({
   }),
   questions: z.strictObject({ label: words(60), heading: statement(110), items: z.array(z.strictObject({ question: statement(140), answer: statement(500) })).min(1).max(12) }),
   closing: z.strictObject({ heading: statement(90), text: statement(200) }),
+  /**
+   * What makes this firm unlike others in its trade, from its own material. Each part is
+   * optional; the design draws at most one of them (siteDesign.signature), and only when it is here.
+   */
+  signature: z
+    .strictObject({
+      /** The founding year and what happened since. */
+      year: z.strictObject({ year: z.string().regex(/^\d{4}$/), heading: statement(110), events: z.array(z.strictObject({ when: words(12), text: statement(160) })).max(4) }).optional(),
+      /** One sentence from the owner, in their own words. */
+      ownerLine: z.strictObject({ text: statement(220), who: words(80), role: words(70).optional(), imageId: words(40).optional(), consent: z.enum(["given", "invented_test_data"]) }).optional(),
+      /** An ordinary day, in the firm's own photos. */
+      everyday: z.strictObject({ label: words(60), heading: statement(110), items: z.array(z.strictObject({ imageId: words(40), when: words(20).optional(), text: statement(140) })).min(3).max(5) }).optional(),
+      /** The places the firm works in. */
+      area: z.strictObject({ label: words(60), heading: statement(110), text: statement(240).optional(), places: z.array(z.strictObject({ name: words(40), note: statement(60).optional() })).min(2).max(8) }).optional(),
+      /** Two or three numbers the client confirmed. */
+      numbers: z.strictObject({ label: words(60), items: z.array(z.strictObject({ value: words(12), text: statement(80) })).min(2).max(3) }).optional(),
+      /** What is on now: this season's dish, offer or opening. */
+      season: z.strictObject({ label: words(40), title: statement(70), text: statement(200), price: statement(40).optional() }).optional(),
+    })
+    .optional(),
   /** The firm's own work in pictures, each with a line about it. Drawn only by directions that lead with images. */
   gallery: z
     .strictObject({ label: words(60), heading: statement(110), items: z.array(z.strictObject({ imageId: words(40), caption: statement(120) })).min(2).max(12) })
@@ -120,7 +140,19 @@ export const siteDesign = z.strictObject({
   type: z.enum(["wide", "grotesk"]).optional(),
   /** One recurring idea from the firm's own trade. Optional, and it adds nothing to what the page says. */
   motif: z.enum(["pipe", "drain", "scale", "ripple", "courses"]).optional(),
+  /**
+   * The concept: how this firm's site differs from others in the same direction.
+   * hero: the photo beside the words (split, the direction's own), behind them (full) or left out (type).
+   * signature: which part of content.signature to draw; it must be there.
+   * feel: how photos are treated. motion: calm (the direction's own) or lively (more movement).
+   */
+  hero: z.enum(["split", "full", "type"]).optional(),
+  signature: z.enum(["year", "ownerLine", "everyday", "area", "numbers", "season"]).optional(),
+  feel: z.enum(["natural", "warm", "mono", "grain"]).optional(),
+  motion: z.enum(["calm", "lively"]).optional(),
 });
+
+export type SignatureKind = NonNullable<SiteDesign["signature"]>;
 
 export type SiteDesign = z.infer<typeof siteDesign>;
 

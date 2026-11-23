@@ -21,6 +21,50 @@ const visibleText = (html: string) =>
     .replace(/&#x27;/g, "'")
     .replace(/&amp;/g, "&");
 
+describe("the concept", () => {
+  const w = (text: string, origin: "person" | "client_confirmed" = "person") => ({ text, origin });
+
+  it("draws the chosen signature part, and refuses one the content does not have", () => {
+    const site = STRESS_SITES["concept-editorial-year-full"];
+    const home = htmlOf(site)[0].text;
+    expect(home).toContain('class="sig sig--year"');
+    expect(home).toContain("hero--full");
+    expect(home).toContain("f-warm");
+    expect(home).toContain("mo-lively");
+    expect(() => build({ ...site, design: { ...site.design, signature: "area" } })).toThrow(/signature part area/);
+  });
+
+  it("leaves the photo out of the hero when the concept is type", () => {
+    const home = htmlOf({ ...lindqvist, design: { ...lindqvist.design, hero: "type" } })[0].text;
+    expect(home).toContain("hero hero--type");
+    expect(home.slice(0, home.indexOf("</section>"))).not.toContain("<img");
+  });
+
+  it("never sets a heading's end in italics or another colour", () => {
+    for (const [name, site] of all) {
+      for (const file of htmlOf(site)) expect(file.text, `${name} ${file.path}`).not.toMatch(/<h[12][^>]*>[^<]*<em/);
+    }
+  });
+
+  it("on a client's site, needs consent for the owner's line and confirmed numbers", () => {
+    const content = structuredClone(lindqvist.content) as Site["content"];
+    delete content.invented;
+    content.client = { approvedBy: "A Client", approvedOn: "2026-12-01" };
+    content.assets = [];
+    delete content.promise.imageId;
+    delete content.proof.imageId;
+    delete content.about.imageId;
+    content.about.people = [];
+    content.proof.quotes = [];
+    content.signature = { ownerLine: { text: w("We answer the same day."), who: "Anna", consent: "invented_test_data" } };
+    expect(() => build({ ...lindqvist, content })).toThrow(/No consent to quote Anna/);
+    content.signature = { numbers: { label: "In numbers", items: [{ value: "100", text: w("companies") }, { value: "1", text: w("office", "client_confirmed") }] } };
+    expect(() => build({ ...lindqvist, content })).toThrow(/100 is not confirmed/);
+    content.signature.numbers!.items[0].text.origin = "client_confirmed";
+    expect(() => build({ ...lindqvist, content, design: { ...lindqvist.design, signature: "numbers" } })).not.toThrow();
+  });
+});
+
 describe("the content contract", () => {
   it("holds no layout, colour or section-type field", () => {
     for (const key of ["layout", "variant", "color", "colour", "section", "sections", "font", "theme", "columns"]) {

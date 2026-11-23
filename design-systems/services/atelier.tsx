@@ -6,13 +6,14 @@
  */
 import type { SiteContent } from "./content";
 import { Action, Closing, Frame, Headline, Picture, Proof, Questions, Services, displayTier, find, type PageContext } from "./pages";
+import { Signature } from "./signature";
 
 function Hero({ context }: { context: PageContext }) {
-  const { content } = context;
+  const { content, design } = context;
   const { promise } = content;
-  const image = find(content, promise.imageId);
+  const image = design.hero === "type" ? null : find(content, promise.imageId);
   return (
-    <section className={image ? "hero hero--wide" : "hero hero--type"} data-tier={displayTier(promise.headline.text)}>
+    <section className={image ? (design.hero === "full" ? "hero hero--wide hero--full" : "hero hero--wide") : "hero hero--type"} data-tier={displayTier(promise.headline.text)}>
       <p className="label hero-for">{promise.whoFor.text}</p>
       <Headline text={promise.headline.text} turn={promise.turn} />
       <div className="hero-body">
@@ -78,11 +79,12 @@ export function AtelierHome({ context }: { context: PageContext }) {
     <Frame context={context}>
       <Hero context={context} />
       {hasGallery ? <Gallery content={content} /> : <Services content={content} />}
+      <Signature context={context} />
       <Approach content={content} />
       {hasGallery ? <Services content={content} /> : null}
       <Proof content={content} />
       <Questions content={content} />
-      <Closing content={content} formAction={context.formAction} emphasise />
+      <Closing content={content} formAction={context.formAction} />
     </Frame>
   );
 }

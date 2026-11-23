@@ -5,14 +5,15 @@
  */
 import type { SiteContent } from "./content";
 import { Action, Closing, FirstSteps, Frame, Headline, Picture, Proof, Questions, Reasons, Services, displayTier, find, type PageContext } from "./pages";
+import { Signature } from "./signature";
 
 function Hero({ context }: { context: PageContext }) {
-  const { content } = context;
+  const { content, design } = context;
   const { promise, about } = content;
-  const image = find(content, promise.imageId);
+  const image = design.hero === "type" ? null : find(content, promise.imageId);
   const pictured = about.people.find((person) => person.imageId && person.imageId === promise.imageId);
   return (
-    <section className={image ? "hero hero--spread" : "hero hero--type"} data-tier={displayTier(promise.headline.text)}>
+    <section className={image ? (design.hero === "full" ? "hero hero--spread hero--full" : "hero hero--spread") : "hero hero--type"} data-tier={displayTier(promise.headline.text)}>
       <p className="label hero-for">{promise.whoFor.text}</p>
       <Headline text={promise.headline.text} turn={promise.turn} />
       {image ? (
@@ -71,12 +72,13 @@ export function EditorialHome({ context }: { context: PageContext }) {
     <Frame context={context}>
       <Hero context={context} />
       <Reasons content={content} heading={content.about.heading.text} />
+      <Signature context={context} />
       <Proof content={content} />
       <Services content={content} />
       <FirstSteps content={content} />
       <Letter content={content} />
       <Questions content={content} />
-      <Closing content={content} formAction={context.formAction} emphasise />
+      <Closing content={content} formAction={context.formAction} />
     </Frame>
   );
 }
