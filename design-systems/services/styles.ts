@@ -719,7 +719,7 @@ const ROOMS = `
 .d-cafe .site-header{border-bottom:1.5px solid var(--ink)}
 .d-cafe .mark{font-size:clamp(1.4rem,2.2vw,1.9rem)}
 .visit-bar{display:flex;flex-wrap:wrap;justify-content:space-between;gap:.4rem 2rem;background:var(--deep);color:var(--on-deep);padding:.7rem var(--gut);font-size:.95rem}
-.visit-bar strong{color:var(--accent-on-deep);margin-right:.4rem}
+.visit-bar strong{color:var(--on-deep);font-weight:700;margin-right:.4rem}
 .d-cafe .hero{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));column-gap:24px;align-items:center;padding:clamp(2.5rem,5vw,5rem) var(--gut) clamp(4rem,7vw,6.5rem)}
 .d-cafe .hero-words{grid-column:1/7}
 .d-cafe .hero--type .hero-words{grid-column:1/10}
@@ -817,6 +817,53 @@ const ROOMS = `
 .d-atelier .closing .button--send{background:var(--ink);color:var(--paper)}
 .d-atelier .closing .button--send:hover{background:transparent;color:var(--ink)}
 .d-atelier .closing :focus-visible{outline-color:var(--accent)}
+
+/* Café motion: a room waking up. The words settle, the photo opens like a door, the day's note is pinned on with a little sway, and the menu's dotted lines are drawn as you read. Opening hours never move. */
+.menu-card{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .35 0 0 0 0 .25 0 0 0 0 .15 0 0 0 .07 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
+.d-cafe .arch img,.menu-card-head img{transition:scale 1.2s cubic-bezier(.2,.7,.2,1)}
+@media (hover:hover){.d-cafe .arch:hover img,.menu-card-head figure:hover img{scale:1.04}}
+@media (prefers-reduced-motion:reduce){.d-cafe .arch img,.menu-card-head img,.d-cafe .button--quiet{transition:none}}
+@media (prefers-reduced-motion:no-preference){
+ @keyframes cafe-settle{from{opacity:.2;translate:0 .9rem}}
+ @keyframes cafe-door{from{clip-path:inset(100% 0 0 0 round 999px 999px 1.1rem 1.1rem)}to{clip-path:inset(0 0 0 0 round 999px 999px 1.1rem 1.1rem)}}
+ @keyframes cafe-pin{0%{opacity:0;translate:0 -1.6rem;rotate:-9deg}55%{opacity:1;translate:0 .15rem;rotate:1.2deg}78%{translate:0 0;rotate:-3.4deg}100%{rotate:-2.2deg}}
+ @keyframes cafe-rise{from{opacity:.1;translate:0 1.4rem}}
+ @keyframes cafe-dots{from{scale:0 1}to{scale:1 1}}
+ @keyframes cafe-warm{from{scale:1.12}to{scale:1}}
+ .d-cafe .hero-for,.d-cafe .hero h1{animation:cafe-settle .75s cubic-bezier(.2,.7,.2,1) backwards}
+ .d-cafe .hero-why,.d-cafe .hero-actions,.d-cafe .hero-reassurance{animation:cafe-settle .75s .12s cubic-bezier(.2,.7,.2,1) backwards}
+ .d-cafe .arch{animation:cafe-door 1.15s .05s cubic-bezier(.65,0,.15,1) backwards}
+ .d-cafe .hero-image:has(.arch) .pinned{animation:cafe-pin .9s .75s cubic-bezier(.3,.6,.3,1) backwards}
+ @supports (animation-timeline:view()){
+  .d-cafe .arch img{animation:cafe-warm linear both;animation-timeline:scroll(root);animation-range:0 100vh}
+  .menu-card-head,.menu-lines li,.visit-head,.visit-card,.visit-list > *,.cafe-story > *,.d-cafe .section-head,.d-cafe .closing-words h2{animation:cafe-rise linear both;animation-timeline:view();animation-range:entry 5% cover 25%}
+  .menu-dots{transform-origin:left;animation:cafe-dots linear both;animation-timeline:view();animation-range:entry 30% cover 40%}
+  .menu-card-head img{animation:cafe-warm linear both;animation-timeline:view()}
+ }
+}
+
+/* Atelier motion: slow and quiet, led by the work. The first photo opens from the middle like a curtain; each project is revealed and settles as it comes into view. */
+.work-item img{transition:scale 1.6s cubic-bezier(.2,.7,.2,1)}
+.work-frame,.d-atelier .hero-image{overflow:hidden}
+@media (hover:hover){.work-item:hover img{scale:1.035}}
+@media (prefers-reduced-motion:reduce){.work-item img,.d-atelier .button{transition:none}}
+@media (prefers-reduced-motion:no-preference){
+ @keyframes atelier-fade{from{opacity:0}}
+ @keyframes atelier-lift{from{opacity:0;translate:0 1rem}}
+ @keyframes atelier-curtain{from{clip-path:inset(0 50% 0 50%)}to{clip-path:inset(0)}}
+ @keyframes atelier-settle{from{scale:1.14}to{scale:1}}
+ @keyframes atelier-reveal{from{clip-path:inset(18% 0 0 0);opacity:.3}to{clip-path:inset(0);opacity:1}}
+ @keyframes atelier-rule{from{scale:0 1}to{scale:1 1}}
+ .d-atelier .hero-for,.d-atelier .hero h1{animation:atelier-fade 1.4s cubic-bezier(.3,0,.2,1) backwards}
+ .d-atelier .hero-body{animation:atelier-lift 1.2s .35s cubic-bezier(.2,.7,.2,1) backwards}
+ .d-atelier .hero-image{animation:atelier-curtain 1.8s .2s cubic-bezier(.7,0,.2,1) backwards}
+ .d-atelier .hero-image img{animation:atelier-settle 2.4s .2s cubic-bezier(.2,.7,.2,1) backwards}
+ @supports (animation-timeline:view()){
+  .work-item{animation:atelier-reveal linear both;animation-timeline:view();animation-range:entry 0% cover 35%}
+  .work-item img{animation:atelier-settle linear both;animation-timeline:view();animation-range:entry 0% exit 20%}
+  .work-head,.approach-lead,.approach-steps li,.d-atelier .ledger-row,.d-atelier .section-head,.d-atelier .closing-words h2{animation:atelier-lift linear both;animation-timeline:view();animation-range:entry 5% cover 30%}
+ }
+}
 
 @media (max-width:820px){
  .d-cafe .hero-words,.d-cafe .hero--type .hero-words,.d-cafe .hero-image{grid-column:1/-1}
