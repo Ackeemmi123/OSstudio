@@ -19,7 +19,14 @@ export async function measureSpeed(url: string, fetchImpl: typeof fetch = fetch)
   } catch {
     return { speed: null, note: "Google's speed test did not finish in time." };
   }
-  if (response.status === 429) return { speed: null, note: "Google's speed test is busy (daily limit reached). Try again later." };
+  if (response.status === 429) {
+    return {
+      speed: null,
+      note: key
+        ? "Google's speed test has reached this studio's daily limit. Try again tomorrow."
+        : "Google's shared daily limit is used up. An administrator can add a free PageSpeed API key to the server (PAGESPEED_API_KEY) so speed is measured every time.",
+    };
+  }
   if (!response.ok) return { speed: null, note: "Google's speed test could not read this page." };
   const body = (await response.json().catch(() => null)) as {
     lighthouseResult?: { categories?: Record<string, { score?: number | null }>; audits?: Record<string, { numericValue?: number }> };

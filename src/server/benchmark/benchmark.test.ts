@@ -34,6 +34,18 @@ describe("which addresses may be read", () => {
     expect(fake).toHaveBeenCalledTimes(1);
   });
 
+  it("sends back a cookie the site set while redirecting, to the same host only", async () => {
+    const seen: (string | null)[] = [];
+    const fake = async (url: URL | string, init?: RequestInit) => {
+      const cookie = new Headers(init?.headers).get("cookie");
+      seen.push(cookie);
+      if (!cookie) return new Response(null, { status: 302, headers: { location: "/en/", "set-cookie": "selectedLang=en; Path=/; Max-Age=60" } });
+      return new Response("<h1>Hello</h1>", { headers: { "content-type": "text/html" } });
+    };
+    expect((await fetchPublicPage("https://93.184.216.34/", fake as unknown as typeof fetch)).html).toBe("<h1>Hello</h1>");
+    expect(seen).toEqual([null, "selectedLang=en"]);
+  });
+
   it("reads HTML only", async () => {
     const fake = async () => new Response("%PDF", { headers: { "content-type": "application/pdf" } });
     await expect(fetchPublicPage("https://93.184.216.34/", fake as unknown as typeof fetch)).rejects.toThrow("not a web page");
