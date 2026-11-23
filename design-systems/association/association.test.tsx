@@ -72,6 +72,14 @@ describe("association design system", () => {
     expect(approved.some((file) => file.path === "robots.txt")).toBe(false);
   });
 
+  it("says what happens after sending on a working form, and not on a prototype's", () => {
+    const withNote = spec();
+    Object.assign(withNote.forms[0], { replyNote: { sv: "Ditt meddelande skickas till direktionen (test)." } });
+    const contactPage = (files: ReturnType<typeof build>) => files.filter((f) => f.path.endsWith(".html")).map((f) => f.text).join("");
+    expect(contactPage(build(withNote, options))).not.toContain("skickas till direktionen (test)");
+    expect(contactPage(build(withNote, { ...options, status: "approved" }))).toContain("Ditt meddelande skickas till direktionen (test).");
+  });
+
   it("sends a published site's forms to the given server, and nowhere else", () => {
     const live = page(build(spec(), { ...options, status: "approved", formAction: "https://studio.example/api/site-forms/abc" }), "kontakt/index.html");
     expect(live).toContain('action="https://studio.example/api/site-forms/abc"');

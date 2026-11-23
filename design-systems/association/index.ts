@@ -207,9 +207,11 @@ function formHtml(site: Site, formId: string | undefined): string {
     return `<div class="field"><label for="${id(field)}">${label}</label>${control}</div>`;
   }).join("");
   const consent = text(form.consentText, site.locale);
+  // What happens after sending, from the spec: only on a working form, since a prototype's form sends nothing.
+  const note = off ? "" : text(form.replyNote, site.locale);
   const trap = `<div class="trap" aria-hidden="true"><label for="${id("website")}">${site.chrome.trap}</label><input id="${id("website")}" name="website" tabindex="-1" autocomplete="off"></div>`;
   const action = site.options.formAction && /^https:\/\/[^\s"<>]+$/.test(site.options.formAction) ? site.options.formAction : "/api/contact";
-  return `<form class="form" method="post" action="${escapeHtml(action)}"><input type="hidden" name="form" value="${escapeHtml(formId)}">${fields}${trap}${consent ? `<div class="check"><input id="${id("consent")}" name="consent" type="checkbox" required><label for="${id("consent")}">${escapeHtml(consent)}</label></div>` : ""}<div><button class="btn" type="submit"${off ? " disabled" : ""}>${site.chrome.send}</button></div>${off ? `<p class="off">${site.chrome.formOff}</p>` : ""}</form>`;
+  return `<form class="form" method="post" action="${escapeHtml(action)}"><input type="hidden" name="form" value="${escapeHtml(formId)}">${fields}${trap}${consent ? `<div class="check"><input id="${id("consent")}" name="consent" type="checkbox" required><label for="${id("consent")}">${escapeHtml(consent)}</label></div>` : ""}<div><button class="btn" type="submit"${off ? " disabled" : ""}>${site.chrome.send}</button></div>${off ? `<p class="off">${site.chrome.formOff}</p>` : ""}${note ? `<p class="off">${escapeHtml(note)}</p>` : ""}</form>`;
 }
 
 /** One section. The first heading on a page is its h1. */
