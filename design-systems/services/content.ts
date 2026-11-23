@@ -92,6 +92,15 @@ export const siteContent = z.strictObject({
       area: z.strictObject({ label: words(60), heading: statement(110), text: statement(240).optional(), places: z.array(z.strictObject({ name: words(40), note: statement(60).optional() })).min(2).max(8) }).optional(),
       /** Two or three numbers the client confirmed. */
       numbers: z.strictObject({ label: words(60), items: z.array(z.strictObject({ value: words(12), text: statement(80) })).min(2).max(3) }).optional(),
+      /** The books the firm's people wrote: for experts whose authority is in print. */
+      books: z
+        .strictObject({
+          label: words(60),
+          heading: statement(110),
+          items: z.array(z.strictObject({ title: statement(140), detail: statement(140), year: z.string().regex(/^\d{4}$/), href: z.url().optional() })).min(2).max(8),
+          more: statement(200).optional(),
+        })
+        .optional(),
       /** What is on now: this season's dish, offer or opening. */
       season: z.strictObject({ label: words(40), title: statement(70), text: statement(200), price: statement(40).optional() }).optional(),
     })
@@ -147,7 +156,7 @@ export const siteDesign = z.strictObject({
    * feel: how photos are treated. motion: calm (the direction's own) or lively (more movement).
    */
   hero: z.enum(["split", "full", "type"]).optional(),
-  signature: z.enum(["year", "ownerLine", "everyday", "area", "numbers", "season"]).optional(),
+  signature: z.enum(["year", "ownerLine", "everyday", "area", "numbers", "season", "books"]).optional(),
   feel: z.enum(["natural", "warm", "mono", "grain"]).optional(),
   motion: z.enum(["calm", "lively"]).optional(),
 });
