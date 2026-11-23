@@ -64,17 +64,31 @@ async function assertPublicHost(url: URL) {
 export async function fetchPublicPage(input: string, fetchImpl: typeof fetch = fetch): Promise<{ url: string; html: string }> {
   let url = publicUrl(input);
   const signal = AbortSignal.timeout(PAGE_LIMITS.timeoutMs);
+  // Some sites set a cookie (a language, a consent) and redirect until it comes back. Kept for this one read, per host.
+  const cookies = new Map<string, Map<string, string>>();
   for (let hop = 0; hop <= PAGE_LIMITS.redirects; hop++) {
     await assertPublicHost(url);
+    const jar = cookies.get(url.hostname);
     let response: Response;
     try {
       response = await fetchImpl(url, {
         redirect: "manual",
         signal,
-        headers: { "user-agent": "Mozilla/5.0 (compatible; StudioOS-Compare/1.0)", accept: "text/html,application/xhtml+xml" },
+        headers: {
+          "user-agent": "Mozilla/5.0 (compatible; StudioOS-Compare/1.0)",
+          accept: "text/html,application/xhtml+xml",
+          ...(jar?.size ? { cookie: [...jar].map(([name, value]) => `${name}=${value}`).join("; ") } : {}),
+        },
       });
     } catch {
       throw new PageError("The page did not answer in time.");
+    }
+    for (const header of response.headers.getSetCookie?.() ?? []) {
+      const pair = /^\s*([^=;\s]+)=([^;]*)/.exec(header);
+      if (!pair) continue;
+      const hostJar = cookies.get(url.hostname) ?? new Map<string, string>();
+      hostJar.set(pair[1], pair[2]);
+      cookies.set(url.hostname, hostJar);
     }
     if (response.status >= 300 && response.status < 400) {
       const next = response.headers.get("location");
