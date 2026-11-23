@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 import { createClientNamed, openSection, uniqueName } from "./helpers";
 
 /** The demo without a backend: clearly labeled, and saved only in this browser. */
@@ -123,9 +123,22 @@ test("approves a task from Today, and takes it back with Undo", async ({ page })
   await expect(activity.getByText("Homepage design direction moved to awaiting approval").first()).toBeVisible();
 });
 
+/**
+ * Opens search with the keyboard shortcut. The shortcut is attached when the
+ * page has hydrated, so a press before that does nothing: press again until
+ * the box is there. The shortcut only opens, so pressing twice is harmless.
+ */
+async function openSearch(page: Page) {
+  const box = page.getByRole("combobox", { name: "Search clients, projects and tasks" });
+  await expect(async () => {
+    await page.keyboard.press("ControlOrMeta+k");
+    await expect(box).toBeVisible({ timeout: 1_000 });
+  }).toPass({ timeout: 20_000 });
+}
+
 test("search finds tasks and opens them where they live, and offers a new client", async ({ page }) => {
   await page.goto("/");
-  await page.keyboard.press("ControlOrMeta+k");
+  await openSearch(page);
   const search = page.getByRole("combobox", { name: "Search clients, projects and tasks" });
   await search.fill("product page");
   await expect(page.getByRole("option", { name: /Product page design/ })).toContainText("Ateljé Henrik");
@@ -135,12 +148,12 @@ test("search finds tasks and opens them where they live, and offers a new client
 
   // On the same page, only the tab changes.
   await page.getByRole("navigation", { name: "Client sections" }).getByRole("link", { name: /^Overview/ }).click();
-  await page.keyboard.press("ControlOrMeta+k");
+  await openSearch(page);
   await page.getByRole("combobox", { name: "Search clients, projects and tasks" }).fill("product page");
   await page.getByRole("option", { name: /Product page design/ }).click();
   await expect(page.locator("section#projects")).toBeVisible();
 
-  await page.keyboard.press("ControlOrMeta+k");
+  await openSearch(page);
   await page.getByRole("combobox", { name: "Search clients, projects and tasks" }).fill("new client");
   await page.getByRole("option", { name: /New client/ }).click();
   await expect(page.getByRole("dialog", { name: "New client" })).toBeVisible();
