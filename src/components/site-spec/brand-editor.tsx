@@ -31,7 +31,7 @@ function Contrast({ label, a, b, minimum }: { label: string; a: string; b: strin
   );
 }
 
-export function BrandEditor({ spec, editing }: { spec: SiteSpec; editing: SpecEditing }) {
+export function BrandEditor({ spec, editing, projectId }: { spec: SiteSpec; editing: SpecEditing; projectId?: string }) {
   const { editable, change, personSource } = editing;
   const brand = spec.brand;
   /** Any change to the brand is a person's choice of brand. */
@@ -280,7 +280,7 @@ export function BrandEditor({ spec, editing }: { spec: SiteSpec; editing: SpecEd
           </Select>
         </Field>
       </div>
-      {brand.designSystem === "services@0.1" ? <ConceptEditor spec={spec} editing={editing} /> : null}
+      {brand.designSystem === "services@0.1" ? <ConceptEditor spec={spec} editing={editing} projectId={projectId} /> : null}
     </div>
   );
 }

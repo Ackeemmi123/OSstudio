@@ -506,6 +506,24 @@ export class SupabaseRepository implements StudioRepository {
     throw new RepositoryError("Demo data can only be reset in the local demo.", "unavailable");
   }
 
+  async listStudioDesigns(): Promise<{ projectId: string; clientId: string; brand: SiteSpec["brand"] }[]> {
+    // Only the brand of each spec is read, newest version first; the content stays where it is.
+    const { data, error } = await this.client
+      .from("site_specs")
+      .select("project_id, client_id, version, brand:spec->brand")
+      .eq("studio_id", this.studioId)
+      .neq("status", "superseded")
+      .order("version", { ascending: false })
+      .limit(500);
+    if (error) throw toRepositoryError(error);
+    const seen = new Set<string>();
+    return ((data ?? []) as unknown as { project_id: string; client_id: string; brand: SiteSpec["brand"] | null }[]).flatMap((row) => {
+      if (seen.has(row.project_id) || !row.brand) return [];
+      seen.add(row.project_id);
+      return [{ projectId: row.project_id, clientId: row.client_id, brand: row.brand }];
+    });
+  }
+
   async listSiteSpecs(projectId: string): Promise<SiteSpecRecord[]> {
     const { data, error } = await this.client
       .from("site_specs")
