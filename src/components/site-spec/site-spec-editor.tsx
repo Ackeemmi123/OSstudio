@@ -412,7 +412,7 @@ export function SiteSpecEditor({
           </Section>
           <Section id="brand" title="Brand" className="scroll-mt-32">
             <div data-spec-path="brand">
-              <BrandEditor spec={draft} editing={editing} />
+              <BrandEditor spec={draft} editing={editing} projectId={project.id} />
             </div>
           </Section>
           <Section id="pages" title="Pages" count={draft.pages.length} className="scroll-mt-32">

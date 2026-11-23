@@ -14,6 +14,9 @@ import {
 } from "@/lib/site-spec/catalog";
 import type { LocalizedText, SiteSpec } from "@/lib/site-spec/schema";
 import { signatureFor } from "@/lib/site-spec/to-services";
+import { useEffect, useMemo, useState } from "react";
+import { useStudio, useStudioStore } from "@/components/providers/studio-provider";
+import { lookAlikes, suggestion, type OtherDesign } from "@/lib/site-spec/uniqueness";
 import type { SpecEditing } from "./site-spec-editor";
 
 type Concept = NonNullable<SiteSpec["brand"]["concept"]>;
@@ -24,7 +27,7 @@ type Concept = NonNullable<SiteSpec["brand"]["concept"]>;
  * facts come from the AI draft with their sources; here a person chooses
  * which part to show, ticks the owner's consent and confirms each number.
  */
-export function ConceptEditor({ spec, editing }: { spec: SiteSpec; editing: SpecEditing }) {
+export function ConceptEditor({ spec, editing, projectId }: { spec: SiteSpec; editing: SpecEditing; projectId?: string }) {
   const { editable, change, personSource } = editing;
   const concept = spec.brand.concept ?? {};
   const locale = spec.locales.default;
@@ -185,6 +188,43 @@ export function ConceptEditor({ spec, editing }: { spec: SiteSpec; editing: Spec
           {concept.signature === "everyday" ? <p className="text-ink-muted">An ordinary day needs three to five of the client&apos;s own photos, each with a line. Add them in a later step.</p> : null}
         </div>
       ) : null}
+      {projectId ? <LookAlikes brand={spec.brand} projectId={projectId} /> : null}
     </section>
+  );
+}
+
+/**
+ * Whether this site looks like another site from the studio: same direction and colours,
+ * and how many of the concept's choices too. Read once; compared again as the brand changes.
+ */
+function LookAlikes({ brand, projectId }: { brand: SiteSpec["brand"]; projectId: string }) {
+  const store = useStudioStore();
+  const state = useStudio();
+  const [designs, setDesigns] = useState<Omit<OtherDesign, "clientName">[] | null>(null);
+  useEffect(() => {
+    let active = true;
+    store.read((r) => (r.listStudioDesigns ? r.listStudioDesigns() : Promise.resolve([]))).then(
+      (list) => active && setDesigns(list),
+      () => active && setDesigns([]),
+    );
+    return () => {
+      active = false;
+    };
+  }, [store]);
+  const names = useMemo(() => new Map(state.status === "ready" ? state.snapshot.clients.map((c) => [c.id, c.name]) : []), [state]);
+  if (!designs) return null;
+  const alike = lookAlikes(brand, designs.map((d) => ({ ...d, clientName: names.get(d.clientId) ?? "another client" })), projectId);
+  if (!alike.length) return <StatusLabel tone="positive">Unlike the studio&apos;s other sites in direction and colours.</StatusLabel>;
+  return (
+    <ul className="flex flex-col gap-1.5 text-[13px]" aria-label="Sites this one looks like">
+      {alike.slice(0, 3).map((likeness) => (
+        <li key={likeness.other.projectId} className="flex flex-col gap-0.5">
+          <StatusLabel tone={likeness.level === "same" ? "critical" : "caution"}>
+            {likeness.level === "same" ? "Looks the same as" : "Close to"} {likeness.other.clientName}&apos;s site: same {likeness.shared.join(", ")}.
+          </StatusLabel>
+          <span className="pl-3 text-[12.5px] text-ink-muted">{suggestion(likeness)}</span>
+        </li>
+      ))}
+    </ul>
   );
 }
