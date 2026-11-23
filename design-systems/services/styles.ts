@@ -719,7 +719,7 @@ const ROOMS = `
 .d-cafe .site-header{border-bottom:1.5px solid var(--ink)}
 .d-cafe .mark{font-size:clamp(1.4rem,2.2vw,1.9rem)}
 .visit-bar{display:flex;flex-wrap:wrap;justify-content:space-between;gap:.4rem 2rem;background:var(--deep);color:var(--on-deep);padding:.7rem var(--gut);font-size:.95rem}
-.visit-bar strong{color:var(--accent-on-deep);margin-right:.4rem}
+.visit-bar strong{color:var(--on-deep);font-weight:700;margin-right:.4rem}
 .d-cafe .hero{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));column-gap:24px;align-items:center;padding:clamp(2.5rem,5vw,5rem) var(--gut) clamp(4rem,7vw,6.5rem)}
 .d-cafe .hero-words{grid-column:1/7}
 .d-cafe .hero--type .hero-words{grid-column:1/10}
