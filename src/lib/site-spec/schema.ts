@@ -25,7 +25,11 @@ import {
   NAV_PLACEMENTS,
   RADII,
   SERVICES_DIRECTIONS,
+  SERVICES_FEELS,
+  SERVICES_HEROES,
   SERVICES_MOTIFS,
+  SERVICES_MOTIONS,
+  SERVICES_SIGNATURES,
   SERVICES_PALETTES,
   SERVICES_TYPES,
   SECTION_VARIANTS,
@@ -226,9 +230,38 @@ export const siteSpecSchema = z.strictObject({
       )
       .max(3)
       .optional(),
+    /**
+     * The concept for the company design: one idea in a sentence, and the choices that make this
+     * firm's site unlike others in the same direction. A signature is drawn only when its content is in `signature`.
+     */
+    concept: z
+      .strictObject({
+        idea: text(240).optional(),
+        hero: z.enum(SERVICES_HEROES).optional(),
+        signature: z.enum(SERVICES_SIGNATURES).optional(),
+        feel: z.enum(SERVICES_FEELS).optional(),
+        motion: z.enum(SERVICES_MOTIONS).optional(),
+      })
+      .optional(),
     /** Set when a person chose the brand. Absent: the starting defaults, which cannot be approved. */
     source: sourceSchema.optional(),
   }),
+  /**
+   * What the client's own material holds for each signature part. Facts come from the material
+   * with a source, like every other text; a person ticks consent for the owner's line and confirms numbers.
+   */
+  signature: z
+    .strictObject({
+      year: z.strictObject({ year: z.string().regex(/^\d{4}$/), heading: localized(110), events: z.array(z.strictObject({ when: text(12), text: localized(160) })).max(4) }).optional(),
+      ownerLine: z.strictObject({ text: localized(220), who: text(80), role: localized(70).optional(), assetId: idSchema.optional(), consent: z.boolean() }).optional(),
+      everyday: z.strictObject({ label: localized(60), heading: localized(110), items: z.array(z.strictObject({ assetId: idSchema, when: text(20).optional(), text: localized(140) })).max(5) }).optional(),
+      area: z.strictObject({ label: localized(60), heading: localized(110), text: localized(240).optional(), places: z.array(z.strictObject({ name: text(40), note: localized(60).optional() })).max(8) }).optional(),
+      numbers: z.strictObject({ label: localized(60), items: z.array(z.strictObject({ value: text(12), text: localized(80), confirmed: z.boolean() })).max(3) }).optional(),
+      season: z.strictObject({ label: localized(40), title: localized(70), text: localized(200), price: localized(40).optional() }).optional(),
+      books: z.strictObject({ label: localized(60), heading: localized(110), items: z.array(z.strictObject({ title: localized(140), detail: localized(140), year: z.string().regex(/^\d{4}$/), href: z.url().optional() })).max(8) }).optional(),
+      source: sourceSchema.optional(),
+    })
+    .optional(),
   assets: z.array(assetSchema).max(SPEC_LIMITS.assets),
   pages: z.array(pageSchema).min(1).max(SPEC_LIMITS.pages),
   forms: z.array(formSchema).max(SPEC_LIMITS.forms),

@@ -74,6 +74,7 @@ export function applySiteDraft(current: SiteSpec, draft: SiteDraftResult, choice
           ...current.brand,
           designSystem: from.brand.designSystem,
           ...(from.brand.servicesStyle ? { servicesStyle: from.brand.servicesStyle, styleProposals: from.brand.styleProposals } : {}),
+          ...(from.brand.concept ? { concept: from.brand.concept } : {}),
           ...(from.brand.source ? { colors: { ...current.brand.colors, primary: from.brand.colors.primary, ...(from.brand.colors.accent ? { accent: from.brand.colors.accent } : {}) }, source: from.brand.source } : {}),
         },
         acceptedBy,
@@ -93,8 +94,12 @@ export function applySiteDraft(current: SiteSpec, draft: SiteDraftResult, choice
   const used = new Set([...pages.flatMap((p) => p.sections.flatMap(assetIdsOf)), ...(brand.logoAssetId ? [brand.logoAssetId] : [])]);
   const assets = current.assets.filter((asset) => asset.origin !== "placeholder" || used.has(asset.id));
 
+  // The signature's facts come with the concept; taking the brand accepts them, as with sections.
+  const signature = choice.brand && from.signature ? accept(from.signature, acceptedBy) : current.signature;
+
   return siteSpecSchema.parse({
     ...current,
+    ...(signature ? { signature } : {}),
     assets,
     locales: from.locales,
     strategy,

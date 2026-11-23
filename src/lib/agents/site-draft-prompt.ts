@@ -10,7 +10,7 @@ import { utf8Bytes } from "./pricing";
 import { siteDraftModelOutput, siteDraftRequestBytes, textSources, type SiteDraftInput } from "./site-draft";
 
 /** Recorded on every run. Change it whenever the instructions or the message format change. */
-export const SITE_DRAFT_PROMPT_VERSION = "site-draft-2026-11-22.3";
+export const SITE_DRAFT_PROMPT_VERSION = "site-draft-2026-11-23.1";
 
 const sectionList = (Object.keys(SECTION_VARIANTS) as SectionKind[])
   .map((kind) => `- ${kind} (${SECTION_VARIANTS[kind].join(", ")}): ${SECTION_LABELS[kind].description}`)
@@ -56,6 +56,13 @@ ${industryList}
   - Directions: editorial (a story, warm and calm), formal (established and serious), statement (direct and bold; type wide or grotesk, or empty for its default), cafe (a warm room: opening hours first, the menu as a card, the first priced item pinned to the photo; for cafés and restaurants), atelier (light and quiet, led by a gallery of the work; for interior design and architecture).
   - Palettes: ${paletteList}
   - Motifs: ${motifList}
+- concept (services@0.1 only): what makes this client's site unlike every other firm's in its trade. Judge it like a world-class designer: nothing generic, and always fitting the trade (a law firm restrained, a café warm, a trade direct).
+  - idea: one sentence, in the site's language, naming what is only this client's (for example "Hantverket i närbild, och verkstadens 38 år som signatur").
+  - hero: split when there is a good photo of the person or the work; full for a strong, wide photo of the place or the work; type when there is no suitable photo, or the words carry it better.
+  - feel: natural for people and professional services; warm for food, wood and hands-on trades; mono for a serious, classic tone; grain for craft and analogue character.
+  - motion: calm for law, finance, health and anything serious; lively for local, warm and hands-on firms.
+  - signature: the one part only this client has, from what the material holds: year (a founding year and what happened since), ownerLine (the owner's own words, quoted exactly), area (the places they work in, as the material names them), numbers (two or three numbers the material states), season (what is on now: this season's dish, offer or opening), books (books the people wrote). Choose the one the material supports best; leave it empty rather than stretch.
+  - signature content: every text with refs, like the rest. A year, a number, a place name or a price must appear in the quote that supports it, or it is removed. Never invent events, numbers, places or words. Whether the owner may be quoted and whether numbers are confirmed is decided by a person, never by you.
 - Choose pages from what the material supports. Typical: home, about, what the client offers or does, events, people, documents, join or contact. The first page is the home page. Put privacy or legal pages in the footer (nav footer).
 - Home starts with a hero: what the client is, in its own words, with one button to the most important next step.
 - Use a contact section (kind contact) where visitors should get in touch or apply; it gets a form. Choose its fields. Write formTexts: the send button in two or three words, and what happens after sending only as the material says it. Never write the consent text: the client's own, legally reviewed wording goes there.

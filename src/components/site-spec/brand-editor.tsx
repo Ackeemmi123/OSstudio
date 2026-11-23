@@ -7,6 +7,7 @@ import { DENSITIES, DESIGN_SYSTEM_LABELS, DESIGN_SYSTEMS, RADII, SERVICES_DIRECT
 import type { SiteSpec } from "@/lib/site-spec/schema";
 import { CONTRAST_MINIMUM, contrastRatio } from "@/lib/site-spec/validate";
 import type { SpecEditing } from "./site-spec-editor";
+import { ConceptEditor } from "./concept-editor";
 import { SourceTag } from "./strategy-editor";
 
 type ColorKey = "primary" | "secondary" | "accent" | "background" | "text";
@@ -279,6 +280,7 @@ export function BrandEditor({ spec, editing }: { spec: SiteSpec; editing: SpecEd
           </Select>
         </Field>
       </div>
+      {brand.designSystem === "services@0.1" ? <ConceptEditor spec={spec} editing={editing} /> : null}
     </div>
   );
 }

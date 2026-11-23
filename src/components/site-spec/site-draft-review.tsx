@@ -6,7 +6,7 @@ import { Tag } from "@/components/ui/status";
 import { useToast } from "@/components/ui/toast";
 import { applySiteDraft, takeEverything } from "@/lib/agents/site-draft-apply";
 import type { DraftRef, SiteDraftResult } from "@/lib/agents/site-draft";
-import { DESIGN_SYSTEM_LABELS, SECTION_LABELS } from "@/lib/site-spec/catalog";
+import { DESIGN_SYSTEM_LABELS, SECTION_LABELS, SERVICES_FEEL_LABELS, SERVICES_HERO_LABELS, SERVICES_MOTION_LABELS, SERVICES_SIGNATURE_LABELS } from "@/lib/site-spec/catalog";
 import { styleName } from "./style-comparison";
 import type { SiteSpecSection } from "@/lib/site-spec/schema";
 import type { SpecEditing } from "./site-spec-editor";
@@ -161,6 +161,23 @@ export function SiteDraftReview({ result, editing, onDone }: { result: SiteDraft
                 </li>
               ))}
             </ol>
+          </div>
+        ) : null}
+        {spec.brand.concept ? (
+          <div className="flex flex-col gap-1 pt-1 text-[12.5px]">
+            <p className="text-[12px] text-ink-muted">Proposed concept, taken with the design:</p>
+            {spec.brand.concept.idea ? <p className="text-ink">{spec.brand.concept.idea}</p> : null}
+            <p className="text-ink-muted">
+              {[
+                spec.brand.concept.hero ? SERVICES_HERO_LABELS[spec.brand.concept.hero] : null,
+                spec.brand.concept.signature ? `signature: ${SERVICES_SIGNATURE_LABELS[spec.brand.concept.signature].toLowerCase()}` : "no signature part",
+                spec.brand.concept.feel ? `photos ${SERVICES_FEEL_LABELS[spec.brand.concept.feel].toLowerCase()}` : null,
+                spec.brand.concept.motion ? `${SERVICES_MOTION_LABELS[spec.brand.concept.motion].toLowerCase()} movement` : null,
+              ]
+                .filter(Boolean)
+                .join(" · ")}
+            </p>
+            {spec.signature?.ownerLine || spec.signature?.numbers ? <p className="text-caution">The owner&apos;s consent and every number are ticked by a person in the brand settings before they show.</p> : null}
           </div>
         ) : null}
       </fieldset>

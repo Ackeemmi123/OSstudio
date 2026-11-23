@@ -22,6 +22,23 @@ export const SERVICES_DIRECTIONS = ["editorial", "formal", "statement", "cafe", 
 export const SERVICES_PALETTES = ["pine", "oxblood", "signal", "harbor", "dry", "measure", "brick", "verdigris", "ember", "cobalt", "gold", "navy", "timber", "plum", "hazard", "slate", "forest", "indigo", "steel", "terracotta", "teal", "ochre"] as const;
 export const SERVICES_TYPES = ["wide", "grotesk"] as const;
 export const SERVICES_MOTIFS = ["pipe", "drain", "scale", "ripple", "courses"] as const;
+/** The concept: what sets one firm's company-design site apart from another's in the same direction. */
+export const SERVICES_HEROES = ["split", "full", "type"] as const;
+export const SERVICES_SIGNATURES = ["year", "ownerLine", "everyday", "area", "numbers", "season", "books"] as const;
+export const SERVICES_FEELS = ["natural", "warm", "mono", "grain"] as const;
+export const SERVICES_MOTIONS = ["calm", "lively"] as const;
+export const SERVICES_HERO_LABELS: Record<(typeof SERVICES_HEROES)[number], string> = { split: "Photo beside the words", full: "Photo behind the words", type: "Words only" };
+export const SERVICES_SIGNATURE_LABELS: Record<(typeof SERVICES_SIGNATURES)[number], string> = {
+  year: "The founding year",
+  ownerLine: "The owner's own line",
+  everyday: "An ordinary day in photos",
+  area: "Where they work",
+  numbers: "Confirmed numbers",
+  season: "What is on now",
+  books: "Books they wrote",
+};
+export const SERVICES_FEEL_LABELS: Record<(typeof SERVICES_FEELS)[number], string> = { natural: "Natural", warm: "Warm", mono: "Black and white", grain: "Film grain" };
+export const SERVICES_MOTION_LABELS: Record<(typeof SERVICES_MOTIONS)[number], string> = { calm: "Calm", lively: "Lively" };
 export const SERVICES_DIRECTION_LABELS: Record<(typeof SERVICES_DIRECTIONS)[number], string> = {
   editorial: "Editorial: a story, warm and calm",
   formal: "Formal: established and serious",

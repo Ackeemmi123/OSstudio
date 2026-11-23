@@ -38,6 +38,8 @@ function output(overrides: Partial<SiteDraftModelOutput> = {}): SiteDraftModelOu
     colors: { primary: "#8a1c2b", accent: "nope", basis: "logon" },
     contactFormFields: ["name", "email", "message"],
     styles: [],
+    concept: { idea: "", hero: "split", signature: "", feel: "natural", motion: "calm" },
+    signature: { label: { text: "", refs: [], generic: false }, heading: { text: "", refs: [], generic: false }, text: { text: "", refs: [], generic: false }, year: "", who: "", items: [] },
     formTexts: { submitLabel: { text: "", refs: [], generic: true }, replyNote: { text: "", refs: [], generic: false } },
     pages: [
       {
@@ -213,5 +215,51 @@ describe("site draft helpers", () => {
 
   it("counts PDF pages generously when reserving the budget", () => {
     expect(siteDraftBytes(INPUT)).toBeGreaterThan(4 * 3000);
+  });
+});
+
+describe("the concept and its signature part", () => {
+  const services = (signature: Partial<SiteDraftModelOutput["signature"]>, kind: SiteDraftModelOutput["concept"]["signature"]) =>
+    output({
+      designSystem: "services@0.1",
+      concept: { idea: "Vårbalen på Arken.", hero: "type", signature: kind, feel: "warm", motion: "lively" },
+      signature: { label: empty, heading: empty, text: empty, year: "", who: "", items: [], ...signature },
+    });
+
+  it("takes the concept, and a number only when the quote that supports it contains it", () => {
+    const one = normalizeSiteDraft(
+      services({ label: label("I siffror"), items: [{ title: label("12"), text: cite("april, vårbalens dag", "src-1", "vårbal den 12 april 2026"), extra: "" }, { title: label("99"), text: cite("medlemmar", "src-1", "Sällskapet håller vårbal"), extra: "" }] }, "numbers"),
+      INPUT,
+      RUN,
+    );
+    expect(one.spec.brand.concept).toEqual({ idea: "Vårbalen på Arken.", hero: "type", feel: "warm", motion: "lively" });
+    expect(one.spec.signature).toBeUndefined();
+
+    const two = normalizeSiteDraft(
+      services({ label: label("I siffror"), items: [{ title: label("12"), text: cite("april, vårbalens dag", "src-1", "vårbal den 12 april 2026"), extra: "" }, { title: label("2026"), text: cite("året för balen", "src-1", "12 april 2026"), extra: "" }] }, "numbers"),
+      INPUT,
+      RUN,
+    );
+    expect(two.spec.brand.concept?.signature).toBe("numbers");
+    expect(two.spec.signature?.numbers?.items.map((i) => [i.value, i.confirmed])).toEqual([["12", false], ["2026", false]]);
+  });
+
+  it("refuses a founding year the material does not give", () => {
+    const invented = normalizeSiteDraft(services({ year: "1999", heading: cite("Sedan länge", "src-1", "Sällskapet håller vårbal") }, "year"), INPUT, RUN);
+    expect(invented.spec.signature).toBeUndefined();
+    const real = normalizeSiteDraft(services({ year: "2026", heading: cite("Vårbal 2026", "src-1", "12 april 2026") }, "year"), INPUT, RUN);
+    expect(real.spec.signature?.year).toMatchObject({ year: "2026", heading: { sv: "Vårbal 2026" } });
+  });
+
+  it("never ticks the owner's consent, and needs a name from the material", () => {
+    const line = normalizeSiteDraft(services({ who: "Anna Testsson", text: cite("Sällskapet håller vårbal den 12 april 2026 på Arken.", "src-1") }, "ownerLine"), INPUT, RUN);
+    expect(line.spec.signature?.ownerLine).toMatchObject({ who: "Anna Testsson", consent: false });
+    const stranger = normalizeSiteDraft(services({ who: "Okänd Person", text: cite("Sällskapet håller vårbal den 12 april 2026 på Arken.", "src-1") }, "ownerLine"), INPUT, RUN);
+    expect(stranger.spec.signature).toBeUndefined();
+  });
+
+  it("ignores the concept for other designs", () => {
+    const association = normalizeSiteDraft(output({ concept: { idea: "x", hero: "full", signature: "year", feel: "grain", motion: "lively" } }), INPUT, RUN);
+    expect(association.spec.brand.concept).toBeUndefined();
   });
 });
