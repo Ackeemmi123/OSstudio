@@ -35,8 +35,7 @@ import type {
   StudioSnapshot,
   Task,
   TaskDetailsInput,
-  TaskStatus,
-} from "@/lib/domain/types";
+  TaskStatus, NewNextStep, NextStep } from "@/lib/domain/types";
 
 /**
  * Data access boundary. The UI and the agent runner both go through it, so
@@ -139,6 +138,15 @@ export interface StudioRepository {
   domainStatus?(publication: SitePublicationRecord): Promise<DomainSetup>;
   /** Turns the client's review on a build's link on or off. */
   setBuildReviews?(build: SiteBuildRecord, enabled: boolean): Promise<void>;
+  /** Next steps: the studio's own, by client and date. Open ones first, then the last done. */
+  listNextSteps?(clientId?: string): Promise<NextStep[]>;
+  addNextStep?(step: NewNextStep): Promise<NextStep>;
+  updateNextStep?(step: NextStep, change: Partial<Pick<NextStep, "title" | "note" | "dueOn" | "dueTime" | "assignee" | "status">>): Promise<NextStep>;
+  deleteNextStep?(step: NextStep): Promise<void>;
+  /** The caller's own calendar feed: whether one is on, and making a new link (shown once) or turning it off. */
+  hasCalendarFeed?(): Promise<boolean>;
+  createCalendarFeed?(): Promise<string>;
+  revokeCalendarFeed?(): Promise<void>;
   /** Up to eight questions the client answers on the link. An empty list takes them off. */
   setBuildQuestions?(build: SiteBuildRecord, questions: string[]): Promise<void>;
   /** Answers a client's comment (a null reply keeps the earlier one) and marks it resolved or open. */
