@@ -7,6 +7,8 @@ import { buildPlanMessage, PLAN_SYSTEM_PROMPT } from "@/lib/agents/plan-prompt";
 import type { CallAttempt, TokenUsage } from "@/lib/agents/pricing";
 import { siteDraftModelOutput, type SiteDraftInput } from "@/lib/agents/site-draft";
 import { buildSiteDraftMessage, SITE_DRAFT_SYSTEM_PROMPT } from "@/lib/agents/site-draft-prompt";
+import { warmTextModelOutput, type WarmTextInput } from "@/lib/agents/warm-text";
+import { buildWarmTextMessage, WARM_TEXT_SYSTEM_PROMPT } from "@/lib/agents/warm-text-prompt";
 import { ModelError, type AgentModel, type ModelAnswer, type Spent } from "./model";
 
 /** Where the API key is sent. Never taken from ANTHROPIC_BASE_URL implicitly. */
@@ -19,7 +21,7 @@ export const ANTHROPIC_API_URL = "https://api.anthropic.com";
 export class AnthropicModel implements AgentModel {
   readonly runner = "anthropic";
   readonly test = false;
-  readonly maxOutputTokens = { intake: 16000, plan: 4000, draft: 48000 };
+  readonly maxOutputTokens = { intake: 16000, plan: 4000, draft: 48000, warm: 12000 };
   private readonly client: Anthropic;
 
   constructor(
@@ -72,11 +74,18 @@ export class AnthropicModel implements AgentModel {
     );
   }
 
+  warmText(input: WarmTextInput, signal: AbortSignal): Promise<ModelAnswer> {
+    return this.call(
+      { system: WARM_TEXT_SYSTEM_PROMPT, message: buildWarmTextMessage(input), schema: warmTextModelOutput, maxTokens: this.maxOutputTokens.warm, effort: "medium", stream: true, timeoutMs: this.draftTimeoutMs },
+      signal,
+    );
+  }
+
   private async call(
     request: {
       system: string;
       message: string | Anthropic.Beta.Messages.BetaContentBlockParam[];
-      schema: typeof intakeModelOutput | typeof planModelOutput | typeof siteDraftModelOutput;
+      schema: typeof intakeModelOutput | typeof planModelOutput | typeof siteDraftModelOutput | typeof warmTextModelOutput;
       maxTokens: number;
       effort: "low" | "medium";
       stream?: boolean;

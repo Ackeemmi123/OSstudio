@@ -6,6 +6,7 @@
 import type { IntakeInput } from "@/lib/agents/intake";
 import type { PlanInput } from "@/lib/agents/plan";
 import type { SiteDraftInput } from "@/lib/agents/site-draft";
+import type { WarmTextInput } from "@/lib/agents/warm-text";
 import type { CallAttempt, TokenUsage } from "@/lib/agents/pricing";
 
 /** What a call used, as the provider reported it. */
@@ -30,13 +31,15 @@ export interface AgentModel {
   /** True for the deterministic test provider, which uses no AI. */
   readonly test: boolean;
   /** The output allowance per call of each kind, used to reserve the most a call could cost. */
-  readonly maxOutputTokens: { intake: number; plan: number; draft: number };
+  readonly maxOutputTokens: { intake: number; plan: number; draft: number; warm: number };
   /** Client intake: proposes brief values from source material. */
   analyze(input: IntakeInput, signal: AbortSignal): Promise<ModelAnswer>;
   /** Project coordination: suggests changes to a new project's starting tasks. */
   suggestTasks(input: PlanInput, signal: AbortSignal): Promise<ModelAnswer>;
   /** Website draft: proposes a whole SiteSpec from the client's text material and kept files. */
   draftSite(input: SiteDraftInput, signal: AbortSignal): Promise<ModelAnswer>;
+  /** Warmer text: proposes rewordings of a spec's texts in the client's own voice. */
+  warmText(input: WarmTextInput, signal: AbortSignal): Promise<ModelAnswer>;
 }
 
 export class ModelError extends Error {

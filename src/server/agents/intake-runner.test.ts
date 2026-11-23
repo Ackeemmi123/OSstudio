@@ -39,7 +39,7 @@ class CountingModel implements AgentModel {
   readonly runner = "counting";
   readonly model = "claude-opus-5-5";
   readonly test = true;
-  readonly maxOutputTokens = { intake: 16_000, plan: 4_000, draft: 48_000 };
+  readonly maxOutputTokens = { intake: 16_000, plan: 4_000, draft: 48_000, warm: 12_000 };
   calls = 0;
   constructor(
     private readonly behaviour: (input: IntakeInput, signal: AbortSignal) => Promise<unknown>,
@@ -53,6 +53,9 @@ class CountingModel implements AgentModel {
     throw new Error("Not used by the intake runner.");
   }
   async draftSite(): Promise<ModelAnswer> {
+    throw new Error("Not used by the intake runner.");
+  }
+  async warmText(): Promise<ModelAnswer> {
     throw new Error("Not used by the intake runner.");
   }
 }
