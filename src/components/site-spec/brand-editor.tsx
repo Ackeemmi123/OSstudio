@@ -8,6 +8,7 @@ import type { SiteSpec } from "@/lib/site-spec/schema";
 import { CONTRAST_MINIMUM, contrastRatio } from "@/lib/site-spec/validate";
 import type { SpecEditing } from "./site-spec-editor";
 import { ConceptEditor } from "./concept-editor";
+import { PhotoBriefPanel } from "./photo-brief-panel";
 import { SourceTag } from "./strategy-editor";
 
 type ColorKey = "primary" | "secondary" | "accent" | "background" | "text";
@@ -281,6 +282,7 @@ export function BrandEditor({ spec, editing, projectId }: { spec: SiteSpec; edit
         </Field>
       </div>
       {brand.designSystem === "services@0.1" ? <ConceptEditor spec={spec} editing={editing} projectId={projectId} /> : null}
+      {brand.designSystem === "services@0.1" ? <PhotoBriefPanel spec={spec} /> : null}
     </div>
   );
 }
