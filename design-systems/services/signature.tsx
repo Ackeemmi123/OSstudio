@@ -129,6 +129,25 @@ export function Signature({ context }: { context: PageContext }) {
     );
   }
 
+  if (kind === "books" && parts.books) {
+    const { books } = parts;
+    return (
+      <section className="sig sig--books" aria-labelledby="signature">
+        <Head label={books.label} heading={books.heading.text} />
+        <ol className="sig-shelf" data-count={books.items.length}>
+          {books.items.map((book, i) => (
+            <li key={book.title.text + book.year} className={`sig-book sig-book--${(i % 3) + 1}`}>
+              <p className="sig-book-year">{book.year}</p>
+              <p className="sig-book-title">{book.href ? <a href={book.href} rel="noopener">{book.title.text}</a> : book.title.text}</p>
+              <p className="sig-book-detail">{book.detail.text}</p>
+            </li>
+          ))}
+        </ol>
+        {books.more ? <p className="sig-more">{books.more.text}</p> : null}
+      </section>
+    );
+  }
+
   if (kind === "season" && parts.season) {
     const { season } = parts;
     return (

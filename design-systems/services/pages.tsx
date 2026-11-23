@@ -21,7 +21,7 @@ export interface PageContext {
   design: SiteDesign;
   /** The way back to the site's root from this page: "./" or "../". */
   root: string;
-  page: "home" | "about" | "contact" | "privacy" | "notFound";
+  page: "home" | "about" | "publications" | "contact" | "privacy" | "notFound";
   /** Where the forms post on a published client site. */
   formAction?: string;
 }
@@ -97,6 +97,7 @@ function Menu({ context, footer }: { context: PageContext; footer?: boolean }) {
     return (
       <ul>
         <li><a href={`${root}${content.about.slug}/`} aria-current={at("about")}>{content.about.menuLabel}</a></li>
+        {content.publications ? <li><a href={`${root}${content.publications.slug}/`} aria-current={at("publications")}>{content.publications.menuLabel}</a></li> : null}
         <li><a href={`${root}${content.contact.slug}/`} aria-current={at("contact")}>{content.contact.menuLabel}</a></li>
         <li><a href={`${root}${content.privacy.slug}/`} aria-current={at("privacy")}>{content.privacy.menuLabel}</a></li>
       </ul>
@@ -106,7 +107,7 @@ function Menu({ context, footer }: { context: PageContext; footer?: boolean }) {
     <ul>
       <li><a href={`${home}#services`}>{content.menu.servicesLabel}</a></li>
       <li><a href={`${root}${content.about.slug}/`} aria-current={at("about")}>{content.about.menuLabel}</a></li>
-      <li><a href={`${home}#questions`}>{content.menu.questionsLabel}</a></li>
+      {content.publications ? <li><a href={`${root}${content.publications.slug}/`} aria-current={at("publications")}>{content.publications.menuLabel}</a></li> : <li><a href={`${home}#questions`}>{content.menu.questionsLabel}</a></li>}
       <li><a href={`${root}${content.contact.slug}/`} aria-current={at("contact")}>{content.contact.menuLabel}</a></li>
     </ul>
   );
@@ -381,6 +382,33 @@ export function ContactPage({ context }: { context: PageContext }) {
         </div>
         <ContactForm content={content} formId="contact" formAction={context.formAction} />
       </section>
+    </Frame>
+  );
+}
+
+/** Books, articles and talks, newest first within each group, each with its year beside it. */
+export function PublicationsPage({ context }: { context: PageContext }) {
+  const publications = context.content.publications!;
+  return (
+    <Frame context={context}>
+      <section className="page-intro">
+        <p className="label">{publications.label}</p>
+        <h1>{publications.heading.text}</h1>
+        {publications.lead ? <p className="page-lead">{publications.lead.text}</p> : null}
+      </section>
+      {publications.groups.map((group, g) => (
+        <section className="pub-group" key={group.heading} aria-labelledby={`pubs-${g}`}>
+          <h2 id={`pubs-${g}`}>{group.heading}</h2>
+          <ol className="pub-list">
+            {group.items.map((item, i) => (
+              <li key={i}>
+                <span className="pub-year">{item.year ?? ""}</span>
+                <span className="pub-text">{item.href ? <a href={item.href} rel="noopener">{item.text.text}</a> : item.text.text}</span>
+              </li>
+            ))}
+          </ol>
+        </section>
+      ))}
     </Frame>
   );
 }

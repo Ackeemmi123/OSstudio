@@ -9,7 +9,7 @@ import { AtelierHome } from "./atelier";
 import { CafeHome } from "./cafe";
 import { EditorialHome } from "./editorial";
 import { FormalHome } from "./formal";
-import { AboutPage, CHROME, ContactPage, FormResultPage, NotFoundPage, PrivacyPage, type PageContext } from "./pages";
+import { AboutPage, CHROME, ContactPage, FormResultPage, NotFoundPage, PrivacyPage, PublicationsPage, type PageContext } from "./pages";
 import { StatementHome } from "./statement";
 import { renderStatic } from "./render";
 import { STYLES } from "./styles";
@@ -43,7 +43,7 @@ function document(site: Site, root: string, seo: SiteContent["home"]["seo"], bod
     `<link rel="stylesheet" href="${root}site.css">`,
     `<meta name="generator" content="${design.system}">`,
     "</head>",
-    `<body class="d-${design.direction} p-${design.palette}${design.motif ? ` m-${design.motif}` : ""}${design.type ? ` t-${design.type}` : ""}${design.feel && design.feel !== "natural" ? ` f-${design.feel}` : ""}${design.motion === "lively" ? " mo-lively" : ""}${content.promise.action.by === "phone" && content.business.phone ? " has-call-bar" : ""}">${render(body)}</body>`,
+    `<body class="d-${design.direction} p-${design.palette}${design.motif ? ` m-${design.motif}` : ""}${design.type ? ` t-${design.type}` : ""}${design.feel ? ` f-${design.feel}` : ""}${design.motion === "lively" ? " mo-lively" : ""}${content.promise.action.by === "phone" && content.business.phone ? " has-call-bar" : ""}">${render(body)}</body>`,
     "</html>",
   ].join("\n");
 }
@@ -95,6 +95,7 @@ export function build(site: Site, render: Render = renderStatic): BuiltFile[] {
     { path: "site.css", text: STYLES },
     { path: "index.html", text: document(parsed, "./", content.home.seo, createElement(HOMES[site.design.direction], { context: context("home", "./") }), render) },
     { path: `${content.about.slug}/index.html`, text: document(parsed, "../", content.about.seo, <AboutPage context={context("about", "../")} />, render) },
+    ...(content.publications ? [{ path: `${content.publications.slug}/index.html`, text: document(parsed, "../", content.publications.seo, <PublicationsPage context={context("publications", "../")} />, render) }] : []),
     { path: `${content.contact.slug}/index.html`, text: document(parsed, "../", content.contact.seo, <ContactPage context={context("contact", "../")} />, render) },
     { path: `${content.privacy.slug}/index.html`, text: document(parsed, "../", content.privacy.seo, <PrivacyPage context={context("privacy", "../")} />, render) },
     { path: "sent/index.html", text: document(parsed, "../", { title: CHROME[content.language].sent, description: CHROME[content.language].sent }, <FormResultPage context={context("notFound", "../")} sent />, render) },
