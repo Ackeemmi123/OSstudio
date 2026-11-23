@@ -43,20 +43,29 @@ function document(site: Site, root: string, seo: SiteContent["home"]["seo"], bod
     `<link rel="stylesheet" href="${root}site.css">`,
     `<meta name="generator" content="${design.system}">`,
     "</head>",
-    `<body class="d-${design.direction} p-${design.palette}${design.motif ? ` m-${design.motif}` : ""}${design.type ? ` t-${design.type}` : ""}${content.promise.action.by === "phone" && content.business.phone ? " has-call-bar" : ""}">${render(body)}</body>`,
+    `<body class="d-${design.direction} p-${design.palette}${design.motif ? ` m-${design.motif}` : ""}${design.type ? ` t-${design.type}` : ""}${design.feel && design.feel !== "natural" ? ` f-${design.feel}` : ""}${design.motion === "lively" ? " mo-lively" : ""}${content.promise.action.by === "phone" && content.business.phone ? " has-call-bar" : ""}">${render(body)}</body>`,
     "</html>",
   ].join("\n");
 }
 
 /** What the types cannot say: a picture must exist, and a headline must really end with its turn. */
-function checkReferences(content: SiteContent) {
+function checkReferences(content: SiteContent, design: Site["design"]) {
   const ids = new Set(content.assets.map((asset) => asset.id));
-  const used = [content.promise.imageId, content.proof.imageId, content.about.imageId, ...content.about.people.map((person) => person.imageId), ...(content.gallery?.items ?? []).map((item) => item.imageId)];
+  const used = [
+    content.promise.imageId,
+    content.proof.imageId,
+    content.about.imageId,
+    ...content.about.people.map((person) => person.imageId),
+    ...(content.gallery?.items ?? []).map((item) => item.imageId),
+    content.signature?.ownerLine?.imageId,
+    ...(content.signature?.everyday?.items ?? []).map((item) => item.imageId),
+  ];
   for (const id of used) {
     if (id && !ids.has(id)) throw new Error(`No image called ${id}.`);
   }
   const { headline, turn } = content.promise;
   if (turn && !headline.text.endsWith(turn)) throw new Error(`The headline does not end with: ${turn}`);
+  if (design.signature && !content.signature?.[design.signature]) throw new Error(`The design draws the signature part ${design.signature}, but the content has none.`);
   if (content.client) checkClientSite(content);
 }
 
@@ -68,6 +77,10 @@ function checkClientSite(content: SiteContent) {
   if (quote) throw new Error(`No permission to use the quote from ${quote.who}.`);
   const person = content.about.people.find((item) => item.consent !== "given");
   if (person) throw new Error(`No consent to show ${person.name}.`);
+  const owner = content.signature?.ownerLine;
+  if (owner && owner.consent !== "given") throw new Error(`No consent to quote ${owner.who}.`);
+  const unconfirmed = content.signature?.numbers?.items.find((item) => item.text.origin !== "client_confirmed");
+  if (unconfirmed) throw new Error(`The number ${unconfirmed.value} is not confirmed by the client.`);
 }
 
 /** Every page as a file. Fonts are copied by whoever writes the files out. */
@@ -75,7 +88,7 @@ function checkClientSite(content: SiteContent) {
 export function build(site: Site, render: Render = renderStatic): BuiltFile[] {
   const content = siteContent.parse(site.content);
   siteDesign.parse(site.design);
-  checkReferences(content);
+  checkReferences(content, site.design);
   const parsed = { ...site, content };
   const context = (page: PageContext["page"], root: string): PageContext => ({ content, design: site.design, root, page, formAction: site.formAction });
   return [

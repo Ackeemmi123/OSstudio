@@ -7,6 +7,7 @@
 import type { CSSProperties } from "react";
 import type { SiteContent } from "./content";
 import { Action, Closing, FirstSteps, Frame, Headline, Proof, Questions, Reasons, Services, displayTier, type PageContext } from "./pages";
+import { Signature } from "./signature";
 
 /** A line set to fill the page's width. The CSS works out the size from how many letters it has. */
 const fit = (text: string) => ({ "--n": text.length }) as CSSProperties;
@@ -43,11 +44,11 @@ function Hero({ context }: { context: PageContext }) {
         <h1>
           {lines.map((line, i) => {
             const last = promise.turn && i === lines.length - 1;
-            const Tag = last ? "em" : "span";
+            const classes = ["poster", i === 0 && line.endsWith("?") ? "poster--question" : "", last ? "poster--turn" : ""].filter(Boolean).join(" ");
             return (
-              <Tag key={line} className={i === 0 && line.endsWith("?") ? "poster poster--question" : "poster"} style={fit(line)}>
+              <span key={line} className={classes} style={fit(line)}>
                 {line}{" "}
-              </Tag>
+              </span>
             );
           })}
         </h1>
@@ -125,6 +126,7 @@ export function StatementHome({ context }: { context: PageContext }) {
       <Hero context={context} />
       {piped ? <Pipe side="right" from="deep" to="signal" /> : null}
       <Reasons content={content} />
+      <Signature context={context} />
       {piped ? <Pipe side="left" from="signal" to="paper" /> : null}
       {scaled ? <Scale from="paper" to="ink" /> : null}
       <Services content={content} />

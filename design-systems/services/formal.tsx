@@ -4,7 +4,8 @@
  * becomes part of the composition, if the firm has said it.
  */
 import type { SiteContent } from "./content";
-import { Action, Closing, Emphasised, FirstSteps, Frame, Headline, Picture, Proof, Questions, Reasons, Services, displayTier, find, type PageContext } from "./pages";
+import { Action, Closing, FirstSteps, Frame, Headline, Picture, Proof, Questions, Reasons, Services, displayTier, find, type PageContext } from "./pages";
+import { Signature } from "./signature";
 
 /** The year a firm's own words say it began, if they do. */
 export function foundingYear(text: string): string | null {
@@ -14,9 +15,9 @@ export function foundingYear(text: string): string | null {
 function Hero({ context }: { context: PageContext }) {
   const { content, design } = context;
   const { promise } = content;
-  const image = find(content, promise.imageId);
+  const image = design.hero === "type" ? null : find(content, promise.imageId);
   return (
-    <section className={image ? "hero hero--field" : "hero hero--field hero--type"} data-tier={displayTier(promise.headline.text)}>
+    <section className={image ? (design.hero === "full" ? "hero hero--field hero--full" : "hero hero--field") : "hero hero--field hero--type"} data-tier={displayTier(promise.headline.text)}>
       {design.motif === "ripple" ? <div className="ringbox" aria-hidden="true" /> : null}
       <p className="label hero-for">{promise.whoFor.text}</p>
       <Headline text={promise.headline.text} turn={promise.turn} />
@@ -50,7 +51,7 @@ function Memory({ content }: { content: SiteContent }) {
         </figure>
       ) : null}
       <div className="memory-head">
-        <h2 id="memory"><Emphasised text={about.heading.text} /></h2>
+        <h2 id="memory">{about.heading.text}</h2>
         <p className="page-lead">{about.lead.text}</p>
       </div>
       <div className="memory-story">
@@ -68,12 +69,14 @@ export function FormalHome({ context }: { context: PageContext }) {
     <Frame context={context}>
       <Hero context={context} />
       <Reasons content={content} />
+      <Signature context={context} />
       <Services content={content} />
-      <Memory content={content} />
+      {/* The founding year is the signature's to tell when the concept chose it. */}
+      {context.design.signature === "year" ? null : <Memory content={content} />}
       <FirstSteps content={content} />
       <Proof content={content} />
       <Questions content={content} />
-      <Closing content={content} formAction={context.formAction} emphasise />
+      <Closing content={content} formAction={context.formAction} />
     </Frame>
   );
 }

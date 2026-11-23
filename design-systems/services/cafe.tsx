@@ -6,6 +6,7 @@
  */
 import type { SiteContent } from "./content";
 import { Action, CHROME, Closing, Frame, Headline, Picture, Proof, Questions, displayTier, find, type PageContext } from "./pages";
+import { Signature } from "./signature";
 
 /** The first priced item is what the note on the photo shows; without one, the reassurance line, or nothing. */
 function noteOf(content: SiteContent): { title: string; text: string; price?: string } | null {
@@ -30,12 +31,12 @@ function VisitBar({ content }: { content: SiteContent }) {
 }
 
 function Hero({ context }: { context: PageContext }) {
-  const { content } = context;
+  const { content, design } = context;
   const { promise } = content;
-  const image = find(content, promise.imageId);
+  const image = design.hero === "type" ? null : find(content, promise.imageId);
   const note = noteOf(content);
   return (
-    <section className={image ? "hero hero--arch" : "hero hero--type"} data-tier={displayTier(promise.headline.text)}>
+    <section className={image ? (design.hero === "full" ? "hero hero--arch hero--full" : "hero hero--arch") : "hero hero--type"} data-tier={displayTier(promise.headline.text)}>
       <div className="hero-words">
         <p className="label hero-for">{promise.whoFor.text}</p>
         <Headline text={promise.headline.text} turn={promise.turn} />
@@ -152,6 +153,7 @@ export function CafeHome({ context }: { context: PageContext }) {
       <VisitBar content={content} />
       <Hero context={context} />
       <MenuCard content={content} />
+      <Signature context={context} />
       <Visit content={content} />
       <Proof content={content} />
       <Questions content={content} />

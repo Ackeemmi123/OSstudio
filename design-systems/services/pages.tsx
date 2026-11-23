@@ -71,21 +71,9 @@ export function Headline({ text, turn, as: Tag = "h1" }: { text: string; turn?: 
   return (
     <Tag>
       {text.slice(0, text.length - turn.length)}
-      <em>{turn}</em>
+      {/* One voice: the turn only starts its own line on wide screens, in the same type and colour. */}
+      <span className="turn">{turn}</span>
     </Tag>
-  );
-}
-
-/** Sets the end of a phrase in italics: what follows its last comma, or else its last word. */
-export function Emphasised({ text }: { text: string }) {
-  const comma = text.lastIndexOf(", ");
-  const cut = comma > 0 ? comma + 2 : text.lastIndexOf(" ") + 1;
-  if (cut <= 0) return <>{text}</>;
-  return (
-    <>
-      {text.slice(0, cut)}
-      <em>{text.slice(cut)}</em>
-    </>
   );
 }
 
@@ -212,7 +200,7 @@ function ContactForm({ content, formId, formAction }: { content: SiteContent; fo
 export function Reasons({ content, heading }: { content: SiteContent; heading?: string }) {
   return (
     <section className="reasons" aria-label={content.promise.whoFor.text}>
-      {heading ? <h2><Emphasised text={heading} /></h2> : null}
+      {heading ? <h2>{heading}</h2> : null}
       <ul className="reason-list" data-count={content.reasons.items.length}>
         {content.reasons.items.map((reason) => (
           <li key={reason.title.text}>
@@ -310,12 +298,12 @@ export function Questions({ content }: { content: SiteContent }) {
   );
 }
 
-export function Closing({ content, emphasise, formAction }: { content: SiteContent; emphasise?: boolean; formAction?: string }) {
+export function Closing({ content, formAction }: { content: SiteContent; formAction?: string }) {
   const { closing } = content;
   return (
     <section className="closing" aria-labelledby="form">
       <div className="closing-words">
-        <h2 id="form" tabIndex={-1}>{emphasise ? <Emphasised text={closing.heading.text} /> : closing.heading.text}</h2>
+        <h2 id="form" tabIndex={-1}>{closing.heading.text}</h2>
         <p>{closing.text.text}</p>
         <div className="closing-details">
           {content.business.phone ? <p><a href={tel(content.business.phone)}>{content.business.phone}</a></p> : null}

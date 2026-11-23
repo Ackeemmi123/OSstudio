@@ -16,7 +16,41 @@ function variant(base: Site, direction: SiteDesign["direction"], palette: SiteDe
 
 const { lindqvist, kivela, norrsken } = SITES;
 
+/** One site with a concept: a hero choice, a signature part, a photo feel and a motion level. */
+function concept(base: Site, design: Partial<SiteDesign> & Pick<SiteDesign, "direction" | "palette">, change: (content: Site["content"]) => void): Site {
+  const content = structuredClone(base.content);
+  change(content);
+  return { content, design: { ...base.design, ...design } };
+}
+
+/** The same photo under a second name, so a proof can show three or four. */
+const again = (content: Site["content"], id: string, as: string) => {
+  const asset = content.assets.find((a) => a.id === id)!;
+  content.assets.push({ ...asset, id: as });
+};
+
 export const STRESS_SITES: Record<string, Site> = {
+  "concept-editorial-year-full": concept(lindqvist.site, { direction: "editorial", palette: "pine", hero: "full", signature: "year", feel: "warm", motion: "lively" }, (c) => {
+    c.signature = { year: { year: "2009", heading: w("Since 2009, one office on the same street."), events: [{ when: "2009", text: w("Anna opens the office with three clients.") }, { when: "2016", text: w("Payroll added, for the first café on the street.") }, { when: "Today", text: w("About a hundred owner-run companies.") }] } };
+  }),
+  "concept-editorial-everyday": concept(lindqvist.site, { direction: "editorial", palette: "timber", signature: "everyday", feel: "grain" }, (c) => {
+    again(c, "documents", "documents-2");
+    again(c, "anna", "anna-2");
+    c.signature = { everyday: { label: "An ordinary Tuesday", heading: w("What a month of bookkeeping looks like from here."), items: [{ imageId: "documents", when: "08.30", text: w("Receipts from the weekend, sorted before coffee.") }, { imageId: "anna-2", when: "11.00", text: w("Questions answered before noon, as promised.") }, { imageId: "documents-2", when: "15.00", text: w("The one-page summary goes out.") }] } };
+  }),
+  "concept-formal-owner": concept(kivela.site, { direction: "formal", palette: "oxblood", hero: "type", signature: "ownerLine", feel: "mono" }, (c) => {
+    c.signature = { ownerLine: { text: w("Perheyrityksen omistajanvaihdos ei ole kauppa vaan sukupolvien välinen sopimus. Siihen kannattaa käyttää aikaa."), who: "Juhani Kivelä", role: "Asianajaja, osakas", imageId: "juhani", consent: "invented_test_data" } };
+  }),
+  "concept-cafe-season-full": concept(lindqvist.site, { direction: "cafe", palette: "terracotta", hero: "full", signature: "season", motion: "lively" }, (c) => {
+    c.signature = { season: { label: "This month", title: w("Year-end, done before Christmas"), text: w("Send us the year's receipts by 10 December and the accounts are ready before the holidays."), price: w("From €900") } };
+  }),
+  "concept-atelier-area": concept(kivela.site, { direction: "atelier", palette: "slate", signature: "area", feel: "grain" }, (c) => {
+    c.signature = { area: { label: "Missä toimimme", heading: w("Pirkanmaalta koko Länsi-Suomeen."), text: w("Tapaamme asiakkaat heidän omissa tiloissaan, kun se sopii paremmin."), places: [{ name: "Tampere", note: w("toimisto") }, { name: "Nokia" }, { name: "Valkeakoski" }, { name: "Pori", note: w("sopimuksen mukaan") }] } };
+  }),
+  "concept-statement-numbers": concept(norrsken.site, { direction: "statement", palette: "signal", signature: "numbers", motion: "lively" }, (c) => {
+    c.signature = { numbers: { label: "Siffror från verkstaden", items: [{ value: "1 200", text: w("utryckningar förra året") }, { value: "45 min", text: w("i snitt till dörren i Åbo") }, { value: "24/7", text: w("jour, också på helger") }] } };
+  }),
+
   "cafe-priced-note": variant(lindqvist.site, "cafe", "terracotta", (c) => {
     c.services.items[1] = { ...c.services.items[1], price: w("12 €") };
   }),
