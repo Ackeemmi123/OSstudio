@@ -41,7 +41,9 @@ function Gallery({ content }: { content: SiteContent }) {
       <div className="work-grid" data-count={shown.length}>
         {shown.map((item, i) => (
           <figure key={item.imageId} className={`work-item work-item--${(i % 4) + 1}`}>
-            <Picture asset={item.asset!} ratio={[4 / 3, 4 / 5, 1, 16 / 10][i % 4]} sizes="(max-width: 820px) 100vw, 55vw" widths={[480, 800, 1200]} />
+            <div className="work-frame">
+              <Picture asset={item.asset!} ratio={[4 / 3, 4 / 5, 1, 16 / 10][i % 4]} sizes="(max-width: 820px) 100vw, 55vw" widths={[480, 800, 1200]} />
+            </div>
             <figcaption>{item.caption.text}</figcaption>
           </figure>
         ))}
