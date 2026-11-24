@@ -71,6 +71,12 @@ export function SectionEditor({
             onChange={(next) => edit((t) => void (t[def.key] = next))}
           />
         );
+      case "url":
+        return (
+          <Field key={key} id={key} label={def.label}>
+            <TextInput id={key} type="url" inputMode="url" placeholder="https://" value={(values[def.key] as string | undefined) ?? ""} maxLength={300} disabled={!editable} onChange={(e) => edit((t) => void (e.target.value.trim() ? (t[def.key] = e.target.value.trim()) : delete t[def.key]))} />
+          </Field>
+        );
       case "image":
         return <ImagePicker key={key} id={key} label={def.label} spec={spec} value={values[def.key] as string | undefined} disabled={!editable} onChange={(id) => edit((t) => void (id ? (t[def.key] = id) : delete t[def.key]))} />;
       case "images":

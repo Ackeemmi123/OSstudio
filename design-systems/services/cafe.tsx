@@ -5,7 +5,7 @@
  * note. Everything comes from the content; nothing is drawn when it is missing.
  */
 import type { SiteContent } from "./content";
-import { Action, CHROME, Closing, Frame, Headline, Picture, Proof, Questions, displayTier, find, type PageContext } from "./pages";
+import { Action, CHROME, Closing, Frame, Headline, OpeningHours, Picture, Proof, Questions, displayTier, find, type PageContext } from "./pages";
 import { Signature } from "./signature";
 
 /** The first priced item is what the note on the photo shows; without one, the reassurance line, or nothing. */
@@ -67,7 +67,8 @@ function Hero({ context }: { context: PageContext }) {
   );
 }
 
-function MenuCard({ content }: { content: SiteContent }) {
+function MenuCard({ context }: { context: PageContext }) {
+  const { content, root } = context;
   const { services } = content;
   const image = find(content, content.gallery?.items[0]?.imageId ?? content.proof.imageId);
   return (
@@ -86,12 +87,18 @@ function MenuCard({ content }: { content: SiteContent }) {
           <li key={item.name.text}>
             <p className="menu-line">
               <span className="menu-name">{item.name.text}</span>
+              {item.diets ? <span className="menu-diets">{item.diets}</span> : null}
               <span className="menu-dots" aria-hidden="true" />
               {item.price ? <span className="menu-price">{item.price.text}</span> : null}
             </p>
             <p className="menu-text">{item.text.text}</p>
           </li>
         ))}
+        {content.menuPage ? (
+          <li className="menu-more">
+            <a className="link-action" href={`${root}${content.menuPage.slug}/`}>{CHROME[content.language].fullMenu}</a>
+          </li>
+        ) : null}
       </ul>
     </section>
   );
@@ -106,7 +113,12 @@ function Visit({ content }: { content: SiteContent }) {
         <h2 id="visit">{firstSteps.heading.text}</h2>
         {business.hours || business.address ? (
           <div className="visit-card">
-            {business.hours ? (
+            {business.openingHours ? (
+              <div className="visit-hours">
+                <span className="label">{CHROME[content.language].hours}</span>
+                <OpeningHours content={content} />
+              </div>
+            ) : business.hours ? (
               <p>
                 <span className="label">{CHROME[content.language].hours}</span>
                 {business.hours}
@@ -152,7 +164,7 @@ export function CafeHome({ context }: { context: PageContext }) {
     <Frame context={context}>
       <VisitBar content={content} />
       <Hero context={context} />
-      <MenuCard content={content} />
+      <MenuCard context={context} />
       <Signature context={context} />
       <Visit content={content} />
       <Proof content={content} />
