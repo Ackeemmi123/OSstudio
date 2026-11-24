@@ -8,6 +8,7 @@ import type { SiteSpec } from "@/lib/site-spec/schema";
 import { CONTRAST_MINIMUM, contrastRatio } from "@/lib/site-spec/validate";
 import type { SpecEditing } from "./site-spec-editor";
 import { ConceptEditor } from "./concept-editor";
+import type { ImageLibrary } from "./images-editor";
 import { PhotoBriefPanel } from "./photo-brief-panel";
 import { SourceTag } from "./strategy-editor";
 
@@ -32,7 +33,7 @@ function Contrast({ label, a, b, minimum }: { label: string; a: string; b: strin
   );
 }
 
-export function BrandEditor({ spec, editing, projectId }: { spec: SiteSpec; editing: SpecEditing; projectId?: string }) {
+export function BrandEditor({ spec, editing, projectId, library }: { spec: SiteSpec; editing: SpecEditing; projectId?: string; library?: ImageLibrary }) {
   const { editable, change, personSource } = editing;
   const brand = spec.brand;
   /** Any change to the brand is a person's choice of brand. */
@@ -281,7 +282,7 @@ export function BrandEditor({ spec, editing, projectId }: { spec: SiteSpec; edit
           </Select>
         </Field>
       </div>
-      {brand.designSystem === "services@0.1" ? <ConceptEditor spec={spec} editing={editing} projectId={projectId} /> : null}
+      {brand.designSystem === "services@0.1" ? <ConceptEditor spec={spec} editing={editing} projectId={projectId} library={library} /> : null}
       {brand.designSystem === "services@0.1" ? <PhotoBriefPanel spec={spec} /> : null}
     </div>
   );

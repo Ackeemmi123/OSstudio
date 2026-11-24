@@ -467,7 +467,7 @@ export function SiteSpecEditor({
           {tab === "design" ? (
             <Section id="brand" title="Design and brand" className="scroll-mt-32">
               <div data-spec-path="brand">
-                <BrandEditor spec={draft} editing={editing} projectId={project.id} />
+                <BrandEditor spec={draft} editing={editing} projectId={project.id} library={imageLibrary} />
               </div>
             </Section>
           ) : (
