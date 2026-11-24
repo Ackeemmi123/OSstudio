@@ -263,7 +263,7 @@ export function templateSpec(client: Client, project: Pick<Project, "projectType
   const spec: SiteSpec = {
     ...start.spec,
     locales: { available: languages, default: languages[0] },
-    brand: LOOKS[template],
+    brand: structuredClone(LOOKS[template]),
     strategy: { ...start.spec.strategy, primaryCta: primaryCta(template, built, b) },
     assets: b.assets,
     pages: built,

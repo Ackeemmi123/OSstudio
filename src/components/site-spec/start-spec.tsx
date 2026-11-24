@@ -1,5 +1,7 @@
 "use client";
 
+import { Field, Select } from "@/components/ui/field";
+import { INDUSTRIES, INDUSTRY_PROFILES, type Industry } from "@/lib/site-spec/industries";
 import { Check, CircleAlert } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Button, ButtonLink } from "@/components/ui/button";
@@ -13,6 +15,7 @@ import { SITE_TEMPLATE_LABELS, SITE_TEMPLATES, suggestedTemplate, templateSpec, 
 
 /** The start of a project's website spec: choose a template and languages, and see what the brief fills in. */
 const LOCALES_KEY = "studio-os:spec-locales";
+type Design = "services" | "association" | "";
 
 function rememberedLocales(): SiteLocale[] {
   try {
@@ -46,13 +49,20 @@ export function StartSpec({
   const [template, setTemplate] = useState<SiteTemplate>(suggested);
   // The languages chosen last time on this browser: a studio mostly builds in the same ones.
   const [locales, setLocales] = useState<SiteLocale[]>(rememberedLocales);
+  const [industry, setIndustry] = useState<Industry | "">("");
+  // Choosing the trade also picks the company design in its style, unless a design was chosen already.
+  const [design, setDesign] = useState<Design>("");
+  const chooseIndustry = (next: Industry | "") => {
+    setIndustry(next);
+    if (next && !design) setDesign("services");
+  };
   const start = () => {
     try {
       window.localStorage.setItem(LOCALES_KEY, JSON.stringify(locales));
     } catch {
       // Private windows may refuse storage; the choice is only a convenience.
     }
-    onStart({ template, locales });
+    onStart({ template, locales, ...(industry ? { industry } : {}), ...(design ? { design } : {}) });
   };
 
   const { spec, unconfirmed } = useMemo(() => templateSpec(client, project, template, locales), [client, project, template, locales]);
@@ -90,6 +100,26 @@ export function StartSpec({
         </div>
       </fieldset>
 
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Field id="start-industry" label="Their trade" hint="Decides the starting style and how the texts sound.">
+          <Select id="start-industry" value={industry} disabled={!canEdit} onChange={(e) => chooseIndustry(e.target.value as Industry | "")}>
+            <option value="">Choose later</option>
+            {INDUSTRIES.map((key) => (
+              <option key={key} value={key}>
+                {INDUSTRY_PROFILES[key].label}
+              </option>
+            ))}
+          </Select>
+        </Field>
+        <Field id="start-design" label="Design" hint="Can be changed under Design at any time.">
+          <Select id="start-design" value={design} disabled={!canEdit} onChange={(e) => setDesign(e.target.value as Design)}>
+            <option value="">Choose later</option>
+            <option value="services">Company design{industry ? `, ${INDUSTRY_PROFILES[industry].label.toLowerCase()} style` : ""}</option>
+            <option value="association">Association design</option>
+          </Select>
+        </Field>
+      </div>
+
       <fieldset className="flex flex-col gap-2" disabled={!canEdit}>
         <legend className="mb-2 text-[13px] font-medium text-ink">Languages</legend>
         <div className="flex flex-wrap gap-4">
@@ -112,7 +142,11 @@ export function StartSpec({
 
       <div className="flex flex-col gap-1.5 rounded-[var(--radius-control)] border border-caution/25 bg-caution/[0.06] px-3 py-2.5 text-[13px] text-ink" data-testid="draft-limits">
         {SITE_TEMPLATE_LABELS[template].note ? <p>{SITE_TEMPLATE_LABELS[template].note}</p> : null}
-        <p>The privacy page and consent text are placeholders. They need client-specific details and legal review.</p>
+        <p>
+          {client.email
+            ? `The contact form and privacy page start from the studio's standard wording, with ${client.email}. Have the client read the privacy text.`
+            : "The privacy page and consent text are placeholders: add the client's e-mail to start from the studio's standard wording."}
+        </p>
       </div>
 
       <div className="flex flex-col gap-1.5 text-[13.5px]" data-testid="from-brief">
