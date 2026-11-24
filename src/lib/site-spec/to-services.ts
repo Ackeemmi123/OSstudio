@@ -7,6 +7,7 @@
  * in the spec by its kind and place, and says exactly what is missing instead
  * of guessing. Only people and quotes marked with consent are shown.
  */
+import { isPlaceholderText } from "./texts";
 import type { SiteContent, SiteDesign } from "../../../design-systems/services/content";
 import type { SiteLocale } from "./catalog";
 import type { SiteSpec, SiteSpecPage, SiteSpecSection, SiteSpecSource } from "./schema";
@@ -137,7 +138,8 @@ export function servicesContent(spec: SiteSpec, images: Record<string, ServicesI
   const missing: string[] = [];
   const need = (label: string, text: string, max: number, origin: Statement["origin"]): Statement => {
     if (!text) missing.push(`${label} is empty.`);
-    else if (text.length > max) missing.push(`${label} is too long for the company design (at most ${max} characters, now ${text.length}).`);
+    // An instruction in brackets already blocks approval as "still needs writing"; its length says nothing.
+    else if (text.length > max && !isPlaceholderText(text)) missing.push(`${label} is too long for the company design (at most ${max} characters, now ${text.length}).`);
     return { text: text.slice(0, max), origin };
   };
 
