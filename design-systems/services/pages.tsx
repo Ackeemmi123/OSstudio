@@ -156,6 +156,7 @@ export function Frame({ context, children }: { context: PageContext; children: R
         {business.legalName ? <p className="footer-legal">{business.legalName}{business.businessId ? `, ${business.businessId}` : ""}</p> : null}
       </footer>
       {content.promise.action.by === "phone" && business.phone ? <a className="call-bar" href={tel(business.phone)}>{content.promise.action.label}</a> : null}
+      {design.direction === "clinic" && content.promise.action.by === "booking" && business.booking ? <a className="book-bar" href={business.booking.href} rel="noopener">{content.promise.action.label}</a> : null}
     </>
   );
 }

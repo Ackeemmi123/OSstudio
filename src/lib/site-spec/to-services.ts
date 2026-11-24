@@ -298,6 +298,7 @@ export function servicesContent(spec: SiteSpec, images: Record<string, ServicesI
       text: need(`Service ${i + 1}: text`, t(item.body, locale), 320, originOf(item.source ?? servicesSection?.source)),
       ...(t(item.price, locale) ? { price: need(`Service ${i + 1}: price`, t(item.price, locale), 50, originOf(item.source)) } : {}),
       ...(t(item.diets, locale) ? { diets: t(item.diets, locale).slice(0, 40) } : {}),
+      ...(t(item.duration, locale) ? { duration: t(item.duration, locale).slice(0, 30) } : {}),
       ...servicePage(item, i),
     })),
   };

@@ -18,7 +18,7 @@ export type DesignSystem = (typeof DESIGN_SYSTEMS)[number];
 export const DESIGN_SYSTEM_LABELS: Record<DesignSystem, string> = { template: "Studio OS template", "association@0.1": "Association (association@0.1)", "services@0.1": "Company (services@0.1)" };
 
 /** The company design's style choices (design-systems/services/content.ts siteDesign; a test keeps them equal). */
-export const SERVICES_DIRECTIONS = ["editorial", "formal", "statement", "cafe", "atelier"] as const;
+export const SERVICES_DIRECTIONS = ["editorial", "formal", "statement", "cafe", "atelier", "clinic"] as const;
 export const SERVICES_PALETTES = ["pine", "oxblood", "signal", "harbor", "dry", "measure", "brick", "verdigris", "ember", "cobalt", "gold", "navy", "timber", "plum", "hazard", "slate", "forest", "indigo", "steel", "terracotta", "teal", "ochre"] as const;
 export const SERVICES_TYPES = ["wide", "grotesk"] as const;
 export const SERVICES_MOTIFS = ["pipe", "drain", "scale", "ripple", "courses"] as const;
@@ -45,6 +45,7 @@ export const SERVICES_DIRECTION_LABELS: Record<(typeof SERVICES_DIRECTIONS)[numb
   statement: "Statement: direct and bold",
   cafe: "Café: a warm room, opening hours and a menu card",
   atelier: "Atelier: light and quiet, led by a gallery of the work",
+  clinic: "Clinic: a calm reception, a price list with times and the way to book at hand",
 };
 /** What each palette looks like, for people choosing and for the AI draft's style proposals. */
 export const SERVICES_PALETTE_NOTES: Record<(typeof SERVICES_PALETTES)[number], string> = {
@@ -237,6 +238,7 @@ export const ITEM_FIELDS: Partial<Record<SectionKind, ItemFieldDefinition[]>> = 
     { key: "title", label: "Service", type: "text" },
     { key: "body", label: "Description", type: "longText" },
     { key: "price", label: "Price (only if the client confirmed it)", type: "text" },
+    { key: "duration", label: "How long it takes (like 60 min)", type: "text", group: "Treatment", hint: "For a clinic, salon or studio: the length as the place writes it, shown beside the price." },
     { key: "diets", label: "Diet markings (like L, G, VEG)", type: "text", group: "Menu", hint: "For a menu: the markings as the restaurant writes them. Explain them in a text section on the menu page." },
     { key: "slug", label: "Page address", type: "text", group: "Own page", hint: "Lower-case letters, digits and hyphens, like patents. With an address, the company design gives this service its own page." },
     { key: "whoFor", label: "Who it is for", type: "longText", group: "Own page" },

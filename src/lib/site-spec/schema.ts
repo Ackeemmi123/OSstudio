@@ -133,7 +133,7 @@ export const sectionSchema = z.discriminatedUnion("kind", [
   section("services", {
     heading: localized(120),
     items: z
-      .array(item({ title: localized(80), body: localized(1000, true), price: localized(60).optional(), diets: localized(40).optional(), slug: localized(60).optional(), whoFor: localized(240).optional(), matters: localized(2000, true).optional() }))
+      .array(item({ title: localized(80), body: localized(1000, true), price: localized(60).optional(), diets: localized(40).optional(), duration: localized(30).optional(), slug: localized(60).optional(), whoFor: localized(240).optional(), matters: localized(2000, true).optional() }))
       .max(24),
   }),
   /** Shown on the page. The shop platform, not the spec, owns the live catalogue. */

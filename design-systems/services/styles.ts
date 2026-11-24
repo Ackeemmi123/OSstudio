@@ -49,6 +49,7 @@ const DIRECTIONS = `
 .d-formal{--gut:clamp(1.25rem,4vw,4rem);--body:"Hanken Grotesk",system-ui,sans-serif;--display:"Bodoni Moda",Didot,serif;--display-weight:400;--display-track:-.012em;--display-lead:1.03;--h1-1:clamp(2.7rem,5.6vw,7rem);--h1-2:clamp(2.35rem,4.5vw,5.6rem);--h1-3:clamp(2rem,3.6vw,4.4rem);--h2:clamp(2.1rem,4.4vw,4.8rem);--h3:clamp(1.95rem,5.5vw,6.6rem);--h3-weight:400;--radius:0}
 .d-statement{--gut:clamp(16px,3vw,48px);--display:"Big Shoulders Display",Impact,sans-serif;--display-weight:900;--display-track:-.005em;--display-lead:.98;--h1-1:clamp(3.2rem,11vw,13rem);--h1-2:clamp(2.8rem,8vw,9.5rem);--h1-3:clamp(2.1rem,5.6vw,6.5rem);--h2:clamp(3rem,8.6vw,10.5rem);--h3:clamp(2.3rem,4.2vw,5rem);--h3-weight:900;--radius:0;--body:"Archivo",system-ui,sans-serif}
 .d-cafe{--gut:clamp(1.25rem,4vw,4rem);--body:"Figtree",system-ui,sans-serif;--display:"Young Serif",Georgia,serif;--display-weight:400;--display-track:-.015em;--display-lead:1.06;--h1-1:clamp(2.6rem,5.2vw,4.9rem);--h1-2:clamp(2.3rem,4.4vw,4.1rem);--h1-3:clamp(2rem,3.6vw,3.4rem);--h2:clamp(2rem,3.6vw,3.3rem);--h3:clamp(1.3rem,2vw,1.6rem);--h3-weight:400;--radius:999px}
+.d-clinic{--gut:clamp(1.25rem,4.5vw,4.5rem);--body:"Figtree",system-ui,sans-serif;--display:"Hanken Grotesk",system-ui,sans-serif;--display-weight:300;--display-track:-.035em;--display-lead:1.02;--h1-1:clamp(2.8rem,6.2vw,6rem);--h1-2:clamp(2.4rem,5vw,4.9rem);--h1-3:clamp(2rem,4vw,3.9rem);--h2:clamp(2.1rem,3.8vw,3.6rem);--h3:clamp(1.2rem,1.6vw,1.4rem);--h3-weight:500;--radius:999px}
 .d-atelier{--gut:clamp(1.25rem,4.5vw,4.5rem);--body:"Work Sans",system-ui,sans-serif;--display:"Cormorant Garamond",Garamond,serif;--display-weight:300;--display-track:-.02em;--display-lead:1.0;--h1-1:clamp(3rem,7vw,6.6rem);--h1-2:clamp(2.6rem,5.6vw,5.4rem);--h1-3:clamp(2.2rem,4.4vw,4.4rem);--h2:clamp(2.2rem,4vw,3.6rem);--h3:clamp(1.15rem,1.6vw,1.3rem);--h3-weight:400;--radius:0}
 `;
 
@@ -977,6 +978,61 @@ const CONCEPT = `
 @media (max-width:820px){
  .project-card,.project-grid[data-count="1"] .project-card{grid-column:1/-1;margin-top:0}
  .project-picture--1,.project-picture--2,.project-picture--3,.project-pictures[data-count="1"] .project-picture{grid-column:1/-1;margin-top:0}
+}
+
+/* Clinic: a calm reception. Soft corners, a card at the desk with the hours, treatments as a price list with their length, the way to book at hand. */
+.d-clinic .label{font-size:.8rem;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--accent)}
+.d-clinic .hero{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));column-gap:24px;row-gap:2rem;align-items:start;padding:clamp(2.5rem,5vw,5rem) var(--gut) clamp(3.5rem,6vw,6rem)}
+.d-clinic .hero-words{grid-column:1/7;grid-row:1;padding-top:clamp(.5rem,2.5vw,2.5rem)}
+.d-clinic .hero--type .hero-words{grid-column:1/9}
+.d-clinic .hero-for{margin-bottom:1.25rem}
+.d-clinic .hero-why{font-size:clamp(1.1rem,1.4vw,1.25rem);line-height:1.55;margin-top:1.6rem;max-width:34rem;color:var(--mute)}
+.d-clinic .hero-actions{display:flex;flex-wrap:wrap;gap:.75rem;margin-top:2rem}
+.d-clinic .hero-reassurance{margin-top:1.1rem;color:var(--mute);font-size:.95rem;max-width:30rem}
+.d-clinic .hero--soft .hero-image{grid-column:8/13;grid-row:1/3;margin:0}
+.d-clinic .hero--soft .hero-image img{aspect-ratio:4/5;border-radius:2rem 2rem 2rem 7rem}
+.desk{grid-column:1/6;grid-row:2;align-self:end;display:flex;flex-direction:column;gap:1rem;max-width:26rem;background:var(--paper-2);color:var(--ink);border-radius:1.5rem;padding:1.5rem 1.6rem}
+.d-clinic .hero--type .desk{grid-column:9/13;grid-row:1}
+.hero--full .desk{position:relative;z-index:1}
+.desk-part{display:flex;flex-direction:column;gap:.2rem}
+.desk .hours{margin-top:.35rem}
+.desk-address{color:var(--mute)}
+.desk-phone{font-weight:600;color:inherit;text-decoration-thickness:1px;text-underline-offset:.2em}
+.treatments{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));column-gap:24px;row-gap:2rem;padding:clamp(4rem,8vw,7rem) var(--gut) 0}
+.treatments-head{grid-column:1/5;align-self:start;position:sticky;top:1.5rem;display:flex;flex-direction:column;gap:1rem}
+.treatments-head h2{scroll-margin-top:2rem}
+.treatment-list{grid-column:6/13;list-style:none;display:flex;flex-direction:column;gap:.75rem}
+.treatment{position:relative;background:var(--paper-2);border-radius:1.25rem;padding:1.35rem 1.5rem}
+.treatment-line{display:flex;flex-wrap:wrap;align-items:baseline;gap:.5rem 1rem}
+.treatment h3{flex:1 1 12rem;font:500 clamp(1.12rem,1.5vw,1.3rem)/1.3 var(--body);letter-spacing:0}
+.treatment h3 a{color:inherit;text-decoration:none}
+.treatment h3 a::after{content:"";position:absolute;inset:0;border-radius:inherit}
+.treatment--page:has(a:focus-visible){outline:2px solid var(--accent);outline-offset:3px}
+.treatment h3 a:focus-visible{outline:none}
+@media (hover:hover){.treatment--page:hover h3{color:var(--accent)}}
+.treatment-time{white-space:nowrap;font-size:.85rem;color:var(--mute);border:1px solid currentColor;border-radius:999px;padding:.15rem .7rem}
+.treatment-price{white-space:nowrap;font-weight:600;font-variant-numeric:tabular-nums}
+.treatment p{margin-top:.45rem;color:var(--mute);max-width:36rem}
+.visit-flow{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));column-gap:24px;row-gap:2.5rem;padding:clamp(4.5rem,8vw,7.5rem) var(--gut) 0}
+.visit-flow-head{grid-column:1/-1;max-width:44rem;display:flex;flex-direction:column;gap:1rem}
+.visit-steps{grid-column:1/8;list-style:none;counter-reset:step}
+.visit-steps li{counter-increment:step;display:grid;grid-template-columns:3rem minmax(0,1fr);column-gap:1rem;padding:1.4rem 0;border-top:1px solid var(--line)}
+.visit-steps li::before{content:counter(step);grid-row:1/3;display:grid;place-items:center;width:2.2rem;height:2.2rem;border-radius:50%;background:var(--action);color:var(--on-action);font-weight:600;font-size:.95rem}
+.visit-steps h3{font:500 1.15rem/1.3 var(--body);letter-spacing:0}
+.visit-steps p{margin-top:.3rem;color:var(--mute)}
+.care-list{grid-column:9/13;align-self:start;list-style:none;display:flex;flex-direction:column;gap:1.25rem;background:var(--deep);color:var(--on-deep);border-radius:1.5rem;padding:1.75rem}
+.care-list strong{display:block;font-weight:600;margin-bottom:.25rem}
+.care-list span{color:var(--on-deep-mute)}
+.d-clinic .closing .form{border-radius:1.5rem}
+.book-bar{display:none}
+@media (max-width:820px){
+ .d-clinic .hero-words,.d-clinic .hero--soft .hero-image,.desk,.d-clinic .hero--type .desk{grid-column:1/-1;grid-row:auto}
+ .d-clinic .hero--soft .hero-image img{border-radius:1.5rem 1.5rem 1.5rem 4rem}
+ .desk{max-width:none}
+ .treatments-head,.treatment-list,.visit-steps,.care-list{grid-column:1/-1}
+ .treatments-head{position:static}
+ .book-bar{display:block;position:fixed;left:.75rem;right:.75rem;bottom:.75rem;z-index:6;background:var(--action);color:var(--on-action);border-radius:999px;padding:1rem;text-align:center;font-weight:600;text-decoration:none;box-shadow:0 12px 30px -12px #0007}
+ .has-book-bar{padding-bottom:5.5rem}
 }
 
 /* An expert's profile on the About page: the person beside their own words and their record. */

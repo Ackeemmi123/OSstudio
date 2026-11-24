@@ -138,18 +138,18 @@ export const INDUSTRY_PROFILES: Record<Industry, IndustryProfile> = {
   health_beauty: {
     label: "Health, beauty and wellbeing",
     examples: "hairdressers, beauty salons, physiotherapists, massage, dentists, yoga studios",
-    directions: ["editorial", "formal"],
+    directions: ["clinic", "editorial", "formal"],
     palettes: ["teal", "plum", "measure", "cobalt", "pine", "terracotta"],
     motifs: ["ripple"],
     defaults: [
-      { direction: "editorial", palette: "teal", motif: "ripple" },
-      { direction: "editorial", palette: "plum" },
-      { direction: "formal", palette: "pine" },
+      { direction: "clinic", palette: "teal" },
+      { direction: "editorial", palette: "plum", motif: "ripple" },
+      { direction: "clinic", palette: "pine" },
     ],
     tone: "Caring and reassuring, never clinical or pushy. No health claims beyond what the material states.",
     parts: {
       reasons: "how a visit feels and who takes care of the client",
-      services: "treatments with length and price as the material gives them",
+      services: "treatments with length and price as the material gives them; the length goes in its own field",
       firstSteps: "how to book and what happens at the first visit",
       proof: "client words with consent; qualifications the material names",
       questions: "cancellations, what to bring, payment, Kela or insurance if the material mentions it",
