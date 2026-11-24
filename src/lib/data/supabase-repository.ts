@@ -841,6 +841,33 @@ export class SupabaseRepository implements StudioRepository {
     if (error) throw toRepositoryError(error);
   }
 
+  async clientPortal(clientId: string): Promise<{ createdAt: string; expiresAt: string } | null> {
+    const { data, error } = await this.client
+      .from("client_portals")
+      .select("created_at, expires_at")
+      .eq("studio_id", this.studioId)
+      .eq("client_id", clientId)
+      .is("revoked_at", null)
+      .gt("expires_at", new Date().toISOString())
+      .order("created_at", { ascending: false })
+      .limit(1);
+    if (error) throw toRepositoryError(error);
+    const row = (data ?? [])[0];
+    return row ? { createdAt: String(row.created_at), expiresAt: String(row.expires_at) } : null;
+  }
+
+  async createClientPortal(clientId: string): Promise<string> {
+    if (!this.current.canWrite) throw new RepositoryError("You have read-only access to this studio. Ask an owner for member access.", "permission");
+    const { data, error } = await this.client.rpc("create_client_portal", { p_client: clientId });
+    if (error) throw toRepositoryError(error);
+    return String(data);
+  }
+
+  async revokeClientPortal(clientId: string): Promise<void> {
+    const { error } = await this.client.rpc("revoke_client_portal", { p_client: clientId });
+    if (error) throw toRepositoryError(error);
+  }
+
   async hasCalendarFeed(): Promise<boolean> {
     const { data, error } = await this.client.from("calendar_feeds").select("id").eq("studio_id", this.studioId).eq("user_id", this.user.id).is("revoked_at", null).limit(1);
     if (error) throw toRepositoryError(error);

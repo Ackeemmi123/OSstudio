@@ -101,3 +101,19 @@ export function reviewEventMail(event: ReviewEvent, info: ReviewEventInfo, origi
 function footer(): string {
   return "You get this because e-mails about clients are on for you. Turn them off under Settings › E-mail.";
 }
+
+/** The e-mail when a client answers questions or sends files on their portal. */
+export function portalEventMail(event: { kind: "answers" | "files"; author: string; count: number }, info: { clientId: string; client: string }, origin: string): { subject: string; text: string } {
+  const who = oneLine(event.author, 80) || "The client";
+  const link = `${origin}/clients/${encodeURIComponent(info.clientId)}#sources`;
+  if (event.kind === "files") {
+    return {
+      subject: `${info.client} sent ${event.count === 1 ? "a file" : `${event.count} files`}`,
+      text: [`${who} sent ${event.count === 1 ? "a file" : `${event.count} files`} on ${info.client}'s portal, with their answers about rights and consent.`, "", "They are under Sources, ready to use:", link, "", footer()].join("\n"),
+    };
+  }
+  return {
+    subject: `${info.client} answered ${event.count === 1 ? "a question" : `${event.count} questions`}`,
+    text: [`${who} answered ${event.count === 1 ? "a question" : `${event.count} questions`} on ${info.client}'s portal. The answers are under Sources.`, "", link, "", footer()].join("\n"),
+  };
+}
