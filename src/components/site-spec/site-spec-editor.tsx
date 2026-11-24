@@ -10,6 +10,7 @@ import { Field, TextArea } from "@/components/ui/field";
 import { Modal, ModalBody, ModalFooter } from "@/components/ui/modal";
 import { RelativeTime } from "@/components/ui/relative-time";
 import { Section } from "@/components/ui/surface";
+import { useToast } from "@/components/ui/toast";
 import { StatusLabel, Tag, type Tone } from "@/components/ui/status";
 import { cn } from "@/lib/cn";
 import { RepositoryError, SiteSpecBlockedError } from "@/lib/data/repository";
@@ -22,6 +23,7 @@ import type { RenderImageFile } from "@/lib/site-render/model";
 import { Autosaver, type SaveStatus } from "@/lib/site-spec/autosave";
 import type { SiteLocale } from "@/lib/site-spec/catalog";
 import { refreshFromBrief } from "@/lib/site-spec/edit";
+import { fillSearchDescriptions, fillStandardTexts } from "@/lib/site-spec/quick-fills";
 import { localeOfPath, pageIndexOfPath, pathCandidates } from "@/lib/site-spec/paths";
 import type { SiteSpec, SiteSpecSource } from "@/lib/site-spec/schema";
 import { qualityWarnings } from "@/lib/site-spec/checks";
@@ -110,6 +112,7 @@ export function SiteSpecEditor({
   const state = useStudio();
   const store = useStudioStore();
   const { run, pending, canEdit } = useStudioAction();
+  const toast = useToast();
   const [library, setLibrary] = useState<{ assets: SiteAssetRecord[]; links: Record<string, string> }>({ assets: [], links: {} });
   const [libraryRound, setLibraryRound] = useState(0);
 
@@ -228,6 +231,16 @@ export function SiteSpecEditor({
     [library],
   );
   const refreshable = useMemo(() => (editable ? refreshFromBrief(draft, client).refreshed : []), [editable, draft, client]);
+  // What one click can fill: the studio's standard texts and search descriptions from the pages' own words.
+  const fills = useMemo(() => {
+    if (!editable || !parsed.ok) return [];
+    const standard = fillStandardTexts(draft, client);
+    const search = fillSearchDescriptions(draft);
+    return [
+      ...(standard && standard.filled ? [{ key: "standard", label: "Use the studio's standard texts", hint: "Consent, send button, what happens next and the privacy text, with the client's name and e-mail.", result: standard.spec }] : []),
+      ...(search.filled ? [{ key: "search", label: "Write search descriptions from the page text", hint: "Each page's first passage, cut to what a search result shows. Edit any of them after.", result: search.spec }] : []),
+    ];
+  }, [editable, parsed.ok, draft, client]);
 
   // Unsaved changes: ask before the page is closed or reloaded. A link saves first, and only asks if that fails.
   useEffect(() => {
@@ -275,6 +288,28 @@ export function SiteSpecEditor({
     // Submit what is on the screen. If it cannot be stored, the save status says why.
     if (!(await saver.flush())) return;
     await act(() => run((r) => r.submitSiteSpec!(drafts.latest()), "The website spec was not submitted."));
+  }
+  const buildable = Boolean(record.spec.brand?.designSystem && record.spec.brand.designSystem !== "template");
+  /** Approves, then builds the private review link and opens Delivery, where it can be sent to the client. */
+  async function approveAndBuild() {
+    setRefusal(null);
+    let approved: SiteSpecRecord | undefined;
+    await act(async () => {
+      approved = await run((r) => r.approveSiteSpec!(drafts.latest()), "The website spec was not approved.", (error) => {
+        if (error instanceof SiteSpecBlockedError) {
+          setRefusal({ blockers: error.blockers });
+          void store.reload().catch(() => undefined);
+          setLibraryRound((n) => n + 1);
+        } else if (error instanceof RepositoryError && error.code === "conflict") setRefusal({ conflict: error.message });
+        else return false;
+        return true;
+      });
+      return approved;
+    });
+    if (!approved) return;
+    const built = await run((r) => r.buildSite!(approved!), "The spec was approved, but the site was not built. Build it under Delivery.");
+    chooseTab("delivery");
+    if (built) toast.success("Approved and built. The review link is ready to send.");
   }
   const approve = () => {
     setRefusal(null);
@@ -348,9 +383,14 @@ export function SiteSpecEditor({
                   <Button onClick={() => setSendingBack(true)} disabled={pending}>
                     Ask for changes
                   </Button>
-                  <Button variant="primary" onClick={approve} disabled={pending || blockers.length > 0}>
+                  <Button variant={buildable ? "secondary" : "primary"} onClick={approve} disabled={pending || blockers.length > 0}>
                     Approve
                   </Button>
+                  {buildable ? (
+                    <Button variant="primary" onClick={approveAndBuild} disabled={pending || blockers.length > 0} title="Approve this version and build its private review link">
+                      Approve and build
+                    </Button>
+                  ) : null}
                 </>
               ) : null}
               {record.status === "approved" && !open && newest?.id === record.id ? (
@@ -481,6 +521,7 @@ export function SiteSpecEditor({
             status={record.status}
             refreshable={refreshable}
             onRefresh={() => editing.change((s) => void Object.assign(s, refreshFromBrief(s, client).spec))}
+            fills={fills.map((f) => ({ ...f, apply: () => editing.change((s) => void Object.assign(s, f.key === "standard" ? (fillStandardTexts(s, client)?.spec ?? s) : fillSearchDescriptions(s).spec)) }))}
             onProblem={goToProblem}
           />
           {editable ? <SiteDraftPanel clientId={client.id} projectId={project.id} editing={editing} /> : null}
@@ -546,6 +587,7 @@ function IssuesPanel({
   status,
   refreshable,
   onRefresh,
+  fills = [],
   onProblem,
 }: {
   spec: SiteSpec;
@@ -558,6 +600,8 @@ function IssuesPanel({
   /** Brief values used here that were confirmed again since, which can be brought in with one click. */
   refreshable: ContextFieldKey[];
   onRefresh: () => void;
+  /** One-click fills that apply now, each with what it does. */
+  fills?: { key: string; label: string; hint: string; apply: () => void }[];
   onProblem: (path: string) => void;
 }) {
   if (status === "approved" || status === "superseded") return null;
@@ -572,6 +616,19 @@ function IssuesPanel({
           <Button size="xs" onClick={onRefresh}>
             Use the current values from the brief
           </Button>
+        </div>
+      ) : null}
+      {fills.length ? (
+        <div className="mb-4 flex flex-col gap-2 rounded-[var(--radius-surface)] border border-accent/40 bg-accent-soft/60 px-3 py-3" data-testid="quick-fills">
+          <p className="text-[13px] font-medium text-ink">Save time</p>
+          {fills.map((fill) => (
+            <div key={fill.key} className="flex flex-wrap items-center gap-x-3 gap-y-1">
+              <Button size="xs" variant="primary" onClick={fill.apply}>
+                {fill.label}
+              </Button>
+              <span className="text-[12.5px] text-ink-subtle">{fill.hint}</span>
+            </div>
+          ))}
         </div>
       ) : null}
       {issues.length ? (

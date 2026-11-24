@@ -4,12 +4,14 @@
  * menus, buttons, common headings, search titles and image placeholders. What only
  * a person can write is left as an instruction in brackets, which blocks approval
  * (isPlaceholderText) and shows in the preview, so nothing unfinished can pass.
- * The privacy notice and consent wording say outright that they are placeholders
- * needing legal review, and the shop says nothing is connected: a template must
- * not read as if those things were done.
+ * When the client has an e-mail, the contact form and privacy page start from the
+ * studio's standard texts (standard-texts.ts), which a warning asks the client to
+ * read; without one they say outright that they are placeholders. The shop says
+ * nothing is connected: a template must not read as if those things were done.
  *
  * It uses no AI. Only confirmed brief values are copied, each with its source.
  */
+import { standardTexts } from "./standard-texts";
 import type { Client, Project } from "@/lib/domain/types";
 import { type SectionKind, type SiteLocale } from "./catalog";
 import { startingSpec, type StartingSpec } from "./from-brief";
@@ -133,7 +135,8 @@ function builder(client: Client, project: Pick<Project, "projectType">, locales:
   const faq = (variant = "accordion", count = 4, note = "") => section({ kind: "faq", variant, heading: words(WORDS.questions), items: items("faq", count, note) });
   const cta = (variant: string, button: ReturnType<typeof buttonTo>) => section({ kind: "cta", variant, heading: all("[Invite them to take the next step, in one short line]"), body: all("[What happens after they get in touch, and how soon]"), button });
   const contact = () => section({ kind: "contact", variant: "form_and_details", heading: words(WORDS.getInTouch), body: all("[Address, phone number and opening hours, as the client confirms them]"), formId: "contact-form" });
-  const privacyText = () => section({ kind: "text", variant: "single_column", heading: words(WORDS.privacyHeading), body: all(`[PLACEHOLDER, NOT A PRIVACY NOTICE. Write ${name}'s own notice with them: what is collected, why, for how long, who receives it, and whom to ask. It needs client-specific details and legal review before publishing.]`) });
+  const standard = standardTexts(client, locales);
+  const privacyText = () => section({ kind: "text", variant: "single_column", heading: words(WORDS.privacyHeading), body: standard?.privacy ?? all(`[PLACEHOLDER, NOT A PRIVACY NOTICE. Write ${name}'s own notice with them: what is collected, why, for how long, who receives it, and whom to ask. It needs client-specific details and legal review before publishing.]`) });
   /** Says outright that nothing is connected, so a draft cannot be read as a working shop. */
   const shopStatus = () => section({ kind: "text", variant: "single_column", heading: all("[What this shop sells, in one line]"), body: all("[NOT SET UP: no products, prices, payments, shipping or shop platform are connected. Say what will be sold and how customers will buy, once the client has decided.]") });
 
@@ -150,7 +153,7 @@ function builder(client: Client, project: Pick<Project, "projectType">, locales:
     sections,
   });
 
-  return { name, all, words, assets, buttonTo, points, steps, page, hero, offering, features, servicesList, productRange, featured, quotes, about, team, faq, cta, contact, privacyText, shopStatus };
+  return { standard, name, all, words, assets, buttonTo, points, steps, page, hero, offering, features, servicesList, productRange, featured, quotes, about, team, faq, cta, contact, privacyText, shopStatus };
 }
 
 /**
@@ -264,7 +267,7 @@ export function templateSpec(client: Client, project: Pick<Project, "projectType
     strategy: { ...start.spec.strategy, primaryCta: primaryCta(template, built, b) },
     assets: b.assets,
     pages: built,
-    forms: [{ id: "contact-form", purpose: "contact", fields: ["name", "email", "message"], consentText: b.all("[PLACEHOLDER: this client's own consent wording, legally reviewed. Say what the answers are used for.]"), submitLabel: b.all("[The action, in 2 or 3 words]"), replyNote: b.all("[What happens after sending and how soon. Only what is true]"), recipient: "client_contact" }],
+    forms: [{ id: "contact-form", purpose: "contact", fields: ["name", "email", "message"], consentText: b.standard?.consent ?? b.all("[PLACEHOLDER: this client's own consent wording, legally reviewed. Say what the answers are used for.]"), submitLabel: b.standard?.submit ?? b.all("[The action, in 2 or 3 words]"), replyNote: b.standard?.reply ?? b.all("[What happens after sending and how soon. Only what is true]"), recipient: "client_contact" }],
     seo: { ...start.spec.seo, siteName: b.all(b.name), defaultDescription: b.all("[One sentence for search results about the business]") },
   };
   return { spec, unconfirmed: start.unconfirmed };

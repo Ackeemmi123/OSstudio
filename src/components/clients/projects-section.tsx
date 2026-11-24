@@ -2,6 +2,7 @@
 
 import { Check, Pencil, Plus } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useId, useState, type FormEvent } from "react";
 import { useCanEdit, useStudio } from "@/components/providers/studio-provider";
 import { useStudioAction } from "@/components/providers/use-studio-action";
@@ -382,12 +383,20 @@ function NewProjectForm({ client, firstProject, onDone }: { client: Client; firs
     }
   }
 
+  const router = useRouter();
+  const website = isWebsiteProject({ projectType });
   async function create(event: FormEvent) {
     event.preventDefault();
+    // The submit button that was pressed: the website one goes straight on to the spec.
+    const toSpec = website && (event.nativeEvent as SubmitEvent).submitter?.dataset.next === "spec";
     const project = await run((r) => r.createProject(client.id, { name, projectType, tasks: chosen }), "The project was not created.");
     if (!project) return;
     if (canActivate && activate) {
       await run((r) => r.updateClient(client.id, { ...toClientDetailsInput(client), status: "active" }), "The project was created, but the client was not marked active.");
+    }
+    if (toSpec) {
+      router.push(`/clients/${encodeURIComponent(client.id)}/projects/${encodeURIComponent(project.id)}/site`);
+      return;
     }
     onDone();
   }
@@ -484,8 +493,13 @@ function NewProjectForm({ client, firstProject, onDone }: { client: Client; firs
         </div>
       ) : null}
       <p className="text-[12px] text-ink-subtle">Starts as planned, at intake. Move it forward when work begins.</p>
-      <div className="flex gap-2">
-        <Button type="submit" size="sm" variant="primary" disabled={pending || !name.trim()}>
+      <div className="flex flex-wrap gap-2">
+        {website ? (
+          <Button type="submit" size="sm" variant="primary" data-next="spec" disabled={pending || !name.trim()}>
+            Create and start the website spec
+          </Button>
+        ) : null}
+        <Button type="submit" size="sm" variant={website ? "secondary" : "primary"} disabled={pending || !name.trim()}>
           {pending ? "Creating…" : chosen.length ? `Create project with ${chosen.length === 1 ? "1 task" : `${chosen.length} tasks`}` : "Create project"}
         </Button>
         <Button size="sm" variant="ghost" onClick={onDone} disabled={pending}>

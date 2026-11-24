@@ -28,7 +28,18 @@ import { processImage } from "./process-image";
  * lawful basis the studio relies on and where it is documented. Consent is
  * one possible basis, not assumed.
  */
-export function ProvenanceFields({ value, onChange, disabled }: { value: ImageProvenance; onChange: (next: ImageProvenance) => void; disabled?: boolean }) {
+export function ProvenanceFields({
+  value,
+  onChange,
+  disabled,
+  many = false,
+}: {
+  value: ImageProvenance;
+  onChange: (next: ImageProvenance) => void;
+  disabled?: boolean;
+  /** For several images at once: each keeps its own description and whether it shows people. */
+  many?: boolean;
+}) {
   const id = useId();
   const set = <K extends keyof ImageProvenance>(key: K, v: ImageProvenance[K]) => onChange({ ...value, [key]: v });
   const note = (key: "sourceNote" | "licenceNote" | "usePermissionNote" | "peopleBasisNote" | "description", label: string, hint?: string) => (
@@ -38,9 +49,11 @@ export function ProvenanceFields({ value, onChange, disabled }: { value: ImagePr
   );
   return (
     <div className="flex flex-col gap-4">
-      <Field id={`${id}-description`} label="What the image shows" required>
-        <TextInput id={`${id}-description`} value={value.description} maxLength={NOTE_MAX_LENGTH} disabled={disabled} onChange={(e) => set("description", e.target.value)} />
-      </Field>
+      {many ? null : (
+        <Field id={`${id}-description`} label="What the image shows" required>
+          <TextInput id={`${id}-description`} value={value.description} maxLength={NOTE_MAX_LENGTH} disabled={disabled} onChange={(e) => set("description", e.target.value)} />
+        </Field>
+      )}
       {note("sourceNote", "Where the file came from", "For example: sent by the client by email on 3 November.")}
 
       <fieldset className="flex flex-col gap-3">
@@ -69,10 +82,14 @@ export function ProvenanceFields({ value, onChange, disabled }: { value: ImagePr
 
       <fieldset className="flex flex-col gap-3">
         <legend className="mb-1 text-[13px] font-medium text-ink">People in the image</legend>
-        <label className="flex items-center gap-2 text-[13px] text-ink">
-          <input type="checkbox" checked={value.identifiablePeople} disabled={disabled} onChange={(e) => set("identifiablePeople", e.target.checked)} />
-          Shows people who can be identified
-        </label>
+        {many ? (
+          <p className="text-[13px] text-ink-muted">{value.identifiablePeople ? "Some of these show people who can be identified, as marked at upload. This basis applies to those." : "None of these is marked as showing people who can be identified."}</p>
+        ) : (
+          <label className="flex items-center gap-2 text-[13px] text-ink">
+            <input type="checkbox" checked={value.identifiablePeople} disabled={disabled} onChange={(e) => set("identifiablePeople", e.target.checked)} />
+            Shows people who can be identified
+          </label>
+        )}
         {value.identifiablePeople ? (
           <>
             <Field
@@ -214,6 +231,69 @@ export function RightsDialog({ asset, onClose, onDecided }: { asset: SiteAssetRe
         </Button>
         <Button variant="primary" onClick={() => decide("approve")} disabled={pending || problems.length > 0}>
           Approve the rights
+        </Button>
+      </ModalFooter>
+    </Modal>
+  );
+}
+
+/**
+ * The same rights decision for several images at once, for when they all came
+ * the same way (for example the client's own photos, sent by e-mail). Each
+ * image keeps its own description and whether it shows people; the basis for
+ * people applies to those that do. Every image is recorded as its own decision.
+ */
+export function BulkRightsDialog({ assets, onClose, onDecided }: { assets: SiteAssetRecord[]; onClose: () => void; onDecided: () => void }) {
+  const { run, pending } = useStudioAction();
+  const [chosen, setChosen] = useState<Set<string>>(() => new Set(assets.map((a) => a.id)));
+  const selected = assets.filter((a) => chosen.has(a.id));
+  const people = selected.some((a) => a.identifiablePeople);
+  const [shared, setShared] = useState<ImageProvenance>(() => ({ ...emptyProvenance(), description: "several images" }));
+  const value = { ...shared, identifiablePeople: people };
+  const problems = approvalProblems(value);
+
+  async function approve() {
+    const done = await run(async (r) => {
+      for (const asset of selected) {
+        await r.reviewSiteAsset!(asset, "approve", { ...value, description: asset.description, identifiablePeople: asset.identifiablePeople, ...(asset.identifiablePeople ? {} : { peopleBasis: null, peopleBasisNote: "" }) }, "");
+      }
+      return true;
+    }, "Not every decision was saved. The images that were decided show it.");
+    onDecided();
+    if (done) onClose();
+  }
+
+  return (
+    <Modal open onClose={onClose} title={`Decide the rights for ${selected.length === 1 ? "1 image" : `${selected.length} images`}`} description="One answer for images that came the same way. Each is recorded as its own decision in your name." busy={pending} size="lg">
+      <ModalBody>
+        <div className="flex flex-col gap-5">
+          <ul className="flex flex-col gap-1.5" aria-label="Images to decide">
+            {assets.map((asset) => (
+              <li key={asset.id}>
+                <label className="flex items-center gap-2 text-[13px] text-ink">
+                  <input type="checkbox" checked={chosen.has(asset.id)} disabled={pending} onChange={(e) => setChosen((c) => { const next = new Set(c); if (e.target.checked) next.add(asset.id); else next.delete(asset.id); return next; })} />
+                  {asset.description}
+                  {asset.identifiablePeople ? <span className="text-[12px] text-ink-subtle">· shows people</span> : null}
+                </label>
+              </li>
+            ))}
+          </ul>
+          <ProvenanceFields value={value} onChange={(next) => setShared(next)} disabled={pending} many />
+          {problems.length ? (
+            <ul className="flex flex-col gap-1 text-[12.5px] text-ink-muted">
+              {problems.map((p) => (
+                <li key={p}>{p}</li>
+              ))}
+            </ul>
+          ) : null}
+        </div>
+      </ModalBody>
+      <ModalFooter>
+        <Button variant="ghost" onClick={onClose} disabled={pending}>
+          Cancel
+        </Button>
+        <Button variant="primary" onClick={approve} disabled={pending || problems.length > 0 || selected.length === 0}>
+          Approve the rights for {selected.length === 1 ? "1 image" : `${selected.length} images`}
         </Button>
       </ModalFooter>
     </Modal>

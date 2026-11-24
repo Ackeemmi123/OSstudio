@@ -147,6 +147,8 @@ export interface StudioRepository {
   domainStatus?(publication: SitePublicationRecord): Promise<DomainSetup>;
   /** Turns the client's review on a build's link on or off. */
   setBuildReviews?(build: SiteBuildRecord, enabled: boolean): Promise<void>;
+  /** E-mails a build's review link to the client, in the person's words; replies go to them. */
+  sendReviewLink?(build: SiteBuildRecord, mail: { to: string; subject: string; message: string }): Promise<void>;
   /** Next steps: the studio's own, by client and date. Open ones first, then the last done. */
   listNextSteps?(clientId?: string): Promise<NextStep[]>;
   addNextStep?(step: NewNextStep): Promise<NextStep>;

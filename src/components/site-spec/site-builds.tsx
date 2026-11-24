@@ -1,6 +1,12 @@
 "use client";
 
-import { ExternalLink, Hammer } from "lucide-react";
+import { ExternalLink, Hammer, Send } from "lucide-react";
+import { CopyReviewLink } from "@/components/delivery/delivery";
+import { useSession } from "@/components/providers/session-provider";
+import { Field, TextInput } from "@/components/ui/field";
+import { Modal, ModalBody, ModalFooter } from "@/components/ui/modal";
+import { useToast } from "@/components/ui/toast";
+import { reviewLinkMail } from "@/lib/site-spec/review-mail";
 import { useCallback, useEffect, useState } from "react";
 import { useStudio, useStudioStore } from "@/components/providers/studio-provider";
 import { useStudioAction } from "@/components/providers/use-studio-action";
@@ -26,6 +32,7 @@ export function SiteBuilds({ record }: { record: SiteSpecRecord }) {
   const { run, pending, canEdit } = useStudioAction();
   const [builds, setBuilds] = useState<SiteBuildRecord[] | null>(null);
   const [now] = useState(() => Date.now());
+  const [sending, setSending] = useState<SiteBuildRecord | null>(null);
   const designSystem = record.spec.brand?.designSystem;
 
   const load = useCallback(() => store.read((r) => (r.listSiteBuilds ? r.listSiteBuilds(record.id) : Promise.resolve([]))), [store, record.id]);
@@ -129,6 +136,15 @@ export function SiteBuilds({ record }: { record: SiteSpecRecord }) {
                     </Button>
                   ) : null}
                 </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  {status === "live" && canEdit && b.reviewsEnabled && !b.approval ? (
+                    <Button variant="primary" size="xs" onClick={() => setSending(b)} disabled={pending}>
+                      <Send aria-hidden />
+                      Send to the client
+                    </Button>
+                  ) : null}
+                  {status === "live" ? <CopyReviewLink link={b.link} /> : null}
+                </div>
                 <div className="flex flex-wrap items-center gap-3 text-[12.5px]">
                   {b.approval ? (
                     <span className="font-medium text-positive">
@@ -162,6 +178,7 @@ export function SiteBuilds({ record }: { record: SiteSpecRecord }) {
       ) : builds ? (
         <p className="text-[13px] text-ink-subtle">No builds of this version yet.</p>
       ) : null}
+      {sending ? <SendLinkDialog build={sending} record={record} onClose={() => setSending(null)} /> : null}
     </section>
   );
 }
@@ -317,3 +334,57 @@ function ClientQuestions({ build, record, canEdit, pending, onSave }: { build: S
   );
 }
 
+
+/** The review link by e-mail, in the site's language and the person's own words; nothing goes until they press Send. */
+function SendLinkDialog({ build, record, onClose }: { build: SiteBuildRecord; record: SiteSpecRecord; onClose: () => void }) {
+  const state = useStudio();
+  const session = useSession();
+  const toast = useToast();
+  const { run, pending } = useStudioAction();
+  const client = state.status === "ready" ? state.snapshot.clients.find((c) => c.id === record.clientId) : undefined;
+  const info = state.status === "ready" ? state.info : null;
+  const sender = info?.kind === "supabase" ? (info.members.find((m) => m.userId === info.user.id)?.displayName ?? "") : "";
+  const studio = session.mode === "supabase" ? session.studio.name : "";
+  const [draft] = useState(() => reviewLinkMail(record.spec.locales.default, { contact: client?.contactPerson ?? null, until: build.expiresAt, sender, studio }));
+  const [to, setTo] = useState(client?.email ?? "");
+  const [subject, setSubject] = useState(draft.subject);
+  const [message, setMessage] = useState(draft.message);
+
+  async function send() {
+    const done = await run(async (r) => {
+      await r.sendReviewLink!(build, { to, subject, message });
+      return true;
+    }, "The link was not sent.");
+    if (done) {
+      toast.success(`Sent to ${to}. Replies come to you.`);
+      onClose();
+    }
+  }
+
+  return (
+    <Modal open onClose={onClose} title="Send the review link" description="Read it through and change anything. The link is added at the end. Replies come to your own e-mail." busy={pending} size="lg">
+      <ModalBody>
+        <div className="flex flex-col gap-4">
+          <Field id="send-to" label="To" required>
+            <TextInput id="send-to" type="email" value={to} maxLength={200} onChange={(e) => setTo(e.target.value)} />
+          </Field>
+          <Field id="send-subject" label="Subject" required>
+            <TextInput id="send-subject" value={subject} maxLength={150} onChange={(e) => setSubject(e.target.value)} />
+          </Field>
+          <Field id="send-message" label="Message" required>
+            <TextArea id="send-message" rows={12} value={message} maxLength={4000} onChange={(e) => setMessage(e.target.value)} />
+          </Field>
+        </div>
+      </ModalBody>
+      <ModalFooter>
+        <Button variant="ghost" onClick={onClose} disabled={pending}>
+          Cancel
+        </Button>
+        <Button variant="primary" onClick={send} disabled={pending || !to.trim() || !subject.trim() || !message.trim()}>
+          <Send aria-hidden />
+          {pending ? "Sending…" : "Send"}
+        </Button>
+      </ModalFooter>
+    </Modal>
+  );
+}
