@@ -6,27 +6,47 @@ import { Button } from "@/components/ui/button";
 import { Surface } from "@/components/ui/surface";
 import type { Client } from "@/lib/domain/types";
 
-/** Questions for the client. Existing ones are listed; new ones are saved with the step. */
+/**
+ * Questions for the client. Existing ones are listed. A question typed here
+ * is saved at once with `save`, so it is never lost by leaving the page;
+ * suggested ones that were queued are saved with the step.
+ */
 export function OpenQuestions({
   client,
   pending,
   onChange,
+  save,
   error,
 }: {
   client: Client;
   pending: string[];
   onChange: (questions: string[]) => void;
+  /** Saves one question now; resolves false when it was not saved. */
+  save?: (question: string) => Promise<boolean>;
   error?: string;
 }) {
   const inputId = useId();
   const [text, setText] = useState("");
+  const [saving, setSaving] = useState(false);
   const existing = client.contextItems.filter((item) => item.kind === "question" && item.confidence !== "superseded");
 
-  function add() {
+  async function add() {
     const question = text.trim();
-    if (!question) return;
+    if (!question || saving) return;
     const duplicate = [...existing.map((i) => i.text), ...pending].some((q) => q.toLocaleLowerCase() === question.toLocaleLowerCase());
-    if (!duplicate) onChange([...pending, question]);
+    if (duplicate) {
+      setText("");
+      return;
+    }
+    if (save) {
+      setSaving(true);
+      const saved = await save(question);
+      setSaving(false);
+      // Kept in the field when it was not saved, so nothing typed is lost.
+      if (saved) setText("");
+      return;
+    }
+    onChange([...pending, question]);
     setText("");
   }
 
@@ -75,7 +95,7 @@ export function OpenQuestions({
           aria-invalid={error ? true : undefined}
           className="h-9 min-w-0 flex-1 rounded-[var(--radius-control)] border border-control bg-surface px-3 text-sm text-ink placeholder:text-ink-subtle hover:border-accent focus:border-focus focus:ring-2 focus:ring-focus/15 focus:outline-none"
         />
-        <Button onClick={add} disabled={!text.trim()}>
+        <Button onClick={add} disabled={!text.trim() || saving}>
           <Plus aria-hidden />
           Add
         </Button>

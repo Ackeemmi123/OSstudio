@@ -324,6 +324,7 @@ function StepForm({
     if (client.context !== seenContext) setSeenContext(client.context);
   }
   const [questions, setQuestions] = useState<string[]>([]);
+  const saveQuestion = useStudioAction();
   const [confirmedByClient, setConfirmedByClient] = useState(false);
   const [errors, setErrors] = useState<FieldErrors<OnboardingFieldName>>({});
 
@@ -478,7 +479,17 @@ function StepForm({
         </Surface>
 
         {step === "timeline" ? (
-          <OpenQuestions client={client} pending={questions} onChange={setQuestions} error={errors.questions} />
+          <OpenQuestions
+            client={client}
+            pending={questions}
+            onChange={setQuestions}
+            error={errors.questions}
+            save={
+              canEdit
+                ? async (question) => Boolean(await saveQuestion.run((r) => r.saveOnboardingStep(onboarding.id, { nextStep: step, questions: [question] }), "The question was not saved."))
+                : undefined
+            }
+          />
         ) : null}
 
         {typedAnything ? (
