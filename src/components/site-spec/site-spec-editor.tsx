@@ -411,12 +411,13 @@ export function SiteSpecEditor({
             key={key}
             type="button"
             aria-current={tab === key ? "page" : undefined}
+            aria-description={key === "content" && blockers.length && (record.status === "draft" || record.status === "in_review") ? `${blockers.length} to fix before approval` : undefined}
             onClick={() => chooseTab(key)}
             className={cn("-mb-px shrink-0 border-b-2 px-3 py-2 text-[13.5px] transition-colors", tab === key ? "border-ink font-medium text-ink" : "border-transparent text-ink-muted hover:text-ink")}
           >
             {label}
             {key === "content" && blockers.length && (record.status === "draft" || record.status === "in_review") ? (
-              <span className="ml-1.5 rounded-full bg-critical/10 px-1.5 text-[11px] text-critical tabular-nums" title="Things to fix before approval">
+              <span aria-hidden className="ml-1.5 rounded-full bg-critical/10 px-1.5 text-[11px] text-critical tabular-nums" title="Things to fix before approval">
                 {blockers.length}
               </span>
             ) : null}
