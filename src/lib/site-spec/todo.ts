@@ -4,6 +4,7 @@
  * is, most important first. A template's first draft has dozens of these, so a
  * page with many is split into its sections, and only where to start stays open.
  */
+import { STANDARD_PRIVACY_MARK } from "./standard-texts";
 import { localeOfPath, pageIndexOfPath } from "./paths";
 import { SECTION_LABELS } from "./catalog";
 import type { SiteSpec, SiteSpecPage, SiteSpecSection } from "./schema";
@@ -37,7 +38,13 @@ function sectionName(section: SiteSpecSection, page: SiteSpecPage, locale: strin
 }
 
 function groupOf(spec: SiteSpec, path: string, split: ReadonlySet<number>): { key: string; order: number; label: string; note?: string; first?: boolean } {
-  const legal = { key: "legal", order: 1000, label: "Privacy and consent", note: "Placeholders only. These need client-specific details and legal review." };
+  const standard = JSON.stringify(spec.pages.find((p) => p.id === PRIVACY_PAGE)?.sections ?? []).includes(STANDARD_PRIVACY_MARK[spec.locales.default]);
+  const legal = {
+    key: "legal",
+    order: 1000,
+    label: "Privacy and consent",
+    note: standard ? "The studio's standard wording is in place. The client reads it and says if they collect anything more." : "Placeholders only. These need client-specific details and legal review.",
+  };
   const search = { key: "search", order: 2000, label: "Search texts and site name" };
   const page = pageIndexOfPath(path);
   if (page !== null) {

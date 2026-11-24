@@ -8,9 +8,11 @@
  * Only a person does any of this. Agents may later propose content, never
  * approve it.
  */
+import { INDUSTRY_PROFILES, type Industry } from "@/lib/site-spec/industries";
 import { startingSpec } from "@/lib/site-spec/from-brief";
 import { templateSpec, type SiteTemplate } from "@/lib/site-spec/templates";
 import type { SiteLocale } from "@/lib/site-spec/catalog";
+import type { SiteSpec } from "@/lib/site-spec/schema";
 import { approvalBlockers, parseSiteSpec, type ImageFileStatus, type SpecIssue } from "@/lib/site-spec/validate";
 import { clean, DomainError, type DomainDeps } from "./clients";
 import { WEBSITE_PROJECT_TYPES, type ActivityEvent, type Client, type Project, type SiteSpecRecord } from "./types";
@@ -22,6 +24,26 @@ export interface FirstDraft {
   template: SiteTemplate;
   /** The website's languages, the first being the default. */
   locales: SiteLocale[];
+  /** The client's trade, which decides the company design's starting style. */
+  industry?: Industry;
+  /** Chosen at the start, so the brand needs no separate confirming. */
+  design?: "services" | "association";
+}
+
+/** A template draft with the trade and design chosen at the start applied, in the person's name. */
+export function firstDraftSpec(client: Client, project: Pick<Project, "projectType">, from: FirstDraft, by: string, at: string): SiteSpec {
+  // A copy: the template's looks are shared constants.
+  const spec = structuredClone(templateSpec(client, project, from.template, from.locales).spec);
+  if (from.industry) spec.strategy.industry = from.industry;
+  if (from.design === "services") {
+    spec.brand.designSystem = "services@0.1";
+    spec.brand.servicesStyle = { ...INDUSTRY_PROFILES[from.industry ?? "other"].defaults[0] };
+    spec.brand.source = { kind: "person", by, at };
+  } else if (from.design === "association") {
+    spec.brand.designSystem = "association@0.1";
+    spec.brand.source = { kind: "person", by, at };
+  }
+  return spec;
 }
 
 /** The spec does not have the SiteSpec v1 shape, or its parts do not fit together. */
@@ -94,7 +116,7 @@ export function startSiteSpec(
     version,
     basedOn: approved?.id ?? null,
     status: "draft",
-    spec: approved ? structuredClone(approved.spec) : from ? templateSpec(client, project, from.template, from.locales).spec : startingSpec(client, project).spec,
+    spec: approved ? structuredClone(approved.spec) : from ? firstDraftSpec(client, project, from, deps.actor.kind === "human" ? deps.actor.name.slice(0, 120) : "Studio member", now) : startingSpec(client, project).spec,
     createdBy: deps.actor,
     submittedBy: null,
     submittedAt: null,

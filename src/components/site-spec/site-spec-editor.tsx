@@ -28,6 +28,7 @@ import { localeOfPath, pageIndexOfPath, pathCandidates } from "@/lib/site-spec/p
 import type { SiteSpec, SiteSpecSource } from "@/lib/site-spec/schema";
 import { qualityWarnings } from "@/lib/site-spec/checks";
 import { groupProblems, type ProblemGroup } from "@/lib/site-spec/todo";
+import { isPlaceholderText, visibleTexts } from "@/lib/site-spec/texts";
 import { approvalBlockers, parseSiteSpec, type SpecIssue } from "@/lib/site-spec/validate";
 import { BrandEditor } from "./brand-editor";
 import type { ImageLibrary } from "./images-editor";
@@ -645,6 +646,7 @@ function IssuesPanel({
       ) : null}
       {blockers.length ? (
         <div className="mb-4">
+          <Progress spec={spec} left={groupProblems(spec, blockers).reduce((sum, group) => sum + group.items.length, 0)} onNext={() => onProblem(groupProblems(spec, blockers)[0].items[0].path)} />
           <p className="mb-2 text-[13px] font-medium text-critical">Fix before approval</p>
           <ProblemGroups spec={spec} blockers={blockers} onProblem={onProblem} />
         </div>
@@ -680,6 +682,28 @@ function IssuesPanel({
 
 /** Short lists stay open. A long one opens where to start: the goal and brand, then the home page's hero. */
 const OPEN_EVERYTHING_UP_TO = 8;
+
+/** How far the spec has come, and a way straight to the next thing to write. */
+function Progress({ spec, left, onNext }: { spec: SiteSpec; left: number; onNext: () => void }) {
+  const written = visibleTexts(spec).filter((t) => !isPlaceholderText(t.text)).length;
+  const share = written + left ? Math.round((written / (written + left)) * 100) : 100;
+  return (
+    <div className="mb-4 flex flex-col gap-2 rounded-[var(--radius-surface)] border border-line bg-surface px-4 py-3" data-testid="spec-progress">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="text-[13px] text-ink">
+          <span className="font-medium">{share}% ready</span>
+          <span className="text-ink-subtle"> · {left === 1 ? "1 thing left" : `${left} things left`}</span>
+        </p>
+        <Button size="xs" variant="primary" onClick={onNext}>
+          Go to the next one
+        </Button>
+      </div>
+      <div className="h-1.5 overflow-hidden rounded-full bg-line-strong/60" aria-hidden>
+        <div className="h-full rounded-full bg-positive transition-[width] duration-500" style={{ width: `${share}%` }} />
+      </div>
+    </div>
+  );
+}
 
 function ProblemGroups({ spec, blockers, onProblem }: { spec: SiteSpec; blockers: SpecIssue[]; onProblem: (path: string) => void }) {
   const groups = groupProblems(spec, blockers);
