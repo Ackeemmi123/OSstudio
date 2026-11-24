@@ -48,7 +48,7 @@ import {
   type NextStep,
 } from "@/lib/domain/types";
 import { validateIdentity } from "./local-repository";
-import { RepositoryError, SiteSpecBlockedError, type AiSpend, type RepositoryErrorCode, type RepositoryInfo, type StudioRepository } from "./repository";
+import { RepositoryError, SiteSpecBlockedError, type AiSpend, type EmailSettings, type RepositoryErrorCode, type RepositoryInfo, type StudioRepository } from "./repository";
 import { approvalBlockers, parseSiteSpec } from "@/lib/site-spec/validate";
 import { toRepositoryError } from "./supabase-errors";
 import type { RenderImageFile } from "@/lib/site-render/model";
@@ -784,6 +784,17 @@ export class SupabaseRepository implements StudioRepository {
   async deleteNextStep(step: NextStep): Promise<void> {
     if (!this.current.canWrite) throw new RepositoryError("You have read-only access to this studio. Ask an owner for member access.", "permission");
     const { error } = await this.client.rpc("delete_next_step", { p_step: step.id });
+    if (error) throw toRepositoryError(error);
+  }
+
+  async emailSettings(): Promise<EmailSettings> {
+    const { data, error } = await this.client.from("member_email_settings").select("daily_digest, client_events").eq("studio_id", this.studioId).eq("user_id", this.user.id).maybeSingle();
+    if (error) throw toRepositoryError(error);
+    return { dailyDigest: data?.daily_digest !== false, clientEvents: data?.client_events !== false };
+  }
+
+  async saveEmailSettings(settings: EmailSettings): Promise<void> {
+    const { error } = await this.client.rpc("set_email_settings", { p_studio: this.studioId, p_daily: settings.dailyDigest, p_events: settings.clientEvents });
     if (error) throw toRepositoryError(error);
   }
 
