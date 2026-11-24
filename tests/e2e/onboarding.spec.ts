@@ -59,6 +59,8 @@ test("creates a client, saves a partial brief, resumes, edits and finishes", asy
   await page.locator('[data-question="budget"]').getByRole("button", { name: "Not known yet" }).click();
   await page.getByLabel("Anything to ask the client?").fill("Who takes the product photos?");
   await page.getByRole("button", { name: "Add", exact: true }).click();
+  // Saved at once: the field empties when it is stored.
+  await expect(page.getByLabel("Anything to ask the client?")).toHaveValue("");
   await page.getByRole("button", { name: "Review brief" }).click();
 
   await step(page, "6. Review");
@@ -110,6 +112,8 @@ test("goes from a finished onboarding to a started project with its tasks", asyn
   await step(page, "5. Budget & timing");
   await page.getByLabel("Anything to ask the client?").fill("Who writes the copy?");
   await page.getByRole("button", { name: "Add", exact: true }).click();
+  // Saved at once: the field empties when it is stored.
+  await expect(page.getByLabel("Anything to ask the client?")).toHaveValue("");
   await page.getByRole("button", { name: "Review brief" }).click();
   await step(page, "6. Review");
   await page.getByRole("button", { name: /Mark ready/ }).click();
