@@ -16,7 +16,7 @@ function deps(context: PublishContext | null = READY, hostingFails = false) {
   const calls: Record<string, unknown[]> = { upload: [], deploy: [], record: [], build: [], domain: [], open: [] };
   const d: PublishDeps = {
     load: async () => context,
-    build: async (_c, formAction) => (calls.build.push(formAction), { id: "x", shareToken: "t", storagePrefix: "p", designSystem: "association@0.1", checks: [], expiresAt: new Date(), files: [{ path: "index.html", body: new TextEncoder().encode("<h1>Hej</h1>"), contentType: "text/html" }, { path: "404.html", body: new TextEncoder().encode("404"), contentType: "text/html" }] }),
+    build: async (_c, formAction) => (calls.build.push(formAction), { id: "x", shareToken: "t", storagePrefix: "p", designSystem: "association@0.1", checks: [], quality: { level: "quality", score: 100, verdict: "ready", groups: [] }, expiresAt: new Date(), files: [{ path: "index.html", body: new TextEncoder().encode("<h1>Hej</h1>"), contentType: "text/html" }, { path: "404.html", body: new TextEncoder().encode("404"), contentType: "text/html" }] }),
     hosting: {
       upload: async (body) => (calls.upload.push(body.byteLength), { sha: `sha${body.byteLength}`, size: body.byteLength }),
       deploy: async (project, files) => {

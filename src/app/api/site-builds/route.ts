@@ -72,7 +72,8 @@ export async function POST(request: Request) {
       storage_prefix: site.storagePrefix,
       file_count: site.files.length,
       byte_count: site.files.reduce((sum, file) => sum + file.body.byteLength, 0),
-      checks: site.checks,
+      // The quality report travels with the checks, marked by its level.
+      checks: [...site.checks, site.quality],
       share_token: site.shareToken,
       expires_at: site.expiresAt.toISOString(),
       created_by: actor,

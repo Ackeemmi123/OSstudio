@@ -6,6 +6,7 @@
  * A build that fails a check is refused with the reasons; warnings are kept
  * with the build and shown beside its link.
  */
+import { siteQuality, type QualityReport } from "@/lib/quality/site-quality";
 import { randomBytes, randomUUID } from "node:crypto";
 import { build as buildAssociation } from "../../../design-systems/association";
 import { build as buildServices, FONT_FILES } from "../../../design-systems/services";
@@ -46,6 +47,8 @@ export interface BuiltSite {
   designSystem: string;
   files: { path: string; body: Uint8Array; contentType: string }[];
   checks: BuildCheck[];
+  /** How the finished pages measure up (src/lib/quality), stored with the build's checks. */
+  quality: QualityReport;
   expiresAt: Date;
 }
 
@@ -196,6 +199,11 @@ export async function buildSite(input: { studioId: string; specVersion: number; 
     designSystem: system,
     files: files.sort((a, b) => a.path.localeCompare(b.path)),
     checks,
+    quality: siteQuality({
+      pages: built.filter((file) => file.path.endsWith(".html")).map((file) => ({ path: file.path, html: file.text })),
+      images: files.filter((file) => file.contentType.startsWith("image/")).map((file) => ({ path: file.path, bytes: file.body.byteLength })),
+      industry: spec.strategy.industry,
+    }),
     expiresAt: new Date(now.getTime() + BUILD_LINK_DAYS * 86400000),
   };
 }
