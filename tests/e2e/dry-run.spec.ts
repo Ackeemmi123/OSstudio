@@ -65,9 +65,9 @@ test("dry run: a test inquiry becomes an organized client project and is deliver
   await page.getByRole("button", { name: /Mark ready/ }).click();
   await expect(page).toHaveURL(/\/clients\/[^/#]+(#new-project)?$/);
 
-  // 4. Start the first project from the playbook; the client becomes Active.
-  await page.locator("section#next").getByRole("link", { name: `Start the first project for ${company}` }).click();
-  const projects = (await openSection(page, "projects"));
+  // 4. Start the first project from the playbook, whose form opens once the brief is ready; the client becomes Active.
+  await expect(page).toHaveURL(/#new-project$/);
+  const projects = page.locator("section#projects");
   await projects.getByLabel("Project name").fill("New website (TEST)");
   await expect(projects.getByLabel("Mark " + company + " as an active client")).toBeChecked();
   await projects.getByRole("button", { name: /^Create project with \d+ tasks$/ }).click();

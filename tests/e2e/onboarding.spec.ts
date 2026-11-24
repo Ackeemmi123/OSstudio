@@ -113,12 +113,8 @@ test("goes from a finished onboarding to a started project with its tasks", asyn
   await page.getByRole("button", { name: "Review brief" }).click();
   await step(page, "6. Review");
   await page.getByRole("button", { name: /Mark ready/ }).click();
-  await expect(page).toHaveURL(/\/clients\/[^/#]+(#new-project)?$/);
-
-  // The brief has gaps, but the guided pass is done: the next step is the project.
-  const next = page.locator("section#next").getByRole("link", { name: "Start the first project for Handoff Studio" });
-  await expect(next).toBeVisible();
-  await next.click();
+  // The brief has gaps, but the guided pass is done: the next step is the project, whose form opens at once.
+  await expect(page).toHaveURL(/#new-project$/);
   const projects = page.locator("section#projects");
   await expect(projects.getByLabel("Project name")).toBeVisible();
   await expect(page.locator("header, main").getByText(/^(Lead|Onboarding|Active)$/).first()).not.toHaveText("Active");
