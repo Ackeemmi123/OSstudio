@@ -159,6 +159,11 @@ export interface StudioRepository {
   deleteNextStep?(step: NextStep): Promise<void>;
   /** The caller's own calendar feed: whether one is on, and making a new link (shown once) or turning it off. */
   hasCalendarFeed?(): Promise<boolean>;
+  /** The client's open portal link, when there is one: when it was made and until when it works. */
+  clientPortal?(clientId: string): Promise<{ createdAt: string; expiresAt: string } | null>;
+  /** Makes a new portal link (an earlier one stops working) and returns its secret, once. */
+  createClientPortal?(clientId: string): Promise<string>;
+  revokeClientPortal?(clientId: string): Promise<void>;
   /** Which of Studio OS's e-mails the signed-in person gets from this studio. Both are on until they turn one off. */
   emailSettings?(): Promise<EmailSettings>;
   saveEmailSettings?(settings: EmailSettings): Promise<void>;

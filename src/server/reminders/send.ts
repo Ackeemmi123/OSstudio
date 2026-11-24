@@ -1,8 +1,9 @@
 import "server-only";
+import { createHash } from "node:crypto";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { formMailConfig, serverSupabase } from "@/server/config";
 import { sendWithResend } from "@/server/publish/forms";
-import { digestMail, helsinkiDay, reviewEventMail, type DigestEntry, type ReviewEvent, type ReviewEventInfo } from "./mail";
+import { digestMail, helsinkiDay, portalEventMail, reviewEventMail, type DigestEntry, type ReviewEvent, type ReviewEventInfo } from "./mail";
 
 type Ready = { db: SupabaseClient; apiKey: string; from: string };
 
@@ -59,6 +60,25 @@ export async function notifyReviewEvent(token: string, event: ReviewEvent, event
     const mail = reviewEventMail(event, found, origin);
     for (const recipient of found.recipients) {
       if (!(await claim(setup.db, "client_event", recipient.userId, eventRef))) continue;
+      await sendWithResend(setup.apiKey, setup.from, { to: recipient.email, ...mail }).catch(() => false);
+    }
+  } catch {
+    // Logged nowhere on purpose: the error could carry the client's words.
+  }
+}
+
+/** Tells the studio's members that a client answered or sent files on their portal. Never throws. */
+export async function notifyPortalEvent(token: string, event: { kind: "answers" | "files"; author: string; count: number }, origin: string): Promise<void> {
+  try {
+    const setup = ready();
+    if ("reason" in setup) return;
+    const { data, error } = await setup.db.rpc("portal_event_recipients", { p_token: token });
+    if (error || !data) return;
+    const found = data as { clientId: string; client: string; recipients: { userId: string; email: string }[] };
+    const mail = portalEventMail(event, found, origin);
+    const ref = `portal-${event.kind}:${createHash("sha256").update(`${token}\n${Date.now()}`).digest("hex").slice(0, 32)}`;
+    for (const recipient of found.recipients) {
+      if (!(await claim(setup.db, "client_event", recipient.userId, ref))) continue;
       await sendWithResend(setup.apiKey, setup.from, { to: recipient.email, ...mail }).catch(() => false);
     }
   } catch {
