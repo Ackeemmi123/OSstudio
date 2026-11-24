@@ -5,7 +5,7 @@
  * services take its place, so the page never shows an empty frame.
  */
 import type { SiteContent } from "./content";
-import { Action, Closing, Frame, Headline, Picture, Proof, Questions, Services, displayTier, find, type PageContext } from "./pages";
+import { Action, CHROME, Closing, Frame, Headline, Picture, Proof, Questions, Services, displayTier, find, type PageContext } from "./pages";
 import { Signature } from "./signature";
 
 function Hero({ context }: { context: PageContext }) {
@@ -29,7 +29,8 @@ function Hero({ context }: { context: PageContext }) {
   );
 }
 
-function Gallery({ content }: { content: SiteContent }) {
+function Gallery({ context }: { context: PageContext }) {
+  const { content, root } = context;
   const { gallery } = content;
   const shown = (gallery?.items ?? []).map((item) => ({ ...item, asset: find(content, item.imageId) })).filter((item) => item.asset);
   if (!gallery || shown.length < 2) return null;
@@ -49,6 +50,11 @@ function Gallery({ content }: { content: SiteContent }) {
           </figure>
         ))}
       </div>
+      {content.projects ? (
+        <p className="work-more">
+          <a className="link-action link-action--arrow" href={`${root}${content.projects.slug}/`}>{CHROME[content.language].allProjects}</a>
+        </p>
+      ) : null}
     </section>
   );
 }
@@ -78,7 +84,7 @@ export function AtelierHome({ context }: { context: PageContext }) {
   return (
     <Frame context={context}>
       <Hero context={context} />
-      {hasGallery ? <Gallery content={content} /> : <Services content={content} />}
+      {hasGallery ? <Gallery context={context} /> : <Services content={content} />}
       <Signature context={context} />
       <Approach content={content} />
       {hasGallery ? <Services content={content} /> : null}

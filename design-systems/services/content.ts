@@ -195,6 +195,32 @@ export const siteContent = z.strictObject({
       seo,
     })
     .optional(),
+  /** A portfolio: the projects page, and each project on its own page with its pictures, year, place and the firm's role. */
+  projects: z
+    .strictObject({
+      slug: words(30),
+      menuLabel: words(24),
+      label: words(60),
+      heading: statement(110),
+      lead: statement(300).optional(),
+      items: z
+        .array(
+          z.strictObject({
+            slug: z.string().regex(/^[a-z0-9]+(-[a-z0-9]+)*$/).max(60),
+            name: statement(80),
+            year: words(12).optional(),
+            place: words(80).optional(),
+            role: statement(120).optional(),
+            text: z.array(statement(800)).max(4),
+            imageIds: z.array(words(40)).min(1).max(12),
+            seo,
+          }),
+        )
+        .min(1)
+        .max(24),
+      seo,
+    })
+    .optional(),
   contact: z.strictObject({ slug: words(30), menuLabel: words(24), heading: statement(110), text: statement(280), detailsLabel: words(40), seo }),
   form: z.strictObject({
     nameLabel: words(40),
