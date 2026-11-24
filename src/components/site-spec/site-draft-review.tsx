@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Tag } from "@/components/ui/status";
 import { useToast } from "@/components/ui/toast";
-import { applySiteDraft, takeEverything } from "@/lib/agents/site-draft-apply";
+import { applyAndTidy, applySiteDraft, takeEverything } from "@/lib/agents/site-draft-apply";
 import type { DraftRef, SiteDraftResult } from "@/lib/agents/site-draft";
 import { DESIGN_SYSTEM_LABELS, SECTION_LABELS, SERVICES_FEEL_LABELS, SERVICES_HERO_LABELS, SERVICES_MOTION_LABELS, SERVICES_SIGNATURE_LABELS } from "@/lib/site-spec/catalog";
 import { styleName } from "./style-comparison";
@@ -77,7 +77,7 @@ function sectionTexts(section: SiteSpecSection, path: string, provenance: SiteDr
  * rests on. The person ticks what to take; taking it accepts it, and the
  * pages, texts and form in the spec are replaced by the chosen sections.
  */
-export function SiteDraftReview({ result, editing, onDone }: { result: SiteDraftResult; editing: SpecEditing; onDone: () => void }) {
+export function SiteDraftReview({ result, editing, onDone, client }: { result: SiteDraftResult; editing: SpecEditing; onDone: () => void; client?: { name: string; email: string | null } }) {
   const toast = useToast();
   const everything = useMemo(() => takeEverything(result), [result]);
   const [sections, setSections] = useState<Set<string>>(() => new Set(everything.sections));
@@ -95,13 +95,14 @@ export function SiteDraftReview({ result, editing, onDone }: { result: SiteDraft
     });
   }
 
-  function take() {
+  function take(tidy = false) {
     if (!window.confirm("The pages, texts and contact form in this spec are replaced by the sections you chose. Images and other settings stay. Continue?")) return;
     try {
       const by = editing.personSource();
       const name = by.kind === "person" ? by.by : "Studio member";
-      editing.change((draft) => void Object.assign(draft, applySiteDraft(draft, result, { sections, strategy, brand }, name)));
-      toast.success("The draft is in the spec. Check it, then build the site from the preview.");
+      const choice = { sections, strategy, brand };
+      editing.change((draft) => void Object.assign(draft, tidy && client ? applyAndTidy(draft, result, choice, name, client) : applySiteDraft(draft, result, choice, name)));
+      toast.success(tidy ? "The draft is in the spec, with the standard texts and search descriptions filled in. Check its quality next." : "The draft is in the spec. Check it, then build the site under Delivery.");
       onDone();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "The draft could not be taken.");
@@ -220,8 +221,13 @@ export function SiteDraftReview({ result, editing, onDone }: { result: SiteDraft
       ) : null}
 
       <div className="flex flex-wrap items-center gap-2">
-        <Button variant="primary" onClick={take} disabled={!editing.editable || sections.size === 0}>
-          Take {sections.size} {sections.size === 1 ? "section" : "sections"} into the spec
+        {client ? (
+          <Button variant="primary" onClick={() => take(true)} disabled={!editing.editable || sections.size === 0}>
+            Take {sections.size === total ? "everything" : `${sections.size} ${sections.size === 1 ? "section" : "sections"}`} and tidy up
+          </Button>
+        ) : null}
+        <Button variant={client ? "secondary" : "primary"} onClick={() => take(false)} disabled={!editing.editable || sections.size === 0}>
+          Take {sections.size} {sections.size === 1 ? "section" : "sections"} as they are
         </Button>
         <Button variant="ghost" onClick={onDone}>
           Close

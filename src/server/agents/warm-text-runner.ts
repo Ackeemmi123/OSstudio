@@ -33,6 +33,8 @@ export async function runWarmText(options: {
   specId: string;
   requestedBy: string;
   force?: boolean;
+  /** Problems from the quality check to fix by rewording. */
+  focus?: string[];
   timeoutMs: number;
   capMicros: number;
   now?: () => number;
@@ -61,6 +63,7 @@ export async function runWarmText(options: {
     language: SITE_LOCALE_LABELS[spec.locales.default],
     texts: warmTextCandidates(spec),
     voice: voiceOf(material.sources),
+    ...(options.focus?.length ? { focus: options.focus.slice(0, 20).map((f) => f.slice(0, 200)) } : {}),
   };
 
   const active = await store.activeRun(clientId);

@@ -1,3 +1,4 @@
+import type { QualityReport } from "@/lib/quality/site-quality";
 import type { DeliveryFacts } from "@/lib/domain/delivery";
 import { BRAND_LOGO_BUCKET, cleanBrand, type AgencyBrand } from "@/lib/domain/agency-brand";
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -470,8 +471,8 @@ export class SupabaseRepository implements StudioRepository {
     return this.runAgent(this.agentEndpoint.replace(/\/intake$/, "/benchmark"), { clientId, projectId, competitors }, "The comparison could not be started.");
   }
 
-  requestWarmText(clientId: string, projectId: string, specId: string, options: { force?: boolean } = {}): Promise<AgentRunRecord> {
-    return this.runAgent(this.agentEndpoint.replace(/\/intake$/, "/warm-text"), { clientId, projectId, specId, force: options.force ?? false }, "The text pass could not be started.");
+  requestWarmText(clientId: string, projectId: string, specId: string, options: { force?: boolean; focus?: string[] } = {}): Promise<AgentRunRecord> {
+    return this.runAgent(this.agentEndpoint.replace(/\/intake$/, "/warm-text"), { clientId, projectId, specId, force: options.force ?? false, ...(options.focus?.length ? { focus: options.focus } : {}) }, "The text pass could not be started.");
   }
 
   private async runAgent(endpoint: string, request: Record<string, unknown>, fallback: string): Promise<AgentRunRecord> {
@@ -589,6 +590,25 @@ export class SupabaseRepository implements StudioRepository {
       .order("version", { ascending: false });
     if (error) throw toRepositoryError(error);
     return (data as unknown as Row[]).map(toSiteSpecRecord);
+  }
+
+  async draftQuality(spec: SiteSpec): Promise<QualityReport | { missing: string[] } | null> {
+    const { data } = await this.client.auth.getSession();
+    const token = data.session?.access_token;
+    if (!token) throw new RepositoryError("Your session has ended. Sign in again to continue.", "session");
+    let response: Response;
+    try {
+      response = await this.fetchImpl("/api/site-quality", {
+        method: "POST",
+        headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
+        body: JSON.stringify({ studioId: this.studioId, spec }),
+      });
+    } catch {
+      throw new RepositoryError("Studio OS could not reach the server. Check your connection and try again.", "network");
+    }
+    const body = (await response.json().catch(() => null)) as { report?: QualityReport | { missing: string[] } | null; error?: string } | null;
+    if (!response.ok || !body) throw new RepositoryError(body?.error ?? "The draft could not be checked. Try again in a moment.", response.status === 401 ? "session" : "storage");
+    return body.report ?? null;
   }
 
   async previewServices(spec: SiteSpec, images: Readonly<Record<string, RenderImageFile>>, pageId: string): Promise<{ html: string } | { missing: string[] }> {

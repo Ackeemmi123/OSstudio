@@ -50,6 +50,8 @@ export interface WarmTextInput {
   texts: WarmTextCandidate[];
   /** The client's own writing: emails, answers on the review link, notes. Quoted for its voice only. */
   voice: Pick<IntakeSource, "id" | "label" | "content">[];
+  /** Problems the quality check found, to fix by rewording only. Absent for a plain warmer-text pass. */
+  focus?: string[];
 }
 
 function isFormalPage(page: SiteSpecPage): boolean {

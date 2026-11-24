@@ -6,7 +6,7 @@ import { runWarmText } from "@/server/agents/warm-text-runner";
 // One model call over the site's texts; shorter than a draft, but it writes a fair amount.
 export const maxDuration = 300;
 
-const body = z.object({ studioId: z.uuid(), clientId: z.uuid(), projectId: z.uuid(), specId: z.uuid(), force: z.boolean().optional() });
+const body = z.object({ studioId: z.uuid(), clientId: z.uuid(), projectId: z.uuid(), specId: z.uuid(), force: z.boolean().optional(), focus: z.array(z.string().max(200)).max(20).optional() });
 
 /**
  * Proposes warmer wordings for a saved website spec's texts. Only owners and
@@ -26,6 +26,7 @@ export async function POST(request: Request) {
       specId: data.specId,
       requestedBy: userId,
       force: data.force ?? false,
+      focus: data.focus,
       timeoutMs: 285_000,
       capMicros,
     });

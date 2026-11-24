@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { briefClient, websiteProject } from "@/lib/site-spec/test-helpers";
 import { startingSpec } from "@/lib/site-spec/from-brief";
 import { approvalBlockers } from "@/lib/site-spec/validate";
-import { applySiteDraft, takeEverything } from "./site-draft-apply";
+import { applyAndTidy, applySiteDraft, takeEverything } from "./site-draft-apply";
 import { normalizeSiteDraft, type SiteDraftInput, type SiteDraftModelOutput } from "./site-draft";
 
 const TEXT = "Testlunds Snickeri bygger kök, garderober och trappor på beställning i Borgå. Offert är alltid gratis.";
@@ -102,5 +102,18 @@ describe("applySiteDraft", () => {
 
   it("refuses to take nothing", () => {
     expect(() => applySiteDraft(current, draft, { sections: new Set(), strategy: true, brand: true }, "Anna")).toThrow("at least one section");
+  });
+});
+
+describe("taking the draft and tidying up in one go", () => {
+  it("fills the form's empty texts and the search descriptions, and keeps what the draft wrote", () => {
+    const client = briefClient();
+    const current = startingSpec(client, websiteProject(client)).spec;
+    const spec = applyAndTidy(current, draft, takeEverything(draft), "Anna", { name: "Testlunds Snickeri", email: "hej@testlund.fi" });
+    expect(spec.forms[0].replyNote?.sv).toBe("Meddelandet går till hej@testlund.fi. Vi svarar så snart vi kan.");
+    expect(spec.forms[0].consentText.sv).toBe("Jag godkänner att mina uppgifter används för att svara på mitt meddelande.");
+    const home = spec.pages.find((p) => p.id === "home")!;
+    expect(home.seo.description.sv).toBe("bygger kök, garderober och trappor på beställning i Borgå");
+    expect(JSON.stringify(home.sections)).toContain("Testlunds Snickeri");
   });
 });

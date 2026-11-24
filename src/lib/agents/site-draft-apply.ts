@@ -10,6 +10,7 @@ import type { SiteSpec, SiteSpecSection, SiteSpecSource } from "@/lib/site-spec/
 import { siteSpecSchema } from "@/lib/site-spec/schema";
 import { assetIdsOf } from "@/lib/site-spec/validate";
 import type { SiteDraftResult } from "./site-draft";
+import { fillSearchDescriptions, fillStandardTexts } from "@/lib/site-spec/quick-fills";
 
 export interface DraftChoice {
   /** Section ids to take. */
@@ -108,4 +109,16 @@ export function applySiteDraft(current: SiteSpec, draft: SiteDraftResult, choice
     forms,
     seo: from.seo,
   });
+}
+
+/**
+ * The draft taken in, then tidied as a person would right after: the studio's
+ * standard form and privacy texts where the draft left them empty (when the
+ * client has an e-mail), and search descriptions from each page's own words.
+ * Nothing the draft wrote is replaced.
+ */
+export function applyAndTidy(current: SiteSpec, draft: SiteDraftResult, choice: DraftChoice, acceptedBy: string, client: { name: string; email: string | null }): SiteSpec {
+  let spec = applySiteDraft(current, draft, choice, acceptedBy);
+  spec = fillStandardTexts(spec, client)?.spec ?? spec;
+  return fillSearchDescriptions(spec).spec;
 }

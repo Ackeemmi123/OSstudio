@@ -29,6 +29,7 @@ export function SiteDraftPanel({ clientId, projectId, editing }: { clientId: str
   const result = siteDraftResultOf(latest);
 
   async function ask(force: boolean) {
+    if (!window.confirm("Has the client agreed that their material is processed by AI (Anthropic, USA)? Only continue if they have.")) return;
     await act((r) => r.requestSiteDraft!(clientId, projectId, { force }), "The draft could not be started.");
   }
 
@@ -70,7 +71,7 @@ export function SiteDraftPanel({ clientId, projectId, editing }: { clientId: str
             </div>
           ) : null}
           {reviewing ? (
-            <SiteDraftReview result={result} editing={editing} onDone={() => setReviewing(false)} />
+            <SiteDraftReview result={result} editing={editing} onDone={() => setReviewing(false)} client={state.snapshot.clients.find((c) => c.id === clientId)} />
           ) : canEdit ? (
             <div>
               <Button size="xs" variant="primary" onClick={() => setReviewing(true)}>
