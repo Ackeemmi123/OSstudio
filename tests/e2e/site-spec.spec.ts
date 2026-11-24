@@ -40,8 +40,10 @@ test("a website spec goes from the brief to an approved second version", async (
   await expect(page.getByText("From brief: Goal")).toBeVisible();
   await expect(page.getByTestId("spec-blockers")).toContainText("Choose the brand colours and fonts");
 
-  // Fill in what blocks approval.
+  // Fill in what blocks approval. The brand is under the Design tab.
+  await page.getByRole("button", { name: "Design", exact: true }).click();
   await page.getByRole("button", { name: "Keep these" }).click();
+  await page.getByRole("button", { name: "Content", exact: true }).click();
   await page.getByLabel("Default description", { exact: true }).fill("Celebration cakes baked to order.");
   await page.getByLabel("Search description", { exact: true }).first().fill("Order celebration cakes.");
   // Exact: "Heading font" in the brand would match too.
