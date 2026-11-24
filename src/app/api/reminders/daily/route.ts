@@ -1,7 +1,9 @@
 import { timingSafeEqual } from "node:crypto";
+import { runMaintenance } from "@/server/maintenance/run";
 import { sendDailyDigests } from "@/server/reminders/send";
 
-export const maxDuration = 60;
+// The morning e-mails, then a health check of every live site, and on the 1st the monthly reports (PageSpeed takes a while).
+export const maxDuration = 300;
 
 function authorized(header: string | null, secret: string): boolean {
   const given = Buffer.from(header ?? "");
@@ -18,10 +20,9 @@ export async function GET(request: Request) {
   const secret = process.env.CRON_SECRET?.trim();
   if (!secret || secret.length < 32) return Response.json({ error: "not_configured" }, { status: 503 });
   if (!authorized(request.headers.get("authorization"), secret)) return Response.json({ error: "unauthorized" }, { status: 401 });
-  try {
-    const result = await sendDailyDigests(new URL(request.url).origin);
-    return Response.json(result, { status: "error" in result ? 503 : 200 });
-  } catch {
-    return Response.json({ error: "failed" }, { status: 500 });
-  }
+  // Each part runs on its own, so a failure in one does not stop the other.
+  const digests = await sendDailyDigests(new URL(request.url).origin).catch(() => ({ error: "failed" }));
+  const maintenance = await runMaintenance().catch(() => ({ error: "failed" }));
+  const failed = "error" in digests && "error" in maintenance;
+  return Response.json({ digests, maintenance }, { status: failed ? 500 : 200 });
 }
