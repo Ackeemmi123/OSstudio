@@ -46,6 +46,17 @@ describe("client review", () => {
     expect((await postApproval(TOKEN, { name: "Anna", email: "anna@example.fi", agree: false }, d)).status).toBe(400);
     expect((await postApproval(TOKEN, { name: "Anna", email: "anna@example.fi", agree: true }, deps({ code: "23505" }).d)).status).toBe(409);
   });
+
+  it("tells the studio only about what was saved", async () => {
+    const told: unknown[] = [];
+    const ok = { ...deps().d, notify: (_t: string, event: unknown) => void told.push(event) };
+    await postComment(TOKEN, { page: "/om-oss/", target: "", body: "Byt bilden", author: "Anna" }, ok);
+    await postApproval(TOKEN, { name: "Anna", role: "", email: "anna@example.fi", agree: true }, ok);
+    expect(told).toEqual([{ kind: "comment", author: "Anna", page: "/om-oss/", body: "Byt bilden" }, { kind: "approval", author: "Anna" }]);
+    const refused = { ...deps({ code: "23505" }).d, notify: (_t: string, event: unknown) => void told.push(event) };
+    await postApproval(TOKEN, { name: "Anna", email: "anna@example.fi", agree: true }, refused);
+    expect(told).toHaveLength(2);
+  });
 });
 
 describe("the review bar script", () => {

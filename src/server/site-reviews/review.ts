@@ -4,6 +4,7 @@
  * is the key, and the database refuses a link that is expired, turned off or
  * closed for review. Everything a client types is checked here first.
  */
+import type { ReviewEvent } from "@/server/reminders/mail";
 import { z } from "zod";
 
 export const APPROVAL_STATEMENT = "Jag godkänner webbplatsen som den ser ut i den här versionen. I approve the website as it looks in this version.";
@@ -49,6 +50,8 @@ export interface ReviewDeps {
   comment: (token: string, comment: { page: string; target: string; body: string; author: string }) => Promise<{ error?: { code?: string } | null }>;
   approve: (token: string, approval: { name: string; role: string; email: string; statement: string }) => Promise<{ error?: { code?: string } | null }>;
   answer: (token: string, answers: { author: string; answers: string[] }) => Promise<{ error?: { code?: string } | null }>;
+  /** Tells the studio, after the response, that the client did something on the link. Optional; it never fails the request. */
+  notify?: (token: string, event: ReviewEvent) => void;
 }
 
 const json = (status: number, body: unknown) => Response.json(body, { status, headers: { "Cache-Control": "no-store", "X-Robots-Tag": "noindex" } });
@@ -71,6 +74,7 @@ export async function postComment(token: string, body: unknown, deps: ReviewDeps
   if (error?.code === "42501") return closed();
   if (error?.code === "54000") return json(429, { error: "Too many comments in a short time. Try again later." });
   if (error) return json(500, { error: "The comment was not saved. Try again." });
+  deps.notify?.(token, { kind: "comment", author, page, body: text });
   return json(201, { ok: true });
 }
 
@@ -84,6 +88,7 @@ export async function postApproval(token: string, body: unknown, deps: ReviewDep
   if (error?.code === "42501") return closed();
   if (error?.code === "23505") return json(409, { error: "This version is already approved." });
   if (error) return json(500, { error: "The approval was not saved. Try again." });
+  deps.notify?.(token, { kind: "approval", author: name });
   return json(201, { ok: true });
 }
 
@@ -99,5 +104,6 @@ export async function postAnswers(token: string, body: unknown, deps: ReviewDeps
   if (error?.code === "23505") return json(409, { error: "The questions are already answered." });
   if (error?.code === "22023") return json(400, { error: "The answers do not match the questions. Reload the page and try again." });
   if (error) return json(500, { error: "The answers were not saved. Try again." });
+  deps.notify?.(token, { kind: "answers", author });
   return json(201, { ok: true });
 }

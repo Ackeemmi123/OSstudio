@@ -154,6 +154,9 @@ export interface StudioRepository {
   deleteNextStep?(step: NextStep): Promise<void>;
   /** The caller's own calendar feed: whether one is on, and making a new link (shown once) or turning it off. */
   hasCalendarFeed?(): Promise<boolean>;
+  /** Which of Studio OS's e-mails the signed-in person gets from this studio. Both are on until they turn one off. */
+  emailSettings?(): Promise<EmailSettings>;
+  saveEmailSettings?(settings: EmailSettings): Promise<void>;
   createCalendarFeed?(): Promise<string>;
   revokeCalendarFeed?(): Promise<void>;
   /** Up to eight questions the client answers on the link. An empty list takes them off. */
@@ -243,4 +246,10 @@ export interface AiSpend {
   /** Held for analyses still running. */
   reservedMicros: number;
   capMicros: number;
+}
+
+/** The morning list of what is due, and a note when a client comments or approves on a review link. */
+export interface EmailSettings {
+  dailyDigest: boolean;
+  clientEvents: boolean;
 }

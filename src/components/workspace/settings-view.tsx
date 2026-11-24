@@ -16,6 +16,7 @@ import type { AiSpend } from "@/lib/data/repository";
 import { BRAND } from "@/lib/brand";
 import { errorMessage } from "@/lib/data/studio-store";
 import { AgencyBrandSection } from "./agency-brand-section";
+import { EmailSettingsSection } from "./email-settings";
 import { ImportSection } from "./import-section";
 import { PeopleSection } from "./people-section";
 
@@ -98,6 +99,8 @@ export function SettingsView() {
         <AgentsSection serverAvailable={Boolean(supabase)} owner={supabase?.role === "owner"} />
 
         <CalendarFeedSettings />
+
+        <EmailSettingsSection />
 
         <Section id="brand" title="Brand">
           <p className="text-[13.5px] leading-relaxed text-ink-muted">
