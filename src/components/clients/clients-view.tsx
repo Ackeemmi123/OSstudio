@@ -163,7 +163,7 @@ function ClientListRow({ row }: { row: ClientRow }) {
         href={`/clients/${encodeURIComponent(client.id)}`}
         className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-x-4 px-5 py-3.5 transition-colors hover:bg-surface-muted sm:grid-cols-[auto_minmax(0,1fr)_200px_110px]"
       >
-        <Avatar name={client.name} size="sm" />
+        <Avatar name={client.name} seed={client.id} size="sm" />
         <span className="min-w-0">
           <span className="flex items-center gap-2">
             <span className="truncate text-[14px] font-medium text-ink">{client.name}</span>

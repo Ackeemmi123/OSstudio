@@ -123,3 +123,50 @@ export function DeliveryNext({ delivery, href, compact = false }: { delivery: De
     </div>
   );
 }
+
+const CELEBRATE_FOR_DAYS = 7;
+
+/**
+ * A short, happy note the first time this browser sees that a client approved
+ * their website or that a site went live, within a week of it happening.
+ * Shown once per website and step; motion is left out for those who ask for less.
+ */
+export function Celebration({ deliveries, names }: { deliveries: Map<string, Delivery> | null; names: Map<string, string> }) {
+  const now = useNow();
+  const [shown, setShown] = useState<{ key: string; text: string } | null>(null);
+  useEffect(() => {
+    if (!deliveries || !now || shown) return;
+    for (const d of deliveries.values()) {
+      if (d.stage !== "clientApproved" && d.stage !== "live") continue;
+      if (!d.since || now - Date.parse(d.since) > CELEBRATE_FOR_DAYS * 86_400_000) continue;
+      const key = `studio-os:celebrated:${d.projectId}:${d.stage}`;
+      try {
+        if (window.localStorage.getItem(key)) continue;
+        window.localStorage.setItem(key, "1");
+      } catch {
+        continue;
+      }
+      const name = names.get(d.clientId) ?? "A client";
+      // Shown once per arrival; the timer below puts it away.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setShown({ key, text: d.stage === "live" ? `${name}'s website is live!` : `${name} approved their website!` });
+      return;
+    }
+  }, [deliveries, names, now, shown]);
+  useEffect(() => {
+    if (!shown) return;
+    const timer = window.setTimeout(() => setShown(null), 6000);
+    return () => window.clearTimeout(timer);
+  }, [shown]);
+  if (!shown) return null;
+  return (
+    <div role="status" className="celebration pointer-events-none fixed inset-x-0 top-20 z-50 flex justify-center px-4">
+      <div className="pointer-events-auto relative overflow-hidden rounded-full border border-positive/30 bg-surface px-5 py-2.5 text-[14px] font-medium text-ink shadow-[var(--shadow-overlay)]">
+        {Array.from({ length: 14 }, (_, i) => (
+          <span key={i} aria-hidden className="confetti" style={{ left: `${(i * 37) % 100}%`, animationDelay: `${(i % 7) * 60}ms`, background: ["#879DC7", "#23794a", "#C8553D", "#E0B04A", "#6A3672"][i % 5] }} />
+        ))}
+        <span className="relative">{shown.text}</span>
+      </div>
+    </div>
+  );
+}

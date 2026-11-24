@@ -1,6 +1,8 @@
 "use client";
 
-import { CheckSquare, FileText, FolderKanban, Plus, Search, User } from "lucide-react";
+import { CheckSquare, FileText, FolderKanban, Link2, Plus, Search, User } from "lucide-react";
+import { useDeliveries } from "@/components/delivery/delivery";
+import { useToast } from "@/components/ui/toast";
 import { useRouter } from "next/navigation";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { useCanEdit, useStudio } from "@/components/providers/studio-provider";
@@ -11,7 +13,7 @@ import { isWebsiteProject } from "@/lib/domain/site-specs";
 
 interface Result {
   id: string;
-  kind: "client" | "project" | "spec" | "task" | "action";
+  kind: "client" | "project" | "spec" | "task" | "action" | "link";
   title: string;
   subtitle: string;
   /** Where the result leads. An action without one runs instead. */
@@ -19,8 +21,8 @@ interface Result {
   run?: () => void;
 }
 
-const KIND_ICON = { client: User, project: FolderKanban, spec: FileText, task: CheckSquare, action: Plus };
-const KIND_LABEL = { client: "Client", project: "Project", spec: "Website spec", task: "Task", action: "Action" };
+const KIND_ICON = { client: User, project: FolderKanban, spec: FileText, task: CheckSquare, action: Plus, link: Link2 };
+const KIND_LABEL = { client: "Client", project: "Project", spec: "Website spec", task: "Task", action: "Action", link: "Review link" };
 
 export function SearchDialog({ open, onClose, onNewClient }: { open: boolean; onClose: () => void; onNewClient: () => void }) {
   const ref = useRef<HTMLDialogElement>(null);
@@ -54,6 +56,8 @@ function SearchPanel({ onClose, onNewClient }: { onClose: () => void; onNewClien
   const router = useRouter();
   const state = useStudio();
   const canEdit = useCanEdit();
+  const deliveries = useDeliveries();
+  const toast = useToast();
   const [query, setQuery] = useState("");
   const [activeIndex, setActiveIndex] = useState(0);
   const listId = useId();
@@ -99,8 +103,35 @@ function SearchPanel({ onClose, onNewClient }: { onClose: () => void; onNewClien
         }).slice(0, 6)
       : [];
     const actions: Result[] = canEdit && (!q || matches("new client")) ? [{ id: "new-client", kind: "action", title: "New client", subtitle: "Add a client and start their brief", run: onNewClient }] : [];
-    return [...clients, ...projects, ...specs, ...tasks, ...actions];
-  }, [state, query, canEdit, onNewClient]);
+    // Each website's review link, copied in one go, and its delivery opened: the two things most often looked for.
+    const links: Result[] = q
+      ? [...(deliveries?.values() ?? [])].flatMap((d) => {
+          const name = clientNames.get(d.clientId) ?? "";
+          if (!matches(`${name} review link delivery copy`)) return [];
+          const site = `/clients/${encodeURIComponent(d.clientId)}/projects/${encodeURIComponent(d.projectId)}/site#delivery`;
+          return [
+            ...(d.reviewLink
+              ? [{
+                  id: `link-${d.projectId}`,
+                  kind: "link" as const,
+                  title: `Copy review link for ${name}`,
+                  subtitle: d.next,
+                  run: () => {
+                    const url = new URL(d.reviewLink!, window.location.origin).toString();
+                    navigator.clipboard.writeText(url).then(
+                      () => toast.success(`Review link for ${name} copied.`),
+                      () => toast.error(`Copying did not work here. The link is ${url}`),
+                    );
+                  },
+                }]
+              : []),
+            ...(d.stage !== "spec" && d.stage !== "review" ? [{ id: `delivery-${d.projectId}`, kind: "spec" as const, title: `Open delivery: ${name}`, subtitle: d.next, href: site }] : []),
+          ];
+        }).slice(0, 4)
+      : [];
+    const pages: Result[] = q && matches("settings e-mail calendar") ? [{ id: "settings", kind: "action", title: "Settings", subtitle: "E-mail, calendar, people and brand", href: "/settings" }] : [];
+    return [...clients, ...links, ...projects, ...specs, ...tasks, ...actions, ...pages];
+  }, [state, query, canEdit, onNewClient, deliveries, toast]);
 
   const go = (result: Result | undefined) => {
     if (!result) return;
