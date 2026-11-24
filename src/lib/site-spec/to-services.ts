@@ -28,16 +28,27 @@ export type ServicesMode = { prototype: { madeBy: string } } | { client: { appro
 
 export type ServicesResult = { ok: true; content: SiteContent; design: SiteDesign; pages: Record<string, string> } | { ok: false; missing: string[] };
 
-const WORDS: Record<SiteLocale, { services: string; steps: string; questions: string; reasons: string; people: string; details: string; name: string; email: string; phone: string; message: string; send: string; notFound: string; notFoundText: string; back: string; menuServices: string; menuQuestions: string; contact: string; privacy: string; about: string; work: string; publications: string }> = {
-  sv: { services: "Tjänster", steps: "Så går det till", questions: "Frågor", reasons: "Därför", people: "Vi som jobbar här", details: "Kontaktuppgifter", name: "Namn", email: "E-post", phone: "Telefon", message: "Meddelande", send: "Skicka", notFound: "Sidan hittades inte", notFoundText: "Adressen finns inte längre, eller så skrevs den fel.", back: "Till startsidan", menuServices: "Tjänster", menuQuestions: "Frågor", contact: "Kontakt", privacy: "Integritet", about: "Om oss", work: "Arbeten", publications: "Publikationer" },
-  fi: { services: "Palvelut", steps: "Näin edetään", questions: "Kysymykset", reasons: "Miksi me", people: "Meillä töissä", details: "Yhteystiedot", name: "Nimi", email: "Sähköposti", phone: "Puhelin", message: "Viesti", send: "Lähetä", notFound: "Sivua ei löytynyt", notFoundText: "Osoite ei ole enää käytössä, tai siinä on kirjoitusvirhe.", back: "Etusivulle", menuServices: "Palvelut", menuQuestions: "Kysymykset", contact: "Yhteystiedot", privacy: "Tietosuoja", about: "Meistä", work: "Töitämme", publications: "Julkaisut" },
-  en: { services: "Services", steps: "How it works", questions: "Questions", reasons: "Why us", people: "The people", details: "Contact details", name: "Name", email: "Email", phone: "Phone", message: "Message", send: "Send", notFound: "Page not found", notFoundText: "This address no longer exists, or it was mistyped.", back: "Back to the front page", menuServices: "Services", menuQuestions: "Questions", contact: "Contact", privacy: "Privacy", about: "About", work: "Our work", publications: "Publications" },
+const WORDS: Record<SiteLocale, { services: string; steps: string; questions: string; reasons: string; people: string; details: string; name: string; email: string; phone: string; message: string; send: string; notFound: string; notFoundText: string; back: string; menuServices: string; menuQuestions: string; contact: string; privacy: string; about: string; work: string; publications: string; menu: string }> = {
+  sv: { services: "Tjänster", steps: "Så går det till", questions: "Frågor", reasons: "Därför", people: "Vi som jobbar här", details: "Kontaktuppgifter", name: "Namn", email: "E-post", phone: "Telefon", message: "Meddelande", send: "Skicka", notFound: "Sidan hittades inte", notFoundText: "Adressen finns inte längre, eller så skrevs den fel.", back: "Till startsidan", menuServices: "Tjänster", menuQuestions: "Frågor", contact: "Kontakt", privacy: "Integritet", about: "Om oss", work: "Arbeten", publications: "Publikationer", menu: "Meny" },
+  fi: { services: "Palvelut", steps: "Näin edetään", questions: "Kysymykset", reasons: "Miksi me", people: "Meillä töissä", details: "Yhteystiedot", name: "Nimi", email: "Sähköposti", phone: "Puhelin", message: "Viesti", send: "Lähetä", notFound: "Sivua ei löytynyt", notFoundText: "Osoite ei ole enää käytössä, tai siinä on kirjoitusvirhe.", back: "Etusivulle", menuServices: "Palvelut", menuQuestions: "Kysymykset", contact: "Yhteystiedot", privacy: "Tietosuoja", about: "Meistä", work: "Töitämme", publications: "Julkaisut", menu: "Ruokalista" },
+  en: { services: "Services", steps: "How it works", questions: "Questions", reasons: "Why us", people: "The people", details: "Contact details", name: "Name", email: "Email", phone: "Phone", message: "Message", send: "Send", notFound: "Page not found", notFoundText: "This address no longer exists, or it was mistyped.", back: "Back to the front page", menuServices: "Services", menuQuestions: "Questions", contact: "Contact", privacy: "Privacy", about: "About", work: "Our work", publications: "Publications", menu: "Menu" },
 };
 
 const ABOUT = /^(om|about|om-oss|meista|meist|tietoa|about-us)/;
 const PRIVACY = /(integritet|privacy|tietosuoja|dataskydd)/;
 const PUBLICATIONS = /(julkaisu|publikation|publication|skrifter)/;
 const PAGE_SLUG = /^[a-z0-9]+(-[a-z0-9]+)*$/;
+const MENU = /^(meny|menu|ruokalista|lista|matsedel|lounas|lunch|ruoka)/;
+
+/** A line of opening hours: the days, then the time ("Ma–Pe 11–22", "Su: suljettu"), or the whole line when it cannot be told apart. */
+export function hoursLine(line: string): { days: string; time?: string } {
+  const text = line.replace(/\s+/g, " ").trim();
+  const colon = text.match(/^([^:\d]{1,60}?)\s*:\s*(.+)$/);
+  if (colon) return { days: colon[1].trim(), time: colon[2].trim() };
+  const timed = text.match(/^(.+?)\s+((?:klo\s+)?\d{1,2}(?:[.:]\d{2})?\s*[–-]\s*\d{1,2}(?:[.:]\d{2})?.*|suljettu.*|stängt.*|closed.*)$/i);
+  if (timed) return { days: timed[1].trim(), time: timed[2].trim() };
+  return { days: text };
+}
 
 function lines(text: string): string[] {
   return text
@@ -178,6 +189,7 @@ export function servicesContent(spec: SiteSpec, images: Record<string, ServicesI
   const contactPage = pageOf((p) => p.sections.some((s) => s.kind === "contact"));
   const privacyPage = pageOf((p) => PRIVACY.test(slugOf(p)) || PRIVACY.test(p.id));
   const publicationsPage = pageOf((p) => PUBLICATIONS.test(slugOf(p)) || PUBLICATIONS.test(p.id));
+  const menuSpecPage = pageOf((p) => (MENU.test(slugOf(p)) || MENU.test(p.id)) && p.sections.some((s) => s.kind === "services"));
   if (!aboutPage) missing.push("Add an About page (its address starting with om, about or meista).");
   if (!contactPage) missing.push("Add a Contact page with a contact section.");
   if (!privacyPage) missing.push("Add a Privacy page (its address containing integritet, privacy or tietosuoja).");
@@ -189,6 +201,20 @@ export function servicesContent(spec: SiteSpec, images: Record<string, ServicesI
     return [{ id: asset.id.slice(0, 40), src: file.src, width: file.width, height: file.height, alt: (t(asset.alt, locale) || asset.description || asset.id).slice(0, 200), source: file.source.slice(0, 120), licence: file.licence.slice(0, 120), showsPerson: file.showsPerson }];
   });
   const imageId = (id: string | undefined) => (id && assets.some((a) => a.id === id) ? id : undefined);
+
+  // Booking: the place's own booking service, when it has one; the main button then books.
+  const contactForBooking = contactPage?.sections.find((s): s is Extract<SiteSpecSection, { kind: "contact" }> => s.kind === "contact");
+  const bookingUrl = contactForBooking?.bookingUrl?.trim() ?? "";
+  let bookingHref: string | undefined;
+  if (bookingUrl) {
+    try {
+      const url = new URL(bookingUrl);
+      if (url.protocol !== "https:") throw new Error("not https");
+      bookingHref = url.href;
+    } catch {
+      missing.push("The booking address must be a whole https address, like https://booking.example.fi/place.");
+    }
+  }
 
   // Promise: the home page's hero.
   const hero = firstOf("hero", home);
@@ -202,7 +228,7 @@ export function servicesContent(spec: SiteSpec, images: Record<string, ServicesI
     headline: need("The hero's heading", headline, 110, heroOrigin),
     ...(turn && headline.endsWith(turn) ? { turn: turn.slice(0, 60) } : {}),
     why: need("The hero's subheading", t(hero?.subheading, locale), 280, heroOrigin),
-    action: { label: (t(button?.label, locale) || w.contact).slice(0, 36), by: "form" },
+    action: { label: (t(button?.label, locale) || w.contact).slice(0, 36), by: bookingHref ? "booking" : "form" },
     ...(t(hero?.reassurance, locale) ? { reassurance: need("The hero's reassurance line", t(hero?.reassurance, locale), 140, heroOrigin) } : {}),
     ...(imageId(hero?.mediaAssetId) ? { imageId: imageId(hero?.mediaAssetId) } : {}),
   };
@@ -257,6 +283,7 @@ export function servicesContent(spec: SiteSpec, images: Record<string, ServicesI
       name: need(`Service ${i + 1}: title`, t(item.title, locale), 60, originOf(item.source ?? servicesSection?.source)),
       text: need(`Service ${i + 1}: text`, t(item.body, locale), 320, originOf(item.source ?? servicesSection?.source)),
       ...(t(item.price, locale) ? { price: need(`Service ${i + 1}: price`, t(item.price, locale), 50, originOf(item.source)) } : {}),
+      ...(t(item.diets, locale) ? { diets: t(item.diets, locale).slice(0, 40) } : {}),
       ...servicePage(item, i),
     })),
   };
@@ -402,9 +429,42 @@ export function servicesContent(spec: SiteSpec, images: Record<string, ServicesI
     seo: { title: ((privacyPage && t(privacyPage.title, locale)) || w.privacy).slice(0, 70), description: ((privacyPage && t(privacyPage.seo.description, locale)) || w.privacy).slice(0, 170) },
   };
 
-  // Address and opening hours, exactly as written in the contact section.
+  // Address and opening hours, exactly as written in the contact section: one line, or a timetable when there are several.
   const address = t(contactSection?.address, locale).slice(0, 120);
-  const hours = t(contactSection?.hours, locale).slice(0, 120);
+  const hourLines = lines(t(contactSection?.hours, locale));
+  const hours = hourLines.join(" · ").slice(0, 120);
+  if (hourLines.length > 10) missing.push(`Opening hours: at most 10 lines (now ${hourLines.length}).`);
+  const openingHours = hourLines.length >= 2 ? hourLines.slice(0, 10).map((line) => { const parsed = hoursLine(line); return { days: parsed.days.slice(0, 60), ...(parsed.time ? { time: parsed.time.slice(0, 60) } : {}) }; }) : undefined;
+
+  // The whole menu: a page whose address says so; each services section on it is a group of dishes.
+  const menuGroups = (menuSpecPage?.sections ?? []).filter((s): s is Extract<SiteSpecSection, { kind: "services" }> => s.kind === "services" && s.items.length > 0);
+  const menuNote = (menuSpecPage?.sections ?? []).filter((s): s is Extract<SiteSpecSection, { kind: "text" | "text_media" }> => s.kind === "text" || s.kind === "text_media").flatMap((s) => paragraphs(t(s.body, locale))).join(" ");
+  if (menuGroups.length > 10) missing.push(`The menu page: at most 10 groups (now ${menuGroups.length}).`);
+  const menuPage: SiteContent["menuPage"] = menuSpecPage && menuGroups.length
+    ? {
+        slug: slugOf(menuSpecPage).slice(0, 30),
+        menuLabel: (t(menuSpecPage.title, locale) || w.menu).slice(0, 24),
+        label: (t(menuSpecPage.title, locale) || w.menu).slice(0, 60),
+        heading: need("The menu page's title", t(menuSpecPage.title, locale), 110, "person"),
+        groups: menuGroups.slice(0, 10).map((group, g) => {
+          if (!t(group.heading, locale)) missing.push(`The menu, group ${g + 1}: the section needs a heading (like Lunch or Drinks).`);
+          if (group.items.length > 40) missing.push(`The menu, group ${g + 1}: at most 40 dishes (now ${group.items.length}).`);
+          const from = originOf(group.source);
+          return {
+            heading: t(group.heading, locale).slice(0, 80) || w.menu,
+            ...(t(group.eyebrow, locale) ? { text: need(`The menu, group ${g + 1}: the line under the heading`, t(group.eyebrow, locale), 240, from) } : {}),
+            items: group.items.slice(0, 40).map((item, n) => ({
+              name: need(`The menu, group ${g + 1}, dish ${n + 1}: name`, t(item.title, locale), 80, originOf(item.source ?? group.source)),
+              ...(t(item.body, locale) ? { text: need(`The menu, group ${g + 1}, dish ${n + 1}: description`, t(item.body, locale).replace(/\s+/g, " "), 320, originOf(item.source ?? group.source)) } : {}),
+              ...(t(item.price, locale) ? { price: need(`The menu, group ${g + 1}, dish ${n + 1}: price`, t(item.price, locale), 50, originOf(item.source ?? group.source)) } : {}),
+              ...(t(item.diets, locale) ? { diets: t(item.diets, locale).slice(0, 40) } : {}),
+            })),
+          };
+        }),
+        ...(menuNote ? { note: need("The menu page's note", menuNote, 600, "person") } : {}),
+        seo: { title: (t(menuSpecPage.seo.title, locale) || t(menuSpecPage.title, locale) || w.menu).slice(0, 70), description: (t(menuSpecPage.seo.description, locale) || t(menuSpecPage.title, locale) || w.menu).slice(0, 170) },
+      }
+    : undefined;
 
   // The firm's own work: the first gallery with at least two pictures that have files.
   const gallerySection = firstOf("gallery");
@@ -430,7 +490,7 @@ export function servicesContent(spec: SiteSpec, images: Record<string, ServicesI
   const homeDescription = t(home.seo.description, locale) || t(spec.seo.defaultDescription, locale);
   if (!homeDescription) missing.push("The home page needs a search description.");
   if (new Set([about.slug, contact.slug, privacy.slug]).size < 3) missing.push("The About, Contact and Privacy pages need different addresses.");
-  const pageSlugs = [about.slug, contact.slug, privacy.slug, ...(publications ? [publications.slug] : []), "sent", "not-sent"];
+  const pageSlugs = [about.slug, contact.slug, privacy.slug, ...(publications ? [publications.slug] : []), ...(menuPage ? [menuPage.slug] : []), "sent", "not-sent"];
   for (const item of services.items) {
     if (!item.page) continue;
     if (pageSlugs.includes(item.page.slug)) missing.push(`The service ${item.name.text} has the page address ${item.page.slug}, which another page already uses.`);
@@ -443,7 +503,7 @@ export function servicesContent(spec: SiteSpec, images: Record<string, ServicesI
   const content = {
     ...mode,
     language: locale,
-    business: { name: siteName.slice(0, 60), ...(email ? { email } : {}), ...(phone ? { phone: phone.slice(0, 30) } : {}), ...(address ? { address } : {}), ...(hours ? { hours } : {}) },
+    business: { name: siteName.slice(0, 60), ...(email ? { email } : {}), ...(phone ? { phone: phone.slice(0, 30) } : {}), ...(address ? { address } : {}), ...(hours ? { hours } : {}), ...(openingHours ? { openingHours } : {}), ...(bookingHref ? { booking: { href: bookingHref } } : {}) },
     assets,
     promise,
     reasons,
@@ -455,6 +515,7 @@ export function servicesContent(spec: SiteSpec, images: Record<string, ServicesI
     ...(gallery ? { gallery } : {}),
     about,
     ...(publications ? { publications } : {}),
+    ...(menuPage ? { menuPage } : {}),
     contact,
     form: formContent,
     privacy,
@@ -482,5 +543,6 @@ export function servicesContent(spec: SiteSpec, images: Record<string, ServicesI
   if (contactPage) pagesMap[contactPage.id] = `${contact.slug}/index.html`;
   if (privacyPage) pagesMap[privacyPage.id] = `${privacy.slug}/index.html`;
   if (publicationsPage && publications) pagesMap[publicationsPage.id] = `${publications.slug}/index.html`;
+  if (menuSpecPage && menuPage) pagesMap[menuSpecPage.id] = `${menuPage.slug}/index.html`;
   return { ok: true, content, design, pages: pagesMap };
 }

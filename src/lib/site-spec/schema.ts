@@ -133,7 +133,7 @@ export const sectionSchema = z.discriminatedUnion("kind", [
   section("services", {
     heading: localized(120),
     items: z
-      .array(item({ title: localized(80), body: localized(1000, true), price: localized(60).optional(), slug: localized(60).optional(), whoFor: localized(240).optional(), matters: localized(2000, true).optional() }))
+      .array(item({ title: localized(80), body: localized(1000, true), price: localized(60).optional(), diets: localized(40).optional(), slug: localized(60).optional(), whoFor: localized(240).optional(), matters: localized(2000, true).optional() }))
       .max(24),
   }),
   /** Shown on the page. The shop platform, not the spec, owns the live catalogue. */
@@ -162,7 +162,8 @@ export const sectionSchema = z.discriminatedUnion("kind", [
   }),
   section("faq", { heading: localized(120), items: z.array(item({ question: localized(200), answer: localized(1000, true) })).max(30) }),
   section("cta", { heading: localized(120), body: localized(300, true), button }),
-  section("contact", { heading: localized(120), body: localized(600, true), formId: idSchema.optional(), address: localized(120).optional(), hours: localized(120).optional() }),
+  /** `hours`: one line per day or days. `bookingUrl`: the place's own booking service; the main button then books. */
+  section("contact", { heading: localized(120), body: localized(600, true), formId: idSchema.optional(), address: localized(120).optional(), hours: localized(400, true).optional(), bookingUrl: z.string().trim().max(300).optional() }),
   section("map", { heading: localized(120) }),
 ]);
 

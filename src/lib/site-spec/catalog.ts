@@ -180,7 +180,7 @@ export const SPEC_LIMITS = {
  * What a person fills in for each section kind, in order. Drives the editor;
  * the schema in schema.ts defines the same fields.
  */
-export type SectionFieldType = "text" | "longText" | "buttons" | "button" | "image" | "images" | "form" | "items";
+export type SectionFieldType = "text" | "longText" | "url" | "buttons" | "button" | "image" | "images" | "form" | "items";
 export type ItemFieldType = "text" | "longText" | "plain" | "image" | "document" | "consent";
 
 export interface SectionFieldDefinition {
@@ -215,7 +215,7 @@ export const SECTION_FIELDS: Record<SectionKind, SectionFieldDefinition[]> = {
   team: [EYEBROW, HEADING, { key: "items", label: "People", type: "items" }],
   faq: [EYEBROW, HEADING, { key: "items", label: "Questions", type: "items" }],
   cta: [EYEBROW, HEADING, { key: "body", label: "Text", type: "longText" }, { key: "button", label: "Button", type: "button" }],
-  contact: [EYEBROW, HEADING, { key: "body", label: "Text", type: "longText" }, { key: "address", label: "Address", type: "text" }, { key: "hours", label: "Opening hours, in one line", type: "text" }, { key: "formId", label: "Form", type: "form" }],
+  contact: [EYEBROW, HEADING, { key: "body", label: "Text", type: "longText" }, { key: "address", label: "Address", type: "text" }, { key: "hours", label: "Opening hours, one line per day or days (like Mon–Fri 11–22)", type: "longText" }, { key: "bookingUrl", label: "Booking address (https), if guests book online", type: "url" }, { key: "formId", label: "Form", type: "form" }],
   map: [EYEBROW, HEADING],
 };
 
@@ -225,6 +225,7 @@ export const ITEM_FIELDS: Partial<Record<SectionKind, ItemFieldDefinition[]>> = 
     { key: "title", label: "Service", type: "text" },
     { key: "body", label: "Description", type: "longText" },
     { key: "price", label: "Price (only if the client confirmed it)", type: "text" },
+    { key: "diets", label: "Diet markings (like L, G, VEG)", type: "text", group: "Menu", hint: "For a menu: the markings as the restaurant writes them. Explain them in a text section on the menu page." },
     { key: "slug", label: "Page address", type: "text", group: "Own page", hint: "Lower-case letters, digits and hyphens, like patents. With an address, the company design gives this service its own page." },
     { key: "whoFor", label: "Who it is for", type: "longText", group: "Own page" },
     { key: "matters", label: "Typical matters, one per line", type: "longText", group: "Own page" },

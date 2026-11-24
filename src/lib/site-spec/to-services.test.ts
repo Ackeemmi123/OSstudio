@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { build } from "../../../design-systems/services";
 import { siteContent } from "../../../design-systems/services/content";
 import { briefClient, companySpec } from "./test-helpers";
-import { publicationLine, servicesContent, signatureFor } from "./to-services";
+import { hoursLine, publicationLine, servicesContent, signatureFor } from "./to-services";
 import { approvalBlockers } from "./validate";
 
 describe("drawing a spec with the company design", () => {
@@ -222,5 +222,84 @@ describe("law and expertise: area pages, profiles and publications", () => {
   it("reads a year range and leaves a line without a year whole", () => {
     expect(publicationLine("2014–2016 Ett uppdrag")).toEqual({ text: "Ett uppdrag", year: "2014–2016" });
     expect(publicationLine("Artikel om 2020-talet")).toEqual({ text: "Artikel om 2020-talet" });
+  });
+});
+
+describe("a restaurant: the whole menu, opening hours and booking", () => {
+  const mode = { prototype: { madeBy: "Axivo" } } as const;
+  const contactOf = (spec: ReturnType<typeof companySpec>) => {
+    const section = spec.pages.flatMap((p) => p.sections).find((s) => s.kind === "contact");
+    if (section?.kind !== "contact") throw new Error("no contact");
+    return section;
+  };
+  const menuPage = () => ({
+    id: "menu",
+    slug: { sv: "meny" },
+    title: { sv: "Meny" },
+    nav: "main" as const,
+    seo: { title: {}, description: {}, noindex: false },
+    sections: [
+      { id: "lunch", kind: "services", variant: "list", eyebrow: { sv: "Vardagar 11–14" }, heading: { sv: "Lunch" }, items: [{ id: "soppa", title: { sv: "Laxsoppa" }, body: { sv: "Med dill och rågbröd." }, price: { sv: "13,50 €" }, diets: { sv: "L, G" } }, { id: "bowl", title: { sv: "Rotfruktsbowl" }, price: { sv: "12 €" }, diets: { sv: "VEG" } }] },
+      { id: "drinks", kind: "services", variant: "list", heading: { sv: "Drycker" }, items: [{ id: "kaffe", title: { sv: "Kaffe" }, price: { sv: "3 €" } }] },
+      { id: "note", kind: "text", variant: "single_column", heading: { sv: "Allergier" }, body: { sv: "L = laktosfri, G = glutenfri, VEG = vegansk. Fråga oss om allergener." } },
+    ],
+  });
+
+  it("builds the menu page from a page whose address says so: groups, dishes, prices, markings and the note", () => {
+    const spec = companySpec();
+    spec.pages.push(menuPage() as never);
+    const result = servicesContent(spec, {}, mode);
+    expect(result.ok ? [] : result.missing).toEqual([]);
+    if (!result.ok) return;
+    const menu = result.content.menuPage!;
+    expect(menu.groups.map((g) => g.heading)).toEqual(["Lunch", "Drycker"]);
+    expect(menu.groups[0].text?.text).toBe("Vardagar 11–14");
+    expect(menu.groups[0].items[0]).toMatchObject({ name: { text: "Laxsoppa" }, price: { text: "13,50 €" }, diets: "L, G" });
+    expect(menu.groups[0].items[1].text).toBeUndefined();
+    expect(menu.note?.text).toMatch(/allergener/);
+    expect(result.pages.menu).toBe("meny/index.html");
+    const files = build({ content: result.content, design: { ...result.design, direction: "cafe" } });
+    const page = files.find((f) => f.path === "meny/index.html")!.text;
+    expect(page).toContain("Laxsoppa");
+    expect(page).toContain('class="menu-diets"');
+    expect(files.find((f) => f.path === "index.html")!.text).toContain('href="./meny/"');
+  });
+
+  it("shows opening hours as a timetable when there are several lines", () => {
+    const spec = companySpec();
+    contactOf(spec).hours = { sv: "Mån–fre 11–22\nLör: 12–23\nSön stängt" };
+    const result = servicesContent(spec, {}, mode);
+    if (!result.ok) throw new Error(result.missing.join(" "));
+    expect(result.content.business.openingHours).toEqual([
+      { days: "Mån–fre", time: "11–22" },
+      { days: "Lör", time: "12–23" },
+      { days: "Sön", time: "stängt" },
+    ]);
+    expect(result.content.business.hours).toBe("Mån–fre 11–22 · Lör: 12–23 · Sön stängt");
+    const contact = build({ content: result.content, design: result.design }).find((f) => f.path === `${result.content.contact.slug}/index.html`)!.text;
+    expect(contact).toContain('<dl class="hours">');
+  });
+
+  it("keeps one line of hours as it is, and reads lines it cannot split as days only", () => {
+    expect(hoursLine("Ma–Pe klo 10.30–14")).toEqual({ days: "Ma–Pe", time: "klo 10.30–14" });
+    expect(hoursLine("Juhlapyhinä poikkeavat ajat")).toEqual({ days: "Juhlapyhinä poikkeavat ajat" });
+    const spec = companySpec();
+    contactOf(spec).hours = { sv: "Varje dag 8–16" };
+    const result = servicesContent(spec, {}, mode);
+    expect(result.ok && result.content.business).toMatchObject({ hours: "Varje dag 8–16" });
+    expect(result.ok && result.content.business.openingHours).toBeUndefined();
+  });
+
+  it("makes the main button book when there is a booking address, and refuses one that is not https", () => {
+    const spec = companySpec();
+    contactOf(spec).bookingUrl = "https://booking.example.fi/bistro";
+    const result = servicesContent(spec, {}, mode);
+    if (!result.ok) throw new Error(result.missing.join(" "));
+    expect(result.content.promise.action.by).toBe("booking");
+    const home = build({ content: result.content, design: result.design }).find((f) => f.path === "index.html")!.text;
+    expect(home).toContain('href="https://booking.example.fi/bistro"');
+    contactOf(spec).bookingUrl = "http://booking.example.fi";
+    const bad = servicesContent(spec, {}, mode);
+    expect(bad.ok ? [] : bad.missing.join(" ")).toMatch(/whole https address/);
   });
 });

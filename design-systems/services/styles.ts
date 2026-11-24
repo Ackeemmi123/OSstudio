@@ -914,6 +914,36 @@ const CONCEPT = `
 .area-others a{display:inline-flex;align-items:center;min-height:44px;padding:.5rem 1rem;border:1px solid var(--line);border-radius:var(--radius);color:inherit;text-decoration:none;background:none}
 @media (hover:hover){.area-others a:hover{border-color:var(--accent);color:var(--accent)}}
 
+/* A restaurant's whole menu: group cards on the counter, dishes with dotted leaders, prices and diet markings; then when to come. */
+.menu-jump{padding:0 var(--gut) clamp(1.5rem,3vw,2.5rem)}
+.d-formal .menu-jump{padding-top:clamp(1.5rem,3vw,2.5rem)}
+.menu-jump ul{list-style:none;display:flex;flex-wrap:wrap;gap:.5rem}
+.menu-jump a{display:inline-flex;align-items:center;min-height:44px;padding:.45rem 1.1rem;border:1.5px solid var(--ink);border-radius:999px;color:inherit;text-decoration:none;font-weight:500;background:none}
+@media (hover:hover){.menu-jump a:hover{background:var(--ink);color:var(--paper)}}
+.menu-groups{display:flex;flex-direction:column;gap:clamp(1.5rem,3vw,2.5rem);padding:0 var(--gut)}
+.d-formal .menu-groups{padding-top:clamp(2.5rem,5vw,4rem)}
+.d-formal .menu-jump + .menu-groups{padding-top:0}
+.menu-group{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));column-gap:24px;row-gap:1.75rem;background:var(--paper-2);border-top:1.5px solid var(--ink);padding:clamp(2rem,4vw,3.5rem) clamp(1.25rem,3vw,3rem)}
+.d-cafe .menu-group{border:1.5px solid var(--ink);border-radius:1.1rem}
+.menu-group-head{grid-column:1/5;align-self:start;position:sticky;top:1.5rem;display:flex;flex-direction:column;gap:.75rem}
+.menu-group-head h2{font-size:clamp(1.8rem,3vw,2.8rem);scroll-margin-top:1.5rem}
+.menu-group-head p{color:var(--mute);max-width:26rem}
+.menu-group .menu-lines{grid-column:6/13}
+.menu-diets{font-size:.78rem;font-weight:700;letter-spacing:.06em;color:var(--accent);white-space:nowrap}
+.menu-lines li.menu-more{border-bottom:0;padding-top:1.4rem}
+.menu-note{padding:clamp(2rem,4vw,3rem) var(--gut) 0;max-width:calc(46rem + 2 * var(--gut));color:var(--mute);font-size:.98rem;line-height:1.55}
+.menu-end{align-items:flex-start}
+.menu-hours{margin-top:1.75rem}
+.hours{display:grid;gap:.35rem;margin:.45rem 0 0}
+.hours div{display:flex;justify-content:space-between;gap:1.5rem;max-width:22rem}
+.hours dt{font-weight:500}
+.hours dd{margin:0;font-variant-numeric:tabular-nums}
+.visit-hours{display:flex;flex-direction:column;gap:.25rem;font-size:1.05rem}
+@media (max-width:820px){
+ .menu-group-head,.menu-group .menu-lines{grid-column:1/-1}
+ .menu-group-head{position:static}
+}
+
 /* An expert's profile on the About page: the person beside their own words and their record. */
 .profile{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));column-gap:24px;row-gap:2rem;padding:clamp(4rem,8vw,7.5rem) var(--gut) 0}
 .profile-who{grid-column:1/5;align-self:start;position:sticky;top:1.5rem}

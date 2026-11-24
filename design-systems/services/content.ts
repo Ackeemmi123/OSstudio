@@ -49,6 +49,10 @@ export const siteContent = z.strictObject({
     phone: words(30).optional(),
     email: z.email().optional(),
     hours: words(120).optional(),
+    /** Opening hours line by line, as the firm writes them: the days, then the time (none when closed). */
+    openingHours: z.array(z.strictObject({ days: words(60), time: words(60).optional() })).min(2).max(10).optional(),
+    /** Where guests book: the firm's own booking service, an https address. */
+    booking: z.strictObject({ href: z.url({ protocol: /^https$/ }) }).optional(),
   }),
   assets: z.array(asset).max(24),
   promise: z.strictObject({
@@ -57,7 +61,7 @@ export const siteContent = z.strictObject({
     /** The end of the headline, where it turns. Must be how the headline ends. */
     turn: words(60).optional(),
     why: statement(280),
-    action: z.strictObject({ label: words(36), by: z.enum(["form", "phone"]) }),
+    action: z.strictObject({ label: words(36), by: z.enum(["form", "phone", "booking"]) }),
     secondAction: words(36).optional(),
     reassurance: statement(140).optional(),
     imageId: words(40).optional(),
@@ -72,6 +76,8 @@ export const siteContent = z.strictObject({
           name: statement(60),
           text: statement(320),
           price: statement(50).optional(),
+          /** Diet markings on a menu, as the place writes them: L, G, VEG. */
+          diets: words(40).optional(),
           /**
            * The service's own page, for firms whose areas each deserve one (a law firm's practice
            * areas): who it is for and the matters it typically covers, in the firm's own words.
@@ -164,6 +170,28 @@ export const siteContent = z.strictObject({
       heading: statement(110),
       lead: statement(300).optional(),
       groups: z.array(z.strictObject({ heading: words(80), items: z.array(z.strictObject({ text: statement(300), year: words(12).optional(), href: z.url().optional() })).min(1).max(120) })).min(1).max(8),
+      seo,
+    })
+    .optional(),
+  /** A restaurant's whole menu on its own page: groups (lunch, à la carte, drinks) of dishes with prices and diet markings. */
+  menuPage: z
+    .strictObject({
+      slug: words(30),
+      menuLabel: words(24),
+      label: words(60),
+      heading: statement(110),
+      groups: z
+        .array(
+          z.strictObject({
+            heading: words(80),
+            text: statement(240).optional(),
+            items: z.array(z.strictObject({ name: statement(80), text: statement(320).optional(), price: statement(50).optional(), diets: words(40).optional() })).min(1).max(40),
+          }),
+        )
+        .min(1)
+        .max(10),
+      /** What the markings mean, and where to ask about allergens. */
+      note: statement(600).optional(),
       seo,
     })
     .optional(),

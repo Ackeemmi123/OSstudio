@@ -10,10 +10,10 @@ import type { Asset, SiteContent, SiteDesign } from "./content";
 type Language = SiteContent["language"];
 
 /** The system's own words: its interface, never anything about the business. */
-export const CHROME: Record<Language, { skip: string; menu: string; mainNav: string; footerNav: string; trap: string; testNote: string; conceptNote: string; prototypeNote: string; formOff: string; sent: string; notSent: string; backHome: string; hours: string; forWhom: string; matters: string; otherAreas: string; readMore: string; education: string; positions: string; languages: string }> = {
-  en: { skip: "Skip to content", menu: "Menu", mainNav: "Main", footerNav: "Footer", trap: "Leave this empty", testNote: "Test site. This business and everything about it are invented.", prototypeNote: "Prototype by {madeBy}. Not public.", formOff: "The form is switched off in the prototype.", conceptNote: "Concept by Axivo, from public information. This is not the website of the firm.", sent: "Thank you. Your message was sent.", notSent: "Your message could not be sent. Please call or email us instead.", backHome: "Back to the front page", hours: "Opening hours", forWhom: "Who it is for", matters: "Typical matters", otherAreas: "Other areas", readMore: "Read more", education: "Education", positions: "Positions of trust", languages: "Languages" },
-  sv: { skip: "Till innehållet", menu: "Meny", mainNav: "Huvudmeny", footerNav: "Sidfot", trap: "Lämna tomt", testNote: "Testsida. Företaget och allt om det är påhittat.", prototypeNote: "Prototyp av {madeBy}. Inte offentlig.", formOff: "Formuläret är avstängt i prototypen.", conceptNote: "Koncept av Axivo, utifrån offentlig information. Det här är inte företagets webbplats.", sent: "Tack! Ditt meddelande har skickats.", notSent: "Meddelandet kunde inte skickas. Ring eller mejla oss i stället.", backHome: "Till startsidan", hours: "Öppettider", forWhom: "För vem", matters: "Typiska ärenden", otherAreas: "Andra områden", readMore: "Läs mer", education: "Utbildning", positions: "Förtroendeuppdrag", languages: "Språk" },
-  fi: { skip: "Siirry sisältöön", menu: "Valikko", mainNav: "Päävalikko", footerNav: "Alatunniste", trap: "Jätä tyhjäksi", testNote: "Testisivusto. Yritys ja kaikki sen tiedot on keksitty.", prototypeNote: "Prototyyppi: {madeBy}. Ei julkinen.", formOff: "Lomake ei ole käytössä prototyypissä.", conceptNote: "Axivon konseptiluonnos julkisten tietojen pohjalta. Tämä ei ole yrityksen verkkosivusto.", sent: "Kiitos! Viestisi on lähetetty.", notSent: "Viestiä ei voitu lähettää. Soita tai lähetä sähköpostia.", backHome: "Etusivulle", hours: "Aukioloajat", forWhom: "Kenelle", matters: "Tyypillisiä toimeksiantoja", otherAreas: "Muut osaamisalueet", readMore: "Lue lisää", education: "Koulutus", positions: "Luottamustehtävät", languages: "Kielet" },
+export const CHROME: Record<Language, { skip: string; menu: string; mainNav: string; footerNav: string; trap: string; testNote: string; conceptNote: string; prototypeNote: string; formOff: string; sent: string; notSent: string; backHome: string; hours: string; forWhom: string; matters: string; otherAreas: string; readMore: string; education: string; positions: string; languages: string; fullMenu: string }> = {
+  en: { skip: "Skip to content", menu: "Menu", mainNav: "Main", footerNav: "Footer", trap: "Leave this empty", testNote: "Test site. This business and everything about it are invented.", prototypeNote: "Prototype by {madeBy}. Not public.", formOff: "The form is switched off in the prototype.", conceptNote: "Concept by Axivo, from public information. This is not the website of the firm.", sent: "Thank you. Your message was sent.", notSent: "Your message could not be sent. Please call or email us instead.", backHome: "Back to the front page", hours: "Opening hours", forWhom: "Who it is for", matters: "Typical matters", otherAreas: "Other areas", readMore: "Read more", education: "Education", positions: "Positions of trust", languages: "Languages", fullMenu: "The whole menu" },
+  sv: { skip: "Till innehållet", menu: "Meny", mainNav: "Huvudmeny", footerNav: "Sidfot", trap: "Lämna tomt", testNote: "Testsida. Företaget och allt om det är påhittat.", prototypeNote: "Prototyp av {madeBy}. Inte offentlig.", formOff: "Formuläret är avstängt i prototypen.", conceptNote: "Koncept av Axivo, utifrån offentlig information. Det här är inte företagets webbplats.", sent: "Tack! Ditt meddelande har skickats.", notSent: "Meddelandet kunde inte skickas. Ring eller mejla oss i stället.", backHome: "Till startsidan", hours: "Öppettider", forWhom: "För vem", matters: "Typiska ärenden", otherAreas: "Andra områden", readMore: "Läs mer", education: "Utbildning", positions: "Förtroendeuppdrag", languages: "Språk", fullMenu: "Hela menyn" },
+  fi: { skip: "Siirry sisältöön", menu: "Valikko", mainNav: "Päävalikko", footerNav: "Alatunniste", trap: "Jätä tyhjäksi", testNote: "Testisivusto. Yritys ja kaikki sen tiedot on keksitty.", prototypeNote: "Prototyyppi: {madeBy}. Ei julkinen.", formOff: "Lomake ei ole käytössä prototyypissä.", conceptNote: "Axivon konseptiluonnos julkisten tietojen pohjalta. Tämä ei ole yrityksen verkkosivusto.", sent: "Kiitos! Viestisi on lähetetty.", notSent: "Viestiä ei voitu lähettää. Soita tai lähetä sähköpostia.", backHome: "Etusivulle", hours: "Aukioloajat", forWhom: "Kenelle", matters: "Tyypillisiä toimeksiantoja", otherAreas: "Muut osaamisalueet", readMore: "Lue lisää", education: "Koulutus", positions: "Luottamustehtävät", languages: "Kielet", fullMenu: "Koko ruokalista" },
 };
 
 export interface PageContext {
@@ -21,7 +21,7 @@ export interface PageContext {
   design: SiteDesign;
   /** The way back to the site's root from this page: "./" or "../". */
   root: string;
-  page: "home" | "about" | "publications" | "service" | "contact" | "privacy" | "notFound";
+  page: "home" | "about" | "publications" | "service" | "menu" | "contact" | "privacy" | "notFound";
   /** On a service's own page: which service. */
   service?: number;
   /** Where the forms post on a published client site. */
@@ -88,6 +88,7 @@ export function Action({ context, className = "button" }: { context: PageContext
   const { content, root, page } = context;
   const { action } = content.promise;
   if (action.by === "phone" && content.business.phone) return <a className={`${className} button--phone`} href={tel(content.business.phone)}>{action.label}</a>;
+  if (action.by === "booking" && content.business.booking) return <a className={`${className} button--booking`} href={content.business.booking.href} rel="noopener">{action.label}</a>;
   return <a className={className} href={page === "home" ? "#form" : `${root}#form`}>{action.label}</a>;
 }
 
@@ -98,6 +99,7 @@ function Menu({ context, footer }: { context: PageContext; footer?: boolean }) {
   if (footer) {
     return (
       <ul>
+        {content.menuPage ? <li><a href={`${root}${content.menuPage.slug}/`} aria-current={at("menu")}>{content.menuPage.menuLabel}</a></li> : null}
         <li><a href={`${root}${content.about.slug}/`} aria-current={at("about")}>{content.about.menuLabel}</a></li>
         {content.publications ? <li><a href={`${root}${content.publications.slug}/`} aria-current={at("publications")}>{content.publications.menuLabel}</a></li> : null}
         <li><a href={`${root}${content.contact.slug}/`} aria-current={at("contact")}>{content.contact.menuLabel}</a></li>
@@ -107,7 +109,7 @@ function Menu({ context, footer }: { context: PageContext; footer?: boolean }) {
   }
   return (
     <ul>
-      <li><a href={`${home}#services`}>{content.menu.servicesLabel}</a></li>
+      {content.menuPage ? <li><a href={`${root}${content.menuPage.slug}/`} aria-current={at("menu")}>{content.menuPage.menuLabel}</a></li> : <li><a href={`${home}#services`}>{content.menu.servicesLabel}</a></li>}
       <li><a href={`${root}${content.about.slug}/`} aria-current={at("about")}>{content.about.menuLabel}</a></li>
       {content.publications ? <li><a href={`${root}${content.publications.slug}/`} aria-current={at("publications")}>{content.publications.menuLabel}</a></li> : <li><a href={`${home}#questions`}>{content.menu.questionsLabel}</a></li>}
       <li><a href={`${root}${content.contact.slug}/`} aria-current={at("contact")}>{content.contact.menuLabel}</a></li>
@@ -479,10 +481,91 @@ export function ContactPage({ context }: { context: PageContext }) {
             {business.address ? <p>{business.address}</p> : null}
             {business.phone ? <p><a href={tel(business.phone)}>{business.phone}</a></p> : null}
             {business.email ? <p><a href={`mailto:${business.email}`}>{business.email}</a></p> : null}
-            {business.hours ? <p>{business.hours}</p> : null}
+            {business.openingHours ? <OpeningHours content={content} /> : business.hours ? <p>{business.hours}</p> : null}
           </div>
         </div>
         <ContactForm content={content} formId="contact" formAction={context.formAction} />
+      </section>
+    </Frame>
+  );
+}
+
+/** Opening hours as a small timetable: the days, then the time, each line as the place wrote it. */
+export function OpeningHours({ content, className = "hours" }: { content: SiteContent; className?: string }) {
+  const lines = content.business.openingHours;
+  if (!lines) return null;
+  return (
+    <dl className={className}>
+      {lines.map((line) => (
+        <div key={line.days}>
+          <dt>{line.days}</dt>
+          <dd>{line.time ?? ""}</dd>
+        </div>
+      ))}
+    </dl>
+  );
+}
+
+/** A restaurant's whole menu: its groups as cards on the counter, each dish with its price and diet markings, then when to come. */
+export function MenuPage({ context }: { context: PageContext }) {
+  const { content } = context;
+  const menu = content.menuPage!;
+  const chrome = CHROME[content.language];
+  const hours = content.business.openingHours;
+  return (
+    <Frame context={context}>
+      <section className="page-intro" data-tier={displayTier(menu.heading.text)}>
+        <p className="label">{menu.label}</p>
+        <h1>{menu.heading.text}</h1>
+      </section>
+      {menu.groups.length > 2 ? (
+        <nav className="menu-jump" aria-label={menu.label}>
+          <ul>
+            {menu.groups.map((group, g) => (
+              <li key={group.heading}>
+                <a href={`#menu-${g + 1}`}>{group.heading}</a>
+              </li>
+            ))}
+          </ul>
+        </nav>
+      ) : null}
+      <div className="menu-groups">
+        {menu.groups.map((group, g) => (
+          <section className="menu-group" key={group.heading} aria-labelledby={`menu-${g + 1}`}>
+            <div className="menu-group-head">
+              <h2 id={`menu-${g + 1}`}>{group.heading}</h2>
+              {group.text ? <p>{group.text.text}</p> : null}
+            </div>
+            <ul className="menu-lines">
+              {group.items.map((item, i) => (
+                <li key={`${item.name.text}-${i}`}>
+                  <p className="menu-line">
+                    <span className="menu-name">{item.name.text}</span>
+                    {item.diets ? <span className="menu-diets">{item.diets}</span> : null}
+                    <span className="menu-dots" aria-hidden="true" />
+                    {item.price ? <span className="menu-price">{item.price.text}</span> : null}
+                  </p>
+                  {item.text ? <p className="menu-text">{item.text.text}</p> : null}
+                </li>
+              ))}
+            </ul>
+          </section>
+        ))}
+      </div>
+      {menu.note ? <p className="menu-note">{menu.note.text}</p> : null}
+      <section className="end-action menu-end" aria-label={content.closing.heading.text}>
+        <div>
+          <h2>{content.closing.heading.text}</h2>
+          {hours ? (
+            <div className="menu-hours">
+              <p className="label">{chrome.hours}</p>
+              <OpeningHours content={content} />
+            </div>
+          ) : content.business.hours ? (
+            <p className="menu-hours">{content.business.hours}</p>
+          ) : null}
+        </div>
+        <Action context={context} />
       </section>
     </Frame>
   );
