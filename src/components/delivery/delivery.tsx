@@ -35,7 +35,7 @@ export function useDeliveries(): Map<string, Delivery> | null {
 }
 
 /** The five steps from spec to live, with the one reached marked. Text carries the state too. */
-export function DeliveryTrack({ delivery, className }: { delivery: Delivery; className?: string }) {
+export function DeliveryTrack({ delivery, className, labels = "all" }: { delivery: Delivery; className?: string; labels?: "all" | "current" }) {
   const current = DELIVERY_STEPS[delivery.step];
   const live = delivery.stage === "live";
   return (
@@ -55,6 +55,11 @@ export function DeliveryTrack({ delivery, className }: { delivery: Delivery; cla
           );
         })}
       </ol>
+      {labels === "current" ? (
+        <p aria-hidden className="text-[11px] text-ink-subtle">
+          {live ? "Live" : current.label} · step {delivery.step + 1} of {DELIVERY_STEPS.length}
+        </p>
+      ) : (
       <ol aria-hidden className="hidden grid-cols-5 gap-1 text-[11px] text-ink-subtle sm:grid">
         {DELIVERY_STEPS.map((step, i) => (
           <li key={step.key} className={cn("truncate", i === delivery.step && "font-medium text-ink")}>
@@ -62,6 +67,7 @@ export function DeliveryTrack({ delivery, className }: { delivery: Delivery; cla
           </li>
         ))}
       </ol>
+      )}
     </div>
   );
 }

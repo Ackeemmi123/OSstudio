@@ -105,8 +105,9 @@ export function SiteBuilds({ record }: { record: SiteSpecRecord }) {
         ) : null}
       </div>
       {builds?.length ? (
+        <>
         <ul className="flex flex-col divide-y divide-line">
-          {builds.map((b) => {
+          {builds.filter((b) => state(b, now) === "live" || b.approval).map((b) => {
             const status = state(b, now);
             const warnings = b.checks.filter((c) => c.level === "warning");
             return (
@@ -156,10 +157,32 @@ export function SiteBuilds({ record }: { record: SiteSpecRecord }) {
             );
           })}
         </ul>
+        <EarlierLinks builds={builds.filter((b) => state(b, now) !== "live" && !b.approval)} />
+        </>
       ) : builds ? (
         <p className="text-[13px] text-ink-subtle">No builds of this version yet.</p>
       ) : null}
     </section>
+  );
+}
+
+/** Links that were turned off or expired, folded away: only when they were made and what became of them. */
+function EarlierLinks({ builds }: { builds: SiteBuildRecord[] }) {
+  if (!builds.length) return null;
+  return (
+    <details className="mt-1 text-[13px]">
+      <summary className="cursor-pointer text-ink-subtle hover:text-ink">
+        {builds.length === 1 ? "1 earlier link" : `${builds.length} earlier links`}, turned off or expired
+      </summary>
+      <ul className="mt-2 flex flex-col gap-1.5 text-[12.5px] text-ink-subtle">
+        {builds.map((b) => (
+          <li key={b.id}>
+            {DATE.format(new Date(b.createdAt))} · by {b.createdBy} · {b.revokedAt ? "turned off" : "expired"}
+            {b.comments.length ? ` · ${b.comments.length === 1 ? "1 comment" : `${b.comments.length} comments`}` : ""}
+          </li>
+        ))}
+      </ul>
+    </details>
   );
 }
 

@@ -157,9 +157,10 @@ function Workspace({ snapshot }: { snapshot: StudioSnapshot }) {
 
       <div className="flex min-w-0 flex-col gap-12">
         <Websites snapshot={snapshot} deliveries={deliveries} now={now} />
+        {work.length === 0 && deliveries?.size ? null : (
         <Section id="in-progress" title="In progress" count={work.length}>
           {work.length === 0 ? (
-            <Quiet>No other projects are active.</Quiet>
+            <Quiet>No projects are active.</Quiet>
           ) : (
             <ul className="flex flex-col gap-px overflow-hidden rounded-[var(--radius-surface)] border border-line bg-line">
               {work.map(({ project, client, openTasks }) => (
@@ -175,6 +176,7 @@ function Workspace({ snapshot }: { snapshot: StudioSnapshot }) {
             </ul>
           )}
         </Section>
+        )}
 
         <Section id="recent" title="Recent">
           <ActivityTimeline entries={getRecentActivity(snapshot, 5)} />
@@ -328,7 +330,7 @@ function Websites({ snapshot, deliveries, now }: { snapshot: StudioSnapshot; del
                   {days ? <span className="text-ink-subtle"> · {days === 1 ? "1 day" : `${days} days`}</span> : null}
                 </span>
               </Link>
-              <DeliveryTrack delivery={delivery} />
+              <DeliveryTrack delivery={delivery} labels="current" />
               {delivery.reviewLink && delivery.waitingOnClient ? (
                 <div>
                   <CopyReviewLink link={delivery.reviewLink} />
