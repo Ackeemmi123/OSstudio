@@ -7,6 +7,7 @@
 import type { SiteAssetRecord } from "@/lib/domain/types";
 import { FORM_PURPOSE_LABELS, SECTION_LABELS, SITE_LOCALE_LABELS, type SiteLocale } from "./catalog";
 import type { SiteSpec, SiteSpecSection } from "./schema";
+import { STANDARD_PRIVACY_MARK } from "./standard-texts";
 import { isPlaceholderText, pageLabel, visibleTexts } from "./texts";
 import { stockPhrase } from "./industries";
 import { assetIdsOf, buttonsOf, type SpecIssue } from "./validate";
@@ -133,6 +134,10 @@ export function qualityWarnings(spec: SiteSpec, files: readonly ImageFileSize[] 
   for (const { path, name, text } of texts) {
     if (/\(test\)/i.test(text)) warnings.push({ path, message: `${name} says "(test)".` });
   }
+
+  // The studio's standard privacy text is a sound start, but the client is the one responsible for it.
+  const standard = texts.find((entry) => Object.values(STANDARD_PRIVACY_MARK).some((mark) => entry.text.includes(mark)));
+  if (standard) warnings.push({ path: standard.path, message: "The privacy text is the studio's standard wording. Have the client read it, and adjust it if they collect anything more." });
 
   // The same words in two languages usually means one was not translated.
   const byField = new Map<string, typeof texts>();

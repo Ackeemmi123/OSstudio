@@ -12,6 +12,21 @@ import { SITE_LOCALE_LABELS, SITE_LOCALES, type SiteLocale } from "@/lib/site-sp
 import { SITE_TEMPLATE_LABELS, SITE_TEMPLATES, suggestedTemplate, templateSpec, type SiteTemplate } from "@/lib/site-spec/templates";
 
 /** The start of a project's website spec: choose a template and languages, and see what the brief fills in. */
+const LOCALES_KEY = "studio-os:spec-locales";
+
+function rememberedLocales(): SiteLocale[] {
+  try {
+    const saved: unknown = JSON.parse(window.localStorage.getItem(LOCALES_KEY) ?? "null");
+    if (Array.isArray(saved)) {
+      const valid = saved.filter((l): l is SiteLocale => (SITE_LOCALES as readonly string[]).includes(l));
+      if (valid.length) return valid;
+    }
+  } catch {
+    // Nothing remembered, or storage is off.
+  }
+  return ["en"];
+}
+
 export function StartSpec({
   client,
   project,
@@ -29,7 +44,16 @@ export function StartSpec({
 }) {
   const suggested = suggestedTemplate(project);
   const [template, setTemplate] = useState<SiteTemplate>(suggested);
-  const [locales, setLocales] = useState<SiteLocale[]>(["en"]);
+  // The languages chosen last time on this browser: a studio mostly builds in the same ones.
+  const [locales, setLocales] = useState<SiteLocale[]>(rememberedLocales);
+  const start = () => {
+    try {
+      window.localStorage.setItem(LOCALES_KEY, JSON.stringify(locales));
+    } catch {
+      // Private windows may refuse storage; the choice is only a convenience.
+    }
+    onStart({ template, locales });
+  };
 
   const { spec, unconfirmed } = useMemo(() => templateSpec(client, project, template, locales), [client, project, template, locales]);
   const sections = spec.pages.reduce((sum, page) => sum + page.sections.length, 0);
@@ -123,7 +147,7 @@ export function StartSpec({
             Back to client
           </ButtonLink>
           {canEdit ? (
-            <Button variant="primary" disabled={pending} onClick={() => onStart({ template, locales })}>
+            <Button variant="primary" disabled={pending} onClick={start}>
               {pending ? "Creating…" : "Create draft"}
             </Button>
           ) : null}

@@ -67,7 +67,7 @@ test("creates a client, saves a partial brief, resumes, edits and finishes", asy
   await page.getByRole("button", { name: /Mark ready/ }).click();
 
   // The structured brief lives on the client workspace and stays editable.
-  await expect(page).toHaveURL(/\/clients\/[^/#]+$/);
+  await expect(page).toHaveURL(/\/clients\/[^/#]+(#new-project)?$/);
   const brief = await openSection(page, "brief");
   await expect(brief.getByText("Onboarding finished")).toBeVisible();
   await expect(brief.getByText("Shopify, Etsy")).toBeVisible();
@@ -113,12 +113,8 @@ test("goes from a finished onboarding to a started project with its tasks", asyn
   await page.getByRole("button", { name: "Review brief" }).click();
   await step(page, "6. Review");
   await page.getByRole("button", { name: /Mark ready/ }).click();
-  await expect(page).toHaveURL(/\/clients\/[^/#]+$/);
-
-  // The brief has gaps, but the guided pass is done: the next step is the project.
-  const next = page.locator("section#next").getByRole("link", { name: "Start the first project for Handoff Studio" });
-  await expect(next).toBeVisible();
-  await next.click();
+  // The brief has gaps, but the guided pass is done: the next step is the project, whose form opens at once.
+  await expect(page).toHaveURL(/#new-project$/);
   const projects = page.locator("section#projects");
   await expect(projects.getByLabel("Project name")).toBeVisible();
   await expect(page.locator("header, main").getByText(/^(Lead|Onboarding|Active)$/).first()).not.toHaveText("Active");

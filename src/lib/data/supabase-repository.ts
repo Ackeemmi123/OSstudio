@@ -730,6 +730,28 @@ export class SupabaseRepository implements StudioRepository {
     }));
   }
 
+  async sendReviewLink(build: SiteBuildRecord, mail: { to: string; subject: string; message: string }): Promise<void> {
+    if (!this.current.canWrite) throw new RepositoryError("You have read-only access to this studio. Ask an owner for member access.", "permission");
+    const { data } = await this.client.auth.getSession();
+    const token = data.session?.access_token;
+    if (!token) throw new RepositoryError("Your session has ended. Sign in again to continue.", "session");
+    let response: Response;
+    try {
+      response = await this.fetchImpl("/api/site-reviews/send", {
+        method: "POST",
+        headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
+        body: JSON.stringify({ studioId: this.studioId, buildId: build.id, ...mail }),
+      });
+    } catch {
+      throw new RepositoryError("Studio OS could not reach the server. Check your connection and try again.", "network");
+    }
+    if (!response.ok) {
+      const body = (await response.json().catch(() => null)) as { error?: string } | null;
+      const codes: Record<number, RepositoryErrorCode> = { 401: "session", 403: "permission", 404: "not_found", 400: "validation" };
+      throw new RepositoryError(body?.error ?? "The link was not sent. Try again in a moment.", codes[response.status] ?? "storage");
+    }
+  }
+
   async setBuildReviews(build: SiteBuildRecord, enabled: boolean): Promise<void> {
     if (!this.current.canWrite) throw new RepositoryError("You have read-only access to this studio. Ask an owner for member access.", "permission");
     const { error } = await this.client.rpc("set_build_reviews", { p_build: build.id, p_enabled: enabled });

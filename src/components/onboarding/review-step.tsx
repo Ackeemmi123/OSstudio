@@ -54,6 +54,13 @@ export function ReviewStep({
 
   const confirm = (key: ContextFieldKey) =>
     run((r) => r.saveOnboardingStep(onboarding.id, { nextStep: "review", confirm: [key] }), "The value was not confirmed.");
+  /** Every recorded answer still waiting, at once: for when the client went through them all. */
+  async function confirmAll() {
+    const keys = gaps.unconfirmed.filter((key) => client.context[key].value !== null);
+    if (!keys.length || !window.confirm(`Confirm all ${keys.length} answers? Do this only when the client or an authorized team member confirmed them.`)) return;
+    const done = await run((r) => r.saveOnboardingStep(onboarding.id, { nextStep: "review", confirm: keys }), "The answers were not confirmed.");
+    if (done) toast.success(keys.length === 1 ? "1 answer confirmed." : `${keys.length} answers confirmed.`);
+  }
   const addQuestion = (text: string) =>
     run((r) => r.saveOnboardingStep(onboarding.id, { nextStep: "review", questions: [text] }), "The question was not added.");
 
@@ -64,8 +71,10 @@ export function ReviewStep({
     finishing.current = false;
     if (done) {
       toast.success("The brief is ready for review.");
-      // The overview says what comes next: usually starting the first project.
-      router.push(workspace);
+      // Next is usually the first project: its form opens at once, filled in from the brief.
+      router.push(hasProject ? workspace : `${workspace}#new-project`);
+      // A navigation within the app fires no hashchange; the projects form listens for one to open.
+      if (!hasProject) for (const wait of [300, 1200]) window.setTimeout(() => window.dispatchEvent(new HashChangeEvent("hashchange")), wait);
     }
   }
 
@@ -82,6 +91,12 @@ export function ReviewStep({
         <p>
           <span className="font-medium text-ink">{unknown.length}</span> <span className="text-ink-muted">still unknown</span>
         </p>
+        {canEdit && gaps.unconfirmed.length > 1 ? (
+          <Button size="xs" variant="primary" className="ml-auto" onClick={confirmAll} disabled={pending}>
+            <Check aria-hidden />
+            Confirm all {gaps.unconfirmed.filter((key) => client.context[key].value !== null).length}
+          </Button>
+        ) : null}
       </Surface>
 
       {ONBOARDING_STEPS.filter((s): s is Exclude<OnboardingStep, "review"> => s !== "review").map((step) => {

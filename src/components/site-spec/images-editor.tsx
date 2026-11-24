@@ -11,7 +11,7 @@ import { describeImageUse, type ImageUse } from "@/lib/domain/site-specs";
 import type { SiteAssetRecord, SiteAssetStatus } from "@/lib/domain/types";
 import { attachFile, newImageFromFile, newPlaceholderImage } from "@/lib/site-spec/edit";
 import type { SiteSpec } from "@/lib/site-spec/schema";
-import { RightsDialog, UploadDialog } from "./asset-upload";
+import { BulkRightsDialog, RightsDialog, UploadDialog } from "./asset-upload";
 import { LocalizedInput } from "./localized-input";
 import type { SpecEditing } from "./site-spec-editor";
 
@@ -47,6 +47,7 @@ export function ImagesEditor({ spec, clientId, editing, library }: { spec: SiteS
   const [description, setDescription] = useState("");
   const [uploadFor, setUploadFor] = useState<{ assetId: string | null; description: string; people: boolean } | null>(null);
   const [deciding, setDeciding] = useState<SiteAssetRecord | null>(null);
+  const [decidingMany, setDecidingMany] = useState(false);
   const locales = spec.locales.available;
   const usable = library.assets.filter((a) => a.status !== "deleted");
   const peopleImages = new Set(
@@ -136,7 +137,14 @@ export function ImagesEditor({ spec, clientId, editing, library }: { spec: SiteS
       </div>
 
       <div className="flex flex-col gap-3" data-testid="image-library">
-        <p className="text-[13px] font-medium text-ink">This client&apos;s stored images ({usable.length})</p>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <p className="text-[13px] font-medium text-ink">This client&apos;s stored images ({usable.length})</p>
+          {canEdit && usable.filter((a) => a.status === "pending_review").length > 1 ? (
+            <Button size="xs" variant="primary" onClick={() => setDecidingMany(true)}>
+              Decide rights for {usable.filter((a) => a.status === "pending_review").length} images at once
+            </Button>
+          ) : null}
+        </div>
         {usable.length === 0 ? <p className="text-[12.5px] text-ink-subtle">None yet.</p> : null}
         {usable.map((asset) => {
           const uses = library.inUse.get(asset.id);
@@ -197,6 +205,7 @@ export function ImagesEditor({ spec, clientId, editing, library }: { spec: SiteS
         />
       ) : null}
       <RightsDialog key={deciding?.id ?? "none"} asset={deciding} onClose={() => setDeciding(null)} onDecided={() => library.reload()} />
+      {decidingMany ? <BulkRightsDialog assets={usable.filter((a) => a.status === "pending_review")} onClose={() => setDecidingMany(false)} onDecided={() => library.reload()} /> : null}
     </div>
   );
 }
