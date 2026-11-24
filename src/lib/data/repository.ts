@@ -1,3 +1,4 @@
+import type { QualityReport } from "@/lib/quality/site-quality";
 import type { DeliveryFacts } from "@/lib/domain/delivery";
 import type { AgencyBrand } from "@/lib/domain/agency-brand";
 import type { FirstDraft } from "@/lib/domain/site-specs";
@@ -88,7 +89,7 @@ export interface StudioRepository {
   /** Compares the project's site with up to three competitors' public sites. No AI. */
   requestBenchmark?(clientId: string, projectId: string, competitors: string[]): Promise<AgentRunRecord>;
   /** Asks the Design agent for warmer wordings of a saved spec version's texts. Proposals only. */
-  requestWarmText?(clientId: string, projectId: string, specId: string, options?: { force?: boolean }): Promise<AgentRunRecord>;
+  requestWarmText?(clientId: string, projectId: string, specId: string, options?: { force?: boolean; focus?: string[] }): Promise<AgentRunRecord>;
   /** This month's AI spend across all agents, for owners. Only server workspaces have one. */
   aiSpend?(): Promise<AiSpend>;
   /**
@@ -133,6 +134,8 @@ export interface StudioRepository {
   /** Signed links (at most 15 minutes) for the given images, by image id. Images that cannot be read are left out. */
   imageLinks?(assets: Pick<SiteAssetRecord, "id" | "storagePath">[]): Promise<Record<string, string>>;
   /** One page drawn with the company design, on the server; or what the design still needs. */
+  /** The quality gate on a draft spec, drawn with its design; null for the template. */
+  draftQuality?(spec: SiteSpec): Promise<QualityReport | { missing: string[] } | null>;
   previewServices?(spec: SiteSpec, images: Readonly<Record<string, RenderImageFile>>, pageId: string): Promise<{ html: string } | { missing: string[] }>;
   /** Builds a version with its spec's design system, behind a private link. Only server workspaces build. */
   buildSite?(spec: SiteSpecRecord): Promise<SiteBuildRecord>;

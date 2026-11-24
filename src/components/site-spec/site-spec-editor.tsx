@@ -37,6 +37,7 @@ import { DocumentLibraryProvider } from "./document-picker";
 import { PagesEditor } from "./pages-editor";
 import { SettingsEditor } from "./settings-editor";
 import { SiteDraftPanel } from "./site-draft-panel";
+import { DraftQuality } from "./draft-quality";
 import { WarmTextPanel } from "./warm-text-panel";
 import { CompetitorPanel } from "./competitor-panel";
 import { SiteBuilds } from "./site-builds";
@@ -526,6 +527,20 @@ export function SiteSpecEditor({
             onProblem={goToProblem}
           />
           {editable ? <SiteDraftPanel clientId={client.id} projectId={project.id} editing={editing} /> : null}
+          {record.status === "draft" || record.status === "in_review" ? <DraftQuality
+              spec={parsed.ok ? parsed.spec : null}
+              improve={
+                editable
+                  ? async (focus) => {
+                      // The pass reads the stored spec, so store what is on the screen first.
+                      if (!(await saver.flush())) return false;
+                      if (!window.confirm("Has the client agreed that their material is processed by AI (Anthropic, USA)? Only continue if they have.")) return false;
+                      const started = await run((r) => r.requestWarmText!(client.id, project.id, record.id, { force: true, focus }), "The improvement could not be started.");
+                      return Boolean(started);
+                    }
+                  : undefined
+              }
+            /> : null}
           {editable ? <WarmTextPanel clientId={client.id} projectId={project.id} specId={record.id} spec={draft} editing={editing} /> : null}
           <Section id="strategy" title="Strategy" className="scroll-mt-32">
             <div data-spec-path="strategy">

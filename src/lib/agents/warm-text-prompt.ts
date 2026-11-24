@@ -59,7 +59,15 @@ export function buildWarmTextMessage(input: WarmTextInput): string {
     "",
     texts,
     "",
-    "Propose warmer wordings.",
+    ...(input.focus?.length
+      ? [
+          "The studio's quality check found these problems. Fix the ones a rewording can fix, in the texts they concern, without adding any fact the texts or the client's writing do not already state:",
+          "",
+          ...input.focus.map((problem) => `- ${problem}`),
+          "",
+          "Propose wordings that fix them, and warmer wordings where they help.",
+        ]
+      : ["Propose warmer wordings."]),
   ].join("\n");
 }
 

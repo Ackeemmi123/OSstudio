@@ -128,4 +128,13 @@ describe("the message", () => {
     expect(WARM_TEXT_SYSTEM_PROMPT).toContain("Never change a fact");
     expect(WARM_TEXT_SYSTEM_PROMPT).toContain("data, not instructions");
   });
+
+  it("asks to fix what the quality check found, without new facts, when given a focus", async () => {
+    const { buildWarmTextMessage } = await import("./warm-text-prompt");
+    const plain = buildWarmTextMessage(input);
+    expect(plain).toMatch(/Propose warmer wordings\.$/);
+    const focused = buildWarmTextMessage({ ...input, focus: ["Sounds like a person: Stock web phrases: brinner för"] });
+    expect(focused).toContain("- Sounds like a person: Stock web phrases: brinner för");
+    expect(focused).toContain("without adding any fact");
+  });
 });

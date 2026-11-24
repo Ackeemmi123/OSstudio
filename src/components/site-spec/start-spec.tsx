@@ -37,14 +37,19 @@ export function StartSpec({
   canEdit,
   pending,
   onStart,
+  ai,
 }: {
   client: Client;
   project: Project;
   backHref: string;
   canEdit: boolean;
   pending: boolean;
-  onStart: (from: FirstDraft) => void;
+  onStart: (from: FirstDraft, then?: { aiDraft: boolean }) => void;
+  /** Present when an AI model is set up: how much of the client's material there is to draft from. */
+  ai?: { sources: number };
 }) {
+  const [aiDraft, setAiDraft] = useState(false);
+  const [consent, setConsent] = useState(false);
   const suggested = suggestedTemplate(project);
   const [template, setTemplate] = useState<SiteTemplate>(suggested);
   // The languages chosen last time on this browser: a studio mostly builds in the same ones.
@@ -62,7 +67,7 @@ export function StartSpec({
     } catch {
       // Private windows may refuse storage; the choice is only a convenience.
     }
-    onStart({ template, locales, ...(industry ? { industry } : {}), ...(design ? { design } : {}) });
+    onStart({ template, locales, ...(industry ? { industry } : {}), ...(design ? { design } : {}) }, { aiDraft: Boolean(ai) && aiDraft });
   };
 
   const { spec, unconfirmed } = useMemo(() => templateSpec(client, project, template, locales), [client, project, template, locales]);
@@ -172,6 +177,29 @@ export function StartSpec({
         ) : null}
       </div>
 
+      {ai ? (
+        <div className="flex flex-col gap-2 rounded-[var(--radius-control)] border border-accent/40 bg-accent-soft/50 px-4 py-3" data-testid="start-ai">
+          <label className="flex items-start gap-2 text-[13.5px] text-ink">
+            <input type="checkbox" className="mt-1" checked={aiDraft} disabled={!canEdit} onChange={(e) => setAiDraft(e.target.checked)} />
+            <span>
+              <span className="font-medium">Then draft the whole site from the client&apos;s material</span>
+              <span className="block text-[12.5px] text-ink-muted">
+                Claude reads the brief{ai.sources ? `, ${ai.sources === 1 ? "1 text" : `${ai.sources} texts`} under Sources` : ""} and any kept files, and proposes every page, the concept and the texts, each with the line it comes from. Takes a few minutes; about $0.30–1.
+              </span>
+            </span>
+          </label>
+          {aiDraft ? (
+            <label className="flex items-start gap-2 pl-6 text-[13px] text-ink">
+              <input type="checkbox" className="mt-0.5" checked={consent} disabled={!canEdit} onChange={(e) => setConsent(e.target.checked)} />
+              <span>
+                The client agreed that their material is processed by AI (Anthropic, USA).
+                <span className="block text-[12px] text-ink-subtle">Required before any of their material is sent.</span>
+              </span>
+            </label>
+          ) : null}
+        </div>
+      ) : null}
+
       <div className="flex flex-wrap items-center justify-between gap-3 border-t border-line pt-4">
         <p data-testid="draft-size" className="text-[12.5px] text-ink-subtle">
           Creates {spec.pages.length === 1 ? "1 page" : `${spec.pages.length} pages`}, {sections} sections and {spec.assets.length === 1 ? "1 image placeholder" : `${spec.assets.length} image placeholders`}.
@@ -181,8 +209,8 @@ export function StartSpec({
             Back to client
           </ButtonLink>
           {canEdit ? (
-            <Button variant="primary" disabled={pending} onClick={start}>
-              {pending ? "Creating…" : "Create draft"}
+            <Button variant="primary" disabled={pending || (Boolean(ai) && aiDraft && !consent)} onClick={start}>
+              {pending ? "Creating…" : ai && aiDraft ? "Create and draft with AI" : "Create draft"}
             </Button>
           ) : null}
         </div>
