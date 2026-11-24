@@ -3,6 +3,7 @@
 import { ArrowRight } from "lucide-react";
 import Link from "next/link";
 import { ActivityTimeline } from "@/components/activity-timeline";
+import { DeliveryNext, DeliveryTrack, useDeliveries } from "@/components/delivery/delivery";
 import { ClientNextSteps } from "@/components/next-steps/next-steps";
 import { useCanEdit } from "@/components/providers/studio-provider";
 import { ButtonLink } from "@/components/ui/button";
@@ -22,6 +23,7 @@ export function ClientOverview({ client, snapshot }: { client: Client; snapshot:
   const canEdit = useCanEdit();
   const events = getClientActivity(client.id, snapshot).slice(0, 5);
   const clientPath = `/clients/${encodeURIComponent(client.id)}`;
+  const deliveries = useDeliveries();
 
   return (
     <div className="grid gap-x-12 gap-y-10 lg:grid-cols-[minmax(0,1fr)_300px]">
@@ -35,6 +37,22 @@ export function ClientOverview({ client, snapshot }: { client: Client; snapshot:
               <ul className="divide-y divide-line">
                 {projects.map((project) => {
                   const open = snapshot.tasks.filter((task) => task.projectId === project.id && task.status !== "done").length;
+                  const specHref = `${clientPath}/projects/${encodeURIComponent(project.id)}/site`;
+                  const delivery = deliveries?.get(project.id);
+                  if (delivery) {
+                    return (
+                      <li key={project.id} className="flex flex-col gap-3 px-5 py-4" data-testid="project-delivery">
+                        <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+                          <a href={`#project-${project.id}`} className="min-w-0 rounded-sm text-[14px] text-ink hover:underline">
+                            {project.name}
+                          </a>
+                          <span className="text-[12.5px] text-ink-subtle">{open === 1 ? "1 open task" : `${open} open tasks`}</span>
+                        </div>
+                        <DeliveryTrack delivery={delivery} />
+                        <DeliveryNext delivery={delivery} href={delivery.stage === "spec" || delivery.stage === "review" ? specHref : `${specHref}#delivery`} />
+                      </li>
+                    );
+                  }
                   return (
                     <li key={project.id} className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 px-5 py-3.5">
                       <a href={`#project-${project.id}`} className="min-w-0 rounded-sm hover:underline">
@@ -44,7 +62,7 @@ export function ClientOverview({ client, snapshot }: { client: Client; snapshot:
                         </span>
                       </a>
                       {isWebsiteProject(project) ? (
-                        <Link href={`${clientPath}/projects/${encodeURIComponent(project.id)}/site`} className="inline-flex items-center gap-1 rounded-sm text-[12.5px] text-ink-muted hover:text-ink">
+                        <Link href={specHref} className="inline-flex items-center gap-1 rounded-sm text-[12.5px] text-ink-muted hover:text-ink">
                           Open website spec
                           <ArrowRight aria-hidden className="size-3.5" />
                         </Link>

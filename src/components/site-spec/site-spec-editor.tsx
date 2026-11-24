@@ -36,6 +36,9 @@ import { SettingsEditor } from "./settings-editor";
 import { SiteDraftPanel } from "./site-draft-panel";
 import { WarmTextPanel } from "./warm-text-panel";
 import { CompetitorPanel } from "./competitor-panel";
+import { SiteBuilds } from "./site-builds";
+import { SitePublish } from "./site-publish";
+import { DeliveryNext, DeliveryTrack, useDeliveries } from "@/components/delivery/delivery";
 import { StrategyEditor } from "./strategy-editor";
 
 /** What every part of the editor gets: whether it may edit, how to change the draft, and who is editing. */
@@ -149,6 +152,17 @@ export function SiteSpecEditor({
   const [previewPage, setPreviewPage] = useState<string | undefined>(record.spec.pages[0]?.id);
   const [previewLocale, setPreviewLocale] = useState<SiteLocale | undefined>();
   const [view, setView] = useState<"edit" | "preview">("edit");
+  // The editor draws only once the studio has loaded in the browser, so the tab named in the address (#delivery) can be read at once.
+  const [tab, setTab] = useState<SpecTab>(() => {
+    const hash = typeof window === "undefined" ? "" : window.location.hash.slice(1);
+    return SPEC_TABS.some((t) => t.key === hash) ? (hash as SpecTab) : "content";
+  });
+  const deliveries = useDeliveries();
+  const delivery = deliveries?.get(project.id);
+  function chooseTab(next: SpecTab) {
+    setTab(next);
+    window.history.replaceState(null, "", next === "content" ? window.location.pathname + window.location.search : `#${next}`);
+  }
   const target = useRef<string | null>(null);
   const [targetRound, setTargetRound] = useState(0);
   const editorRoot = useRef<HTMLDivElement>(null);
@@ -180,6 +194,7 @@ export function SiteSpecEditor({
   /** Goes to the field a problem is about, opening its page and showing it in the preview. */
   function goToProblem(path: string) {
     setView("edit");
+    setTab(/^(brand|signature)\b/.test(path) ? "design" : "content");
     const page = pageIndexOfPath(path);
     if (page !== null && draft.pages[page]) openPageInEditor(draft.pages[page].id);
     const language = localeOfPath(path);
@@ -374,6 +389,64 @@ export function SiteSpecEditor({
         </p>
       ) : null}
 
+      {delivery ? (
+        <div className="flex flex-col gap-3 rounded-[var(--radius-surface)] border border-line bg-surface px-5 py-4" data-testid="spec-delivery">
+          <DeliveryTrack delivery={delivery} />
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="min-w-0 flex-1">
+              <DeliveryNext delivery={delivery} />
+            </div>
+            {delivery.stage !== "spec" && delivery.stage !== "review" && tab !== "delivery" ? (
+              <Button size="xs" variant={delivery.waitingOnClient || delivery.stage === "live" ? "secondary" : "primary"} onClick={() => chooseTab("delivery")}>
+                Open delivery
+              </Button>
+            ) : null}
+          </div>
+        </div>
+      ) : null}
+
+      <nav aria-label="Website spec parts" className="flex gap-1 overflow-x-auto border-b border-line">
+        {SPEC_TABS.map(({ key, label }) => (
+          <button
+            key={key}
+            type="button"
+            aria-current={tab === key ? "page" : undefined}
+            aria-description={key === "content" && blockers.length && (record.status === "draft" || record.status === "in_review") ? `${blockers.length} to fix before approval` : undefined}
+            onClick={() => chooseTab(key)}
+            className={cn("-mb-px shrink-0 border-b-2 px-3 py-2 text-[13.5px] transition-colors", tab === key ? "border-ink font-medium text-ink" : "border-transparent text-ink-muted hover:text-ink")}
+          >
+            {label}
+            {key === "content" && blockers.length && (record.status === "draft" || record.status === "in_review") ? (
+              <span aria-hidden className="ml-1.5 rounded-full bg-critical/10 px-1.5 text-[11px] text-critical tabular-nums" title="Things to fix before approval">
+                {blockers.length}
+              </span>
+            ) : null}
+          </button>
+        ))}
+      </nav>
+
+      {tab === "delivery" ? (
+        <div className="flex max-w-4xl flex-col gap-6" data-testid="spec-delivery-tab">
+          <p className="text-[13.5px] text-ink-muted">
+            From an approved version to the client&apos;s domain: build the site, send the private review link, and publish once the client has approved it there.
+          </p>
+          {record.status === "approved" ? (
+            <>
+              <SiteBuilds record={record} />
+              <SitePublish record={record} />
+            </>
+          ) : (
+            <p className="rounded-[var(--radius-surface)] border border-dashed border-line-strong px-5 py-4 text-[13.5px] text-ink-subtle">
+              Version {record.version} is not approved yet. Once it is, it can be built and sent to the client from here.
+            </p>
+          )}
+        </div>
+      ) : tab === "compare" ? (
+        <div className="max-w-5xl">
+          <CompetitorPanel clientId={client.id} projectId={project.id} />
+        </div>
+      ) : (
+      <>
       <div role="group" aria-label="Edit or preview" className="flex gap-1 xl:hidden">
         {(["edit", "preview"] as const).map((key) => (
           <button
@@ -389,8 +462,16 @@ export function SiteSpecEditor({
       </div>
 
       <div className="grid items-start gap-8 xl:grid-cols-[132px_minmax(0,1fr)_minmax(0,1.1fr)]">
-        <SectionMenu spec={draft} openPage={openPage} onPage={openPageInEditor} />
+        <SectionMenu spec={draft} openPage={openPage} onPage={openPageInEditor} tab={tab} />
         <div ref={editorRoot} onFocusCapture={followField} className={cn("flex min-w-0 flex-col gap-10", view === "preview" && "hidden xl:flex")}>
+          {tab === "design" ? (
+            <Section id="brand" title="Design and brand" className="scroll-mt-32">
+              <div data-spec-path="brand">
+                <BrandEditor spec={draft} editing={editing} projectId={project.id} />
+              </div>
+            </Section>
+          ) : (
+            <>
           <IssuesPanel
             spec={draft}
             issues={parsed.ok ? [] : parsed.issues}
@@ -404,15 +485,9 @@ export function SiteSpecEditor({
           />
           {editable ? <SiteDraftPanel clientId={client.id} projectId={project.id} editing={editing} /> : null}
           {editable ? <WarmTextPanel clientId={client.id} projectId={project.id} specId={record.id} spec={draft} editing={editing} /> : null}
-          <CompetitorPanel clientId={client.id} projectId={project.id} />
           <Section id="strategy" title="Strategy" className="scroll-mt-32">
             <div data-spec-path="strategy">
               <StrategyEditor spec={draft} client={client} editing={editing} />
-            </div>
-          </Section>
-          <Section id="brand" title="Brand" className="scroll-mt-32">
-            <div data-spec-path="brand">
-              <BrandEditor spec={draft} editing={editing} projectId={project.id} />
             </div>
           </Section>
           <Section id="pages" title="Pages" count={draft.pages.length} className="scroll-mt-32">
@@ -425,6 +500,8 @@ export function SiteSpecEditor({
           <Section id="settings" title="Site settings" className="scroll-mt-32">
             <SettingsEditor spec={draft} clientId={client.id} editing={editing} library={imageLibrary} />
           </Section>
+            </>
+          )}
         </div>
         <div className={cn("min-w-0 xl:sticky xl:top-32", view === "edit" && "hidden xl:block")}>
           <LivePreview
@@ -438,6 +515,8 @@ export function SiteSpecEditor({
           />
         </div>
       </div>
+      </>
+      )}
 
       <Modal open={sendingBack} onClose={() => setSendingBack(false)} title={`Ask for changes to v${record.version}`} description="The version goes back to draft so it can be edited." busy={pending}>
         <ModalBody>
@@ -618,15 +697,21 @@ function SaveStatusLabel({ status }: { status: SaveStatus }) {
   );
 }
 
-function SectionMenu({ spec, openPage, onPage }: { spec: SiteSpec; openPage: string | null; onPage: (pageId: string) => void }) {
+type SpecTab = "content" | "design" | "delivery" | "compare";
+const SPEC_TABS: { key: SpecTab; label: string }[] = [
+  { key: "content", label: "Content" },
+  { key: "design", label: "Design" },
+  { key: "delivery", label: "Delivery" },
+  { key: "compare", label: "Compare" },
+];
+
+function SectionMenu({ spec, openPage, onPage, tab }: { spec: SiteSpec; openPage: string | null; onPage: (pageId: string) => void; tab: SpecTab }) {
   const link = "block rounded-sm py-1 text-[13px] text-ink-muted hover:text-ink";
+  if (tab !== "content") return <div aria-hidden className="hidden xl:block" />;
   return (
     <nav aria-label="Website spec sections" className="hidden xl:sticky xl:top-32 xl:block">
       <a href="#strategy" className={link}>
         Strategy
-      </a>
-      <a href="#brand" className={link}>
-        Brand
       </a>
       <a href="#pages" className={link}>
         Pages

@@ -102,6 +102,11 @@ test("replaces a placeholder with an uploaded image whose rights are approved, a
   await expect(shop.getByRole("button", { name: "Delete" })).toBeDisabled();
   await expect(shop).toContainText("Used by approved spec v1. Start a new version without it to delete it.");
 
+  // Where the website stands: approved, so the next step is to build it, from the Delivery tab.
+  await expect(page.getByTestId("spec-delivery")).toContainText("Build the site and send the review link");
+  await page.getByRole("button", { name: "Delivery", exact: true }).click();
+  await expect(page.getByTestId("spec-delivery-tab")).toContainText("build the site, send the private review link");
+
   // The preview shows the stored image through a signed link.
   await page.getByRole("link", { name: "Preview", exact: true }).click();
   const frame = page.getByTestId("site-preview-frame");

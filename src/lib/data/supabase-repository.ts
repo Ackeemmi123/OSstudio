@@ -1,3 +1,4 @@
+import type { DeliveryFacts } from "@/lib/domain/delivery";
 import { BRAND_LOGO_BUCKET, cleanBrand, type AgencyBrand } from "@/lib/domain/agency-brand";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { AgentRunRecord } from "@/lib/agents/contract";
@@ -521,6 +522,61 @@ export class SupabaseRepository implements StudioRepository {
       if (seen.has(row.project_id) || !row.brand) return [];
       seen.add(row.project_id);
       return [{ projectId: row.project_id, clientId: row.client_id, brand: row.brand }];
+    });
+  }
+
+  async listDeliveryFacts(): Promise<DeliveryFacts[]> {
+    // The newest version per project; a superseded one was replaced by a later approval.
+    const { data: specs, error } = await this.client
+      .from("site_specs")
+      .select("id, project_id, client_id, version, status, approved_at, updated_at")
+      .eq("studio_id", this.studioId)
+      .neq("status", "superseded")
+      .order("version", { ascending: false })
+      .limit(500);
+    if (error) throw toRepositoryError(error);
+    const newest = new Map<string, Row>();
+    for (const row of (specs ?? []) as Row[]) if (!newest.has(String(row.project_id))) newest.set(String(row.project_id), row);
+    const specIds = [...newest.values()].map((row) => String(row.id));
+    const [builds, live] = await Promise.all([
+      specIds.length
+        ? this.client
+            .from("site_builds")
+            .select("spec_id, spec_version, share_token, created_at, expires_at, revoked_at, site_approvals(approver_name, created_at), site_review_comments(status)")
+            .eq("studio_id", this.studioId)
+            .in("spec_id", specIds)
+            .order("created_at", { ascending: false })
+            .limit(500)
+        : Promise.resolve({ data: [] as Row[], error: null }),
+      this.client.from("site_publications").select("project_id, spec_version, deployment_url, domain, created_at").eq("studio_id", this.studioId).eq("status", "live").limit(500),
+    ]);
+    if (builds.error) throw toRepositoryError(builds.error);
+    if (live.error) throw toRepositoryError(live.error);
+    const many = (value: unknown) => ([] as Row[]).concat((value as Row | Row[] | null) ?? []);
+    return [...newest.values()].map((row): DeliveryFacts => {
+      const published = ((live.data ?? []) as Row[]).find((p) => p.project_id === row.project_id);
+      return {
+        projectId: String(row.project_id),
+        clientId: String(row.client_id),
+        spec: { id: String(row.id), version: Number(row.version), status: row.status as "draft", approvedAt: (row.approved_at as string | null) ?? null, updatedAt: String(row.updated_at) },
+        builds: ((builds.data ?? []) as Row[])
+          .filter((b) => b.spec_id === row.id)
+          .map((b) => {
+            const approval = many(b.site_approvals)[0];
+            return {
+              specVersion: Number(b.spec_version),
+              createdAt: String(b.created_at),
+              expiresAt: String(b.expires_at),
+              revokedAt: (b.revoked_at as string | null) ?? null,
+              link: `/s/${b.share_token}/`,
+              approval: approval ? { name: String(approval.approver_name), at: String(approval.created_at) } : null,
+              openComments: many(b.site_review_comments).filter((c) => c.status === "open").length,
+            };
+          }),
+        live: published
+          ? { specVersion: Number(published.spec_version), url: published.domain ? `https://${published.domain}` : String(published.deployment_url), domain: (published.domain as string | null) ?? null, at: String(published.created_at) }
+          : null,
+      };
     });
   }
 

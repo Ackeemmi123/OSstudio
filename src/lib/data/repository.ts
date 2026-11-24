@@ -1,3 +1,4 @@
+import type { DeliveryFacts } from "@/lib/domain/delivery";
 import type { AgencyBrand } from "@/lib/domain/agency-brand";
 import type { FirstDraft } from "@/lib/domain/site-specs";
 import type { AgentRunRecord } from "@/lib/agents/contract";
@@ -107,6 +108,8 @@ export interface StudioRepository {
    * and are not part of the snapshot.
    */
   listSiteSpecs?(projectId: string): Promise<SiteSpecRecord[]>;
+  /** Where every website project stands on its way to going live (src/lib/domain/delivery). */
+  listDeliveryFacts?(): Promise<DeliveryFacts[]>;
   /** Starts the next version (from the brief, or from the approved one), or returns the open one. */
   startSiteSpec?(projectId: string, from?: FirstDraft): Promise<SiteSpecRecord>;
   /** Saves the draft's content. `expected` is the version as the person last saw it. */

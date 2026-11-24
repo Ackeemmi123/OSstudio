@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { ArrowLeft, FileText, SearchX } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -18,8 +19,6 @@ import { previewPage as associationPreview } from "../../../design-systems/assoc
 import { buildRenderModel, type RenderImageFile } from "@/lib/site-render/model";
 import { parseSiteSpec } from "@/lib/site-spec/validate";
 import { PreviewFrame, ViewportButtons, type Viewport } from "./preview-frame";
-import { SiteBuilds } from "./site-builds";
-import { SitePublish } from "./site-publish";
 import { STATUS_TONES } from "./site-spec-editor";
 import { StyleComparison } from "./style-comparison";
 import { SiteSpecSkeleton } from "./site-spec-route";
@@ -270,8 +269,13 @@ function Preview({
             </label>
           </div>
 
-          <SiteBuilds record={record} />
-          <SitePublish record={record} />
+          <p className="text-[13px] text-ink-subtle">
+            Building the site, review links for the client and publishing are under{" "}
+            <Link href={`${specHref}#delivery`} className="text-ink-muted underline decoration-line-strong underline-offset-2 hover:text-ink">
+              Delivery
+            </Link>{" "}
+            on the website spec.
+          </p>
           {"drawing" in rendered && rendered.drawing ? <p className="text-[13px] text-ink-subtle">Drawing the page with the company design…</p> : null}
           {rendered.designError ? <p className="text-[13px] text-caution">The {design === "services" ? "company" : "association"} design cannot draw this spec, so the template is shown. {rendered.designError}</p> : design === "association" || design === "services" ? <p className="text-[13px] text-ink-subtle">Drawn as the site is built. Document files and the hosted forms are added at build time, so downloads and sending are not shown here.</p> : null}
           <PreviewFrame html={rendered.html} title={`Preview of ${rendered.model.page.title.text || "the page"}`} viewport={viewport} height="75vh" />
