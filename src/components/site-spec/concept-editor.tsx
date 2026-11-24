@@ -17,6 +17,8 @@ import { signatureFor } from "@/lib/site-spec/to-services";
 import { useEffect, useMemo, useState } from "react";
 import { useStudio, useStudioStore } from "@/components/providers/studio-provider";
 import { lookAlikes, suggestion, type OtherDesign } from "@/lib/site-spec/uniqueness";
+import { EverydayEditor } from "./everyday-editor";
+import type { ImageLibrary } from "./images-editor";
 import type { SpecEditing } from "./site-spec-editor";
 
 type Concept = NonNullable<SiteSpec["brand"]["concept"]>;
@@ -27,7 +29,7 @@ type Concept = NonNullable<SiteSpec["brand"]["concept"]>;
  * facts come from the AI draft with their sources; here a person chooses
  * which part to show, ticks the owner's consent and confirms each number.
  */
-export function ConceptEditor({ spec, editing, projectId }: { spec: SiteSpec; editing: SpecEditing; projectId?: string }) {
+export function ConceptEditor({ spec, editing, projectId, library }: { spec: SiteSpec; editing: SpecEditing; projectId?: string; library?: ImageLibrary }) {
   const { editable, change, personSource } = editing;
   const concept = spec.brand.concept ?? {};
   const locale = spec.locales.default;
@@ -84,7 +86,7 @@ export function ConceptEditor({ spec, editing, projectId }: { spec: SiteSpec; ed
             {SERVICES_SIGNATURES.map((v) => (
               <option key={v} value={v}>
                 {SERVICES_SIGNATURE_LABELS[v]}
-                {data?.[v] ? "" : " (no content yet)"}
+                {data?.[v] || v === "everyday" ? "" : " (no content yet)"}
               </option>
             ))}
           </Select>
@@ -185,7 +187,7 @@ export function ConceptEditor({ spec, editing, projectId }: { spec: SiteSpec; ed
             </ul>
           ) : null}
 
-          {concept.signature === "everyday" ? <p className="text-ink-muted">An ordinary day needs three to five of the client&apos;s own photos, each with a line. Add them in a later step.</p> : null}
+          {concept.signature === "everyday" ? <EverydayEditor spec={spec} editing={editing} library={library} /> : null}
         </div>
       ) : null}
       {projectId ? <LookAlikes brand={spec.brand} projectId={projectId} /> : null}
