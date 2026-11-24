@@ -74,7 +74,7 @@ function Workspace({ client, snapshot }: { client: Client; snapshot: StudioSnaps
 
       <header className="flex flex-col gap-4 pb-10 sm:flex-row sm:items-start sm:justify-between">
         <div className="flex min-w-0 items-start gap-4">
-          <Avatar name={client.name} size="lg" />
+          <Avatar name={client.name} seed={client.id} size="lg" />
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2.5">
               <h1 className="text-[26px] leading-tight font-medium tracking-[-0.032em] text-ink">{client.name}</h1>

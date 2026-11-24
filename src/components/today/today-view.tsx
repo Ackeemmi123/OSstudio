@@ -1,12 +1,13 @@
 "use client";
 
 import { Archive, ArrowRight, Check, CircleSlash, Circle, Clock, FileQuestion, Inbox, Plus, Sparkles } from "lucide-react";
-import { CopyReviewLink, DeliveryTrack, useDeliveries } from "@/components/delivery/delivery";
+import { Celebration, CopyReviewLink, DeliveryTrack, useDeliveries } from "@/components/delivery/delivery";
 import { useSession } from "@/components/providers/session-provider";
 import { daysSince, type Delivery } from "@/lib/domain/delivery";
 import { isTestClient } from "@/lib/domain/test-clients";
+import { Avatar } from "@/components/ui/avatar";
 import Link from "next/link";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { ActivityTimeline } from "@/components/activity-timeline";
 import { NewClientDialog } from "@/components/clients/new-client-dialog";
 import { TodayNextSteps } from "@/components/next-steps/next-steps";
@@ -77,9 +78,11 @@ function Workspace({ snapshot }: { snapshot: StudioSnapshot }) {
   const deliveries = useDeliveries();
   // Websites have their own list with where each one stands; other active projects stay here.
   const work = getActiveWork(snapshot).filter(({ project }) => !deliveries?.has(project.id));
+  const names = useMemo(() => new Map(snapshot.clients.map((c) => [c.id, c.name])), [snapshot.clients]);
 
   return (
     <div className="grid gap-x-12 gap-y-12 lg:grid-cols-[minmax(0,1fr)_320px]">
+      <Celebration deliveries={deliveries} names={names} />
       <div className="flex min-w-0 flex-col gap-12">
         <TodayNextSteps />
         {followUps.length > 0 ? (
@@ -322,6 +325,7 @@ function Websites({ snapshot, deliveries, now }: { snapshot: StudioSnapshot; del
             <li key={project.id} className="flex flex-col gap-2.5 bg-surface px-4 py-3.5">
               <Link href={href} className="-m-1 rounded-[var(--radius-control)] p-1 transition-colors hover:bg-surface-muted">
                 <span className="flex items-center gap-2">
+                  <Avatar name={client.name} seed={client.id} size="xs" />
                   <span className="truncate text-[13.5px] font-medium text-ink">{client.name}</span>
                   {isTestClient(client) ? <span className="shrink-0 rounded-full border border-line-strong px-1.5 text-[10.5px] text-ink-subtle">Test</span> : null}
                 </span>
