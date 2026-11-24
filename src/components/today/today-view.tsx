@@ -1,6 +1,10 @@
 "use client";
 
 import { Archive, ArrowRight, Check, CircleSlash, Circle, Clock, FileQuestion, Inbox, Plus, Sparkles } from "lucide-react";
+import { CopyReviewLink, DeliveryTrack, useDeliveries } from "@/components/delivery/delivery";
+import { useSession } from "@/components/providers/session-provider";
+import { daysSince, type Delivery } from "@/lib/domain/delivery";
+import { isTestClient } from "@/lib/domain/test-clients";
 import Link from "next/link";
 import { useState } from "react";
 import { ActivityTimeline } from "@/components/activity-timeline";
@@ -38,7 +42,9 @@ export function TodayView() {
           <p className="mb-1 text-[13px] text-ink-subtle">
             <TodayLabel />
           </p>
-          <h1 className="text-[28px] leading-tight font-medium tracking-[-0.032em] text-ink">Today</h1>
+          <h1 className="text-[28px] leading-tight font-medium tracking-[-0.032em] text-ink">
+            <Greeting />
+          </h1>
         </div>
         <Button variant="primary" onClick={() => setCreating(true)} disabled={!canEdit} hidden={state.status === "ready" && !canEdit}>
           <Plus aria-hidden />
@@ -68,7 +74,9 @@ function Workspace({ snapshot }: { snapshot: StudioSnapshot }) {
   const shown = new Set(followUps.flatMap((item) => item.relatedIds));
   const decisions = getDecisions(snapshot).filter((item) => !shown.has(item.id));
   const actions = getNextActions(snapshot).filter((action) => !shown.has(action.id));
-  const work = getActiveWork(snapshot);
+  const deliveries = useDeliveries();
+  // Websites have their own list with where each one stands; other active projects stay here.
+  const work = getActiveWork(snapshot).filter(({ project }) => !deliveries?.has(project.id));
 
   return (
     <div className="grid gap-x-12 gap-y-12 lg:grid-cols-[minmax(0,1fr)_320px]">
@@ -145,13 +153,13 @@ function Workspace({ snapshot }: { snapshot: StudioSnapshot }) {
           )}
         </Section>
 
-        <AgentNote />
       </div>
 
       <div className="flex min-w-0 flex-col gap-12">
+        <Websites snapshot={snapshot} deliveries={deliveries} now={now} />
         <Section id="in-progress" title="In progress" count={work.length}>
           {work.length === 0 ? (
-            <Quiet>No projects are active.</Quiet>
+            <Quiet>No other projects are active.</Quiet>
           ) : (
             <ul className="flex flex-col gap-px overflow-hidden rounded-[var(--radius-surface)] border border-line bg-line">
               {work.map(({ project, client, openTasks }) => (
@@ -269,20 +277,68 @@ function Quiet({ children }: { children: React.ReactNode }) {
   return <p className="rounded-[var(--radius-surface)] border border-dashed border-line-strong px-5 py-4 text-[13.5px] text-ink-subtle">{children}</p>;
 }
 
-/** States plainly that no AI is doing anything yet. */
-function AgentNote() {
+/** "Good morning, Alexander", by the hour in the browser; "Today" before the clock is known. */
+function Greeting() {
+  const now = useNow();
+  const session = useSession();
+  const first = session.mode === "supabase" ? session.studio.displayName.trim().split(/\s+/)[0] : "";
+  if (!now) return <>Today</>;
+  const hour = new Date(now).getHours();
+  const part = hour < 5 ? "Good evening" : hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
+  return <>{first ? `${part}, ${first}` : part}</>;
+}
+
+/** What the studio can move comes first, then what waits on a client, then live sites. */
+const ORDER: Record<Delivery["stage"], number> = { clientApproved: 0, approved: 1, review: 2, spec: 3, built: 4, live: 5 };
+
+/** Every website and the one thing it needs next. Test clients come last. */
+function Websites({ snapshot, deliveries, now }: { snapshot: StudioSnapshot; deliveries: Map<string, Delivery> | null; now: number | null }) {
+  if (!deliveries) return null;
+  const clients = new Map(snapshot.clients.map((c) => [c.id, c]));
+  const projects = new Map(snapshot.projects.map((p) => [p.id, p]));
+  const rows = [...deliveries.values()]
+    .flatMap((delivery) => {
+      const client = clients.get(delivery.clientId);
+      const project = projects.get(delivery.projectId);
+      return client && project && client.status !== "archived" ? [{ delivery, client, project }] : [];
+    })
+    .sort(
+      (a, b) =>
+        Number(isTestClient(a.client)) - Number(isTestClient(b.client)) ||
+        ORDER[a.delivery.stage] - ORDER[b.delivery.stage] ||
+        Number(a.delivery.waitingOnClient) - Number(b.delivery.waitingOnClient),
+    );
+  if (!rows.length) return null;
+  const waiting = rows.filter((r) => r.delivery.waitingOnClient).length;
   return (
-    <p className="flex items-start gap-2.5 text-[13px] leading-relaxed text-ink-subtle">
-      <Sparkles aria-hidden strokeWidth={1.75} className="mt-0.5 size-4 shrink-0" />
-      <span>
-        No AI agents are connected yet, so everything here comes from what the team recorded. When agents arrive, their
-        proposals will appear under <span className="text-ink-muted">Needs your decision</span> and never become client facts
-        on their own.{" "}
-        <Link href="/settings#agents" className="text-ink-muted underline decoration-line-strong underline-offset-2 hover:text-ink">
-          Planned agents
-        </Link>
-      </span>
-    </p>
+    <Section id="websites" title="Websites" count={rows.length} action={waiting ? <span className="text-[12.5px] text-ink-subtle">{waiting} waiting on clients</span> : undefined}>
+      <ul className="flex flex-col gap-px overflow-hidden rounded-[var(--radius-surface)] border border-line bg-line">
+        {rows.map(({ delivery, client, project }) => {
+          const days = delivery.waitingOnClient && now ? daysSince(delivery.since, now) : null;
+          const href = `/clients/${encodeURIComponent(client.id)}/projects/${encodeURIComponent(project.id)}/site${delivery.stage === "spec" || delivery.stage === "review" ? "" : "#delivery"}`;
+          return (
+            <li key={project.id} className="flex flex-col gap-2.5 bg-surface px-4 py-3.5">
+              <Link href={href} className="-m-1 rounded-[var(--radius-control)] p-1 transition-colors hover:bg-surface-muted">
+                <span className="flex items-center gap-2">
+                  <span className="truncate text-[13.5px] font-medium text-ink">{client.name}</span>
+                  {isTestClient(client) ? <span className="shrink-0 rounded-full border border-line-strong px-1.5 text-[10.5px] text-ink-subtle">Test</span> : null}
+                </span>
+                <span className={cn("mt-0.5 block text-[12.5px]", delivery.stage === "live" ? "text-positive" : delivery.waitingOnClient ? "text-ink-subtle" : "text-ink")}>
+                  {delivery.next}
+                  {days ? <span className="text-ink-subtle"> · {days === 1 ? "1 day" : `${days} days`}</span> : null}
+                </span>
+              </Link>
+              <DeliveryTrack delivery={delivery} />
+              {delivery.reviewLink && delivery.waitingOnClient ? (
+                <div>
+                  <CopyReviewLink link={delivery.reviewLink} />
+                </div>
+              ) : null}
+            </li>
+          );
+        })}
+      </ul>
+    </Section>
   );
 }
 
