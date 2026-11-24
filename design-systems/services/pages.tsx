@@ -10,10 +10,10 @@ import type { Asset, SiteContent, SiteDesign } from "./content";
 type Language = SiteContent["language"];
 
 /** The system's own words: its interface, never anything about the business. */
-export const CHROME: Record<Language, { skip: string; menu: string; mainNav: string; footerNav: string; trap: string; testNote: string; conceptNote: string; prototypeNote: string; formOff: string; sent: string; notSent: string; backHome: string; hours: string; forWhom: string; matters: string; otherAreas: string; readMore: string; education: string; positions: string; languages: string; fullMenu: string }> = {
-  en: { skip: "Skip to content", menu: "Menu", mainNav: "Main", footerNav: "Footer", trap: "Leave this empty", testNote: "Test site. This business and everything about it are invented.", prototypeNote: "Prototype by {madeBy}. Not public.", formOff: "The form is switched off in the prototype.", conceptNote: "Concept by Axivo, from public information. This is not the website of the firm.", sent: "Thank you. Your message was sent.", notSent: "Your message could not be sent. Please call or email us instead.", backHome: "Back to the front page", hours: "Opening hours", forWhom: "Who it is for", matters: "Typical matters", otherAreas: "Other areas", readMore: "Read more", education: "Education", positions: "Positions of trust", languages: "Languages", fullMenu: "The whole menu" },
-  sv: { skip: "Till innehållet", menu: "Meny", mainNav: "Huvudmeny", footerNav: "Sidfot", trap: "Lämna tomt", testNote: "Testsida. Företaget och allt om det är påhittat.", prototypeNote: "Prototyp av {madeBy}. Inte offentlig.", formOff: "Formuläret är avstängt i prototypen.", conceptNote: "Koncept av Axivo, utifrån offentlig information. Det här är inte företagets webbplats.", sent: "Tack! Ditt meddelande har skickats.", notSent: "Meddelandet kunde inte skickas. Ring eller mejla oss i stället.", backHome: "Till startsidan", hours: "Öppettider", forWhom: "För vem", matters: "Typiska ärenden", otherAreas: "Andra områden", readMore: "Läs mer", education: "Utbildning", positions: "Förtroendeuppdrag", languages: "Språk", fullMenu: "Hela menyn" },
-  fi: { skip: "Siirry sisältöön", menu: "Valikko", mainNav: "Päävalikko", footerNav: "Alatunniste", trap: "Jätä tyhjäksi", testNote: "Testisivusto. Yritys ja kaikki sen tiedot on keksitty.", prototypeNote: "Prototyyppi: {madeBy}. Ei julkinen.", formOff: "Lomake ei ole käytössä prototyypissä.", conceptNote: "Axivon konseptiluonnos julkisten tietojen pohjalta. Tämä ei ole yrityksen verkkosivusto.", sent: "Kiitos! Viestisi on lähetetty.", notSent: "Viestiä ei voitu lähettää. Soita tai lähetä sähköpostia.", backHome: "Etusivulle", hours: "Aukioloajat", forWhom: "Kenelle", matters: "Tyypillisiä toimeksiantoja", otherAreas: "Muut osaamisalueet", readMore: "Lue lisää", education: "Koulutus", positions: "Luottamustehtävät", languages: "Kielet", fullMenu: "Koko ruokalista" },
+export const CHROME: Record<Language, { skip: string; menu: string; mainNav: string; footerNav: string; trap: string; testNote: string; conceptNote: string; prototypeNote: string; formOff: string; sent: string; notSent: string; backHome: string; hours: string; forWhom: string; matters: string; otherAreas: string; readMore: string; education: string; positions: string; languages: string; fullMenu: string; year: string; place: string; role: string; nextProject: string; allProjects: string }> = {
+  en: { skip: "Skip to content", menu: "Menu", mainNav: "Main", footerNav: "Footer", trap: "Leave this empty", testNote: "Test site. This business and everything about it are invented.", prototypeNote: "Prototype by {madeBy}. Not public.", formOff: "The form is switched off in the prototype.", conceptNote: "Concept by Axivo, from public information. This is not the website of the firm.", sent: "Thank you. Your message was sent.", notSent: "Your message could not be sent. Please call or email us instead.", backHome: "Back to the front page", hours: "Opening hours", forWhom: "Who it is for", matters: "Typical matters", otherAreas: "Other areas", readMore: "Read more", education: "Education", positions: "Positions of trust", languages: "Languages", fullMenu: "The whole menu", year: "Year", place: "Place", role: "Our role", nextProject: "Next project", allProjects: "All projects" },
+  sv: { skip: "Till innehållet", menu: "Meny", mainNav: "Huvudmeny", footerNav: "Sidfot", trap: "Lämna tomt", testNote: "Testsida. Företaget och allt om det är påhittat.", prototypeNote: "Prototyp av {madeBy}. Inte offentlig.", formOff: "Formuläret är avstängt i prototypen.", conceptNote: "Koncept av Axivo, utifrån offentlig information. Det här är inte företagets webbplats.", sent: "Tack! Ditt meddelande har skickats.", notSent: "Meddelandet kunde inte skickas. Ring eller mejla oss i stället.", backHome: "Till startsidan", hours: "Öppettider", forWhom: "För vem", matters: "Typiska ärenden", otherAreas: "Andra områden", readMore: "Läs mer", education: "Utbildning", positions: "Förtroendeuppdrag", languages: "Språk", fullMenu: "Hela menyn", year: "År", place: "Plats", role: "Vår roll", nextProject: "Nästa projekt", allProjects: "Alla projekt" },
+  fi: { skip: "Siirry sisältöön", menu: "Valikko", mainNav: "Päävalikko", footerNav: "Alatunniste", trap: "Jätä tyhjäksi", testNote: "Testisivusto. Yritys ja kaikki sen tiedot on keksitty.", prototypeNote: "Prototyyppi: {madeBy}. Ei julkinen.", formOff: "Lomake ei ole käytössä prototyypissä.", conceptNote: "Axivon konseptiluonnos julkisten tietojen pohjalta. Tämä ei ole yrityksen verkkosivusto.", sent: "Kiitos! Viestisi on lähetetty.", notSent: "Viestiä ei voitu lähettää. Soita tai lähetä sähköpostia.", backHome: "Etusivulle", hours: "Aukioloajat", forWhom: "Kenelle", matters: "Tyypillisiä toimeksiantoja", otherAreas: "Muut osaamisalueet", readMore: "Lue lisää", education: "Koulutus", positions: "Luottamustehtävät", languages: "Kielet", fullMenu: "Koko ruokalista", year: "Vuosi", place: "Paikka", role: "Roolimme", nextProject: "Seuraava kohde", allProjects: "Kaikki kohteet" },
 };
 
 export interface PageContext {
@@ -21,9 +21,11 @@ export interface PageContext {
   design: SiteDesign;
   /** The way back to the site's root from this page: "./" or "../". */
   root: string;
-  page: "home" | "about" | "publications" | "service" | "menu" | "contact" | "privacy" | "notFound";
+  page: "home" | "about" | "publications" | "service" | "menu" | "projects" | "project" | "contact" | "privacy" | "notFound";
   /** On a service's own page: which service. */
   service?: number;
+  /** On a project's own page: which project. */
+  project?: number;
   /** Where the forms post on a published client site. */
   formAction?: string;
 }
@@ -100,6 +102,7 @@ function Menu({ context, footer }: { context: PageContext; footer?: boolean }) {
     return (
       <ul>
         {content.menuPage ? <li><a href={`${root}${content.menuPage.slug}/`} aria-current={at("menu")}>{content.menuPage.menuLabel}</a></li> : null}
+        {content.projects ? <li><a href={`${root}${content.projects.slug}/`} aria-current={page === "projects" || page === "project" ? "page" : undefined}>{content.projects.menuLabel}</a></li> : null}
         <li><a href={`${root}${content.about.slug}/`} aria-current={at("about")}>{content.about.menuLabel}</a></li>
         {content.publications ? <li><a href={`${root}${content.publications.slug}/`} aria-current={at("publications")}>{content.publications.menuLabel}</a></li> : null}
         <li><a href={`${root}${content.contact.slug}/`} aria-current={at("contact")}>{content.contact.menuLabel}</a></li>
@@ -110,6 +113,7 @@ function Menu({ context, footer }: { context: PageContext; footer?: boolean }) {
   return (
     <ul>
       {content.menuPage ? <li><a href={`${root}${content.menuPage.slug}/`} aria-current={at("menu")}>{content.menuPage.menuLabel}</a></li> : <li><a href={`${home}#services`}>{content.menu.servicesLabel}</a></li>}
+      {content.projects ? <li><a href={`${root}${content.projects.slug}/`} aria-current={page === "projects" || page === "project" ? "page" : undefined}>{content.projects.menuLabel}</a></li> : null}
       <li><a href={`${root}${content.about.slug}/`} aria-current={at("about")}>{content.about.menuLabel}</a></li>
       {content.publications ? <li><a href={`${root}${content.publications.slug}/`} aria-current={at("publications")}>{content.publications.menuLabel}</a></li> : <li><a href={`${home}#questions`}>{content.menu.questionsLabel}</a></li>}
       <li><a href={`${root}${content.contact.slug}/`} aria-current={at("contact")}>{content.contact.menuLabel}</a></li>
@@ -485,6 +489,119 @@ export function ContactPage({ context }: { context: PageContext }) {
           </div>
         </div>
         <ContactForm content={content} formId="contact" formAction={context.formAction} />
+      </section>
+    </Frame>
+  );
+}
+
+type Project = NonNullable<SiteContent["projects"]>["items"][number];
+
+function projectMeta(project: Project): string {
+  return [project.year, project.place].filter(Boolean).join(" · ");
+}
+
+/** The portfolio: every project as a picture and its name, the way into each project's own page. */
+export function ProjectsPage({ context }: { context: PageContext }) {
+  const { content, root } = context;
+  const projects = content.projects!;
+  return (
+    <Frame context={context}>
+      <section className="page-intro" data-tier={displayTier(projects.heading.text)}>
+        <p className="label">{projects.label}</p>
+        <h1>{projects.heading.text}</h1>
+        {projects.lead ? <p className="page-lead">{projects.lead.text}</p> : null}
+      </section>
+      <ul className="project-grid" data-count={projects.items.length}>
+        {projects.items.map((project, i) => {
+          const cover = find(content, project.imageIds[0]);
+          return (
+            <li key={project.slug} className={`project-card project-card--${(i % 4) + 1}`}>
+              <a href={`${root}${project.slug}/`}>
+                {cover ? (
+                  <span className="project-frame">
+                    <Picture asset={cover} ratio={[4 / 5, 4 / 3, 4 / 3, 4 / 5][i % 4]} sizes="(max-width: 820px) 100vw, 50vw" widths={[480, 800, 1200]} first={i < 2} />
+                  </span>
+                ) : null}
+                <span className="project-name">{project.name.text}</span>
+                {projectMeta(project) ? <span className="project-meta">{projectMeta(project)}</span> : null}
+              </a>
+            </li>
+          );
+        })}
+      </ul>
+      <section className="end-action" aria-label={content.closing.heading.text}>
+        <h2>{content.closing.heading.text}</h2>
+        <Action context={context} />
+      </section>
+    </Frame>
+  );
+}
+
+/** One project: its name and facts, the first picture wide, the story, then the rest of the pictures and the way to the next one. */
+export function ProjectPage({ context }: { context: PageContext }) {
+  const { content, root } = context;
+  const chrome = CHROME[content.language];
+  const projects = content.projects!;
+  const index = context.project ?? 0;
+  const project = projects.items[index];
+  const next = projects.items.length > 1 ? projects.items[(index + 1) % projects.items.length] : null;
+  const [first, ...rest] = project.imageIds.map((id) => find(content, id)).filter((asset): asset is Asset => Boolean(asset));
+  const facts = [
+    { key: "year", label: chrome.year, value: project.year },
+    { key: "place", label: chrome.place, value: project.place },
+    { key: "role", label: chrome.role, value: project.role?.text },
+  ].filter((fact) => fact.value);
+  return (
+    <Frame context={context}>
+      <section className="page-intro project-intro" data-tier={displayTier(project.name.text)}>
+        <p className="label">
+          <a href={`${root}${projects.slug}/`}>{projects.label}</a>
+        </p>
+        <h1>{project.name.text}</h1>
+        {facts.length ? (
+          <dl className="project-facts">
+            {facts.map((fact) => (
+              <div key={fact.key}>
+                <dt className="label">{fact.label}</dt>
+                <dd>{fact.value}</dd>
+              </div>
+            ))}
+          </dl>
+        ) : null}
+      </section>
+      {first ? (
+        <figure className="wide-image project-lead-image">
+          <Picture asset={first} ratio={16 / 9} sizes="100vw" widths={[800, 1400, 2000]} first />
+        </figure>
+      ) : null}
+      {project.text.length ? (
+        <section className="story" aria-label={project.name.text}>
+          {project.text.map((paragraph) => (
+            <p key={paragraph.text}>{paragraph.text}</p>
+          ))}
+        </section>
+      ) : null}
+      {rest.length ? (
+        <div className="project-pictures" data-count={rest.length}>
+          {rest.map((asset, i) => (
+            <figure key={asset.id} className={`project-picture project-picture--${(i % 3) + 1}`}>
+              <Picture asset={asset} ratio={[4 / 5, 4 / 3, 3 / 2][i % 3]} sizes="(max-width: 820px) 100vw, 50vw" widths={[480, 800, 1200]} />
+            </figure>
+          ))}
+        </div>
+      ) : null}
+      <nav className="project-next" aria-label={chrome.nextProject}>
+        {next ? (
+          <a href={`${root}${next.slug}/`}>
+            <span className="label">{chrome.nextProject}</span>
+            <span className="project-next-name">{next.name.text}</span>
+          </a>
+        ) : null}
+        <a className="link-action link-action--arrow" href={`${root}${projects.slug}/`}>{chrome.allProjects}</a>
+      </nav>
+      <section className="end-action" aria-label={content.closing.heading.text}>
+        <h2>{content.closing.heading.text}</h2>
+        <Action context={context} />
       </section>
     </Frame>
   );

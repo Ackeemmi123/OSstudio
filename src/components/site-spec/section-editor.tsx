@@ -185,7 +185,26 @@ export function SectionEditor({
           </Select>
         </Field>
       </div>
-      {SECTION_FIELDS[section.kind].map(field)}
+      {SECTION_FIELDS[section.kind].filter((def) => !def.group).map(field)}
+      {[...new Set(SECTION_FIELDS[section.kind].flatMap((def) => (def.group ? [def.group] : [])))].map((group) => {
+        const inGroup = SECTION_FIELDS[section.kind].filter((def) => def.group === group);
+        const filled = inGroup.some((def) => {
+          const value = values[def.key];
+          return typeof value === "string" ? value.trim() !== "" : value && typeof value === "object" && Object.values(value).some((v) => typeof v === "string" && v.trim() !== "");
+        });
+        const hint = inGroup.find((def) => def.hint)?.hint;
+        return (
+          <details key={group} open={filled || undefined} className="rounded-[var(--radius-control)] border border-dashed border-line px-3 py-2">
+            <summary className="cursor-pointer text-[13px] font-medium text-ink">
+              {group} <span className="font-normal text-ink-subtle">(optional)</span>
+            </summary>
+            <div className="mt-3 flex flex-col gap-3">
+              {hint ? <p className="text-[12.5px] text-ink-subtle">{hint}</p> : null}
+              {inGroup.map(field)}
+            </div>
+          </details>
+        );
+      })}
     </div>
   );
 }

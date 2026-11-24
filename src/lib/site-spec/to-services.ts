@@ -28,10 +28,10 @@ export type ServicesMode = { prototype: { madeBy: string } } | { client: { appro
 
 export type ServicesResult = { ok: true; content: SiteContent; design: SiteDesign; pages: Record<string, string> } | { ok: false; missing: string[] };
 
-const WORDS: Record<SiteLocale, { services: string; steps: string; questions: string; reasons: string; people: string; details: string; name: string; email: string; phone: string; message: string; send: string; notFound: string; notFoundText: string; back: string; menuServices: string; menuQuestions: string; contact: string; privacy: string; about: string; work: string; publications: string; menu: string }> = {
-  sv: { services: "Tjänster", steps: "Så går det till", questions: "Frågor", reasons: "Därför", people: "Vi som jobbar här", details: "Kontaktuppgifter", name: "Namn", email: "E-post", phone: "Telefon", message: "Meddelande", send: "Skicka", notFound: "Sidan hittades inte", notFoundText: "Adressen finns inte längre, eller så skrevs den fel.", back: "Till startsidan", menuServices: "Tjänster", menuQuestions: "Frågor", contact: "Kontakt", privacy: "Integritet", about: "Om oss", work: "Arbeten", publications: "Publikationer", menu: "Meny" },
-  fi: { services: "Palvelut", steps: "Näin edetään", questions: "Kysymykset", reasons: "Miksi me", people: "Meillä töissä", details: "Yhteystiedot", name: "Nimi", email: "Sähköposti", phone: "Puhelin", message: "Viesti", send: "Lähetä", notFound: "Sivua ei löytynyt", notFoundText: "Osoite ei ole enää käytössä, tai siinä on kirjoitusvirhe.", back: "Etusivulle", menuServices: "Palvelut", menuQuestions: "Kysymykset", contact: "Yhteystiedot", privacy: "Tietosuoja", about: "Meistä", work: "Töitämme", publications: "Julkaisut", menu: "Ruokalista" },
-  en: { services: "Services", steps: "How it works", questions: "Questions", reasons: "Why us", people: "The people", details: "Contact details", name: "Name", email: "Email", phone: "Phone", message: "Message", send: "Send", notFound: "Page not found", notFoundText: "This address no longer exists, or it was mistyped.", back: "Back to the front page", menuServices: "Services", menuQuestions: "Questions", contact: "Contact", privacy: "Privacy", about: "About", work: "Our work", publications: "Publications", menu: "Menu" },
+const WORDS: Record<SiteLocale, { services: string; steps: string; questions: string; reasons: string; people: string; details: string; name: string; email: string; phone: string; message: string; send: string; notFound: string; notFoundText: string; back: string; menuServices: string; menuQuestions: string; contact: string; privacy: string; about: string; work: string; publications: string; menu: string; projects: string }> = {
+  sv: { services: "Tjänster", steps: "Så går det till", questions: "Frågor", reasons: "Därför", people: "Vi som jobbar här", details: "Kontaktuppgifter", name: "Namn", email: "E-post", phone: "Telefon", message: "Meddelande", send: "Skicka", notFound: "Sidan hittades inte", notFoundText: "Adressen finns inte längre, eller så skrevs den fel.", back: "Till startsidan", menuServices: "Tjänster", menuQuestions: "Frågor", contact: "Kontakt", privacy: "Integritet", about: "Om oss", work: "Arbeten", publications: "Publikationer", menu: "Meny", projects: "Projekt" },
+  fi: { services: "Palvelut", steps: "Näin edetään", questions: "Kysymykset", reasons: "Miksi me", people: "Meillä töissä", details: "Yhteystiedot", name: "Nimi", email: "Sähköposti", phone: "Puhelin", message: "Viesti", send: "Lähetä", notFound: "Sivua ei löytynyt", notFoundText: "Osoite ei ole enää käytössä, tai siinä on kirjoitusvirhe.", back: "Etusivulle", menuServices: "Palvelut", menuQuestions: "Kysymykset", contact: "Yhteystiedot", privacy: "Tietosuoja", about: "Meistä", work: "Töitämme", publications: "Julkaisut", menu: "Ruokalista", projects: "Kohteet" },
+  en: { services: "Services", steps: "How it works", questions: "Questions", reasons: "Why us", people: "The people", details: "Contact details", name: "Name", email: "Email", phone: "Phone", message: "Message", send: "Send", notFound: "Page not found", notFoundText: "This address no longer exists, or it was mistyped.", back: "Back to the front page", menuServices: "Services", menuQuestions: "Questions", contact: "Contact", privacy: "Privacy", about: "About", work: "Our work", publications: "Publications", menu: "Menu", projects: "Projects" },
 };
 
 const ABOUT = /^(om|about|om-oss|meista|meist|tietoa|about-us)/;
@@ -39,6 +39,19 @@ const PRIVACY = /(integritet|privacy|tietosuoja|dataskydd)/;
 const PUBLICATIONS = /(julkaisu|publikation|publication|skrifter)/;
 const PAGE_SLUG = /^[a-z0-9]+(-[a-z0-9]+)*$/;
 const MENU = /^(meny|menu|ruokalista|lista|matsedel|lounas|lunch|ruoka)/;
+const PROJECTS = /^(projekt|projects|portfolio|kohteet|tyot|tyomme|arbeten|referens|work)/;
+
+/** A page address from a name: lower case, without accents, words joined by hyphens. */
+export function slugFrom(name: string): string {
+  return name
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 60)
+    .replace(/-+$/, "");
+}
 
 /** A line of opening hours: the days, then the time ("Ma–Pe 11–22", "Su: suljettu"), or the whole line when it cannot be told apart. */
 export function hoursLine(line: string): { days: string; time?: string } {
@@ -189,6 +202,7 @@ export function servicesContent(spec: SiteSpec, images: Record<string, ServicesI
   const contactPage = pageOf((p) => p.sections.some((s) => s.kind === "contact"));
   const privacyPage = pageOf((p) => PRIVACY.test(slugOf(p)) || PRIVACY.test(p.id));
   const publicationsPage = pageOf((p) => PUBLICATIONS.test(slugOf(p)) || PUBLICATIONS.test(p.id));
+  const projectsSpecPage = pageOf((p) => (PROJECTS.test(slugOf(p)) || PROJECTS.test(p.id)) && p.sections.some((s) => s.kind === "gallery"));
   const menuSpecPage = pageOf((p) => (MENU.test(slugOf(p)) || MENU.test(p.id)) && p.sections.some((s) => s.kind === "services"));
   if (!aboutPage) missing.push("Add an About page (its address starting with om, about or meista).");
   if (!contactPage) missing.push("Add a Contact page with a contact section.");
@@ -436,6 +450,49 @@ export function servicesContent(spec: SiteSpec, images: Record<string, ServicesI
   if (hourLines.length > 10) missing.push(`Opening hours: at most 10 lines (now ${hourLines.length}).`);
   const openingHours = hourLines.length >= 2 ? hourLines.slice(0, 10).map((line) => { const parsed = hoursLine(line); return { days: parsed.days.slice(0, 60), ...(parsed.time ? { time: parsed.time.slice(0, 60) } : {}) }; }) : undefined;
 
+  // A portfolio: a page whose address says projects; each gallery on it is one project with its own page.
+  const projectSections = (projectsSpecPage?.sections ?? []).filter((s): s is Extract<SiteSpecSection, { kind: "gallery" }> => s.kind === "gallery");
+  if (projectSections.length > 24) missing.push(`The projects page: at most 24 projects (now ${projectSections.length}).`);
+  const projectsLead = (projectsSpecPage?.sections ?? []).filter((s): s is Extract<SiteSpecSection, { kind: "text" | "text_media" }> => s.kind === "text" || s.kind === "text_media").flatMap((s) => paragraphs(t(s.body, locale)))[0];
+  const projectItems = projectSections.slice(0, 24).map((section, i) => {
+    const from = originOf(section.source);
+    const name = t(section.heading, locale);
+    const where = `Project ${i + 1}${name ? ` (${name})` : ""}`;
+    if (!name) missing.push(`Project ${i + 1}: the gallery needs a heading, the project's name.`);
+    const written = t(section.slug, locale).toLowerCase();
+    const slug = written || slugFrom(name);
+    if (written && (!PAGE_SLUG.test(written) || written.length > 60)) missing.push(`${where}: the page address may use only lower-case letters, digits and single hyphens.`);
+    else if (!slug) missing.push(`${where}: give the project a page address.`);
+    const imageIds = section.assetIds.flatMap((id) => (imageId(id.slice(0, 40)) ? [id.slice(0, 40)] : [])).slice(0, 12);
+    if (!imageIds.length) missing.push(`${where}: add at least one image with a stored file; the first is the cover.`);
+    const story = paragraphs(t(section.body, locale));
+    if (story.length > 4) missing.push(`${where}: at most 4 paragraphs about the project (now ${story.length}).`);
+    const year = t(section.year, locale);
+    const place = t(section.place, locale);
+    const role = t(section.role, locale);
+    return {
+      slug,
+      name: need(`${where}: name`, name, 80, from),
+      ...(year ? { year: year.slice(0, 12) } : {}),
+      ...(place ? { place: place.slice(0, 80) } : {}),
+      ...(role ? { role: need(`${where}: our role`, role, 120, from) } : {}),
+      text: story.slice(0, 4).map((paragraph, n) => need(`${where}: paragraph ${n + 1}`, paragraph, 800, from)),
+      imageIds,
+      seo: { title: (siteNameText ? `${name} · ${siteNameText}` : name).slice(0, 70) || w.projects, description: (story[0] ?? [name, year, place].filter(Boolean).join(", ")).slice(0, 170) || w.projects },
+    };
+  });
+  const projects: SiteContent["projects"] = projectsSpecPage && projectItems.length
+    ? {
+        slug: slugOf(projectsSpecPage).slice(0, 30),
+        menuLabel: (t(projectsSpecPage.title, locale) || w.projects).slice(0, 24),
+        label: (t(projectsSpecPage.title, locale) || w.projects).slice(0, 60),
+        heading: need("The projects page's title", t(projectsSpecPage.title, locale), 110, "person"),
+        ...(projectsLead ? { lead: need("The projects page's text", projectsLead, 300, "person") } : {}),
+        items: projectItems,
+        seo: { title: (t(projectsSpecPage.seo.title, locale) || t(projectsSpecPage.title, locale) || w.projects).slice(0, 70), description: (t(projectsSpecPage.seo.description, locale) || projectsLead || t(projectsSpecPage.title, locale) || w.projects).slice(0, 170) },
+      }
+    : undefined;
+
   // The whole menu: a page whose address says so; each services section on it is a group of dishes.
   const menuGroups = (menuSpecPage?.sections ?? []).filter((s): s is Extract<SiteSpecSection, { kind: "services" }> => s.kind === "services" && s.items.length > 0);
   const menuNote = (menuSpecPage?.sections ?? []).filter((s): s is Extract<SiteSpecSection, { kind: "text" | "text_media" }> => s.kind === "text" || s.kind === "text_media").flatMap((s) => paragraphs(t(s.body, locale))).join(" ");
@@ -491,10 +548,16 @@ export function servicesContent(spec: SiteSpec, images: Record<string, ServicesI
   if (!homeDescription) missing.push("The home page needs a search description.");
   if (new Set([about.slug, contact.slug, privacy.slug]).size < 3) missing.push("The About, Contact and Privacy pages need different addresses.");
   const pageSlugs = [about.slug, contact.slug, privacy.slug, ...(publications ? [publications.slug] : []), ...(menuPage ? [menuPage.slug] : []), "sent", "not-sent"];
+  if (projects) pageSlugs.push(projects.slug);
   for (const item of services.items) {
     if (!item.page) continue;
     if (pageSlugs.includes(item.page.slug)) missing.push(`The service ${item.name.text} has the page address ${item.page.slug}, which another page already uses.`);
     pageSlugs.push(item.page.slug);
+  }
+  for (const project of projects?.items ?? []) {
+    if (!project.slug) continue;
+    if (pageSlugs.includes(project.slug)) missing.push(`The project ${project.name.text} has the page address ${project.slug}, which another page already uses.`);
+    pageSlugs.push(project.slug);
   }
 
   if (missing.length) return { ok: false, missing: [...new Set(missing)] };
@@ -516,6 +579,7 @@ export function servicesContent(spec: SiteSpec, images: Record<string, ServicesI
     about,
     ...(publications ? { publications } : {}),
     ...(menuPage ? { menuPage } : {}),
+    ...(projects ? { projects } : {}),
     contact,
     form: formContent,
     privacy,
@@ -544,5 +608,6 @@ export function servicesContent(spec: SiteSpec, images: Record<string, ServicesI
   if (privacyPage) pagesMap[privacyPage.id] = `${privacy.slug}/index.html`;
   if (publicationsPage && publications) pagesMap[publicationsPage.id] = `${publications.slug}/index.html`;
   if (menuSpecPage && menuPage) pagesMap[menuSpecPage.id] = `${menuPage.slug}/index.html`;
+  if (projectsSpecPage && projects) pagesMap[projectsSpecPage.id] = `${projects.slug}/index.html`;
   return { ok: true, content, design, pages: pagesMap };
 }

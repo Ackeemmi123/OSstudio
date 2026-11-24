@@ -944,6 +944,41 @@ const CONCEPT = `
  .menu-group-head{position:static}
 }
 
+/* A portfolio: projects as pictures in a staggered grid, each with its own page of facts, story and pictures. */
+.project-grid{list-style:none;display:grid;grid-template-columns:repeat(12,minmax(0,1fr));column-gap:24px;row-gap:clamp(3rem,6vw,5.5rem);padding:clamp(1rem,3vw,2rem) var(--gut) 0;align-items:start}
+.d-formal .project-grid{padding-top:clamp(3rem,6vw,5rem)}
+.project-card{grid-column:span 6}
+.project-card--2,.project-card--4{margin-top:clamp(4rem,9vw,9rem)}
+.project-grid[data-count="1"] .project-card{grid-column:1/9}
+.project-card a{display:flex;flex-direction:column;gap:.45rem;color:inherit;text-decoration:none;background:none;padding:0}
+.project-frame{display:block;overflow:hidden;margin-bottom:.75rem}
+.project-frame img{display:block;width:100%;height:auto;aspect-ratio:4/3;object-fit:cover;transition:scale 1.1s cubic-bezier(.2,.7,.2,1)}
+.project-card--1 .project-frame img,.project-card--4 .project-frame img{aspect-ratio:4/5}
+.project-name{font-family:var(--display);font-weight:var(--display-weight);letter-spacing:var(--display-track);font-size:clamp(1.5rem,2.4vw,2.2rem);line-height:1.1}
+.project-meta{color:var(--mute);font-size:.95rem}
+.project-card a:focus-visible{outline:2px solid var(--accent);outline-offset:6px}
+@media (hover:hover){.project-card a:hover .project-frame img{scale:1.03}.project-card a:hover .project-name{color:var(--accent)}}
+.project-facts{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:1.25rem 3.5rem;margin:2.25rem 0 0}
+.project-facts dd{margin:.3rem 0 0;font-size:1.1rem;max-width:28rem}
+.project-pictures{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));column-gap:24px;row-gap:clamp(2rem,4vw,3.5rem);padding:clamp(3.5rem,7vw,6rem) var(--gut) 0;align-items:start}
+.project-picture--1{grid-column:1/7}
+.project-picture--2{grid-column:8/13;margin-top:clamp(3rem,8vw,8rem)}
+.project-picture--3{grid-column:3/11}
+.project-pictures[data-count="1"] .project-picture{grid-column:3/11;margin-top:0}
+.project-picture img{display:block;width:100%;height:auto;object-fit:cover;aspect-ratio:4/5}
+.project-picture--2 img{aspect-ratio:4/3}
+.project-picture--3 img{aspect-ratio:3/2}
+.project-next{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:flex-end;gap:1.5rem;padding:clamp(4rem,8vw,7rem) var(--gut) 0}
+.project-next a:not(.link-action){display:flex;flex-direction:column;gap:.5rem;color:inherit;text-decoration:none;background:none;padding:0}
+.project-next-name{font-family:var(--display);font-weight:var(--display-weight);letter-spacing:var(--display-track);font-size:clamp(2rem,4.5vw,4rem);line-height:1.02}
+@media (hover:hover){.project-next a:not(.link-action):hover .project-next-name{color:var(--accent)}}
+.work-more{margin-top:clamp(2rem,4vw,3rem)}
+@media (prefers-reduced-motion:reduce){.project-frame img{transition:none}}
+@media (max-width:820px){
+ .project-card,.project-grid[data-count="1"] .project-card{grid-column:1/-1;margin-top:0}
+ .project-picture--1,.project-picture--2,.project-picture--3,.project-pictures[data-count="1"] .project-picture{grid-column:1/-1;margin-top:0}
+}
+
 /* An expert's profile on the About page: the person beside their own words and their record. */
 .profile{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));column-gap:24px;row-gap:2rem;padding:clamp(4rem,8vw,7.5rem) var(--gut) 0}
 .profile-who{grid-column:1/5;align-self:start;position:sticky;top:1.5rem}

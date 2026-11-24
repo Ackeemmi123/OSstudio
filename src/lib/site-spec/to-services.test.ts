@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { build } from "../../../design-systems/services";
 import { siteContent } from "../../../design-systems/services/content";
 import { briefClient, companySpec } from "./test-helpers";
-import { hoursLine, publicationLine, servicesContent, signatureFor } from "./to-services";
+import { hoursLine, publicationLine, servicesContent, signatureFor, slugFrom } from "./to-services";
 import { approvalBlockers } from "./validate";
 
 describe("drawing a spec with the company design", () => {
@@ -301,5 +301,64 @@ describe("a restaurant: the whole menu, opening hours and booking", () => {
     contactOf(spec).bookingUrl = "http://booking.example.fi";
     const bad = servicesContent(spec, {}, mode);
     expect(bad.ok ? [] : bad.missing.join(" ")).toMatch(/whole https address/);
+  });
+});
+
+describe("a portfolio: the projects page and a page per project", () => {
+  const mode = { prototype: { madeBy: "Axivo" } } as const;
+  const file = (n: number) => `00000000-0000-4000-8000-00000000000${n}`;
+  const images = Object.fromEntries([1, 2, 3].map((n) => [file(n), { src: `/images/p${n}.webp`, width: 1600, height: 1200, source: "The client", licence: "Client's own, written permission", showsPerson: false }]));
+  const withProjects = () => {
+    const spec = companySpec();
+    spec.assets.push(...([1, 2, 3].map((n) => ({ id: `p${n}`, kind: "photo", alt: { sv: `Rum ${n}` }, origin: "client", description: `Rum ${n}`, fileId: file(n) })) as unknown as typeof spec.assets));
+    spec.pages.push({
+      id: "projects",
+      slug: { sv: "projekt" },
+      title: { sv: "Projekt" },
+      nav: "main",
+      seo: { title: {}, description: {}, noindex: false },
+      sections: [
+        { id: "intro", kind: "text", variant: "single_column", heading: { sv: "Projekt" }, body: { sv: "Hem och arbetsplatser vi ritat." } },
+        { id: "villa", kind: "gallery", variant: "grid", heading: { sv: "Villa Ängsbacka" }, assetIds: ["p1", "p2"], year: { sv: "2023" }, place: { sv: "Esbo" }, role: { sv: "Inredning och ljussättning" }, body: { sv: "Ett hus från 1950-talet.\n\nVi öppnade köket mot trädgården." } },
+        { id: "kontor", kind: "gallery", variant: "grid", heading: { sv: "Kontor vid hamnen" }, slug: { sv: "hamnkontoret" }, assetIds: ["p3", "saknas"] },
+      ] as never,
+    });
+    return spec;
+  };
+
+  it("builds the projects page and one page per project, in the order written", () => {
+    const result = servicesContent(withProjects(), images, mode);
+    expect(result.ok ? [] : result.missing).toEqual([]);
+    if (!result.ok) return;
+    const projects = result.content.projects!;
+    expect(projects.lead?.text).toBe("Hem och arbetsplatser vi ritat.");
+    expect(projects.items.map((p) => p.slug)).toEqual(["villa-angsbacka", "hamnkontoret"]);
+    expect(projects.items[0]).toMatchObject({ year: "2023", place: "Esbo", role: { text: "Inredning och ljussättning" }, imageIds: ["p1", "p2"] });
+    expect(projects.items[0].text.map((p) => p.text)).toEqual(["Ett hus från 1950-talet.", "Vi öppnade köket mot trädgården."]);
+    expect(projects.items[1].imageIds).toEqual(["p3"]);
+    const files = build({ content: result.content, design: { ...result.design, direction: "atelier" } });
+    const paths = files.map((f) => f.path);
+    expect(paths).toEqual(expect.arrayContaining(["projekt/index.html", "villa-angsbacka/index.html", "hamnkontoret/index.html"]));
+    const villa = files.find((f) => f.path === "villa-angsbacka/index.html")!.text;
+    expect(villa).toContain("Vår roll");
+    expect(villa).toContain('href="../hamnkontoret/"');
+    expect(files.find((f) => f.path === "projekt/index.html")!.text).toContain('href="../villa-angsbacka/"');
+  });
+
+  it("asks for a cover image and a name instead of drawing an empty project", () => {
+    const spec = withProjects();
+    const page = spec.pages.at(-1)!;
+    const kontor = page.sections.find((s) => s.id === "kontor");
+    if (kontor?.kind !== "gallery") throw new Error("no gallery");
+    kontor.assetIds = ["saknas"];
+    kontor.heading = {};
+    const result = servicesContent(spec, images, mode);
+    expect(result.ok ? [] : result.missing.join(" ")).toMatch(/needs a heading, the project's name/);
+    expect(result.ok ? [] : result.missing.join(" ")).toMatch(/at least one image with a stored file/);
+  });
+
+  it("makes a page address from a name", () => {
+    expect(slugFrom("Villa Ängsbacka – kök & bad")).toBe("villa-angsbacka-kok-bad");
+    expect(slugFrom("Kesämökki, Hanko")).toBe("kesamokki-hanko");
   });
 });

@@ -140,7 +140,16 @@ export const sectionSchema = z.discriminatedUnion("kind", [
   section("products", { heading: localized(120), items: z.array(item({ title: localized(80), body: localized(1000, true), price: localized(60).optional(), assetId: idSchema.optional() })).max(24) }),
   /** `consent`: the person quoted agreed to be shown. The company design shows only those. */
   section("testimonials", { heading: localized(120), mediaAssetId: idSchema.optional(), items: z.array(item({ quote: localized(600, true), author: text(80), consent: z.boolean().optional() })).max(12) }),
-  section("gallery", { heading: localized(120), assetIds: z.array(idSchema).max(24) }),
+  /** On a projects page (the company design), a gallery is one project: its page address, year, place, the firm's role and its story. */
+  section("gallery", {
+    heading: localized(120),
+    assetIds: z.array(idSchema).max(24),
+    slug: localized(60).optional(),
+    year: localized(12).optional(),
+    place: localized(80).optional(),
+    role: localized(120).optional(),
+    body: localized(3200, true).optional(),
+  }),
   /** `consent`: the person agreed to be shown by name (and photo). The company design shows only those. */
   /** `bio`, `education`, `positions` and `languages` make a person's profile (the company design), as on their CV. */
   section("team", {

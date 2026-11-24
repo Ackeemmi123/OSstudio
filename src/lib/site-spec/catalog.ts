@@ -189,6 +189,9 @@ export interface SectionFieldDefinition {
   type: SectionFieldType;
   /** For buttons: the most a section may have. */
   max?: number;
+  /** Optional fields shown together, folded away until needed. */
+  group?: string;
+  hint?: string;
 }
 
 export interface ItemFieldDefinition {
@@ -211,7 +214,16 @@ export const SECTION_FIELDS: Record<SectionKind, SectionFieldDefinition[]> = {
   services: [EYEBROW, HEADING, { key: "items", label: "Services", type: "items" }],
   products: [EYEBROW, HEADING, { key: "items", label: "Products", type: "items" }],
   testimonials: [EYEBROW, HEADING, { key: "mediaAssetId", label: "Image beside the quotes", type: "image" }, { key: "items", label: "Quotes", type: "items" }],
-  gallery: [EYEBROW, HEADING, { key: "assetIds", label: "Images", type: "images" }],
+  gallery: [
+    EYEBROW,
+    HEADING,
+    { key: "assetIds", label: "Images", type: "images" },
+    { key: "slug", label: "Project page address", type: "text", group: "Project", hint: "On a page whose address says projects (projektit, kohteet, projekt, portfolio), each gallery is one project with its own page. The heading is its name; the first image is its cover." },
+    { key: "year", label: "Year", type: "text", group: "Project" },
+    { key: "place", label: "Place", type: "text", group: "Project" },
+    { key: "role", label: "Our role", type: "text", group: "Project" },
+    { key: "body", label: "About the project (a blank line between paragraphs)", type: "longText", group: "Project" },
+  ],
   team: [EYEBROW, HEADING, { key: "items", label: "People", type: "items" }],
   faq: [EYEBROW, HEADING, { key: "items", label: "Questions", type: "items" }],
   cta: [EYEBROW, HEADING, { key: "body", label: "Text", type: "longText" }, { key: "button", label: "Button", type: "button" }],
