@@ -66,7 +66,23 @@ export const siteContent = z.strictObject({
   services: z.strictObject({
     label: words(60),
     heading: statement(110),
-    items: z.array(z.strictObject({ name: statement(60), text: statement(320), price: statement(50).optional() })).min(1).max(8),
+    items: z
+      .array(
+        z.strictObject({
+          name: statement(60),
+          text: statement(320),
+          price: statement(50).optional(),
+          /**
+           * The service's own page, for firms whose areas each deserve one (a law firm's practice
+           * areas): who it is for and the matters it typically covers, in the firm's own words.
+           */
+          page: z
+            .strictObject({ slug: z.string().regex(/^[a-z0-9]+(-[a-z0-9]+)*$/).max(60), whoFor: statement(240).optional(), matters: z.array(statement(200)).max(12), seo })
+            .optional(),
+        }),
+      )
+      .min(1)
+      .max(8),
   }),
   firstSteps: z.strictObject({ label: words(60), heading: statement(110), items: z.array(point).min(2).max(4) }),
   proof: z.strictObject({
@@ -118,7 +134,25 @@ export const siteContent = z.strictObject({
     story: z.array(statement(800)).min(1).max(6),
     imageId: words(40).optional(),
     peopleLabel: words(60).optional(),
-    people: z.array(z.strictObject({ name: words(60), role: statement(70), imageId: words(40).optional(), consent: z.enum(["given", "invented_test_data"]) })).max(12),
+    people: z
+      .array(
+        z.strictObject({
+          name: words(60),
+          role: statement(70),
+          imageId: words(40).optional(),
+          consent: z.enum(["given", "invented_test_data"]),
+          /** An expert's profile, as on a CV: their own words, education, positions of trust and languages. */
+          profile: z
+            .strictObject({
+              bio: z.array(statement(800)).max(4),
+              education: z.array(statement(200)).max(10),
+              positions: z.array(statement(200)).max(16),
+              languages: statement(160).optional(),
+            })
+            .optional(),
+        }),
+      )
+      .max(12),
     seo,
   }),
   /** A page listing what the firm's people published or presented, for experts whose work is in print. */

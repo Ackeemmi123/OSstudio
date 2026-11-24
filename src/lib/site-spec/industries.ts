@@ -44,9 +44,9 @@ export const INDUSTRY_PROFILES: Record<Industry, IndustryProfile> = {
     tone: "Precise, calm and plain. Short sentences, no exclamation marks, no promises of outcomes. Name the areas of law or accounting exactly as the firm does.",
     parts: {
       reasons: "what makes the firm a safe choice: experience the material states, who they work for, how they work",
-      services: "practice areas or services, each with who it is for",
+      services: "practice areas or services, each with who it is for; a firm with distinct areas gives each its own page with typical matters",
       firstSteps: "how the first consultation works and what to bring",
-      proof: "credentials and memberships the material names; client quotes only with consent",
+      proof: "credentials and memberships the material names, and each expert's profile (education, positions of trust, languages) copied exactly from their CV; client quotes only with consent",
       questions: "what clients ask before they get in touch: fees, confidentiality, timelines",
       closing: "an invitation to a first conversation, without pressure",
     },

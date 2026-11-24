@@ -890,6 +890,57 @@ const CONCEPT = `
  .pub-list li{grid-template-columns:4rem minmax(0,1fr)}
 }
 
+/* A service's own page (a practice area): who it is for and the matters it covers, as a ruled list. */
+.ledger-row--page{position:relative}
+.ledger-row.ledger-row--page h3 a{color:inherit;text-decoration:none;background:none;padding:0}
+.ledger-row--page h3 a::after{content:"";position:absolute;inset:0}
+.ledger-row p.more{grid-column:10/13;text-align:right;font-size:.95rem;color:var(--accent);white-space:nowrap}
+.ledger-row p.more::after{content:" →"}
+.d-formal .ledger-row p.more{grid-column:9/13;text-align:left;margin-top:.9rem}
+.d-editorial .ledger-row p.more{grid-column:3;grid-row:1;margin:0;max-width:none}
+.ledger-row--page h3 a:focus-visible{outline:none}
+.ledger-row--page:has(a:focus-visible){outline:2px solid var(--accent);outline-offset:4px}
+@media (hover:hover){.d-formal .ledger-row--page:hover p.more{color:var(--accent-on-deep)}}
+.page-intro .label a{color:inherit;text-decoration-thickness:1px;text-underline-offset:.18em}
+.area,.area-others{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));column-gap:24px;padding:clamp(3.5rem,7vw,6.5rem) var(--gut) 0}
+.area{row-gap:clamp(2.5rem,5vw,4rem)}
+.area-part{grid-column:1/-1;display:grid;grid-template-columns:repeat(12,minmax(0,1fr));column-gap:24px}
+.area-part .label,.area-others .label{grid-column:1/4;padding-top:.35rem}
+.area-for{grid-column:4/11;font-size:clamp(1.2rem,1.9vw,1.6rem);line-height:1.4}
+.area-matters{grid-column:4/11;list-style:none;border-top:2px solid var(--ink)}
+.area-matters li{position:relative;padding:1.05rem 0 1.05rem 2.2rem;border-bottom:1px solid var(--line);font-size:1.08rem;line-height:1.5}
+.area-matters li::before{content:"";position:absolute;left:0;top:1.8rem;width:1.1rem;height:2px;background:var(--accent)}
+.area-others ul{grid-column:4/11;list-style:none;display:flex;flex-wrap:wrap;gap:.6rem}
+.area-others a{display:inline-flex;align-items:center;min-height:44px;padding:.5rem 1rem;border:1px solid var(--line);border-radius:var(--radius);color:inherit;text-decoration:none;background:none}
+@media (hover:hover){.area-others a:hover{border-color:var(--accent);color:var(--accent)}}
+
+/* An expert's profile on the About page: the person beside their own words and their record. */
+.profile{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));column-gap:24px;row-gap:2rem;padding:clamp(4rem,8vw,7.5rem) var(--gut) 0}
+.profile-who{grid-column:1/5;align-self:start;position:sticky;top:1.5rem}
+.profile-who img{aspect-ratio:4/5;width:100%;object-fit:cover;margin-bottom:1.25rem}
+.profile-who h2{font-size:clamp(1.9rem,3vw,2.8rem);line-height:1.05}
+.profile-role{color:var(--mute);margin-top:.45rem}
+.profile-languages{margin-top:1.25rem;font-size:.98rem;line-height:1.5}
+.profile-languages .label{display:block;margin-bottom:.2rem}
+.profile--no-photo .profile-who{border-top:2px solid var(--ink);padding-top:1.25rem}
+.profile-words{grid-column:6/12;display:flex;flex-direction:column;gap:1.25rem}
+.profile-words > p{font-size:clamp(1.05rem,1.3vw,1.18rem);line-height:1.6}
+.profile-record{margin-top:1.75rem}
+.profile-record .label{margin-bottom:.75rem}
+.profile-record ul{list-style:none;border-top:1px solid var(--ink)}
+.profile-record li{padding:.8rem 0;border-bottom:1px solid var(--line);line-height:1.5}
+.d-formal .profile-who img{filter:grayscale(1) contrast(1.05)}
+.f-natural .profile-who img{filter:none}
+@media (max-width:820px){
+ .ledger-row p.more,.d-formal .ledger-row p.more{grid-column:1/-1;text-align:left}
+ .d-editorial .ledger-row p.more{grid-column:1;grid-row:4;margin-top:.6rem}
+ .area-part .label,.area-for,.area-matters,.area-others .label,.area-others ul{grid-column:1/-1}
+ .area-part .label,.area-others .label{padding:0 0 .9rem}
+ .profile-who,.profile-words{grid-column:1/-1}
+ .profile-who{position:static}
+ .profile-who img{max-width:22rem}
+}
+
 /* Signature parts. Each takes its direction's type and colours; nothing here switches voice mid-sentence. */
 .sig{padding:clamp(4.5rem,9vw,8.5rem) var(--gut)}
 .sig h2{font-family:var(--display);font-weight:var(--display-weight);letter-spacing:var(--display-track);line-height:1.04;hyphens:manual;overflow-wrap:normal}

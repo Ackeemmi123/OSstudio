@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { build } from "../../../design-systems/services";
 import { siteContent } from "../../../design-systems/services/content";
 import { briefClient, companySpec } from "./test-helpers";
-import { servicesContent, signatureFor } from "./to-services";
+import { publicationLine, servicesContent, signatureFor } from "./to-services";
 import { approvalBlockers } from "./validate";
 
 describe("drawing a spec with the company design", () => {
@@ -134,3 +134,93 @@ describe("the concept", () => {
   });
 });
 
+
+describe("law and expertise: area pages, profiles and publications", () => {
+  const mode = { prototype: { madeBy: "Axivo" } } as const;
+  const sectionsOf = (spec: ReturnType<typeof companySpec>) => spec.pages.flatMap((p) => p.sections);
+
+  it("gives a service with an address its own page, with who it is for and its typical matters", () => {
+    const spec = companySpec();
+    const services = sectionsOf(spec).find((s) => s.kind === "services");
+    if (services?.kind !== "services") throw new Error("no services");
+    services.items[0].slug = { sv: "patent" };
+    services.items[0].whoFor = { sv: "Uppfinnare och företag som vill skydda en teknisk lösning." };
+    services.items[0].matters = { sv: "Patenterbarhet\n\nIntrångsfrågor\nLicensavtal" };
+    const result = servicesContent(spec, {}, mode);
+    expect(result.ok ? [] : result.missing).toEqual([]);
+    if (!result.ok) return;
+    const page = result.content.services.items[0].page!;
+    expect(page.slug).toBe("patent");
+    expect(page.matters.map((m) => m.text)).toEqual(["Patenterbarhet", "Intrångsfrågor", "Licensavtal"]);
+    const files = build({ content: result.content, design: result.design });
+    const area = files.find((f) => f.path === "patent/index.html")!.text;
+    expect(area).toContain("<h1>");
+    expect(area).toContain("Typiska ärenden");
+    expect(area).toContain("Uppfinnare och företag");
+    expect(files.find((f) => f.path === "index.html")!.text).toContain('href="patent/"');
+  });
+
+  it("refuses a page address that is malformed or already taken", () => {
+    const spec = companySpec();
+    const services = sectionsOf(spec).find((s) => s.kind === "services");
+    if (services?.kind !== "services") throw new Error("no services");
+    services.items[0].slug = { sv: "Patent rätt" };
+    const bad = servicesContent(spec, {}, mode);
+    expect(bad.ok ? [] : bad.missing.join(" ")).toMatch(/page address may use only/);
+    const result = servicesContent(companySpec(), {}, mode);
+    if (!result.ok) throw new Error("not ok");
+    services.items[0].slug = { sv: result.content.contact.slug };
+    const taken = servicesContent(spec, {}, mode);
+    expect(taken.ok ? [] : taken.missing.join(" ")).toMatch(/another page already uses/);
+  });
+
+  it("shows a consenting person's profile on the About page, line by line as written", () => {
+    const spec = companySpec();
+    const team = sectionsOf(spec).find((s) => s.kind === "team");
+    if (team?.kind !== "team") throw new Error("no team");
+    team.items[0].consent = true;
+    team.items[0].bio = { sv: "Första stycket.\n\nAndra stycket." };
+    team.items[0].education = { sv: "JD, Helsingfors universitet 1990\nJur.kand. 1982" };
+    team.items[0].positions = { sv: "Ordförande, Exempelnämnden 2010–2018" };
+    team.items[0].languages = { sv: "Svenska, finska, engelska, tyska" };
+    const result = servicesContent(spec, {}, mode);
+    expect(result.ok ? [] : result.missing).toEqual([]);
+    if (!result.ok) return;
+    const profile = result.content.about.people[0].profile!;
+    expect(profile.bio.map((p) => p.text)).toEqual(["Första stycket.", "Andra stycket."]);
+    expect(profile.education.map((p) => p.text)).toEqual(["JD, Helsingfors universitet 1990", "Jur.kand. 1982"]);
+    const about = build({ content: result.content, design: result.design }).find((f) => f.path === `${result.content.about.slug}/index.html`)!.text;
+    expect(about).toContain('class="profile');
+    expect(about).toContain("Förtroendeuppdrag");
+    expect(about).toContain("Ordförande, Exempelnämnden 2010–2018");
+  });
+
+  it("builds a publications page from a page whose address says so, keeping the order and years", () => {
+    const spec = companySpec();
+    spec.pages.push({
+      id: "publications",
+      slug: { sv: "publikationer" },
+      title: { sv: "Publikationer" },
+      nav: "main",
+      seo: { title: {}, description: {}, noindex: false },
+      sections: [
+        { id: "books", kind: "text", variant: "single_column", heading: { sv: "Böcker" }, body: { sv: "2023 Licensavtalsrättens grunder. Förlag.\n2014: Patenträtt, 3 uppl.\nUtan årtal https://example.fi/a" } },
+      ] as never,
+    });
+    const result = servicesContent(spec, {}, mode);
+    expect(result.ok ? [] : result.missing).toEqual([]);
+    if (!result.ok) return;
+    expect(result.content.publications?.groups[0].items).toEqual([
+      { text: { text: "Licensavtalsrättens grunder. Förlag.", origin: "person" }, year: "2023" },
+      { text: { text: "Patenträtt, 3 uppl.", origin: "person" }, year: "2014" },
+      { text: { text: "Utan årtal", origin: "person" }, href: "https://example.fi/a" },
+    ]);
+    expect(result.pages.publications).toBe("publikationer/index.html");
+    expect(build({ content: result.content, design: result.design }).map((f) => f.path)).toContain("publikationer/index.html");
+  });
+
+  it("reads a year range and leaves a line without a year whole", () => {
+    expect(publicationLine("2014–2016 Ett uppdrag")).toEqual({ text: "Ett uppdrag", year: "2014–2016" });
+    expect(publicationLine("Artikel om 2020-talet")).toEqual({ text: "Artikel om 2020-talet" });
+  });
+});

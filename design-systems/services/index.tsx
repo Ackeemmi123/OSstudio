@@ -9,7 +9,7 @@ import { AtelierHome } from "./atelier";
 import { CafeHome } from "./cafe";
 import { EditorialHome } from "./editorial";
 import { FormalHome } from "./formal";
-import { AboutPage, CHROME, ContactPage, FormResultPage, NotFoundPage, PrivacyPage, PublicationsPage, type PageContext } from "./pages";
+import { AboutPage, CHROME, ContactPage, FormResultPage, NotFoundPage, PrivacyPage, PublicationsPage, ServicePage, type PageContext } from "./pages";
 import { StatementHome } from "./statement";
 import { renderStatic } from "./render";
 import { STYLES } from "./styles";
@@ -66,6 +66,12 @@ function checkReferences(content: SiteContent, design: Site["design"]) {
   const { headline, turn } = content.promise;
   if (turn && !headline.text.endsWith(turn)) throw new Error(`The headline does not end with: ${turn}`);
   if (design.signature && !content.signature?.[design.signature]) throw new Error(`The design draws the signature part ${design.signature}, but the content has none.`);
+  const taken = ["sent", "not-sent", content.about.slug, content.contact.slug, content.privacy.slug, ...(content.publications ? [content.publications.slug] : [])];
+  for (const service of content.services.items) {
+    if (!service.page) continue;
+    if (taken.includes(service.page.slug)) throw new Error(`Two pages have the address ${service.page.slug}.`);
+    taken.push(service.page.slug);
+  }
   if (content.client) checkClientSite(content);
 }
 
@@ -90,12 +96,13 @@ export function build(site: Site, render: Render = renderStatic): BuiltFile[] {
   siteDesign.parse(site.design);
   checkReferences(content, site.design);
   const parsed = { ...site, content };
-  const context = (page: PageContext["page"], root: string): PageContext => ({ content, design: site.design, root, page, formAction: site.formAction });
+  const context = (page: PageContext["page"], root: string, service?: number): PageContext => ({ content, design: site.design, root, page, formAction: site.formAction, ...(service === undefined ? {} : { service }) });
   return [
     { path: "site.css", text: STYLES },
     { path: "index.html", text: document(parsed, "./", content.home.seo, createElement(HOMES[site.design.direction], { context: context("home", "./") }), render) },
     { path: `${content.about.slug}/index.html`, text: document(parsed, "../", content.about.seo, <AboutPage context={context("about", "../")} />, render) },
     ...(content.publications ? [{ path: `${content.publications.slug}/index.html`, text: document(parsed, "../", content.publications.seo, <PublicationsPage context={context("publications", "../")} />, render) }] : []),
+    ...content.services.items.flatMap((service, i) => (service.page ? [{ path: `${service.page.slug}/index.html`, text: document(parsed, "../", service.page.seo, <ServicePage context={context("service", "../", i)} />, render) }] : [])),
     { path: `${content.contact.slug}/index.html`, text: document(parsed, "../", content.contact.seo, <ContactPage context={context("contact", "../")} />, render) },
     { path: `${content.privacy.slug}/index.html`, text: document(parsed, "../", content.privacy.seo, <PrivacyPage context={context("privacy", "../")} />, render) },
     { path: "sent/index.html", text: document(parsed, "../", { title: CHROME[content.language].sent, description: CHROME[content.language].sent }, <FormResultPage context={context("notFound", "../")} sent />, render) },

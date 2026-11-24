@@ -126,14 +126,40 @@ export const sectionSchema = z.discriminatedUnion("kind", [
       )
       .max(12),
   }),
-  section("services", { heading: localized(120), items: z.array(item({ title: localized(80), body: localized(1000, true), price: localized(60).optional() })).max(24) }),
+  /**
+   * A service can have its own page (the company design): `slug` is its address, `whoFor` who it
+   * is for, `matters` the matters it typically covers, one per line.
+   */
+  section("services", {
+    heading: localized(120),
+    items: z
+      .array(item({ title: localized(80), body: localized(1000, true), price: localized(60).optional(), slug: localized(60).optional(), whoFor: localized(240).optional(), matters: localized(2000, true).optional() }))
+      .max(24),
+  }),
   /** Shown on the page. The shop platform, not the spec, owns the live catalogue. */
   section("products", { heading: localized(120), items: z.array(item({ title: localized(80), body: localized(1000, true), price: localized(60).optional(), assetId: idSchema.optional() })).max(24) }),
   /** `consent`: the person quoted agreed to be shown. The company design shows only those. */
   section("testimonials", { heading: localized(120), mediaAssetId: idSchema.optional(), items: z.array(item({ quote: localized(600, true), author: text(80), consent: z.boolean().optional() })).max(12) }),
   section("gallery", { heading: localized(120), assetIds: z.array(idSchema).max(24) }),
   /** `consent`: the person agreed to be shown by name (and photo). The company design shows only those. */
-  section("team", { heading: localized(120), items: z.array(item({ name: text(80), role: localized(80), assetId: idSchema.optional(), consent: z.boolean().optional() })).max(24) }),
+  /** `bio`, `education`, `positions` and `languages` make a person's profile (the company design), as on their CV. */
+  section("team", {
+    heading: localized(120),
+    items: z
+      .array(
+        item({
+          name: text(80),
+          role: localized(80),
+          assetId: idSchema.optional(),
+          consent: z.boolean().optional(),
+          bio: localized(3200, true).optional(),
+          education: localized(2000, true).optional(),
+          positions: localized(3200, true).optional(),
+          languages: localized(160).optional(),
+        }),
+      )
+      .max(24),
+  }),
   section("faq", { heading: localized(120), items: z.array(item({ question: localized(200), answer: localized(1000, true) })).max(30) }),
   section("cta", { heading: localized(120), body: localized(300, true), button }),
   section("contact", { heading: localized(120), body: localized(600, true), formId: idSchema.optional(), address: localized(120).optional(), hours: localized(120).optional() }),
