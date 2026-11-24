@@ -73,6 +73,8 @@ export function ReviewStep({
       toast.success("The brief is ready for review.");
       // Next is usually the first project: its form opens at once, filled in from the brief.
       router.push(hasProject ? workspace : `${workspace}#new-project`);
+      // A navigation within the app fires no hashchange; the projects form listens for one to open.
+      if (!hasProject) for (const wait of [300, 1200]) window.setTimeout(() => window.dispatchEvent(new HashChangeEvent("hashchange")), wait);
     }
   }
 
