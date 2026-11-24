@@ -6,6 +6,7 @@
  * people or (later) AI agents is never mistaken for a confirmed client fact.
  */
 
+import type { QualityReport } from "@/lib/quality/site-quality";
 import type { AgentRunRecord } from "@/lib/agents/contract";
 import type { ImageProvenance } from "@/lib/site-assets/limits";
 import type { SiteSpec } from "@/lib/site-spec/schema";
@@ -612,6 +613,8 @@ export interface SiteBuildRecord {
   /** The path of the link on this server: /s/<token>/. */
   link: string;
   checks: { level: "warning" | "error"; message: string }[];
+  /** The quality gate's report, for builds made since it exists. */
+  quality: QualityReport | null;
   fileCount: number;
   expiresAt: string;
   revokedAt: string | null;
