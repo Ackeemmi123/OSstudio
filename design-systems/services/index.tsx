@@ -7,6 +7,7 @@ import { createElement, type ReactElement } from "react";
 import { siteContent, siteDesign, type Site, type SiteContent } from "./content";
 import { AtelierHome } from "./atelier";
 import { CafeHome } from "./cafe";
+import { ClinicHome } from "./clinic";
 import { EditorialHome } from "./editorial";
 import { FormalHome } from "./formal";
 import { AboutPage, CHROME, ContactPage, FormResultPage, MenuPage, NotFoundPage, PrivacyPage, ProjectPage, ProjectsPage, PublicationsPage, ServicePage, type PageContext } from "./pages";
@@ -16,7 +17,7 @@ import { STYLES } from "./styles";
 
 export const FONT_FILES = ["fraunces-display-normal.woff2", "fraunces-display-italic.woff2", "instrument-sans-latin-wght-normal.woff2", "bodoni-moda-latin-wght-normal.woff2", "bodoni-moda-latin-wght-italic.woff2", "hanken-grotesk-latin-wght-normal.woff2", "big-shoulders-display-latin-wght-normal.woff2", "archivo-latin-wdth-normal.woff2", "young-serif-latin-normal.woff2", "figtree-latin-wght-normal.woff2", "cormorant-garamond-latin-wght-normal.woff2", "cormorant-garamond-latin-wght-italic.woff2", "work-sans-latin-wght-normal.woff2", "LICENSE-fraunces.txt", "LICENSE-instrument-sans.txt", "LICENSE-bodoni-moda.txt", "LICENSE-hanken-grotesk.txt", "LICENSE-big-shoulders-display.txt", "LICENSE-archivo.txt", "LICENSE-young-serif.txt", "LICENSE-figtree.txt", "LICENSE-cormorant-garamond.txt", "LICENSE-work-sans.txt"];
 
-const HOMES = { editorial: EditorialHome, formal: FormalHome, statement: StatementHome, cafe: CafeHome, atelier: AtelierHome };
+const HOMES = { editorial: EditorialHome, formal: FormalHome, statement: StatementHome, cafe: CafeHome, atelier: AtelierHome, clinic: ClinicHome };
 
 export interface BuiltFile {
   path: string;
@@ -43,7 +44,7 @@ function document(site: Site, root: string, seo: SiteContent["home"]["seo"], bod
     `<link rel="stylesheet" href="${root}site.css">`,
     `<meta name="generator" content="${design.system}">`,
     "</head>",
-    `<body class="d-${design.direction} p-${design.palette}${design.motif ? ` m-${design.motif}` : ""}${design.type ? ` t-${design.type}` : ""}${design.feel ? ` f-${design.feel}` : ""}${design.motion === "lively" ? " mo-lively" : ""}${content.promise.action.by === "phone" && content.business.phone ? " has-call-bar" : ""}">${render(body)}</body>`,
+    `<body class="d-${design.direction} p-${design.palette}${design.motif ? ` m-${design.motif}` : ""}${design.type ? ` t-${design.type}` : ""}${design.feel ? ` f-${design.feel}` : ""}${design.motion === "lively" ? " mo-lively" : ""}${content.promise.action.by === "phone" && content.business.phone ? " has-call-bar" : ""}${design.direction === "clinic" && content.promise.action.by === "booking" && content.business.booking ? " has-book-bar" : ""}">${render(body)}</body>`,
     "</html>",
   ].join("\n");
 }

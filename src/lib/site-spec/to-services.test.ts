@@ -362,3 +362,37 @@ describe("a portfolio: the projects page and a page per project", () => {
     expect(slugFrom("Kesämökki, Hanko")).toBe("kesamokki-hanko");
   });
 });
+
+describe("a clinic: the clinic direction, treatment lengths and the booking bar", () => {
+  const mode = { prototype: { madeBy: "Axivo" } } as const;
+
+  it("draws the clinic home with a price list that shows each treatment's length", () => {
+    const spec = companySpec();
+    spec.brand.servicesStyle = { direction: "clinic", palette: "teal" };
+    const services = spec.pages.flatMap((p) => p.sections).find((s) => s.kind === "services");
+    if (services?.kind !== "services") throw new Error("no services");
+    services.items[0].duration = { sv: "60 min" };
+    services.items[0].price = { sv: "75 €" };
+    const result = servicesContent(spec, {}, mode);
+    if (!result.ok) throw new Error(result.missing.join(" "));
+    expect(result.design.direction).toBe("clinic");
+    expect(result.content.services.items[0]).toMatchObject({ duration: "60 min", price: { text: "75 €" } });
+    const home = build({ content: result.content, design: result.design }).find((f) => f.path === "index.html")!.text;
+    expect(home).toContain("d-clinic");
+    expect(home).toContain('<span class="treatment-time">60 min</span>');
+    expect(home).not.toContain("book-bar");
+  });
+
+  it("keeps the way to book at hand on every page when the clinic books online", () => {
+    const spec = companySpec();
+    spec.brand.servicesStyle = { direction: "clinic", palette: "plum" };
+    const contact = spec.pages.flatMap((p) => p.sections).find((s) => s.kind === "contact");
+    if (contact?.kind !== "contact") throw new Error("no contact");
+    contact.bookingUrl = "https://booking.example.fi/klinik";
+    const result = servicesContent(spec, {}, mode);
+    if (!result.ok) throw new Error(result.missing.join(" "));
+    const files = build({ content: result.content, design: result.design }).filter((f) => f.path.endsWith("index.html") && !/sent/.test(f.path));
+    for (const file of files) expect(file.text).toContain('class="book-bar" href="https://booking.example.fi/klinik"');
+    expect(files[0].text).toContain("has-book-bar");
+  });
+});

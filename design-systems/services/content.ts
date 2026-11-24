@@ -78,6 +78,8 @@ export const siteContent = z.strictObject({
           price: statement(50).optional(),
           /** Diet markings on a menu, as the place writes them: L, G, VEG. */
           diets: words(40).optional(),
+          /** How long a treatment or appointment takes, as the place writes it: 60 min. */
+          duration: words(30).optional(),
           /**
            * The service's own page, for firms whose areas each deserve one (a law firm's practice
            * areas): who it is for and the matters it typically covers, in the firm's own words.
@@ -243,7 +245,7 @@ export type Asset = SiteContent["assets"][number];
 /** The design choice, kept out of the content: which version, within a controlled range. */
 export const siteDesign = z.strictObject({
   system: z.literal("services@0.1"),
-  direction: z.enum(["editorial", "formal", "statement", "cafe", "atelier"]),
+  direction: z.enum(["editorial", "formal", "statement", "cafe", "atelier", "clinic"]),
   palette: z.enum(["pine", "oxblood", "signal", "harbor", "dry", "measure", "brick", "verdigris", "ember", "cobalt", "gold", "navy", "timber", "plum", "hazard", "slate", "forest", "indigo", "steel", "terracotta", "teal", "ochre"]),
   /** Only the statement direction takes a type choice: its condensed face is the default. */
   type: z.enum(["wide", "grotesk"]).optional(),
