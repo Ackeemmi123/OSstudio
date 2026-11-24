@@ -49,7 +49,7 @@ import {
   type NextStep,
 } from "@/lib/domain/types";
 import { validateIdentity } from "./local-repository";
-import { RepositoryError, SiteSpecBlockedError, type AiSpend, type EmailSettings, type RepositoryErrorCode, type RepositoryInfo, type StudioRepository } from "./repository";
+import { RepositoryError, SiteSpecBlockedError, type AiSpend, type EmailSettings, type RepositoryErrorCode, type SiteMaintenance, type RepositoryInfo, type StudioRepository } from "./repository";
 import { approvalBlockers, parseSiteSpec } from "@/lib/site-spec/validate";
 import { toRepositoryError } from "./supabase-errors";
 import type { RenderImageFile } from "@/lib/site-render/model";
@@ -866,6 +866,43 @@ export class SupabaseRepository implements StudioRepository {
   async revokeClientPortal(clientId: string): Promise<void> {
     const { error } = await this.client.rpc("revoke_client_portal", { p_client: clientId });
     if (error) throw toRepositoryError(error);
+  }
+
+  async siteMaintenance(projectId: string): Promise<SiteMaintenance> {
+    const [settings, check] = await Promise.all([
+      this.client.from("site_maintenance").select("report_enabled, report_to").eq("studio_id", this.studioId).eq("project_id", projectId).maybeSingle(),
+      this.client.from("site_health_checks").select("checked_at, ok, detail").eq("studio_id", this.studioId).eq("project_id", projectId).order("checked_at", { ascending: false }).limit(1),
+    ]);
+    if (settings.error) throw toRepositoryError(settings.error);
+    if (check.error) throw toRepositoryError(check.error);
+    const last = (check.data ?? [])[0];
+    const detail = (last?.detail ?? {}) as { problems?: string[]; certDaysLeft?: number | null };
+    return {
+      reportEnabled: settings.data?.report_enabled === true,
+      reportTo: (settings.data?.report_to as string | null) ?? null,
+      lastCheck: last ? { checkedAt: String(last.checked_at), ok: last.ok === true, problems: Array.isArray(detail.problems) ? detail.problems : [], certDaysLeft: detail.certDaysLeft ?? null } : null,
+    };
+  }
+
+  async saveSiteMaintenance(projectId: string, enabled: boolean, to: string | null): Promise<void> {
+    if (!this.current.canWrite) throw new RepositoryError("You have read-only access to this studio. Ask an owner for member access.", "permission");
+    const { error } = await this.client.rpc("set_site_maintenance", { p_project: projectId, p_enabled: enabled, p_to: to ?? "" });
+    if (error) throw toRepositoryError(error);
+  }
+
+  async siteReport(projectId: string, send: boolean): Promise<{ subject: string; text: string; to: string | null; sent?: boolean }> {
+    const { data } = await this.client.auth.getSession();
+    const token = data.session?.access_token;
+    if (!token) throw new RepositoryError("Your session has ended. Sign in again to continue.", "session");
+    let response: Response;
+    try {
+      response = await this.fetchImpl("/api/maintenance/report", { method: "POST", headers: { authorization: `Bearer ${token}`, "content-type": "application/json" }, body: JSON.stringify({ studioId: this.studioId, projectId, send }) });
+    } catch {
+      throw new RepositoryError("Studio OS could not reach the server. Check your connection and try again.", "network");
+    }
+    const body = (await response.json().catch(() => null)) as { subject?: string; text?: string; to?: string | null; sent?: boolean; error?: string } | null;
+    if (!response.ok || !body?.subject) throw new RepositoryError(body?.error ?? "The report could not be made. Try again in a moment.", response.status === 401 ? "session" : "storage");
+    return { subject: body.subject, text: body.text ?? "", to: body.to ?? null, sent: body.sent };
   }
 
   async hasCalendarFeed(): Promise<boolean> {

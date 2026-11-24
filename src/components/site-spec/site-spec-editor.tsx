@@ -42,6 +42,7 @@ import { WarmTextPanel } from "./warm-text-panel";
 import { CompetitorPanel } from "./competitor-panel";
 import { SiteBuilds } from "./site-builds";
 import { SitePublish } from "./site-publish";
+import { SiteMaintenance } from "./site-maintenance";
 import { DeliveryNext, DeliveryTrack, useDeliveries } from "@/components/delivery/delivery";
 import { StrategyEditor } from "./strategy-editor";
 
@@ -476,6 +477,7 @@ export function SiteSpecEditor({
             <>
               <SiteBuilds record={record} />
               <SitePublish record={record} />
+              {delivery?.stage === "live" || delivery?.liveUrl ? <SiteMaintenance projectId={project.id} clientId={client.id} /> : null}
             </>
           ) : (
             <p className="rounded-[var(--radius-surface)] border border-dashed border-line-strong px-5 py-4 text-[13.5px] text-ink-subtle">

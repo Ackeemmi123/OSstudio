@@ -159,6 +159,11 @@ export interface StudioRepository {
   deleteNextStep?(step: NextStep): Promise<void>;
   /** The caller's own calendar feed: whether one is on, and making a new link (shown once) or turning it off. */
   hasCalendarFeed?(): Promise<boolean>;
+  /** A live site's maintenance: the monthly report's setting and the latest health check. */
+  siteMaintenance?(projectId: string): Promise<SiteMaintenance>;
+  saveSiteMaintenance?(projectId: string, enabled: boolean, to: string | null): Promise<void>;
+  /** This month's report so far; sent to its receiver when `send` is true. */
+  siteReport?(projectId: string, send: boolean): Promise<{ subject: string; text: string; to: string | null; sent?: boolean }>;
   /** The client's open portal link, when there is one: when it was made and until when it works. */
   clientPortal?(clientId: string): Promise<{ createdAt: string; expiresAt: string } | null>;
   /** Makes a new portal link (an earlier one stops working) and returns its secret, once. */
@@ -262,4 +267,10 @@ export interface AiSpend {
 export interface EmailSettings {
   dailyDigest: boolean;
   clientEvents: boolean;
+}
+
+export interface SiteMaintenance {
+  reportEnabled: boolean;
+  reportTo: string | null;
+  lastCheck: { checkedAt: string; ok: boolean; problems: string[]; certDaysLeft: number | null } | null;
 }
