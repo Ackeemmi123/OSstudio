@@ -289,7 +289,26 @@ function ItemsEditor({ path, spec, section, editable, edit }: { path: string; sp
     <div className="flex flex-col gap-3" data-spec-path={`${path}.items`}>
       {items.map((item, i) => (
         <div key={item.id as string} className="flex flex-col gap-3 rounded-[var(--radius-control)] border border-line p-3">
-          {fields.map((def) => itemField(def, item, i))}
+          {fields.filter((def) => !def.group).map((def) => itemField(def, item, i))}
+          {[...new Set(fields.flatMap((def) => (def.group ? [def.group] : [])))].map((group) => {
+            const inGroup = fields.filter((def) => def.group === group);
+            const filled = inGroup.some((def) => {
+              const value = item[def.key];
+              return typeof value === "string" ? value.trim() !== "" : value && typeof value === "object" && Object.values(value).some((v) => typeof v === "string" && v.trim() !== "");
+            });
+            const hint = inGroup.find((def) => def.hint)?.hint;
+            return (
+              <details key={group} open={filled || undefined} className="rounded-[var(--radius-control)] border border-dashed border-line px-3 py-2">
+                <summary className="cursor-pointer text-[13px] font-medium text-ink">
+                  {group} <span className="font-normal text-ink-subtle">(optional)</span>
+                </summary>
+                <div className="mt-3 flex flex-col gap-3">
+                  {hint ? <p className="text-[12.5px] text-ink-subtle">{hint}</p> : null}
+                  {inGroup.map((def) => itemField(def, item, i))}
+                </div>
+              </details>
+            );
+          })}
           {editable ? (
             <div className="flex gap-1">
               <IconButton label="Move up" disabled={i === 0} onClick={() => edit((t) => void (t.items = move(t.items as Values[], i, -1)))}>

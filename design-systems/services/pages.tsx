@@ -10,10 +10,10 @@ import type { Asset, SiteContent, SiteDesign } from "./content";
 type Language = SiteContent["language"];
 
 /** The system's own words: its interface, never anything about the business. */
-export const CHROME: Record<Language, { skip: string; menu: string; mainNav: string; footerNav: string; trap: string; testNote: string; conceptNote: string; prototypeNote: string; formOff: string; sent: string; notSent: string; backHome: string; hours: string }> = {
-  en: { skip: "Skip to content", menu: "Menu", mainNav: "Main", footerNav: "Footer", trap: "Leave this empty", testNote: "Test site. This business and everything about it are invented.", prototypeNote: "Prototype by {madeBy}. Not public.", formOff: "The form is switched off in the prototype.", conceptNote: "Concept by Axivo, from public information. This is not the website of the firm.", sent: "Thank you. Your message was sent.", notSent: "Your message could not be sent. Please call or email us instead.", backHome: "Back to the front page", hours: "Opening hours" },
-  sv: { skip: "Till innehållet", menu: "Meny", mainNav: "Huvudmeny", footerNav: "Sidfot", trap: "Lämna tomt", testNote: "Testsida. Företaget och allt om det är påhittat.", prototypeNote: "Prototyp av {madeBy}. Inte offentlig.", formOff: "Formuläret är avstängt i prototypen.", conceptNote: "Koncept av Axivo, utifrån offentlig information. Det här är inte företagets webbplats.", sent: "Tack! Ditt meddelande har skickats.", notSent: "Meddelandet kunde inte skickas. Ring eller mejla oss i stället.", backHome: "Till startsidan", hours: "Öppettider" },
-  fi: { skip: "Siirry sisältöön", menu: "Valikko", mainNav: "Päävalikko", footerNav: "Alatunniste", trap: "Jätä tyhjäksi", testNote: "Testisivusto. Yritys ja kaikki sen tiedot on keksitty.", prototypeNote: "Prototyyppi: {madeBy}. Ei julkinen.", formOff: "Lomake ei ole käytössä prototyypissä.", conceptNote: "Axivon konseptiluonnos julkisten tietojen pohjalta. Tämä ei ole yrityksen verkkosivusto.", sent: "Kiitos! Viestisi on lähetetty.", notSent: "Viestiä ei voitu lähettää. Soita tai lähetä sähköpostia.", backHome: "Etusivulle", hours: "Aukioloajat" },
+export const CHROME: Record<Language, { skip: string; menu: string; mainNav: string; footerNav: string; trap: string; testNote: string; conceptNote: string; prototypeNote: string; formOff: string; sent: string; notSent: string; backHome: string; hours: string; forWhom: string; matters: string; otherAreas: string; readMore: string; education: string; positions: string; languages: string }> = {
+  en: { skip: "Skip to content", menu: "Menu", mainNav: "Main", footerNav: "Footer", trap: "Leave this empty", testNote: "Test site. This business and everything about it are invented.", prototypeNote: "Prototype by {madeBy}. Not public.", formOff: "The form is switched off in the prototype.", conceptNote: "Concept by Axivo, from public information. This is not the website of the firm.", sent: "Thank you. Your message was sent.", notSent: "Your message could not be sent. Please call or email us instead.", backHome: "Back to the front page", hours: "Opening hours", forWhom: "Who it is for", matters: "Typical matters", otherAreas: "Other areas", readMore: "Read more", education: "Education", positions: "Positions of trust", languages: "Languages" },
+  sv: { skip: "Till innehållet", menu: "Meny", mainNav: "Huvudmeny", footerNav: "Sidfot", trap: "Lämna tomt", testNote: "Testsida. Företaget och allt om det är påhittat.", prototypeNote: "Prototyp av {madeBy}. Inte offentlig.", formOff: "Formuläret är avstängt i prototypen.", conceptNote: "Koncept av Axivo, utifrån offentlig information. Det här är inte företagets webbplats.", sent: "Tack! Ditt meddelande har skickats.", notSent: "Meddelandet kunde inte skickas. Ring eller mejla oss i stället.", backHome: "Till startsidan", hours: "Öppettider", forWhom: "För vem", matters: "Typiska ärenden", otherAreas: "Andra områden", readMore: "Läs mer", education: "Utbildning", positions: "Förtroendeuppdrag", languages: "Språk" },
+  fi: { skip: "Siirry sisältöön", menu: "Valikko", mainNav: "Päävalikko", footerNav: "Alatunniste", trap: "Jätä tyhjäksi", testNote: "Testisivusto. Yritys ja kaikki sen tiedot on keksitty.", prototypeNote: "Prototyyppi: {madeBy}. Ei julkinen.", formOff: "Lomake ei ole käytössä prototyypissä.", conceptNote: "Axivon konseptiluonnos julkisten tietojen pohjalta. Tämä ei ole yrityksen verkkosivusto.", sent: "Kiitos! Viestisi on lähetetty.", notSent: "Viestiä ei voitu lähettää. Soita tai lähetä sähköpostia.", backHome: "Etusivulle", hours: "Aukioloajat", forWhom: "Kenelle", matters: "Tyypillisiä toimeksiantoja", otherAreas: "Muut osaamisalueet", readMore: "Lue lisää", education: "Koulutus", positions: "Luottamustehtävät", languages: "Kielet" },
 };
 
 export interface PageContext {
@@ -21,7 +21,9 @@ export interface PageContext {
   design: SiteDesign;
   /** The way back to the site's root from this page: "./" or "../". */
   root: string;
-  page: "home" | "about" | "publications" | "contact" | "privacy" | "notFound";
+  page: "home" | "about" | "publications" | "service" | "contact" | "privacy" | "notFound";
+  /** On a service's own page: which service. */
+  service?: number;
   /** Where the forms post on a published client site. */
   formAction?: string;
 }
@@ -222,10 +224,10 @@ export function Services({ content }: { content: SiteContent }) {
       <SectionHead id="services" label={services.label} heading={services.heading.text} />
       <div className="ledger">
         {services.items.map((service) => (
-          <div className="ledger-row" key={service.name.text}>
-            <h3>{service.name.text}</h3>
+          <div className={service.page ? "ledger-row ledger-row--page" : "ledger-row"} key={service.name.text}>
+            <h3>{service.page ? <a href={`${service.page.slug}/`}>{service.name.text}</a> : service.name.text}</h3>
             <p>{service.text.text}</p>
-            {service.price ? <p className="price">{service.price.text}</p> : null}
+            {service.price ? <p className="price">{service.price.text}</p> : service.page ? <p className="more" aria-hidden="true">{CHROME[content.language].readMore}</p> : null}
           </div>
         ))}
       </div>
@@ -337,11 +339,14 @@ export function AboutPage({ context }: { context: PageContext }) {
           <p key={paragraph.text}>{paragraph.text}</p>
         ))}
       </section>
-      {about.people.length ? (
+      {about.people.filter((person) => person.profile).map((person, i) => (
+        <Profile key={person.name} context={context} person={person} index={i} />
+      ))}
+      {about.people.some((person) => !person.profile) ? (
         <section className="people" aria-labelledby="people">
           <h2 id="people" className="label">{about.peopleLabel}</h2>
-          <ul className="people-list" data-count={about.people.length}>
-            {about.people.map((person) => {
+          <ul className="people-list" data-count={about.people.filter((person) => !person.profile).length}>
+            {about.people.filter((person) => !person.profile).map((person) => {
               const photo = find(content, person.imageId);
               return (
                 <li key={person.name} className={photo ? "person" : "person person--no-photo"}>
@@ -357,6 +362,103 @@ export function AboutPage({ context }: { context: PageContext }) {
       <section className="end-action" aria-label={content.closing.heading.text}>
         <h2>{content.closing.heading.text}</h2>
         {content.promise.action.by === "phone" ? <a className="button" href={`${context.root}${content.contact.slug}/`}>{content.form.send}</a> : <Action context={context} />}
+      </section>
+    </Frame>
+  );
+}
+
+type Person = SiteContent["about"]["people"][number];
+
+/** An expert's profile on the About page: who they are in their own words, then their record as a CV lists it. */
+function Profile({ context, person, index }: { context: PageContext; person: Person; index: number }) {
+  const { content } = context;
+  const chrome = CHROME[content.language];
+  const profile = person.profile!;
+  const photo = find(content, person.imageId);
+  const record = [
+    { key: "education", heading: chrome.education, items: profile.education },
+    { key: "positions", heading: chrome.positions, items: profile.positions },
+  ].filter((part) => part.items.length);
+  return (
+    <section className={photo ? "profile" : "profile profile--no-photo"} aria-labelledby={`profile-${index}`}>
+      <div className="profile-who">
+        {photo ? <Picture asset={photo} ratio={4 / 5} sizes="(max-width: 820px) 100vw, 30vw" widths={[480, 800]} /> : null}
+        <h2 id={`profile-${index}`}>{person.name}</h2>
+        <p className="profile-role">{person.role.text}</p>
+        {profile.languages ? (
+          <p className="profile-languages">
+            <span className="label">{chrome.languages}</span> {profile.languages.text}
+          </p>
+        ) : null}
+      </div>
+      <div className="profile-words">
+        {profile.bio.map((paragraph) => (
+          <p key={paragraph.text}>{paragraph.text}</p>
+        ))}
+        {record.map((part) => (
+          <div className="profile-record" key={part.key}>
+            <h3 className="label">{part.heading}</h3>
+            <ul>
+              {part.items.map((item) => (
+                <li key={item.text}>{item.text}</li>
+              ))}
+            </ul>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+/** A service's own page: what it is, who it is for and the matters it covers, then the way to the other areas. */
+export function ServicePage({ context }: { context: PageContext }) {
+  const { content, root } = context;
+  const chrome = CHROME[content.language];
+  const service = content.services.items[context.service ?? 0];
+  const page = service.page!;
+  const others = content.services.items.filter((item) => item !== service);
+  return (
+    <Frame context={context}>
+      <section className="page-intro" data-tier={displayTier(service.name.text)}>
+        <p className="label">
+          <a href={`${root}#services`}>{content.services.label}</a>
+        </p>
+        <h1>{service.name.text}</h1>
+        <p className="page-lead">{service.text.text}</p>
+      </section>
+      {page.whoFor || page.matters.length ? (
+        <section className="area" aria-label={service.name.text}>
+          {page.whoFor ? (
+            <div className="area-part">
+              <h2 className="label">{chrome.forWhom}</h2>
+              <p className="area-for">{page.whoFor.text}</p>
+            </div>
+          ) : null}
+          {page.matters.length ? (
+            <div className="area-part">
+              <h2 className="label">{chrome.matters}</h2>
+              <ul className="area-matters">
+                {page.matters.map((matter) => (
+                  <li key={matter.text}>{matter.text}</li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+        </section>
+      ) : null}
+      {others.length ? (
+        <nav className="area-others" aria-labelledby="other-areas">
+          <h2 id="other-areas" className="label">{chrome.otherAreas}</h2>
+          <ul>
+            {others.map((item) => (
+              <li key={item.name.text}>{item.page ? <a href={`${root}${item.page.slug}/`}>{item.name.text}</a> : <a href={`${root}#services`}>{item.name.text}</a>}</li>
+            ))}
+          </ul>
+        </nav>
+      ) : null}
+      <section className="end-action" aria-label={content.closing.heading.text}>
+        <h2>{content.closing.heading.text}</h2>
+        {content.promise.action.by === "phone" ? <a className="button" href={`${root}${content.contact.slug}/`}>{content.form.send}</a> : <Action context={context} />}
       </section>
     </Frame>
   );

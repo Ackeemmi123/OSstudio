@@ -195,6 +195,9 @@ export interface ItemFieldDefinition {
   key: string;
   label: string;
   type: ItemFieldType;
+  /** Optional fields shown together, folded away until needed. */
+  group?: string;
+  hint?: string;
 }
 
 const HEADING: SectionFieldDefinition = { key: "heading", label: "Heading", type: "text" };
@@ -218,10 +221,26 @@ export const SECTION_FIELDS: Record<SectionKind, SectionFieldDefinition[]> = {
 
 export const ITEM_FIELDS: Partial<Record<SectionKind, ItemFieldDefinition[]>> = {
   features: [{ key: "title", label: "Title", type: "text" }, { key: "body", label: "Text", type: "longText" }, { key: "documentFileId", label: "Document to download (PDF)", type: "document" }],
-  services: [{ key: "title", label: "Service", type: "text" }, { key: "body", label: "Description", type: "longText" }, { key: "price", label: "Price (only if the client confirmed it)", type: "text" }],
+  services: [
+    { key: "title", label: "Service", type: "text" },
+    { key: "body", label: "Description", type: "longText" },
+    { key: "price", label: "Price (only if the client confirmed it)", type: "text" },
+    { key: "slug", label: "Page address", type: "text", group: "Own page", hint: "Lower-case letters, digits and hyphens, like patents. With an address, the company design gives this service its own page." },
+    { key: "whoFor", label: "Who it is for", type: "longText", group: "Own page" },
+    { key: "matters", label: "Typical matters, one per line", type: "longText", group: "Own page" },
+  ],
   products: [{ key: "title", label: "Product", type: "text" }, { key: "body", label: "Description", type: "longText" }, { key: "price", label: "Price (only if the client confirmed it)", type: "text" }, { key: "assetId", label: "Photo", type: "image" }],
   testimonials: [{ key: "quote", label: "Quote", type: "longText" }, { key: "author", label: "Who said it", type: "plain" }, { key: "consent", label: "They agreed, in writing, to be quoted on the site", type: "consent" }],
-  team: [{ key: "name", label: "Name", type: "plain" }, { key: "role", label: "Role", type: "text" }, { key: "assetId", label: "Photo", type: "image" }, { key: "consent", label: "They agreed, in writing, to be shown by name (and photo)", type: "consent" }],
+  team: [
+    { key: "name", label: "Name", type: "plain" },
+    { key: "role", label: "Role", type: "text" },
+    { key: "assetId", label: "Photo", type: "image" },
+    { key: "consent", label: "They agreed, in writing, to be shown by name (and photo)", type: "consent" },
+    { key: "bio", label: "About them, in their own words (a blank line between paragraphs)", type: "longText", group: "Profile", hint: "With a profile, the company design shows this person beside their own words and record on the About page. Copy titles and years exactly from their CV." },
+    { key: "education", label: "Education, one per line", type: "longText", group: "Profile" },
+    { key: "positions", label: "Positions of trust, one per line", type: "longText", group: "Profile" },
+    { key: "languages", label: "Languages", type: "text", group: "Profile" },
+  ],
   faq: [{ key: "question", label: "Question", type: "text" }, { key: "answer", label: "Answer", type: "longText" }],
 };
 
