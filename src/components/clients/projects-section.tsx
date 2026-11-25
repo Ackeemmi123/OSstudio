@@ -85,8 +85,9 @@ export function ProjectsSection({ client, snapshot }: { client: Client; snapshot
                 firstProject={projects.length === 0}
                 onDone={() => {
                   setCreating(false);
-                  // The form is closed: the address no longer asks for it, so a late hashchange (after onboarding) cannot open it again.
-                  if (window.location.hash === "#new-project") window.history.replaceState(window.history.state, "", window.location.pathname + window.location.search);
+                  // The form is closed: the address now points at the projects instead of the form, so a late hashchange
+                  // (after onboarding) cannot open it again, and a reload stays on the Projects tab.
+                  if (window.location.hash === "#new-project") window.history.replaceState(window.history.state, "", `${window.location.pathname}${window.location.search}#projects`);
                 }}
               />
             ) : (
