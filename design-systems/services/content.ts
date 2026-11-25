@@ -246,7 +246,7 @@ export type Asset = SiteContent["assets"][number];
 export const siteDesign = z.strictObject({
   system: z.literal("services@0.1"),
   direction: z.enum(["editorial", "formal", "statement", "cafe", "atelier", "clinic"]),
-  palette: z.enum(["pine", "oxblood", "signal", "harbor", "dry", "measure", "brick", "verdigris", "ember", "cobalt", "gold", "navy", "timber", "plum", "hazard", "slate", "forest", "indigo", "steel", "terracotta", "teal", "ochre"]),
+  palette: z.enum(["pine", "oxblood", "signal", "harbor", "dry", "measure", "brick", "verdigris", "ember", "cobalt", "gold", "navy", "timber", "plum", "hazard", "slate", "forest", "indigo", "steel", "terracotta", "teal", "ochre", "sage", "mist"]),
   /** Only the statement direction takes a type choice: its condensed face is the default. */
   type: z.enum(["wide", "grotesk"]).optional(),
   /** One recurring idea from the firm's own trade. Optional, and it adds nothing to what the page says. */
