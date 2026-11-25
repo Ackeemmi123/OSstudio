@@ -32,7 +32,7 @@ a{color:var(--primary);text-underline-offset:3px}a:hover{color:var(--accent)}
 img{max-width:100%;height:auto;display:block}
 h1,h2,h3,summary,label,.btn,.nav,.brand,.when,.date,.role,.dl,dt{font-family:var(--head)}
 h1,h2,h3{font-weight:var(--hw);letter-spacing:-.01em;line-height:1.2;overflow-wrap:break-word;hyphens:auto}
-h1{font-size:var(--h1);margin:0 0 18px}h2{font-size:var(--h2);margin:0 0 18px}h3{font-size:19px;margin:0 0 6px}
+h1{font-size:var(--h1);margin:0 0 18px}h2{font-size:var(--h2);margin:0 0 18px}h3,.point h2,.person h2,.doc h2{font-size:19px;margin:0 0 6px}
 p{margin:0 0 14px}
 .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 .wrap{max-width:1120px;margin:0 auto;padding:0 24px}.narrow{max-width:780px}
@@ -83,10 +83,10 @@ p{margin:0 0 14px}
 .board{display:grid;grid-template-columns:repeat(4,1fr);gap:28px}
 @media (max-width:900px){.board{grid-template-columns:repeat(2,1fr);gap:20px}}
 .person img{width:100%;aspect-ratio:3/4;object-fit:cover;background:var(--line)}
-.person{min-width:0}.person h3{margin:14px 0 2px;overflow-wrap:anywhere}.role{color:var(--primary);font-weight:700;font-size:15px;margin:0 0 6px;overflow-wrap:anywhere;hyphens:auto}.person a{font-size:15px;overflow-wrap:anywhere}
+.person{min-width:0}.person h3,.person h2{margin:14px 0 2px;overflow-wrap:anywhere}.role{color:var(--primary);font-weight:700;font-size:15px;margin:0 0 6px;overflow-wrap:anywhere;hyphens:auto}.person a{font-size:15px;overflow-wrap:anywhere}
 .docs{list-style:none;margin:0;padding:0;border-top:1px solid var(--line)}
 .doc{display:flex;justify-content:space-between;align-items:center;gap:16px;padding:18px 0;border-bottom:1px solid var(--line)}
-.doc h3{font-size:18px;margin:0 0 2px}.doc p{color:var(--muted);font-size:15px;margin:0}.dl{font-weight:700;white-space:nowrap}
+.doc h3,.doc h2{font-size:18px;margin:0 0 2px}.doc p{color:var(--muted);font-size:15px;margin:0}.dl{font-weight:700;white-space:nowrap}
 .accordion details{border-bottom:1px solid var(--line)}.accordion details:first-child{border-top:1px solid var(--line)}
 .accordion summary{font-weight:700;font-size:18px;cursor:pointer;padding:16px 0;list-style:none;display:flex;justify-content:space-between;gap:16px}
 .accordion summary::-webkit-details-marker{display:none}.accordion summary::after{content:"+";color:var(--primary)}
