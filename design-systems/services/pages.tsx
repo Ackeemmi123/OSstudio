@@ -223,6 +223,11 @@ export function Reasons({ content, heading }: { content: SiteContent; heading?: 
   );
 }
 
+/** The longest word in a name: a long Finnish compound needs a smaller size before it has to break. */
+export function longestWord(text: string): number {
+  return Math.max(0, ...text.split(/[\s/–-]+/).map((word) => word.length));
+}
+
 export function Services({ content }: { content: SiteContent }) {
   const { services } = content;
   const one = services.items.length === 1;
@@ -231,7 +236,7 @@ export function Services({ content }: { content: SiteContent }) {
       <SectionHead id="services" label={services.label} heading={services.heading.text} />
       <div className="ledger">
         {services.items.map((service) => (
-          <div className={service.page ? "ledger-row ledger-row--page" : "ledger-row"} key={service.name.text}>
+          <div className={service.page ? "ledger-row ledger-row--page" : "ledger-row"} key={service.name.text} data-long={longestWord(service.name.text) > 12 ? "" : undefined}>
             <h3>{service.page ? <a href={`${service.page.slug}/`}>{service.name.text}</a> : service.name.text}</h3>
             <p>{service.text.text}</p>
             {service.price ? <p className="price">{service.price.text}</p> : service.page ? <p className="more" aria-hidden="true">{CHROME[content.language].readMore}</p> : null}

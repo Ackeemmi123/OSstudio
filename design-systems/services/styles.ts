@@ -572,6 +572,7 @@ h3{font-family:var(--display);font-size:var(--h3);font-weight:var(--h3-weight);l
 .d-statement .ledger{border-top:3px solid var(--ink)}
 .d-statement .ledger-row{align-items:center;padding:clamp(1rem,1.8vw,1.8rem) .6rem;border-bottom:3px solid var(--ink);transition:background-color .12s,color .12s,padding .12s}
 .d-statement .ledger-row h3{grid-column:1/6;hyphens:manual;overflow-wrap:anywhere}
+.d-statement .ledger-row[data-long] h3{font-size:clamp(1.6rem,2.7vw,3.2rem);hyphens:auto;overflow-wrap:break-word}
 .d-statement .ledger-row p{grid-column:6/10}
 .d-statement .ledger-row .price{grid-column:10/13;font:800 clamp(1.45rem,2.2vw,2.6rem)/1.05 var(--display);text-transform:uppercase}
 .d-statement .services--one .ledger-row h3{grid-column:1/13}

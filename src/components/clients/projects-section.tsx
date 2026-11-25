@@ -80,7 +80,16 @@ export function ProjectsSection({ client, snapshot }: { client: Client; snapshot
         {creating || projects.length === 0 ? (
           <Surface id={creating ? "new-project" : undefined} className={cn("scroll-mt-24", projects.length === 0 && !creating ? "border-dashed" : undefined)}>
             {creating ? (
-              <NewProjectForm client={client} firstProject={projects.length === 0} onDone={() => setCreating(false)} />
+              <NewProjectForm
+                client={client}
+                firstProject={projects.length === 0}
+                onDone={() => {
+                  setCreating(false);
+                  // The form is closed: the address now points at the projects instead of the form, so a late hashchange
+                  // (after onboarding) cannot open it again, and a reload stays on the Projects tab.
+                  if (window.location.hash === "#new-project") window.history.replaceState(window.history.state, "", `${window.location.pathname}${window.location.search}#projects`);
+                }}
+              />
             ) : (
               <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-4">
                 <p className="text-[13.5px] text-ink-muted">No projects yet. Start one when the work is agreed, or earlier to plan it.</p>

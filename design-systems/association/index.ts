@@ -220,6 +220,8 @@ function section(site: Site, page: SiteSpecPage, entry: SiteSpecSection, first: 
   const heading = text(entry.heading, locale);
   const H = first ? "h1" : "h2";
   const head = heading ? `<${H}>${escapeHtml(heading)}</${H}>` : "";
+  // Item headings sit one level under the section's own: h2 under a page's h1, so no level is skipped.
+  const I = heading && first ? "h2" : "h3";
   switch (entry.kind) {
     case "hero": {
       const buttons = entry.buttons.map((button, i) => `<a class="btn${i ? " btn--line" : ""}" href="${href(site, button.targetPageId)}">${escapeHtml(text(button.label, locale))}</a>`).join("");
@@ -244,18 +246,18 @@ function section(site: Site, page: SiteSpecPage, entry: SiteSpecSection, first: 
       if (entry.items.some((item) => documents[item.id])) {
         return `<section class="sec"><div class="wrap narrow">${head}<ul class="docs">${entry.items.map((item) => {
           const file = documents[item.id];
-          return `<li class="doc"><div><h3>${escapeHtml(text(item.title, locale))}</h3><p>${escapeHtml(text(item.body, locale))}</p></div>${file ? `<a class="dl" href="/${escapeHtml(file)}">${site.chrome.download}<span class="sr"> ${escapeHtml(text(item.title, locale))}</span></a>` : ""}</li>`;
+          return `<li class="doc"><div><${I}>${escapeHtml(text(item.title, locale))}</${I}><p>${escapeHtml(text(item.body, locale))}</p></div>${file ? `<a class="dl" href="/${escapeHtml(file)}">${site.chrome.download}<span class="sr"> ${escapeHtml(text(item.title, locale))}</span></a>` : ""}</li>`;
         }).join("")}</ul></div></section>`;
       }
-      return `<section class="sec"><div class="wrap">${head}<div class="points points--${entry.variant}">${entry.items.map((item) => `<div class="point"><h3>${escapeHtml(text(item.title, locale))}</h3><p>${linkify(text(item.body, locale))}</p></div>`).join("")}</div></div></section>`;
+      return `<section class="sec"><div class="wrap">${head}<div class="points points--${entry.variant}">${entry.items.map((item) => `<div class="point"><${I}>${escapeHtml(text(item.title, locale))}</${I}><p>${linkify(text(item.body, locale))}</p></div>`).join("")}</div></div></section>`;
     }
     case "services":
     case "products":
-      return `<section class="sec"><div class="wrap">${head}<div class="points">${entry.items.map((item) => { const price = text(item.price, locale); return `<div class="point"><h3>${escapeHtml(text(item.title, locale))}</h3><p>${linkify(text(item.body, locale))}</p>${price ? `<p class="price">${escapeHtml(price)}</p>` : ""}</div>`; }).join("")}</div></div></section>`;
+      return `<section class="sec"><div class="wrap">${head}<div class="points">${entry.items.map((item) => { const price = text(item.price, locale); return `<div class="point"><${I}>${escapeHtml(text(item.title, locale))}</${I}><p>${linkify(text(item.body, locale))}</p>${price ? `<p class="price">${escapeHtml(price)}</p>` : ""}</div>`; }).join("")}</div></div></section>`;
     case "team": {
       const emails = new Map<string, string>();
       for (const other of page.sections) if (other.kind === "text") for (const line of text(other.body, locale).split("\n")) { const match = line.match(/^(.+): (\S+@\S+)$/); if (match) emails.set(match[1].trim(), match[2]); }
-      return `<section class="sec"><div class="wrap">${head}<div class="board">${entry.items.map((person) => { const email = emails.get(person.name); return `<div class="person">${image(site, person.assetId, 'width="240" height="320" loading="lazy"')}<h3>${escapeHtml(person.name)}</h3><p class="role">${escapeHtml(text(person.role, locale))}</p>${email ? `<a href="mailto:${escapeHtml(email)}">${escapeHtml(email)}</a>` : ""}</div>`; }).join("")}</div></div></section>`;
+      return `<section class="sec"><div class="wrap">${head}<div class="board">${entry.items.map((person) => { const email = emails.get(person.name); return `<div class="person">${image(site, person.assetId, 'width="240" height="320" loading="lazy"')}<${I}>${escapeHtml(person.name)}</${I}><p class="role">${escapeHtml(text(person.role, locale))}</p>${email ? `<a href="mailto:${escapeHtml(email)}">${escapeHtml(email)}</a>` : ""}</div>`; }).join("")}</div></div></section>`;
     }
     case "faq":
       return `<section class="sec"><div class="wrap narrow">${head}<div class="accordion">${entry.items.map((item, i) => `<details${i === 0 ? " open" : ""}><summary>${escapeHtml(text(item.question, locale))}</summary><div class="prose">${richText(text(item.answer, locale))}</div></details>`).join("")}</div></div></section>`;
