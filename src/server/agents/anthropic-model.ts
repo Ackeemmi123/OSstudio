@@ -1,5 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { betaZodOutputFormat } from "@anthropic-ai/sdk/helpers/beta/zod";
+import { z } from "zod";
 import { intakeModelOutput, type IntakeInput } from "@/lib/agents/intake";
 import { buildIntakeMessage, INTAKE_SYSTEM_PROMPT } from "@/lib/agents/intake-prompt";
 import { planModelOutput, type PlanInput } from "@/lib/agents/plan";
@@ -69,6 +70,9 @@ export class AnthropicModel implements AgentModel {
         effort: "medium",
         stream: true,
         timeoutMs: this.draftTimeoutMs,
+        // The draft's shape is too large for the API to compile into a strict grammar, so the schema
+        // goes in the instructions and the answer is checked here against the same schema.
+        schemaInPrompt: true,
       },
       signal,
     );
@@ -90,15 +94,16 @@ export class AnthropicModel implements AgentModel {
       effort: "low" | "medium";
       stream?: boolean;
       timeoutMs?: number;
+      schemaInPrompt?: boolean;
     },
     signal: AbortSignal,
   ): Promise<ModelAnswer> {
     const params = {
       model: this.model,
       max_tokens: request.maxTokens,
-      system: request.system,
+      system: request.schemaInPrompt ? `${request.system}\n\n${jsonAnswerInstruction(request.schema)}` : request.system,
       messages: [{ role: "user" as const, content: request.message }],
-      output_config: { effort: request.effort, format: betaZodOutputFormat(request.schema) },
+      output_config: request.schemaInPrompt ? { effort: request.effort } : { effort: request.effort, format: betaZodOutputFormat(request.schema) },
       // If the model declines, the API retries on a fallback model it chooses.
       betas: ["server-side-fallback-2026-07-01"],
       fallbacks: "default" as const,
@@ -118,11 +123,45 @@ export class AnthropicModel implements AgentModel {
     if (response.stop_reason === "max_tokens") {
       throw new ModelError("The model's answer was cut off before it finished.", true, spent);
     }
+    if (request.schemaInPrompt) {
+      const text = response.content.flatMap((block) => (block.type === "text" ? [block.text] : [])).join("");
+      const output = parseJsonAnswer(text, request.schema);
+      if (!output.ok) throw new ModelError(`The model did not return a valid answer: ${output.reason}`, true, spent);
+      return { output: output.value, ...spent };
+    }
     if (!response.parsed_output) {
       throw new ModelError("The model did not return a valid answer.", true, spent);
     }
     return { output: response.parsed_output, ...spent };
   }
+}
+
+/** What the model is told when the schema goes in the instructions instead of a strict output format. */
+export function jsonAnswerInstruction(schema: z.ZodType): string {
+  return [
+    "Answer with one JSON object and nothing else: no words before or after it, and no code fence.",
+    "It must match this JSON Schema exactly: every required field present, no other fields, and only the listed values where a field lists them.",
+    JSON.stringify(z.toJSONSchema(schema)),
+  ].join("\n");
+}
+
+/** The model's JSON answer, checked against the schema. A stray code fence or words around the object are tolerated. */
+export function parseJsonAnswer(text: string, schema: z.ZodType): { ok: true; value: unknown } | { ok: false; reason: string } {
+  const start = text.indexOf("{");
+  const end = text.lastIndexOf("}");
+  if (start < 0 || end <= start) return { ok: false, reason: "no JSON object in the answer." };
+  let data: unknown;
+  try {
+    data = JSON.parse(text.slice(start, end + 1));
+  } catch {
+    return { ok: false, reason: "the JSON could not be read." };
+  }
+  const checked = schema.safeParse(data);
+  if (!checked.success) {
+    const first = checked.error.issues[0];
+    return { ok: false, reason: `${first?.path.join(".") || "the answer"}: ${first?.message ?? "does not match the schema"}.` };
+  }
+  return { ok: true, value: checked.data };
 }
 
 interface ReportedUsage {
