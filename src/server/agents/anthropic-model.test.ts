@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { spentMicros } from "@/lib/agents/pricing";
 import Anthropic from "@anthropic-ai/sdk";
-import { toModelError, toSpent } from "./anthropic-model";
+import { jsonAnswerInstruction, parseJsonAnswer, toModelError, toSpent } from "./anthropic-model";
+import { z } from "zod";
+import { siteDraftModelOutput } from "@/lib/agents/site-draft";
 
 const reported = (input: number, output: number) => ({ input_tokens: input, output_tokens: output, cache_read_input_tokens: 0, cache_creation_input_tokens: 0 });
 
@@ -51,5 +53,27 @@ describe("a rejected request", () => {
   it("still names the problem when the provider gives no words", () => {
     const error = toModelError(Anthropic.APIError.generate(404, undefined, undefined, new Headers()));
     expect(error.message).toBe("The AI provider rejected the request. An administrator needs to check the model configuration.");
+  });
+});
+
+describe("an answer checked here instead of by a strict output format", () => {
+  const schema = z.object({ name: z.string(), kind: z.enum(["a", "b"]) });
+
+  it("reads the JSON object, even with a code fence or words around it", () => {
+    expect(parseJsonAnswer('{"name":"x","kind":"a"}', schema)).toEqual({ ok: true, value: { name: "x", kind: "a" } });
+    expect(parseJsonAnswer('Here it is:\n```json\n{"name":"x","kind":"b"}\n```', schema)).toEqual({ ok: true, value: { name: "x", kind: "b" } });
+  });
+
+  it("refuses an answer that is not JSON or does not match, and says where", () => {
+    expect(parseJsonAnswer("Sorry, I cannot.", schema)).toMatchObject({ ok: false, reason: "no JSON object in the answer." });
+    expect(parseJsonAnswer('{"name":"x",}', schema)).toMatchObject({ ok: false, reason: "the JSON could not be read." });
+    expect(parseJsonAnswer('{"name":"x","kind":"c"}', schema)).toMatchObject({ ok: false, reason: expect.stringMatching(/^kind:/) });
+  });
+
+  it("tells the model the whole schema, so the site draft keeps every rule", () => {
+    const told = jsonAnswerInstruction(siteDraftModelOutput);
+    expect(told).toContain("one JSON object");
+    expect(told).toContain('"industry"');
+    expect(told.length).toBeGreaterThan(10_000);
   });
 });
