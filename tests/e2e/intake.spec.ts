@@ -20,6 +20,9 @@ test("analyzes source material into proposals that only a person can add to the 
   await expect(sources.getByTestId("source").getByText("Email from Anna")).toBeVisible();
 
   const analysis = (await openSection(page, "analysis"));
+  // Nothing goes to the model until a person confirms the client agreed.
+  await expect(analysis.getByRole("button", { name: "Analyze client information" })).toBeDisabled();
+  await analysis.getByLabel(/The client agreed that their material is processed by AI/).check();
   await analysis.getByRole("button", { name: "Analyze client information" }).click();
 
   const proposals = analysis.getByTestId("proposal");
@@ -67,14 +70,31 @@ test("asks for material instead of guessing when there is nothing to read", asyn
   await signIn(page, fixture().member);
   await createClientNamed(page, uniqueName("Empty brief"));
   const analysis = (await openSection(page, "analysis"));
+  await analysis.getByLabel(/The client agreed/).check();
   await analysis.getByRole("button", { name: "Analyze client information" }).click();
   await expect(analysis.getByText("There is no source material to analyze.", { exact: false })).toBeVisible();
+});
+
+test("the server sends nothing to the model without the client's consent", async ({ request }) => {
+  const member = await signedInClient(fixture().member);
+  const token = (await member.auth.getSession()).data.session!.access_token;
+  const { data: clients } = await member.from("clients").select("id").eq("studio_id", fixture().studioA).limit(1);
+  const clientId = clients?.[0]?.id;
+  expect(clientId).toBeTruthy();
+  const post = (data: Record<string, unknown>) =>
+    request.post("/api/agents/intake", { headers: { authorization: `Bearer ${token}` }, data: { studioId: fixture().studioA, clientId, ...data } });
+  for (const data of [{}, { aiConsent: false }]) {
+    const refused = await post(data);
+    expect(refused.status()).toBe(400);
+    expect((await refused.json()).error).toContain("agreed to AI processing");
+  }
 });
 
 test("shows a failed analysis and lets the person try again", async ({ page }) => {
   await signIn(page, fixture().member);
   await createClientNamed(page, uniqueName("Failing analysis"), { notes: "FIXTURE_FAIL" });
   const analysis = (await openSection(page, "analysis"));
+  await analysis.getByLabel(/The client agreed/).check();
   await analysis.getByRole("button", { name: "Analyze client information" }).click();
   await expect(analysis.getByText("The analysis did not finish.", { exact: false })).toBeVisible();
   await expect(analysis.getByRole("button", { name: "Try again" })).toBeVisible();
@@ -99,7 +119,9 @@ test("shows owners this month's AI spend against the cap, and nobody else", asyn
 test("offers the analysis's questions on the onboarding question they belong to", async ({ page }) => {
   await signIn(page, fixture().member);
   const workspace = await createClientNamed(page, uniqueName("Ask client"), { notes: "Budget: 30 000 SEK" });
-  await (await openSection(page, "analysis")).getByRole("button", { name: "Analyze client information" }).click();
+  const analysis = await openSection(page, "analysis");
+  await analysis.getByLabel(/The client agreed/).check();
+  await analysis.getByRole("button", { name: "Analyze client information" }).click();
   await expect((await openSection(page, "analysis")).getByTestId("proposal")).toHaveCount(1);
 
   await page.goto(`${workspace}/onboarding`);

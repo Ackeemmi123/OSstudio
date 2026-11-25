@@ -2,6 +2,7 @@
 
 import { Plus, Sparkles } from "lucide-react";
 import { useId, useState, type FormEvent } from "react";
+import { AiConsent } from "@/components/agents/ai-consent";
 import { useCanEdit, useStudio } from "@/components/providers/studio-provider";
 import { useStudioAction } from "@/components/providers/use-studio-action";
 import { Button } from "@/components/ui/button";
@@ -120,6 +121,7 @@ function IntakeAssist({ client, snapshot, sources }: { client: Client; snapshot:
   const serverWorkspace = state.status === "ready" && state.info.kind === "supabase";
   const running = latest && !isFinished(latest.status);
   const hasMaterial = sources.length > 0 || Boolean(client.source.initialNotes);
+  const [consent, setConsent] = useState(false);
 
   return (
     <Section title="Suggested answers">
@@ -141,17 +143,20 @@ function IntakeAssist({ client, snapshot, sources }: { client: Client; snapshot:
               </p>
             ) : null}
             {canEdit ? (
-              <Button
-                size="sm"
-                variant="secondary"
-                className="self-start"
-                disabled={pending || Boolean(running) || !hasMaterial}
-                title={hasMaterial ? undefined : "Add source material first"}
-                onClick={() => run((r) => r.requestIntakeAnalysis(client.id), "The analysis did not start.")}
-              >
-                <Sparkles aria-hidden />
-                {running ? "Analyzing…" : pending ? "Starting…" : "Suggest answers from sources"}
-              </Button>
+              <>
+                <AiConsent checked={consent} onChange={setConsent} disabled={pending || Boolean(running)} />
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  className="self-start"
+                  disabled={pending || Boolean(running) || !hasMaterial || !consent}
+                  title={!hasMaterial ? "Add source material first" : !consent ? "Confirm the client's consent first" : undefined}
+                  onClick={() => run((r) => r.requestIntakeAnalysis(client.id, { aiConsent: true }), "The analysis did not start.")}
+                >
+                  <Sparkles aria-hidden />
+                  {running ? "Analyzing…" : pending ? "Starting…" : "Suggest answers from sources"}
+                </Button>
+              </>
             ) : null}
           </>
         )}
