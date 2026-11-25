@@ -34,7 +34,7 @@ export const INDUSTRY_PROFILES: Record<Industry, IndustryProfile> = {
     label: "Law, accounting and finance",
     examples: "law firms, accountants, auditors, financial advisers",
     directions: ["formal", "editorial"],
-    palettes: ["navy", "oxblood", "slate", "forest", "pine", "gold"],
+    palettes: ["navy", "oxblood", "slate", "forest", "pine", "gold", "mist", "sage"],
     motifs: ["scale", "ripple"],
     defaults: [
       { direction: "formal", palette: "navy", motif: "scale" },
@@ -139,7 +139,7 @@ export const INDUSTRY_PROFILES: Record<Industry, IndustryProfile> = {
     label: "Health, beauty and wellbeing",
     examples: "hairdressers, beauty salons, physiotherapists, massage, dentists, yoga studios",
     directions: ["clinic", "editorial", "formal"],
-    palettes: ["teal", "plum", "measure", "cobalt", "pine", "terracotta"],
+    palettes: ["teal", "plum", "measure", "cobalt", "pine", "terracotta", "sage", "mist"],
     motifs: ["ripple"],
     defaults: [
       { direction: "clinic", palette: "teal" },

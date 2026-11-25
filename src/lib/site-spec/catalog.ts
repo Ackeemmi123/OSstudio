@@ -19,7 +19,7 @@ export const DESIGN_SYSTEM_LABELS: Record<DesignSystem, string> = { template: "S
 
 /** The company design's style choices (design-systems/services/content.ts siteDesign; a test keeps them equal). */
 export const SERVICES_DIRECTIONS = ["editorial", "formal", "statement", "cafe", "atelier", "clinic"] as const;
-export const SERVICES_PALETTES = ["pine", "oxblood", "signal", "harbor", "dry", "measure", "brick", "verdigris", "ember", "cobalt", "gold", "navy", "timber", "plum", "hazard", "slate", "forest", "indigo", "steel", "terracotta", "teal", "ochre"] as const;
+export const SERVICES_PALETTES = ["pine", "oxblood", "signal", "harbor", "dry", "measure", "brick", "verdigris", "ember", "cobalt", "gold", "navy", "timber", "plum", "hazard", "slate", "forest", "indigo", "steel", "terracotta", "teal", "ochre", "sage", "mist"] as const;
 export const SERVICES_TYPES = ["wide", "grotesk"] as const;
 export const SERVICES_MOTIFS = ["pipe", "drain", "scale", "ripple", "courses"] as const;
 /** The concept: what sets one firm's company-design site apart from another's in the same direction. */
@@ -71,6 +71,8 @@ export const SERVICES_PALETTE_NOTES: Record<(typeof SERVICES_PALETTES)[number], 
   terracotta: "terracotta red on warm paper; Mediterranean, homely",
   teal: "dark teal with a bright aqua action colour; clean, water, health",
   ochre: "ochre earth tones on warm paper; rustic and handmade",
+  sage: "light sage green throughout, deep green text and buttons; light, calm and natural",
+  mist: "light blue-grey throughout, deep blue text and buttons; light, clear and trustworthy",
 };
 /** The trade each motif comes from. */
 export const SERVICES_MOTIF_NOTES: Record<(typeof SERVICES_MOTIFS)[number], string> = {
