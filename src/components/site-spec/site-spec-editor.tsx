@@ -537,7 +537,7 @@ export function SiteSpecEditor({
                       // The pass reads the stored spec, so store what is on the screen first.
                       if (!(await saver.flush())) return false;
                       if (!window.confirm("Has the client agreed that their material is processed by AI (Anthropic, USA)? Only continue if they have.")) return false;
-                      const started = await run((r) => r.requestWarmText!(client.id, project.id, record.id, { force: true, focus }), "The improvement could not be started.");
+                      const started = await run((r) => r.requestWarmText!(client.id, project.id, record.id, { force: true, focus, aiConsent: true }), "The improvement could not be started.");
                       return Boolean(started);
                     }
                   : undefined

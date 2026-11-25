@@ -1,12 +1,12 @@
 import { z } from "zod";
-import { agentError, agentRequest, logAgentError } from "@/server/agents/agent-request";
+import { agentError, agentRequest, logAgentError, withoutAiConsent } from "@/server/agents/agent-request";
 import { runSiteDraft } from "@/server/agents/site-draft-runner";
 import { SupabaseSiteDraftStore } from "@/server/agents/supabase-site-draft-store";
 
 // One long model call: the draft writes a whole website, so it may take a few minutes.
 export const maxDuration = 300;
 
-const body = z.object({ studioId: z.uuid(), clientId: z.uuid(), projectId: z.uuid(), force: z.boolean().optional() });
+const body = z.object({ studioId: z.uuid(), clientId: z.uuid(), projectId: z.uuid(), force: z.boolean().optional(), aiConsent: z.boolean().optional() });
 
 /**
  * Drafts a project's website spec from the client's material. Only owners
@@ -17,6 +17,8 @@ export async function POST(request: Request) {
   const checked = await agentRequest(request, body, "draft a website");
   if (!checked.ok) return checked.response;
   const { data, userId, asUser, asRunner, model, capMicros } = checked;
+  const refused = withoutAiConsent(data);
+  if (refused) return refused;
   try {
     const outcome = await runSiteDraft({
       store: new SupabaseSiteDraftStore(asUser, asRunner, data.studioId),

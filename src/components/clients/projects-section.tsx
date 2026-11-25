@@ -385,7 +385,7 @@ function NewProjectForm({ client, firstProject, onDone }: { client: Client; firs
   const suggest = useStudioAction();
 
   async function askForSuggestions() {
-    const requested = await suggest.run((r) => r.suggestTasks(client.id, projectType), "Suggestions could not be requested.");
+    const requested = await suggest.run((r) => r.suggestTasks(client.id, projectType, { aiConsent: true }), "Suggestions could not be requested.");
     if (requested) {
       setPlan(requested);
       setPicked(new Set());

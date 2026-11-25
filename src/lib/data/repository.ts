@@ -68,13 +68,13 @@ export interface StudioRepository {
   /** A person accepts or dismisses an agent's proposal. */
   reviewProposal(proposalId: string, decision: ProposalDecision): Promise<AgentProposal>;
   /** Asks the server to run the intake agent on this client's source material. */
-  /** `aiConsent`: a person confirmed the client agreed to AI processing of their material; the server refuses without it. */
+  /** Every AI request carries `aiConsent`: a person confirmed the client agreed to AI processing of their material; the server refuses without it. */
   requestIntakeAnalysis(clientId: string, options: { force?: boolean; aiConsent: true }): Promise<AgentRunRecord>;
   /**
    * Asks the server for suggested changes to a new project's starting tasks.
    * The run's result holds them; nothing is created.
    */
-  suggestTasks(clientId: string, projectType: ProjectType): Promise<AgentRunRecord>;
+  suggestTasks(clientId: string, projectType: ProjectType, options: { aiConsent: true }): Promise<AgentRunRecord>;
   /** The agency brand clients see instead of Studio OS. Only server workspaces have one. */
   agencyBrand?(): Promise<AgencyBrand>;
   /** Owners only. Empty values are left out. Returns the brand as stored. */
@@ -84,13 +84,13 @@ export interface StudioRepository {
   /** The public address of a stored logo. */
   brandLogoUrl?(path: string): string;
   /** Asks the server to draft a project's website spec from the client's material. The draft is stored on the run. */
-  requestSiteDraft?(clientId: string, projectId: string, options?: { force?: boolean }): Promise<AgentRunRecord>;
+  requestSiteDraft?(clientId: string, projectId: string, options: { force?: boolean; aiConsent: true }): Promise<AgentRunRecord>;
   /** The brand of each project's newest website spec in the studio, for the uniqueness check. */
   listStudioDesigns?(): Promise<{ projectId: string; clientId: string; brand: SiteSpec["brand"] }[]>;
   /** Compares the project's site with up to three competitors' public sites. No AI. */
   requestBenchmark?(clientId: string, projectId: string, competitors: string[]): Promise<AgentRunRecord>;
   /** Asks the Design agent for warmer wordings of a saved spec version's texts. Proposals only. */
-  requestWarmText?(clientId: string, projectId: string, specId: string, options?: { force?: boolean; focus?: string[] }): Promise<AgentRunRecord>;
+  requestWarmText?(clientId: string, projectId: string, specId: string, options: { force?: boolean; focus?: string[]; aiConsent: true }): Promise<AgentRunRecord>;
   /** This month's AI spend across all agents, for owners. Only server workspaces have one. */
   aiSpend?(): Promise<AiSpend>;
   /**

@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { PROJECT_TYPES } from "@/lib/domain/types";
-import { agentError, agentRequest, logAgentError } from "@/server/agents/agent-request";
+import { agentError, agentRequest, logAgentError, withoutAiConsent } from "@/server/agents/agent-request";
 import { runTaskSuggestions } from "@/server/agents/plan-runner";
 import { SupabaseIntakeStore } from "@/server/agents/supabase-intake-store";
 import { intakeTimeoutMs } from "@/server/config";
@@ -8,7 +8,7 @@ import { intakeTimeoutMs } from "@/server/config";
 // One model call per request, bounded by STUDIO_AGENT_TIMEOUT_MS (at most 110 s).
 export const maxDuration = 120;
 
-const body = z.object({ studioId: z.uuid(), clientId: z.uuid(), projectType: z.enum(PROJECT_TYPES) });
+const body = z.object({ studioId: z.uuid(), clientId: z.uuid(), projectType: z.enum(PROJECT_TYPES), aiConsent: z.boolean().optional() });
 
 /**
  * Suggests changes to a new project's starting tasks, from the client's
@@ -19,6 +19,8 @@ export async function POST(request: Request) {
   const checked = await agentRequest(request, body, "ask for suggestions");
   if (!checked.ok) return checked.response;
   const { data, userId, asUser, asRunner, model, capMicros } = checked;
+  const refused = withoutAiConsent(data);
+  if (refused) return refused;
   try {
     const outcome = await runTaskSuggestions({
       store: new SupabaseIntakeStore(asUser, asRunner, data.studioId, { id: "coordination", taskType: "coordination.plan" }),

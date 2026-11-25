@@ -60,6 +60,15 @@ export function logAgentError(what: string, error: unknown) {
   console.error(what, { code: String(code ?? "unknown"), message: String(message ?? error) });
 }
 
+/**
+ * Every agent that sends client material to the AI model needs a person's
+ * confirmation that the client agreed. Checked after access, so a stranger
+ * still learns nothing about the client.
+ */
+export function withoutAiConsent(data: { aiConsent?: boolean }): Response | null {
+  return data.aiConsent === true ? null : agentError(400, "Confirm that the client agreed to AI processing of their material first.");
+}
+
 export function agentError(status: number, error: string) {
   return Response.json({ error }, { status });
 }

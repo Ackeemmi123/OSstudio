@@ -1,6 +1,8 @@
 "use client";
 
 import { Sparkles } from "lucide-react";
+import { useState } from "react";
+import { AiConsent } from "@/components/agents/ai-consent";
 import { useAgentStatus } from "@/components/agents/use-agent-status";
 import { useStudio } from "@/components/providers/studio-provider";
 import { Button } from "@/components/ui/button";
@@ -32,17 +34,21 @@ export function TaskSuggestions({
   const state = useStudio();
   const supabase = state.status === "ready" && state.info.kind === "supabase";
   const status = useAgentStatus(supabase);
+  const [consent, setConsent] = useState(false);
   if (!supabase || status.state === "unavailable") return null;
   const result = planResultOf(run ?? undefined);
 
   if (!run) {
     return canAsk ? (
-      <div className="flex flex-wrap items-center gap-2">
-        <Button size="xs" variant="ghost" onClick={onAsk} disabled={pending || status.state !== "available"} aria-busy={pending}>
-          <Sparkles aria-hidden />
-          {pending ? "Reading the brief…" : "Suggest changes from the brief"}
-        </Button>
-        <span className="text-[12px] text-ink-subtle">The AI reads the brief only, not the source material or contact details.</span>
+      <div className="flex flex-col gap-1.5">
+        <AiConsent checked={consent} onChange={setConsent} disabled={pending} />
+        <div className="flex flex-wrap items-center gap-2">
+          <Button size="xs" variant="ghost" onClick={onAsk} disabled={pending || status.state !== "available" || !consent} aria-busy={pending}>
+            <Sparkles aria-hidden />
+            {pending ? "Reading the brief…" : "Suggest changes from the brief"}
+          </Button>
+          <span className="text-[12px] text-ink-subtle">The AI reads the brief only, not the source material or contact details.</span>
+        </div>
       </div>
     ) : null;
   }

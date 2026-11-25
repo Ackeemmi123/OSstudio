@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { agentError, agentRequest, logAgentError } from "@/server/agents/agent-request";
+import { agentError, agentRequest, logAgentError, withoutAiConsent } from "@/server/agents/agent-request";
 import { runIntakeAnalysis } from "@/server/agents/intake-runner";
 import { SupabaseIntakeStore } from "@/server/agents/supabase-intake-store";
 import { intakeTimeoutMs } from "@/server/config";
@@ -19,8 +19,8 @@ export async function POST(request: Request) {
   const checked = await agentRequest(request, body, "run analyses");
   if (!checked.ok) return checked.response;
   const { data, userId, asUser, asRunner, model, capMicros } = checked;
-  // Checked after access, so a stranger still learns nothing about the client.
-  if (data.aiConsent !== true) return agentError(400, "Confirm that the client agreed to AI processing of their material first.");
+  const refused = withoutAiConsent(data);
+  if (refused) return refused;
   try {
     const outcome = await runIntakeAnalysis({
       store: new SupabaseIntakeStore(asUser, asRunner, data.studioId),

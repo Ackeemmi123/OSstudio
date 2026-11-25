@@ -1,12 +1,12 @@
 import { z } from "zod";
-import { agentError, agentRequest, logAgentError } from "@/server/agents/agent-request";
+import { agentError, agentRequest, logAgentError, withoutAiConsent } from "@/server/agents/agent-request";
 import { SupabaseWarmTextStore } from "@/server/agents/supabase-warm-text-store";
 import { runWarmText } from "@/server/agents/warm-text-runner";
 
 // One model call over the site's texts; shorter than a draft, but it writes a fair amount.
 export const maxDuration = 300;
 
-const body = z.object({ studioId: z.uuid(), clientId: z.uuid(), projectId: z.uuid(), specId: z.uuid(), force: z.boolean().optional(), focus: z.array(z.string().max(200)).max(20).optional() });
+const body = z.object({ studioId: z.uuid(), clientId: z.uuid(), projectId: z.uuid(), specId: z.uuid(), force: z.boolean().optional(), focus: z.array(z.string().max(200)).max(20).optional(), aiConsent: z.boolean().optional() });
 
 /**
  * Proposes warmer wordings for a saved website spec's texts. Only owners and
@@ -17,6 +17,8 @@ export async function POST(request: Request) {
   const checked = await agentRequest(request, body, "improve the website's texts");
   if (!checked.ok) return checked.response;
   const { data, userId, asUser, asRunner, model, capMicros } = checked;
+  const refused = withoutAiConsent(data);
+  if (refused) return refused;
   try {
     const outcome = await runWarmText({
       store: new SupabaseWarmTextStore(asUser, asRunner, data.studioId),

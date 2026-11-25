@@ -2,6 +2,7 @@
 
 import { Sparkles } from "lucide-react";
 import { useState } from "react";
+import { AiConsent } from "@/components/agents/ai-consent";
 import { useAgentStatus } from "@/components/agents/use-agent-status";
 import { useStudio } from "@/components/providers/studio-provider";
 import { useStudioAction } from "@/components/providers/use-studio-action";
@@ -19,6 +20,7 @@ import type { SpecEditing } from "./site-spec-editor";
  */
 export function SiteDraftPanel({ clientId, projectId, editing }: { clientId: string; projectId: string; editing: SpecEditing }) {
   const [reviewing, setReviewing] = useState(false);
+  const [consent, setConsent] = useState(false);
   const state = useStudio();
   const supabase = state.status === "ready" && state.info.kind === "supabase";
   const status = useAgentStatus(supabase);
@@ -29,8 +31,7 @@ export function SiteDraftPanel({ clientId, projectId, editing }: { clientId: str
   const result = siteDraftResultOf(latest);
 
   async function ask(force: boolean) {
-    if (!window.confirm("Has the client agreed that their material is processed by AI (Anthropic, USA)? Only continue if they have.")) return;
-    await act((r) => r.requestSiteDraft!(clientId, projectId, { force }), "The draft could not be started.");
+    await act((r) => r.requestSiteDraft!(clientId, projectId, { force, aiConsent: true }), "The draft could not be started.");
   }
 
   return (
@@ -38,12 +39,13 @@ export function SiteDraftPanel({ clientId, projectId, editing }: { clientId: str
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-[13.5px] font-medium text-ink">Draft from the client&apos;s material</p>
         {canEdit ? (
-          <Button size="xs" variant={latest ? "ghost" : "primary"} onClick={() => ask(Boolean(latest))} disabled={pending || status.state !== "available"} aria-busy={pending}>
+          <Button size="xs" variant={latest ? "ghost" : "primary"} onClick={() => ask(Boolean(latest))} disabled={pending || status.state !== "available" || !consent} aria-busy={pending}>
             <Sparkles aria-hidden />
             {pending ? "Drafting… this takes a few minutes" : latest ? "Draft again" : "Draft the website"}
           </Button>
         ) : null}
       </div>
+      {canEdit && !pending && latest?.status !== "queued" && latest?.status !== "running" ? <AiConsent checked={consent} onChange={setConsent} /> : null}
       {!latest ? (
         <p className="text-[12.5px] text-ink-muted">Claude reads the brief, the texts and the kept files under Source material and proposes every page and text, each with the line it comes from. The spec below does not change until you review the draft.</p>
       ) : latest.status === "queued" || latest.status === "running" ? (
