@@ -168,7 +168,7 @@ describe(`staging smoke ${run}`, () => {
     });
 
     it("turns the source material into proposals that quote it, without changing the brief", { timeout: 150_000 }, async () => {
-      const result = await repo.requestIntakeAnalysis(clientId);
+      const result = await repo.requestIntakeAnalysis(clientId, { aiConsent: true });
       expect(result.error).toBeNull();
       expect(["needs_approval", "succeeded"]).toContain(result.status);
       if (!allowTestProvider) expect(result.runner).toBe("anthropic");
@@ -191,7 +191,7 @@ describe(`staging smoke ${run}`, () => {
     });
 
     it("reuses the run for unchanged material", async () => {
-      const again = await repo.requestIntakeAnalysis(clientId);
+      const again = await repo.requestIntakeAnalysis(clientId, { aiConsent: true });
       const latest = (await repo.load()).agentRuns.filter((r) => r.clientId === clientId);
       expect(latest).toHaveLength(1);
       expect(again.id).toBe(latest[0].id);

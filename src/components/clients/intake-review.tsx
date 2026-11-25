@@ -1,7 +1,8 @@
 "use client";
 
 import { Check, CircleAlert, Plus, RotateCw, Sparkles, X } from "lucide-react";
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
+import { AiConsent } from "@/components/agents/ai-consent";
 import { useAgentStatus } from "@/components/agents/use-agent-status";
 import { useStudio, useStudioStore } from "@/components/providers/studio-provider";
 import { useStudioAction } from "@/components/providers/use-studio-action";
@@ -28,14 +29,16 @@ export function IntakeReview({ client, snapshot }: { client: Client; snapshot: S
   const proposals = snapshot.proposals.filter((p) => p.clientId === client.id && p.status === "pending");
   const { run: write, pending, canEdit } = useStudioAction();
   useReloadWhileRunning(run);
+  const [consent, setConsent] = useState(false);
 
-  const analyze = (force: boolean) => write((repository) => repository.requestIntakeAnalysis(client.id, { force }), "The analysis did not run.");
+  const analyze = (force: boolean) => write((repository) => repository.requestIntakeAnalysis(client.id, { force, aiConsent: true }), "The analysis did not run.");
   const running = run && !isFinished(run.status);
   const unavailable = status.state === "unavailable" ? status.reason : null;
+  const askConsent = canEdit && !running && !pending && status.state === "available";
 
   const action =
     canEdit && !running ? (
-      <Button size="sm" variant={run ? "ghost" : "secondary"} onClick={() => analyze(Boolean(run))} disabled={pending || status.state !== "available"} aria-busy={pending}>
+      <Button size="sm" variant={run ? "ghost" : "secondary"} onClick={() => analyze(Boolean(run))} disabled={pending || status.state !== "available" || !consent} aria-busy={pending}>
         {run ? <RotateCw aria-hidden /> : <Sparkles aria-hidden />}
         {pending ? "Analyzing…" : run ? "Analyze again" : "Analyze client information"}
       </Button>
@@ -44,6 +47,11 @@ export function IntakeReview({ client, snapshot }: { client: Client; snapshot: S
   return (
     <Section id="analysis" title="Intake analysis" action={action}>
       <Surface className="px-5 py-4 text-[13.5px]">
+        {askConsent ? (
+          <div className="mb-3 border-b border-line pb-3">
+            <AiConsent checked={consent} onChange={setConsent} />
+          </div>
+        ) : null}
         {pending || running ? (
           <p role="status" className="text-ink-muted">
             Reading the source material. This usually takes under a minute.
@@ -54,7 +62,7 @@ export function IntakeReview({ client, snapshot }: { client: Client; snapshot: S
             {unavailable ? <span className="mt-2 block text-[12.5px] text-ink-subtle">{unavailable}</span> : null}
           </p>
         ) : (
-          <RunResult client={client} run={run} proposals={proposals} canEdit={canEdit} onRetry={() => analyze(true)} retrying={pending} />
+          <RunResult client={client} run={run} proposals={proposals} canEdit={canEdit} onRetry={() => analyze(true)} retrying={pending || !consent} />
         )}
       </Surface>
     </Section>

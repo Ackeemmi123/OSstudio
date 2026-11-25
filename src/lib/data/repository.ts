@@ -68,7 +68,8 @@ export interface StudioRepository {
   /** A person accepts or dismisses an agent's proposal. */
   reviewProposal(proposalId: string, decision: ProposalDecision): Promise<AgentProposal>;
   /** Asks the server to run the intake agent on this client's source material. */
-  requestIntakeAnalysis(clientId: string, options?: { force?: boolean }): Promise<AgentRunRecord>;
+  /** `aiConsent`: a person confirmed the client agreed to AI processing of their material; the server refuses without it. */
+  requestIntakeAnalysis(clientId: string, options: { force?: boolean; aiConsent: true }): Promise<AgentRunRecord>;
   /**
    * Asks the server for suggested changes to a new project's starting tasks.
    * The run's result holds them; nothing is created.

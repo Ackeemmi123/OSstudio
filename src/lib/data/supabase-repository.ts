@@ -421,8 +421,8 @@ export class SupabaseRepository implements StudioRepository {
     return find((await this.load()).clients, clientId, "client");
   }
 
-  requestIntakeAnalysis(clientId: string, options: { force?: boolean } = {}): Promise<AgentRunRecord> {
-    return this.runAgent(this.agentEndpoint, { clientId, force: options.force ?? false }, "The analysis could not be started.");
+  requestIntakeAnalysis(clientId: string, options: { force?: boolean; aiConsent: true }): Promise<AgentRunRecord> {
+    return this.runAgent(this.agentEndpoint, { clientId, force: options.force ?? false, aiConsent: options.aiConsent }, "The analysis could not be started.");
   }
 
   suggestTasks(clientId: string, projectType: ProjectType): Promise<AgentRunRecord> {
