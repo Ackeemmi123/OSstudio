@@ -109,7 +109,7 @@ export function SiteSpecRoute({ clientId, projectId }: { clientId: string; proje
           const started = await run((r) => r.startSiteSpec!(project.id, from), "The website spec could not be started.");
           if (!started) return;
           // The AI draft runs as an agent; the spec page shows it, and its review, when it is done.
-          if (then?.aiDraft) await run((r) => r.requestSiteDraft!(client.id, project.id), "The spec was started, but the AI draft was not. Start it from the spec page.");
+          if (then?.aiDraft) await run((r) => r.requestSiteDraft!(client.id, project.id, { aiConsent: true }), "The spec was started, but the AI draft was not. Start it from the spec page.");
           await reload(started.id);
         }}
       />

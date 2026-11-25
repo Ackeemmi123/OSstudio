@@ -425,8 +425,8 @@ export class SupabaseRepository implements StudioRepository {
     return this.runAgent(this.agentEndpoint, { clientId, force: options.force ?? false, aiConsent: options.aiConsent }, "The analysis could not be started.");
   }
 
-  suggestTasks(clientId: string, projectType: ProjectType): Promise<AgentRunRecord> {
-    return this.runAgent(this.agentEndpoint.replace(/\/intake$/, "/plan"), { clientId, projectType }, "Suggestions could not be requested.");
+  suggestTasks(clientId: string, projectType: ProjectType, options: { aiConsent: true }): Promise<AgentRunRecord> {
+    return this.runAgent(this.agentEndpoint.replace(/\/intake$/, "/plan"), { clientId, projectType, aiConsent: options.aiConsent }, "Suggestions could not be requested.");
   }
 
   async agencyBrand(): Promise<AgencyBrand> {
@@ -463,16 +463,16 @@ export class SupabaseRepository implements StudioRepository {
     return this.client.storage.from(BRAND_LOGO_BUCKET).getPublicUrl(path).data.publicUrl;
   }
 
-  requestSiteDraft(clientId: string, projectId: string, options: { force?: boolean } = {}): Promise<AgentRunRecord> {
-    return this.runAgent(this.agentEndpoint.replace(/\/intake$/, "/site-draft"), { clientId, projectId, force: options.force ?? false }, "The draft could not be started.");
+  requestSiteDraft(clientId: string, projectId: string, options: { force?: boolean; aiConsent: true }): Promise<AgentRunRecord> {
+    return this.runAgent(this.agentEndpoint.replace(/\/intake$/, "/site-draft"), { clientId, projectId, force: options.force ?? false, aiConsent: options.aiConsent }, "The draft could not be started.");
   }
 
   requestBenchmark(clientId: string, projectId: string, competitors: string[]): Promise<AgentRunRecord> {
     return this.runAgent(this.agentEndpoint.replace(/\/intake$/, "/benchmark"), { clientId, projectId, competitors }, "The comparison could not be started.");
   }
 
-  requestWarmText(clientId: string, projectId: string, specId: string, options: { force?: boolean; focus?: string[] } = {}): Promise<AgentRunRecord> {
-    return this.runAgent(this.agentEndpoint.replace(/\/intake$/, "/warm-text"), { clientId, projectId, specId, force: options.force ?? false, ...(options.focus?.length ? { focus: options.focus } : {}) }, "The text pass could not be started.");
+  requestWarmText(clientId: string, projectId: string, specId: string, options: { force?: boolean; focus?: string[]; aiConsent: true }): Promise<AgentRunRecord> {
+    return this.runAgent(this.agentEndpoint.replace(/\/intake$/, "/warm-text"), { clientId, projectId, specId, force: options.force ?? false, aiConsent: options.aiConsent, ...(options.focus?.length ? { focus: options.focus } : {}) }, "The text pass could not be started.");
   }
 
   private async runAgent(endpoint: string, request: Record<string, unknown>, fallback: string): Promise<AgentRunRecord> {

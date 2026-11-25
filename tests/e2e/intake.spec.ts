@@ -75,18 +75,25 @@ test("asks for material instead of guessing when there is nothing to read", asyn
   await expect(analysis.getByText("There is no source material to analyze.", { exact: false })).toBeVisible();
 });
 
-test("the server sends nothing to the model without the client's consent", async ({ request }) => {
+test("no agent sends client material to the model without the client's consent", async ({ request }) => {
   const member = await signedInClient(fixture().member);
   const token = (await member.auth.getSession()).data.session!.access_token;
   const { data: clients } = await member.from("clients").select("id").eq("studio_id", fixture().studioA).limit(1);
   const clientId = clients?.[0]?.id;
   expect(clientId).toBeTruthy();
-  const post = (data: Record<string, unknown>) =>
-    request.post("/api/agents/intake", { headers: { authorization: `Bearer ${token}` }, data: { studioId: fixture().studioA, clientId, ...data } });
-  for (const data of [{}, { aiConsent: false }]) {
-    const refused = await post(data);
-    expect(refused.status()).toBe(400);
-    expect((await refused.json()).error).toContain("agreed to AI processing");
+  const ids = { studioId: fixture().studioA, clientId };
+  const agents: Record<string, Record<string, unknown>> = {
+    intake: ids,
+    plan: { ...ids, projectType: "website" },
+    "site-draft": { ...ids, projectId: crypto.randomUUID() },
+    "warm-text": { ...ids, projectId: crypto.randomUUID(), specId: crypto.randomUUID() },
+  };
+  for (const [agent, body] of Object.entries(agents)) {
+    for (const consent of [{}, { aiConsent: false }]) {
+      const refused = await request.post(`/api/agents/${agent}`, { headers: { authorization: `Bearer ${token}` }, data: { ...body, ...consent } });
+      expect(refused.status(), agent).toBe(400);
+      expect((await refused.json()).error, agent).toContain("agreed to AI processing");
+    }
   }
 });
 

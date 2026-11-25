@@ -2,6 +2,7 @@
 
 import { MessageCircleHeart } from "lucide-react";
 import { useState } from "react";
+import { AiConsent } from "@/components/agents/ai-consent";
 import { useAgentStatus } from "@/components/agents/use-agent-status";
 import { useStudio } from "@/components/providers/studio-provider";
 import { useStudioAction } from "@/components/providers/use-studio-action";
@@ -24,13 +25,14 @@ export function WarmTextPanel({ clientId, projectId, specId, spec, editing }: { 
   const supabase = state.status === "ready" && state.info.kind === "supabase";
   const status = useAgentStatus(supabase);
   const { run: act, pending, canEdit } = useStudioAction();
+  const [consent, setConsent] = useState(false);
   if (!supabase || status.state === "unavailable" || state.status !== "ready") return null;
   const runs = state.snapshot.agentRuns.filter((r) => r.taskType === "design.warm_text" && r.inputs.some((i) => i.type === "artifact" && i.id === specId));
   const latest: AgentRunRecord | undefined = [...runs].sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0];
   const result = warmTextResultOf(latest);
 
   async function ask(force: boolean) {
-    await act((r) => r.requestWarmText!(clientId, projectId, specId, { force }), "The text pass could not be started.");
+    await act((r) => r.requestWarmText!(clientId, projectId, specId, { force, aiConsent: true }), "The text pass could not be started.");
   }
 
   return (
@@ -38,12 +40,13 @@ export function WarmTextPanel({ clientId, projectId, specId, spec, editing }: { 
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-[13.5px] font-medium text-ink">Warmer text</p>
         {canEdit ? (
-          <Button size="xs" variant="ghost" onClick={() => ask(Boolean(latest))} disabled={pending || status.state !== "available"} aria-busy={pending}>
+          <Button size="xs" variant="ghost" onClick={() => ask(Boolean(latest))} disabled={pending || status.state !== "available" || !consent} aria-busy={pending}>
             <MessageCircleHeart aria-hidden />
             {pending ? "Reading the texts… about a minute" : latest ? "Propose again" : "Propose warmer wordings"}
           </Button>
         ) : null}
       </div>
+      {canEdit && !pending && latest?.status !== "queued" && latest?.status !== "running" ? <AiConsent checked={consent} onChange={setConsent} /> : null}
       {!latest ? (
         <p className="text-[12.5px] text-ink-muted">
           A last pass when the texts are in place. Claude reads the saved texts of the main pages beside the client&apos;s own writing and proposes wordings that sound more like them. You see each proposal beside the old text and tick the ones to take. Facts are never changed; names, prices, quotes, contact details and legal pages are left out.

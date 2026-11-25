@@ -33,6 +33,8 @@ test("suggests tasks from the brief, and creates only the ones the person ticks"
   const create = projects.getByRole("button", { name: /^Create project with \d+ tasks$/ });
   const offered = Number((await create.textContent())!.match(/\d+/)![0]);
 
+  await expect(projects.getByRole("button", { name: "Suggest changes from the brief" })).toBeDisabled();
+  await projects.getByLabel(/The client agreed that their material is processed by AI/).check();
   await projects.getByRole("button", { name: "Suggest changes from the brief" }).click();
   const suggestions = projects.getByTestId("task-suggestions");
   await expect(suggestions.getByLabel(/Connect the integrations the client named/)).not.toBeChecked();
@@ -62,12 +64,14 @@ test("asks for a brief first, and shows a failed request without creating anythi
   const empty = await createClientNamed(page, uniqueName("No brief"));
   const projects = (await openSection(page, "projects"));
   await projects.getByRole("button", { name: "New project" }).first().click();
+  await projects.getByLabel(/The client agreed that their material is processed by AI/).check();
   await projects.getByRole("button", { name: "Suggest changes from the brief" }).click();
   await expect(projects.getByTestId("task-suggestions")).toContainText("The brief is empty.");
 
   await briefFor(empty, { goal: "FIXTURE_FAIL" });
   await page.reload();
   await projects.getByRole("button", { name: "New project" }).first().click();
+  await projects.getByLabel(/The client agreed that their material is processed by AI/).check();
   await projects.getByRole("button", { name: "Suggest changes from the brief" }).click();
   await expect(projects.getByTestId("task-suggestions")).toContainText("No suggestions this time. The test provider was asked to fail.");
 });
