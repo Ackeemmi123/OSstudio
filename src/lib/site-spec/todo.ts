@@ -4,7 +4,7 @@
  * is, most important first. A template's first draft has dozens of these, so a
  * page with many is split into its sections, and only where to start stays open.
  */
-import { STANDARD_PRIVACY_MARK } from "./standard-texts";
+import { findPrivacyPage, isPrivacyPage, STANDARD_PRIVACY_MARK } from "./standard-texts";
 import { localeOfPath, pageIndexOfPath } from "./paths";
 import { SECTION_LABELS } from "./catalog";
 import type { SiteSpec, SiteSpecPage, SiteSpecSection } from "./schema";
@@ -25,8 +25,6 @@ export interface ProblemGroup {
 const SPLIT_PAGE_OVER = 8;
 const NAMED_BY_KIND = new Set<SiteSpecSection["kind"]>(["hero", "faq", "contact"]);
 
-const PRIVACY_PAGE = "privacy";
-
 /** A section's name in the list: its heading, what its heading's instruction asks for, or its type. */
 function sectionName(section: SiteSpecSection, page: SiteSpecPage, locale: string): string {
   const kind = SECTION_LABELS[section.kind].label;
@@ -38,7 +36,7 @@ function sectionName(section: SiteSpecSection, page: SiteSpecPage, locale: strin
 }
 
 function groupOf(spec: SiteSpec, path: string, split: ReadonlySet<number>): { key: string; order: number; label: string; note?: string; first?: boolean } {
-  const standard = JSON.stringify(spec.pages.find((p) => p.id === PRIVACY_PAGE)?.sections ?? []).includes(STANDARD_PRIVACY_MARK[spec.locales.default]);
+  const standard = JSON.stringify(findPrivacyPage(spec)?.sections ?? []).includes(STANDARD_PRIVACY_MARK[spec.locales.default]);
   const legal = {
     key: "legal",
     order: 1000,
@@ -49,7 +47,7 @@ function groupOf(spec: SiteSpec, path: string, split: ReadonlySet<number>): { ke
   const page = pageIndexOfPath(path);
   if (page !== null) {
     const target = spec.pages[page];
-    if (target?.id === PRIVACY_PAGE) return legal;
+    if (target && isPrivacyPage(target, page)) return legal;
     if (path.startsWith(`pages.${page}.seo`)) return search;
     const inSection = /^pages\.\d+\.sections\.(\d+)(\.|$)/.exec(path);
     const index = inSection ? Number(inSection[1]) : null;

@@ -39,6 +39,10 @@ describe("the list of what is left", () => {
     const legal = groupProblems(spec, approvalBlockers(spec, client)).find((g) => g.key === "legal")!;
     expect(legal.note).toMatch(/client-specific details and legal review/);
     expect(legal.items.map((i) => i.path)).toEqual(expect.arrayContaining(["forms.0.consentText.en", "pages.3.sections.0.body.en"]));
+    // An AI draft may name the page after its address; it is still the privacy page.
+    spec.pages[3].id = "integritet";
+    const renamed = groupProblems(spec, [{ path: "pages.3.sections.0.body.en", message: "Privacy text" }]);
+    expect(renamed.map((g) => g.key)).toEqual(["legal"]);
   });
 
   it("lists a field once, however many languages it needs writing in", () => {
