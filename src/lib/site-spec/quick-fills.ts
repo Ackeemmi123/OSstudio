@@ -6,11 +6,10 @@
  */
 import type { SiteLocale } from "./catalog";
 import type { LocalizedText, SiteSpec } from "./schema";
-import { standardTexts, tracks } from "./standard-texts";
+import { findPrivacyPage, standardTexts, tracks } from "./standard-texts";
 import { isPlaceholderText, visibleTexts } from "./texts";
 
 const DESCRIPTION_MAX = 155;
-const PRIVACY_PAGE = "privacy";
 
 const open = (value: LocalizedText | undefined, locale: SiteLocale) => {
   const text = value?.[locale]?.trim() ?? "";
@@ -43,7 +42,7 @@ export function fillStandardTexts(spec: SiteSpec, client: { name: string; email:
     form.replyNote ??= {};
     filled += fill(form.replyNote, standard.reply, locales);
   }
-  const privacy = next.pages.find((page) => page.id === PRIVACY_PAGE);
+  const privacy = findPrivacyPage(next);
   const body = privacy?.sections.find((section) => section.kind === "text") as { body?: LocalizedText } | undefined;
   if (body) {
     body.body ??= {};

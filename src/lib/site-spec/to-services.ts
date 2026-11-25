@@ -7,6 +7,7 @@
  * in the spec by its kind and place, and says exactly what is missing instead
  * of guessing. Only people and quotes marked with consent are shown.
  */
+import { PRIVACY_ADDRESS } from "./standard-texts";
 import { isPlaceholderText } from "./texts";
 import type { SiteContent, SiteDesign } from "../../../design-systems/services/content";
 import type { SiteLocale } from "./catalog";
@@ -35,7 +36,7 @@ const WORDS: Record<SiteLocale, { services: string; steps: string; questions: st
 };
 
 const ABOUT = /^(om|about|om-oss|meista|meist|tietoa|about-us)/;
-const PRIVACY = /(integritet|privacy|tietosuoja|dataskydd)/;
+const PRIVACY = PRIVACY_ADDRESS;
 const PUBLICATIONS = /(julkaisu|publikation|publication|skrifter)/;
 const PAGE_SLUG = /^[a-z0-9]+(-[a-z0-9]+)*$/;
 const MENU = /^(meny|menu|ruokalista|lista|matsedel|lounas|lunch|ruoka)/;

@@ -8,7 +8,7 @@
  * reads and approves them: a warning says so until someone edits them.
  */
 import type { SiteLocale } from "./catalog";
-import type { LocalizedText, SiteSpec } from "./schema";
+import type { LocalizedText, SiteSpec, SiteSpecPage } from "./schema";
 
 export interface StandardTexts {
   consent: LocalizedText;
@@ -83,3 +83,20 @@ export const STANDARD_PRIVACY_MARK: Record<SiteLocale, string> = {
   fi: "Säilytämme viestin niin kauan kuin asian hoitaminen vaatii ja poistamme sen sen jälkeen.",
   en: "We keep your message for as long as it takes to deal with it, and then delete it.",
 };
+
+/** A privacy page's id or address, in any of the site's languages. */
+export const PRIVACY_ADDRESS = /(integritet|privacy|tietosuoja|dataskydd)/;
+
+/**
+ * Whether a page is the privacy page: the template calls it "privacy", while an AI draft may name
+ * it after its address ("integritet", "tietosuoja"). Never the home page.
+ */
+export function isPrivacyPage(page: SiteSpecPage, index: number): boolean {
+  if (index === 0) return false;
+  return PRIVACY_ADDRESS.test(page.id) || Object.values(page.slug).some((slug) => Boolean(slug && PRIVACY_ADDRESS.test(slug)));
+}
+
+/** The site's privacy page, if it has one. */
+export function findPrivacyPage(spec: Pick<SiteSpec, "pages">): SiteSpecPage | undefined {
+  return spec.pages.find((page, index) => isPrivacyPage(page, index));
+}
