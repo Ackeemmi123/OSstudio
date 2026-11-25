@@ -84,8 +84,8 @@ export function siteQuality(input: { pages: BuiltPage[]; images?: { path: string
   // Sentences inside paragraphs and list items, so a heading never runs into the next sentence.
   for (const p of pages) {
     const page = pageName(p.path);
-    // The header, menu and footer repeat on every page by design.
-    const main = p.html.replace(/<(header|nav|footer)\b[\s\S]*?<\/\1>/gi, " ");
+    // The header, menu and footer repeat on every page by design, and so does a contact form with its standard consent line.
+    const main = p.html.replace(/<(header|nav|footer|form)\b[\s\S]*?<\/\1>/gi, " ");
     const blocks = [...main.matchAll(/<(p|li|blockquote)\b[^>]*>([\s\S]*?)<\/\1>/gi)].map((m) => visibleText(m[2]));
     for (const sentence of blocks.flatMap((block) => block.split(/(?<=[.!?])\s+/))) {
       const s = sentence.trim();

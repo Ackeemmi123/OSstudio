@@ -41,4 +41,13 @@ describe("the quality gate", () => {
     expect(failed).toMatch(/same title on Home, om-oss/);
     expect(failed).toMatch(/An image is 900 KB/);
   });
+
+  it("does not count a contact form's standard consent line as a repeated sentence", () => {
+    const form = `<form><label>Namn</label><input><p class="consent">Jag godkänner att mina uppgifter används för att svara på mitt meddelande.</p><button>Skicka</button></form>`;
+    const a = page(`<h1>Bröd från vedugnen</h1><p>Surdegsbröd och bullar varje morgon.</p>${form}`);
+    const b = page(`<h1>Kontakt</h1><p>Ring eller skriv till oss.</p>${form}`);
+    const report = siteQuality({ pages: [{ path: "index.html", html: a }, { path: "kontakt/index.html", html: b }] });
+    const repeated = report.groups.flatMap((g) => g.items).find((i) => /sentence/.test(i.text))!;
+    expect(repeated.ok).toBe(true);
+  });
 });
