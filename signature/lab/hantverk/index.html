@@ -22,10 +22,20 @@
     <a class="skip" href="#main">Hoppa till innehållet</a>
     <header class="bar">
       <a class="mark" href="../" aria-label="Axivo Signature, labbets startsida">axivo<span>signature</span></a>
-      <nav aria-label="Labbet">
-        <a href="../"><span class="roll">Labb 01</span></a>
-        <a href="../bibliotek/"><span class="roll">Bibliotek</span></a>
-        <a href="../visning/" aria-current="page"><span class="roll">Visning</span></a>
+      <nav class="menu" data-sg="menu" aria-label="Labbet" data-lenis-prevent>
+        <button class="menu-toggle" type="button" data-sg-menu-toggle aria-expanded="false" aria-controls="meny"><span class="menu-words"><span data-sg-menu-word>Meny</span> <span data-sg-menu-word aria-hidden="true">Stäng</span></span><span class="menu-icon" aria-hidden="true"><i></i><i></i></span></button>
+        <div class="menu-panel" id="meny" data-sg-menu-panel>
+          <p class="menu-eyebrow">Sidor i labbet</p>
+          <ol class="menu-list">
+            <li><a href="../"><span class="menu-line"><span class="menu-n" aria-hidden="true">01</span> <span class="menu-name">Labb 01</span> <span class="menu-note">Motorn</span></span></a></li>
+            <li><a href="../scen/"><span class="menu-line"><span class="menu-n" aria-hidden="true">02</span> <span class="menu-name">Scen två</span> <span class="menu-note">Sidövergången</span></span></a></li>
+            <li><a href="../bibliotek/"><span class="menu-line"><span class="menu-n" aria-hidden="true">03</span> <span class="menu-name">Bibliotek</span> <span class="menu-note">Byggstenarna</span></span></a></li>
+            <li><a href="../visning/"><span class="menu-line"><span class="menu-n" aria-hidden="true">04</span> <span class="menu-name">En sida.</span> <span class="menu-note">Visning ett, mörk</span></span></a></li>
+            <li><a href="./" aria-current="page"><span class="menu-line"><span class="menu-n" aria-hidden="true">05</span> <span class="menu-name">Hantverk</span> <span class="menu-note">Visning två, varm</span></span></a></li>
+            <li><a href="../lekfull/"><span class="menu-line"><span class="menu-n" aria-hidden="true">06</span> <span class="menu-name">Lekfull</span> <span class="menu-note">Visning tre, färg</span></span></a></li>
+          </ol>
+          <p class="menu-foot"><span>Långsamt gjort, snabbt laddat.</span> <span class="menu-hint">Esc stänger menyn</span></p>
+        </div>
       </nav>
     </header>
 
