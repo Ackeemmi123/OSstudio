@@ -1191,9 +1191,180 @@ a {
     grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 }
-.show-foot {
+.show-next {
   background: #0e1118;
   border-top: 1px solid var(--hair-on-ink);
+}
+.page-show .show-foot {
+  background: #0e1118;
+  border-top: 1px solid var(--hair-on-ink);
+}
+
+/* ---------- Hantverk: the same engine, light and warm ---------- */
+.page-craft {
+  --craft-bg: #f3ece2;
+  --craft-ink: #24170f;
+  --craft-quiet: #6b5546;
+  --craft-clay: #8e3a26;
+  --craft-ochre: #d99a52;
+  --hair: rgb(36 23 15 / 0.16);
+  --hair-on-ink: rgb(243 236 226 / 0.2);
+  --sg-intro-bg: #f3ece2;
+  --sg-intro-fg: #24170f;
+  --sg-intro-line: #b5523b;
+  background: var(--craft-bg);
+  color: var(--craft-ink);
+}
+.page-craft .bar {
+  color: var(--craft-ink);
+}
+/* Wide and light: the opposite of the dark showcase's tall, narrow type. */
+.page-craft .sg-intro-word {
+  font-weight: 280;
+  font-stretch: 125%;
+  font-size: clamp(2.8rem, 11vw, 9rem);
+  letter-spacing: -0.03em;
+}
+.page-craft .eyebrow {
+  color: var(--craft-quiet);
+}
+.page-craft .label {
+  color: var(--craft-quiet);
+}
+.page-craft .label > span:first-child {
+  color: var(--craft-clay);
+}
+.page-craft .label .label-name {
+  font-weight: 280;
+  font-stretch: 125%;
+  letter-spacing: -0.035em;
+  color: var(--craft-ink);
+}
+.craft-hero {
+  display: grid;
+  gap: clamp(2rem, 5vw, 4rem);
+  align-items: end;
+  min-height: 100svh;
+  padding: 7.5rem var(--gutter) clamp(2.5rem, 7vh, 5rem);
+}
+.craft-title {
+  font: 280 clamp(2.9rem, 7.6vw, 8.6rem) / 0.94 var(--display);
+  font-stretch: 125%;
+  letter-spacing: -0.045em;
+  max-width: 11ch;
+  color: var(--craft-ink);
+}
+.craft-lead {
+  max-width: 30rem;
+  margin-top: clamp(1.5rem, 4vh, 2.5rem);
+  font-size: clamp(1.05rem, 1.3vw, 1.2rem);
+  color: var(--craft-quiet);
+}
+.craft-hero-figure {
+  margin: 0;
+}
+.craft-hero-figure .reveal-frame {
+  aspect-ratio: 4 / 5;
+  background: #e8dccb;
+}
+.page-craft figcaption {
+  margin-top: 0.9rem;
+  padding-top: 0.7rem;
+  border-top: 1px solid var(--hair);
+  font-size: 0.85rem;
+  letter-spacing: 0.02em;
+  color: var(--craft-quiet);
+}
+@media (min-width: 900px) {
+  .craft-hero {
+    grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr);
+  }
+  .craft-hero-figure {
+    align-self: center;
+    margin-top: 4rem;
+  }
+}
+.craft-statement {
+  background: var(--craft-bg);
+}
+.craft-big {
+  font: 300 clamp(2rem, 4.6vw, 4.8rem) / 1.08 var(--display);
+  font-stretch: 112%;
+  letter-spacing: -0.035em;
+  max-width: 22ch;
+  color: var(--craft-ink);
+  text-wrap: pretty;
+}
+.craft-ticker {
+  border-color: var(--hair);
+  color: #b5523b;
+  font-weight: 280;
+  font-stretch: 125%;
+  letter-spacing: -0.04em;
+}
+.page-craft .story {
+  background: #ebe1d3;
+}
+.page-craft .story-number {
+  font-weight: 200;
+  font-stretch: 125%;
+  color: var(--craft-clay);
+}
+.page-craft .story-panel h3 {
+  font-weight: 340;
+  font-stretch: 118%;
+  letter-spacing: -0.03em;
+  color: var(--craft-ink);
+}
+.page-craft .story-panel p,
+.page-craft .reveal-lead {
+  color: var(--craft-quiet);
+}
+.craft-pair {
+  background: var(--craft-bg);
+}
+.page-craft .reveal-frame {
+  background: #e8dccb;
+}
+.craft-next {
+  background: var(--craft-ink);
+  color: var(--craft-bg);
+}
+.craft-next .next-label {
+  color: #cdbba8;
+}
+.craft-next .next-title {
+  font-weight: 280;
+  font-stretch: 125%;
+  color: var(--craft-bg);
+  background-image: linear-gradient(var(--craft-ochre), var(--craft-ochre));
+}
+.craft-next .next-link:hover .next-title,
+.craft-next .next-link:focus-visible .next-title {
+  font-stretch: 100%;
+}
+.page-craft .craft-foot {
+  background: var(--craft-ink);
+  color: var(--craft-bg);
+  border-top: 1px solid var(--hair-on-ink);
+}
+.page-craft .craft-foot .foot-row p {
+  color: #e6dccf;
+}
+.page-craft .craft-foot .pill {
+  background: var(--craft-bg);
+  color: var(--craft-ink);
+}
+.page-craft .craft-foot .pill:hover {
+  background: var(--craft-ochre);
+}
+.page-craft .craft-foot .foot-word {
+  font-weight: 240;
+  font-stretch: 125%;
+  color: var(--craft-bg);
+}
+.page-craft .sg-cursor-label {
+  color: #000;
 }
 
 /* Signature footer with the word mark */

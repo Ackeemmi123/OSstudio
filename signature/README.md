@@ -9,7 +9,9 @@ with the intro on the lab's first page, a page for missing addresses
 (`lab/404.html`) and a showcase (`lab/visning/`): one idea, "En sida." (a
 Möbius band has only one side, and so does a good site), built only from the
 library's parts, to judge the whole against award nominees rather than the
-parts one by one.
+parts one by one. A second showcase (`lab/hantverk/`) uses the same engine in
+a light, warm direction with wide, light type and its own curtain, to show
+that every client gets their own look, never a template in a new colour.
 
 The plan, the research behind it (20 Awwwards nominees, measured) and the
 phases are in the Claude Doc "Axivo på Awwwards-nivå: vad som krävs".
@@ -80,17 +82,18 @@ Client sites use the client's own pictures, with written permission.
 | WebGL shaders, loaded later | ≤ 10 KB (now 4.3) |
 | 3D (Three.js), only on pages with an object | ≤ 150 KB (now 137) |
 | Sound, after load, only where used | ≤ 3 KB (now 1) |
-| Largest single picture | ≤ 100 KB (now 53); each comes in two sizes for `srcset` |
+| Largest single picture | ≤ 100 KB (now 72); each comes in two sizes for `srcset` |
 | CSS / HTML / fonts | ≤ 15 / 10 / 140 KB |
 | Lighthouse, simulated phone, median of 3 | performance ≥ 95, accessibility 100, best practices ≥ 95, SEO ≥ 90 (the 404 page: SEO without indexability, and it must say noindex) |
 | axe (WCAG 2.2 AA) | no violations, with and without motion |
 | Tests | content without JavaScript, nothing moving with reduced motion, still field without WebGL, no sideways scroll on a phone, no console errors |
 
-Measured 2026-11-26, median of three runs: lab 99 / 100 / 100 / 100 (runs 98,
-99, 99; the silk field on this machine's GPU), scene two, the library, the
-showcase and the 404 page 100 / 100 / 100 / 100. Largest content after 0.8 s
-on every page; layout shift 0 to 0.003. 77 tests pass on desktop and phone
-(7 are desktop-only or run once by design).
+Measured 2026-11-26, median of three runs: lab 99 / 100 / 100 / 100 (the
+silk field on this machine's GPU), the warm showcase 98 / 100 / 100 / 100,
+scene two, the library, the dark showcase and the 404 page
+100 / 100 / 100 / 100. Largest content after 0.8 s on every page; layout
+shift 0 to 0.003. 89 tests pass on desktop and phone (7 are desktop-only or
+run once by design).
 
 ## Licences
 

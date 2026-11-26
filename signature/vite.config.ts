@@ -24,6 +24,7 @@ export default defineConfig({
         scen: resolve(import.meta.dirname, "lab/scen/index.html"),
         bibliotek: resolve(import.meta.dirname, "lab/bibliotek/index.html"),
         visning: resolve(import.meta.dirname, "lab/visning/index.html"),
+        hantverk: resolve(import.meta.dirname, "lab/hantverk/index.html"),
         "404": resolve(import.meta.dirname, "lab/404.html"),
       },
     },
