@@ -16,10 +16,11 @@
     navigation: none;
   }
 }
+/* The new page rises over the old like a curtain; the old one sinks back a little beneath it. */
 ::view-transition-old(root),
 ::view-transition-new(root) {
-  animation-duration: 0.55s;
-  animation-timing-function: cubic-bezier(0.7, 0, 0.2, 1);
+  animation-duration: 0.85s;
+  animation-timing-function: cubic-bezier(0.76, 0, 0.24, 1);
 }
 ::view-transition-old(root) {
   animation-name: sg-leave;
@@ -33,14 +34,15 @@
 }
 @keyframes sg-leave {
   to {
-    opacity: 0;
-    translate: 0 -2.5vh;
+    opacity: 0.35;
+    translate: 0 -8vh;
+    scale: 0.98;
   }
 }
 @keyframes sg-enter {
   from {
-    opacity: 0;
-    translate: 0 3vh;
+    clip-path: inset(100% 0 0 0);
+    translate: 0 12vh;
   }
 }
 
@@ -255,9 +257,10 @@
  * in the page (for screen readers, search and every visitor without WebGL).
  * Once the shader draws, it takes over: the picture arrives behind its edge.
  */
+/* Clipped, not hidden: a hidden frame would be the scroller the drift follows. */
 [data-sg="reveal"] {
   position: relative;
-  overflow: hidden;
+  overflow: clip;
 }
 [data-sg="reveal"] > img {
   display: block;
@@ -279,6 +282,24 @@
 }
 [data-sg="reveal"].is-live > img {
   opacity: 0;
+}
+/* The picture drifts a little inside its frame as the page scrolls past: depth, at no script cost. */
+@media (prefers-reduced-motion: no-preference) {
+  @supports (animation-timeline: view()) {
+    [data-sg="reveal"] > :is(img, [data-sg-canvas]) {
+      scale: 1.12;
+      animation: sg-rise-drift linear both;
+      animation-timeline: view();
+    }
+  }
+}
+@keyframes sg-rise-drift {
+  from {
+    translate: 0 -5%;
+  }
+  to {
+    translate: 0 5%;
+  }
 }
 
 /*

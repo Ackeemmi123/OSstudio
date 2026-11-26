@@ -22,7 +22,7 @@ for (const frame of await page.locator("[data-art]").all()) {
   const kind = await frame.getAttribute("data-kind");
   let webp;
   if (kind === "ring") {
-    webp = await frame.locator("canvas").evaluate((canvas) => canvas.toDataURL("image/webp", 0.88));
+    webp = await frame.locator("canvas").evaluate((canvas) => canvas.toDataURL("image/webp", 0.8));
   } else {
     // Shader fields keep no drawing buffer: take the element as the screen shows it, then encode in the browser.
     await frame.scrollIntoViewIfNeeded();

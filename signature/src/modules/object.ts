@@ -2,12 +2,12 @@
  * An object that comes together as the visitor scrolls: a 3D scene (see
  * object-scene.ts) held beside a few steps of text, driven by the scroll.
  *
- * The drawing underneath (an inline SVG of the finished object) is the design
- * without WebGL, with reduced motion and without JavaScript; the 3D scene only
- * appears over it once it is drawing.
+ * The picture underneath (a rendered still of the finished object) is the
+ * design without WebGL, with reduced motion and without JavaScript; the 3D
+ * scene only appears over it once it is drawing.
  *
- * Markup: <section data-sg="object" data-colors="#151922 #4a5bb5 #c9d9f0 #879dc7">  (ink, glass, metal, glow)
- *           <div data-sg-stage><svg …poster…/><canvas data-sg-canvas aria-hidden="true"></canvas></div>
+ * Markup: <section data-sg="object" data-colors="#151922 #4a5bb5 #c9d9f0 #879dc7">  (ink, tint, metal, glow)
+ *           <div data-sg-stage><img …poster… alt="…"><canvas data-sg-canvas aria-hidden="true"></canvas></div>
  *           <ol data-sg-steps><li data-step>…</li>…</ol></section>
  */
 import type { Capabilities } from "../engine/capabilities";
@@ -59,7 +59,7 @@ export function mountObject(section: HTMLElement, capabilities: Capabilities, al
     show(0);
     holdPlace(section, before);
 
-    // With a mouse, the crown tilts a little toward the pointer.
+    // With a mouse, the band tilts a little toward the pointer.
     const onPointer = (event: PointerEvent) => {
       if (event.pointerType !== "mouse") return;
       const box = stage.getBoundingClientRect();

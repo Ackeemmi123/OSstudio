@@ -17,12 +17,12 @@ function collectErrors(page: Page): string[] {
 test.describe("without JavaScript", () => {
   test.use({ javaScriptEnabled: false });
 
-  test("every block shows its content: four story panels, the ring's picture, one ticker line, the word mark, the pictures", async ({ page }) => {
+  test("every block shows its content: four story panels, the band's picture, one ticker line, the word mark, the pictures", async ({ page }) => {
     await page.goto(PAGE);
     for (const title of ["Brief och idé", "Innehåll i Studio OS", "Rörelse och hantverk", "Granskning och lansering"]) {
       await expect(page.getByRole("heading", { level: 3, name: title })).toBeVisible();
     }
-    await expect(page.getByRole("img", { name: "En ring av glas med silverfästen mot en mörkblå bakgrund, renderad i 3D" })).toBeVisible();
+    await expect(page.getByRole("img", { name: "Ett band av borstad metall i en Möbiusslinga mot en mörkblå bakgrund, renderat i 3D" })).toBeVisible();
     await expect(page.locator("[data-sg-line]")).toHaveCount(1);
     await expect(page.locator(".foot-word .sg-sr")).toHaveText("axivo");
     // The image effect is the picture itself; the gallery is a list of six that scrolls on its own.
@@ -97,7 +97,7 @@ test.describe("with motion", () => {
     expect(box!.x + box!.width).toBeLessThanOrEqual(viewport.width + 1);
   });
 
-  test("the ring comes together as the steps scroll past, drawn in 3D when WebGL is good", async ({ page }) => {
+  test("the band comes together as the steps scroll past, drawn in 3D when WebGL is good", async ({ page }) => {
     const errors = collectErrors(page);
     await page.goto(`${PAGE}?webgl`);
     const object = page.locator(".object");
@@ -110,7 +110,7 @@ test.describe("with motion", () => {
     expect(errors).toEqual([]);
   });
 
-  test("without WebGL the ring stays a picture", async ({ page }) => {
+  test("without WebGL the band stays a picture", async ({ page }) => {
     const requests: string[] = [];
     page.on("request", (request) => requests.push(request.url()));
     await page.addInitScript(() => {
@@ -123,7 +123,7 @@ test.describe("with motion", () => {
     await page.locator(".object").scrollIntoViewIfNeeded();
     await page.waitForTimeout(2500);
     await expect(page.locator(".object")).toHaveAttribute("data-sg-state", "still");
-    await expect(page.getByRole("img", { name: "En ring av glas med silverfästen mot en mörkblå bakgrund, renderad i 3D" })).toBeVisible();
+    await expect(page.getByRole("img", { name: "Ett band av borstad metall i en Möbiusslinga mot en mörkblå bakgrund, renderat i 3D" })).toBeVisible();
     // The 3D chunk may be fetched to try, but nothing draws; the picture stays the design.
     await expect(page.locator(".object-stage")).not.toHaveClass(/is-live/);
   });
