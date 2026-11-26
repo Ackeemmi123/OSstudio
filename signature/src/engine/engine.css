@@ -1,0 +1,125 @@
+/*
+ * Axivo Signature: the CSS half of the engine.
+ *
+ * 1. Page transitions between pages of the same site, with the browser's own
+ *    View Transitions. Off for visitors who asked for less motion.
+ * 2. Moving headlines and first-view text in CSS alone; text further down
+ *    waits for the engine only while JavaScript runs, and never long.
+ * 3. Ink fields show a still gradient until (and unless) WebGL is drawing.
+ */
+
+@view-transition {
+  navigation: auto;
+}
+@media (prefers-reduced-motion: reduce) {
+  @view-transition {
+    navigation: none;
+  }
+}
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: 0.55s;
+  animation-timing-function: cubic-bezier(0.7, 0, 0.2, 1);
+}
+::view-transition-old(root) {
+  animation-name: sg-leave;
+}
+::view-transition-new(root) {
+  animation-name: sg-enter;
+}
+::view-transition-group(*) {
+  animation-duration: 0.7s;
+  animation-timing-function: cubic-bezier(0.7, 0, 0.2, 1);
+}
+@keyframes sg-leave {
+  to {
+    opacity: 0;
+    translate: 0 -2.5vh;
+  }
+}
+@keyframes sg-enter {
+  from {
+    opacity: 0;
+    translate: 0 3vh;
+  }
+}
+
+/*
+ * Moving headlines (split at build time, see src/build/kinetic.ts): each letter
+ * rises out of its word and settles from wide to normal width. CSS only, on
+ * transforms only, so it costs no script and no layout.
+ */
+.sg-w {
+  display: inline-block;
+  white-space: nowrap;
+  /* The word is the mask: letters below it are hidden, descenders are not. */
+  padding-bottom: 0.14em;
+  margin-bottom: -0.14em;
+  clip-path: inset(-1em -1em 0 -1em);
+}
+.sg-c {
+  display: inline-block;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .sg-c {
+    transform-origin: 50% 100%;
+    animation: sg-rise 1.35s cubic-bezier(0.16, 1, 0.3, 1) calc(150ms + var(--i) * 28ms) backwards;
+  }
+  /*
+   * First-view text that only needs to arrive: one gentle rise, no splitting.
+   * It never fades from nothing: text that is invisible does not count as
+   * painted, and the page's largest text would then appear late.
+   */
+  [data-sg="rise"] {
+    animation: sg-rise-up 1.2s cubic-bezier(0.16, 1, 0.3, 1) var(--sg-delay, 0.3s) backwards;
+  }
+}
+/* Letters start partly below their word, so the headline is visible (and counts as painted) from the first frame. */
+@keyframes sg-rise {
+  from {
+    transform: translateY(42%) scaleX(1.32);
+  }
+}
+@keyframes sg-rise-up {
+  from {
+    opacity: 0.35;
+    translate: 0 1.4rem;
+  }
+}
+
+/* Text further down that arrives line by line waits for the engine, never longer than 2.5 seconds. */
+@media (prefers-reduced-motion: no-preference) {
+  .sg-js [data-sg="lines"]:not(.sg-ready) {
+    visibility: hidden;
+    animation: sg-failsafe 0s 2.5s forwards;
+  }
+}
+@keyframes sg-failsafe {
+  to {
+    visibility: visible;
+  }
+}
+
+/* Line masks clip at the line box; give descenders (g, j, y, å) room without moving the layout. */
+[data-sg="lines"] > span {
+  padding-bottom: 0.14em;
+  margin-bottom: -0.14em;
+}
+
+[data-sg="ink-field"] {
+  position: relative;
+  isolation: isolate;
+}
+[data-sg="ink-field"] > [data-sg-canvas] {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  opacity: 0;
+  transition: opacity 1.4s cubic-bezier(0.2, 0.7, 0.2, 1);
+  z-index: -1;
+}
+[data-sg="ink-field"].is-live > [data-sg-canvas] {
+  opacity: 1;
+}

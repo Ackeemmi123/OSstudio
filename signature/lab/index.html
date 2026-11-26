@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="sv">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Signature · Labb · Axivo</title>
+    <meta name="description" content="Axivo Signature, labb 01: motorn för rörelse, scroll, sidövergångar och WebGL, med tillgänglighet och vikt som krav." />
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 32 32%27%3E%3Crect width=%2732%27 height=%2732%27 rx=%277%27 fill=%27%23151922%27/%3E%3Ccircle cx=%2716%27 cy=%2716%27 r=%277%27 fill=%27none%27 stroke=%27%23c3bcf2%27 stroke-width=%273%27/%3E%3C/svg%3E" />
+    <meta name="theme-color" content="#151922" />
+    <link rel="preload" href="./fonts/archivo-latin-wdth-normal.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href="./fonts/instrument-sans-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin />
+    <script>document.documentElement.classList.add("sg-js");</script>
+    <link rel="stylesheet" href="./lab.css" />
+    <script type="module" src="./main.ts"></script>
+  </head>
+  <body>
+    <a class="skip" href="#main">Hoppa till innehållet</a>
+    <header class="bar">
+      <a class="mark" href="./" aria-label="Axivo Signature, labbets startsida">axivo<span>signature</span></a>
+      <nav aria-label="Labbet">
+        <a href="./" aria-current="page">Labb 01</a>
+        <a href="./scen/">Scen två</a>
+      </nav>
+    </header>
+
+    <main id="main">
+      <section class="hero" data-sg="ink-field" data-colors="#151922 #4a5bb5 #879dc7 #c3bcf2 #c9d9f0" aria-labelledby="hero-title">
+        <canvas data-sg-canvas aria-hidden="true"></canvas>
+        <div class="hero-inner">
+          <p class="eyebrow">Axivo Signature · Labb 01</p>
+          <h1 class="hero-title" id="hero-title" data-sg="kinetic">Rörelse som betyder något.</h1>
+          <p class="hero-lead" data-sg="rise" style="--sg-delay: 0.7s">Motorn bakom våra kommande sajter: rörelse, scroll, sidövergångar och WebGL. Byggd för att aldrig bli långsam och aldrig utesluta någon.</p>
+          <p class="hero-hint" aria-hidden="true">Rör muspekaren genom bläcket</p>
+        </div>
+      </section>
+
+      <section class="band intro" aria-labelledby="why-title">
+        <h2 class="label" id="why-title"><span>01</span> Varför</h2>
+        <p class="statement" data-sg="lines">Varje rörelse på en Signature-sajt har ett skäl. Den visar vart blicken ska, berättar vad som hör ihop, eller ger en känsla som ord inte räcker till. Rörelse utan skäl tar vi bort.</p>
+      </section>
+
+      <section class="band scene" data-sg="scene" aria-labelledby="scene-title">
+        <h2 class="label" id="scene-title"><span>02</span> En idé i tre takter</h2>
+        <div class="scene-body">
+          <div class="scene-stage" aria-hidden="true">
+            <svg viewBox="0 0 200 200" focusable="false">
+              <circle class="ring-track" cx="100" cy="100" r="88" />
+              <circle class="ring" data-sg-ring cx="100" cy="100" r="88" pathLength="1" />
+            </svg>
+            <p class="scene-count"><span data-sg-count>03</span><span class="of">/03</span></p>
+          </div>
+          <ol class="scene-steps">
+            <li data-step>
+              <h3>Idén</h3>
+              <p>Allt börjar i kundens verksamhet. För en palltillverkare kan det vara en pall som byggs medan man scrollar. Aldrig en mall med en ny färg.</p>
+            </li>
+            <li data-step>
+              <h3>Rörelsen</h3>
+              <p>Scener som följer handen, text som kommer in i takt och övergångar mellan sidor. Koreograferat, inte utströsslat.</p>
+            </li>
+            <li data-step>
+              <h3>Hantverket</h3>
+              <p>Minskad rörelse, tangentbord, svaga telefoner och långsamma nät. Sajten ska vara lika bra för alla som besöker den.</p>
+            </li>
+          </ol>
+        </div>
+      </section>
+
+      <section class="band modes" aria-labelledby="modes-title">
+        <h2 class="label" id="modes-title"><span>03</span> Samma sida för alla</h2>
+        <p class="modes-lead">Motorn frågar enheten innan den gör något. Så här ser det ut för dig just nu:</p>
+        <dl class="modes-list" aria-live="polite">
+          <div>
+            <dt>Rörelse</dt>
+            <dd data-sg-status="motion">Ingen JavaScript: allt innehåll finns ändå</dd>
+          </div>
+          <div>
+            <dt>Mjuk scroll</dt>
+            <dd data-sg-status="smooth">Av</dd>
+          </div>
+          <div>
+            <dt>WebGL</dt>
+            <dd data-sg-status="webgl">Av: stillbild</dd>
+          </div>
+        </dl>
+        <p class="modes-note">Har du bett om mindre rörelse i ditt system ser du allt innehåll direkt, utan att något rör sig. Saknar enheten snabb grafik ersätts bläcket av en stillbild. Innehållet är detsamma.</p>
+      </section>
+
+      <section class="band next" aria-label="Nästa sida">
+        <a class="next-link" href="./scen/">
+          <span class="next-label">Nästa</span>
+          <span class="next-title">Scen två: sidövergången</span>
+        </a>
+      </section>
+    </main>
+
+    <footer class="foot">
+      <p>Axivo Signature · Labb 01 · GSAP, Lenis och Three.js</p>
+    </footer>
+  </body>
+</html>
