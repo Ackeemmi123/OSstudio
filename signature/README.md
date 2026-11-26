@@ -144,8 +144,8 @@ Client sites use the client's own pictures, with written permission.
 
 | Check | Limit |
 | ----- | ----- |
-| Script for the first view | ≤ 15 KB compressed (now 2.8) |
-| Motion engine, loaded later | ≤ 60 KB (now 55) |
+| Script for the first view | ≤ 15 KB compressed (now 3.8, the menu's 0.85 included) |
+| Motion engine, loaded later | ≤ 60 KB (now 56.9) |
 | WebGL shaders, loaded later | ≤ 10 KB (now 4.3) |
 | 3D band, only on pages with an object | ≤ 10 KB (was 137 with Three.js) |
 | Sound, after load, only where used | ≤ 3 KB (now 1) |
@@ -153,14 +153,16 @@ Client sites use the client's own pictures, with written permission.
 | CSS / HTML / fonts | ≤ 15 / 10 / 140 KB (fonts now 121, all three faces) |
 | Lighthouse, simulated phone, median of 3 | performance ≥ 95, accessibility 100, best practices ≥ 95, SEO ≥ 90 (the 404 page: SEO without indexability, and it must say noindex) |
 | axe (WCAG 2.2 AA) | no violations, with and without motion |
-| Tests | content without JavaScript, nothing moving with reduced motion, still field without WebGL, no sideways scroll on a phone, no console errors |
+| Tests | content without JavaScript, nothing moving with reduced motion, still field without WebGL, no sideways scroll on a phone, no console errors, the menu's keyboard path (focus in, round, Esc, focus back) |
 
-Measured 2026-11-26, median of three runs: lab 98 (its first run is slower,
-while the graphics card compiles the silk shader cold), the warm showcase 98,
-the library and the dark showcase 99, scene two and the 404 page 100;
+Measured 2026-11-27, after the menu and the reveal list, median of three
+runs, each started at a 1-minute load under 3 (one at 4.96, after ten
+minutes' wait): the library, scene two, the dark and the playful showcase and
+the 404 page 100, the lab 99, the warm showcase 98 (runs 95, 98, 99);
 accessibility, best practices and SEO 100 everywhere. Largest content after
-0.8 s on every page; layout shift 0 to 0.003. 91 tests pass on desktop and
-phone (7 are desktop-only or run once by design). The 3D band went from 137 KB
+0.8–0.9 s, except the warm showcase's hero picture on a phone (1.9–2.4 s);
+layout shift 0 to 0.004. 141 tests pass on desktop and phone (9 are
+desktop-only or run once by design). The 3D band went from 137 KB
 (Three.js) to 5.7 KB compressed, with the same picture.
 
 ## Licences
