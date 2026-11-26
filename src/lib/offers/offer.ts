@@ -74,6 +74,9 @@ interface Words {
   acceptText: string;
   signature: string;
   validText: (date: string) => string;
+  /** The payment plan in the customer agreement (Del B 3, Del A 6.2). */
+  payment: string;
+  paymentTitle: string;
   contact: string;
   businessId: string;
 }
@@ -106,6 +109,7 @@ export const OFFER_WORDS: Record<OfferLanguage, Words> = {
       "Hakukoneiden perusasiat: otsikot, sivukuvaukset ja rakenne",
       "Laaduntarkistus ennen kuin näette mitään",
       "Yksityinen esikatselulinkki: kommentoitte ja hyväksytte ennen julkaisua",
+      "Enintään viisi muutosta ennen julkaisua",
       "Julkaisu omassa verkkotunnuksessanne",
     ],
     includedUpkeep: "Ylläpitoon sisältyy",
@@ -119,6 +123,8 @@ export const OFFER_WORDS: Record<OfferLanguage, Words> = {
     acceptText: "Hyväksyn tarjouksen.",
     signature: "Nimi ja päivämäärä",
     validText: (date) => `Tarjous on voimassa ${date} asti. Lopulliset ehdot sovitaan sopimuksessa.`,
+    paymentTitle: "Maksuehdot",
+    payment: "50 % sopimuksen allekirjoituksen yhteydessä ja 50 %, kun sivusto on julkaistu. Maksuaika 14 päivää laskun päiväyksestä.",
     contact: "Kysyttävää? Vastaamme yhden arkipäivän sisällä.",
     businessId: "Y-tunnus",
   },
@@ -149,6 +155,7 @@ export const OFFER_WORDS: Record<OfferLanguage, Words> = {
       "Sökoptimering i grunden: rubriker, sidbeskrivningar och struktur",
       "Kvalitetskontroll innan ni ser något",
       "Privat granskningslänk: ni kommenterar och godkänner före publicering",
+      "Upp till fem ändringar före publicering",
       "Publicering på er egen domän",
     ],
     includedUpkeep: "Underhållet innehåller",
@@ -162,6 +169,8 @@ export const OFFER_WORDS: Record<OfferLanguage, Words> = {
     acceptText: "Jag godkänner offerten.",
     signature: "Namn och datum",
     validText: (date) => `Offerten gäller till ${date}. De slutliga villkoren avtalas i avtalet.`,
+    paymentTitle: "Betalningsvillkor",
+    payment: "50 % när avtalet undertecknas och 50 % när webbplatsen har publicerats. Betalningstid 14 dagar från fakturadatum.",
     contact: "Frågor? Vi svarar inom en arbetsdag.",
     businessId: "FO-nummer",
   },
@@ -192,6 +201,7 @@ export const OFFER_WORDS: Record<OfferLanguage, Words> = {
       "Search basics: titles, page descriptions and structure",
       "A quality check before you see anything",
       "A private review link: you comment and approve before launch",
+      "Up to five changes before launch",
       "Launch on your own domain",
     ],
     includedUpkeep: "Maintenance includes",
@@ -205,6 +215,8 @@ export const OFFER_WORDS: Record<OfferLanguage, Words> = {
     acceptText: "I accept this offer.",
     signature: "Name and date",
     validText: (date) => `This offer is valid until ${date}. The final terms are set in the agreement.`,
+    paymentTitle: "Payment",
+    payment: "50% when the agreement is signed and 50% when the website is live. Payment within 14 days of the invoice date.",
     contact: "Questions? We answer within one working day.",
     businessId: "Business ID",
   },

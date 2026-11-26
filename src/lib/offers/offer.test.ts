@@ -53,5 +53,8 @@ describe("an offer", () => {
     expect(Object.keys(OFFER_WORDS.en).sort()).toEqual(keys);
     expect(OFFER_WORDS.fi.upkeepTerms("49 €", "490 €")).toContain("Vähintään 12 kuukautta");
     expect(OFFER_WORDS.fi.upkeep).toContain("Pienet muutokset enintään 30 minuuttia kuukaudessa");
+    // The customer agreement: half on signing, half at launch, 14 days; up to five changes before launch.
+    expect(OFFER_WORDS.fi.payment).toBe("50 % sopimuksen allekirjoituksen yhteydessä ja 50 %, kun sivusto on julkaistu. Maksuaika 14 päivää laskun päiväyksestä.");
+    expect(OFFER_WORDS.sv.site).toContain("Upp till fem ändringar före publicering");
   });
 });

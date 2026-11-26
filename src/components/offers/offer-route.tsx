@@ -351,6 +351,11 @@ export function OfferDocument({ offer, color, logoUrl }: { offer: Offer; color: 
               <td className="pb-3">{w.withVat}</td>
               <td className="pb-3 text-right tabular-nums">{money(offer.onceTotal + offer.onceVat)}</td>
             </tr>
+            <tr>
+              <td colSpan={2} className="pb-3 text-[12.5px] text-[#5d6472]">
+                <span className="font-semibold text-[#151922]">{w.paymentTitle}:</span> {w.payment}
+              </td>
+            </tr>
             {offer.recurring ? (
               <tr className="border-t border-[#e6e8ee]">
                 <td className="pt-3">
