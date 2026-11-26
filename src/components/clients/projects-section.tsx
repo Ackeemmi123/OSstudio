@@ -134,9 +134,14 @@ function ProjectCard({ project, tasks, owners }: { project: Project; tasks: Task
             <p className="text-[12.5px] text-ink-subtle">{PROJECT_TYPE_LABELS[project.projectType]}</p>
           ) : null}
           {server && isWebsiteProject(project) ? (
-            <Link href={`/clients/${encodeURIComponent(project.clientId)}/projects/${encodeURIComponent(project.id)}/site`} className="text-[12.5px] text-ink-muted underline-offset-2 hover:text-ink hover:underline">
-              Website spec
-            </Link>
+            <span className="flex flex-wrap gap-x-3">
+              <Link href={`/clients/${encodeURIComponent(project.clientId)}/projects/${encodeURIComponent(project.id)}/site`} className="text-[12.5px] text-ink-muted underline-offset-2 hover:text-ink hover:underline">
+                Website spec
+              </Link>
+              <Link href={`/clients/${encodeURIComponent(project.clientId)}/offer?project=${encodeURIComponent(project.id)}`} className="text-[12.5px] text-ink-muted underline-offset-2 hover:text-ink hover:underline">
+                Offer
+              </Link>
+            </span>
           ) : null}
         </div>
         <div className="flex items-center gap-2">
