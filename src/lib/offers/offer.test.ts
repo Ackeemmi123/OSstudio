@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildOffer, defaultIntro, defaultScope, euros, OFFER_WORDS, offerDate, percent, projectTitle, STANDARD_PRICES, STANDARD_VAT_PERCENT, type OfferInput } from "./offer";
+import { buildOffer, defaultIntro, defaultScope, euros, OFFER_WORDS, offerDate, offerEmail, offerMailto, percent, projectTitle, STANDARD_PRICES, STANDARD_VAT_PERCENT, type OfferInput } from "./offer";
 
 const input = (over: Partial<OfferInput> = {}): OfferInput => ({
   language: "fi",
@@ -56,5 +56,36 @@ describe("an offer", () => {
     // The customer agreement: half on signing, half at launch, 14 days; up to five changes before launch.
     expect(OFFER_WORDS.fi.payment).toBe("50 % sopimuksen allekirjoituksen yhteydessä ja 50 %, kun sivusto on julkaistu. Maksuaika 14 päivää laskun päiväyksestä.");
     expect(OFFER_WORDS.sv.site).toContain("Upp till fem ändringar före publicering");
+  });
+
+  it("writes the e-mail that goes with the PDF, in the offer's language, with the prices and the date", () => {
+    const fi = offerEmail(buildOffer(input()));
+    expect(fi.to).toBe("liisa@example.fi");
+    expect(fi.subject).toBe("Tarjous: Verkkosivusto");
+    expect(fi.body).toBe(
+      [
+        "Hei Liisa,",
+        "Kiitos keskustelusta. Liitteenä on tarjouksemme (Verkkosivusto).",
+        "Kertamaksu 1 000 € (alv 0 %) ja ylläpito 49 €/kk (alv 0 %). Tarjous on voimassa 10. joulukuuta 2026 asti.",
+        "Kun haluatte jatkaa, vastatkaa tähän viestiin, niin lähetämme sopimuksen.",
+        "Terveisin\nAlexander Hammarén\nAxivo\n+358 40 826 6600",
+      ].join("\n\n"),
+    );
+    const sv = offerEmail(buildOffer(input({ language: "sv", project: "Webbplats", upkeep: { monthly: 49, yearly: 490, chosen: "year" } })));
+    expect(sv.subject).toBe("Offert: Webbplats");
+    expect(sv.body).toMatch(/^Hej Liisa!\n\nTack för samtalet\./);
+    expect(sv.body).toContain("Engångsavgift 1 000 € (moms 0 %) och underhåll 490 €/år (moms 0 %). Offerten gäller till 10 december 2026.");
+    const en = offerEmail(buildOffer(input({ language: "en", project: "Website", client: { name: "Rantala", contact: null, email: null }, upkeep: { monthly: 49, yearly: 490, chosen: "none" } })));
+    expect(en.to).toBeNull();
+    expect(en.body).toMatch(/^Hello,\n\nThank you/);
+    expect(en.body).toContain("One-off €1,000 (VAT 0%). The offer is valid until 10 December 2026.");
+    expect(en.body).not.toContain("maintenance");
+  });
+
+  it("encodes the e-mail link so the text cannot add recipients or headers", () => {
+    expect(offerMailto({ to: "liisa@example.fi", subject: "Offer & more?cc=x@evil.example", body: "A\nB&bcc=y@evil.example" })).toBe(
+      "mailto:liisa%40example.fi?subject=Offer%20%26%20more%3Fcc%3Dx%40evil.example&body=A%0AB%26bcc%3Dy%40evil.example",
+    );
+    expect(offerMailto({ to: null, subject: "S", body: "B" })).toBe("mailto:?subject=S&body=B");
   });
 });

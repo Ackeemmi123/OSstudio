@@ -196,4 +196,9 @@ test("makes a written offer from the published prices, in the client's language"
   await expect(offer).toContainText("€1,200");
   await expect(offer).toContainText("€49/month");
   await expect(page.getByRole("button", { name: "Print or save as PDF" })).toBeVisible();
+
+  // The e-mail that goes with the PDF follows the offer's language and prices; nothing is sent from Studio OS.
+  const mail = decodeURIComponent((await page.getByTestId("offer-email").getAttribute("href")) ?? "");
+  expect(mail).toContain("subject=Offer: ");
+  expect(mail).toContain("One-off €1,500 (VAT 0%) and maintenance €49/month (VAT 0%).");
 });
