@@ -26,7 +26,8 @@
  * (default 4317).
  */
 import { spawn, execFileSync } from "node:child_process";
-import { cpSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { cpSync, existsSync, mkdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
+import { availableParallelism, loadavg } from "node:os";
 import { join, relative, resolve } from "node:path";
 import { chromium, devices } from "@playwright/test";
 import pixelmatch from "pixelmatch";
@@ -61,7 +62,11 @@ for (const key of args.keys()) {
 const SETTLE = Number(args.get("settle") ?? 900);
 const THRESHOLD = Number(args.get("threshold") ?? 0.1);
 const TOLERANCE = Number(args.get("tolerance") ?? 0.02) / 100;
-const JOBS = Math.max(1, Number(args.get("jobs") ?? 3));
+// A busy machine settles late and draws WebGL late, which a compare would report as changes.
+const CORES = availableParallelism();
+const LOAD = loadavg()[0];
+const BUSY = LOAD > CORES * 1.5;
+const JOBS = Math.max(1, Number(args.get("jobs") ?? (BUSY ? 1 : 3)));
 
 const DEVICES = {
   desktop: { ...devices["Desktop Chrome"], viewport: { width: 1440, height: 900 } },
@@ -107,6 +112,18 @@ const up = async () => {
     return false;
   }
 };
+/** The folder of the process listening on the port, where lsof can tell; null where it cannot. */
+function serverFolder() {
+  try {
+    const pid = execFileSync("lsof", ["-nP", `-iTCP:${PORT}`, "-sTCP:LISTEN", "-t"], { encoding: "utf8" }).trim().split("\n")[0];
+    const cwd = execFileSync("lsof", ["-a", "-p", pid, "-d", "cwd", "-Fn"], { encoding: "utf8" });
+    const folder = cwd.split("\n").find((line) => line.startsWith("n"))?.slice(1);
+    return folder ? realpathSync(folder) : null;
+  } catch {
+    return null;
+  }
+}
+
 // Vite allows one preview server per project: use the running one, or start it.
 let server = null;
 if (!(await up())) {
@@ -120,7 +137,13 @@ if (!(await up())) {
   console.error(`No server answered at ${BASE}.`);
   process.exit(1);
 }
-// Another checkout's preview may hold the port; reviewing its build would mislead.
+// Another checkout's preview may hold the port; reviewing its build would mislead. A server started
+// elsewhere is refused, and so is one here that serves other files (an older build, another --outDir).
+const folder = server ? null : serverFolder();
+if (folder && folder !== realpathSync(HERE)) {
+  console.error(`The server at ${BASE} was started in ${folder}, not in this checkout. Run on another port: REVIEW_PORT=4320 npm run review`);
+  process.exit(1);
+}
 const served = await Promise.all(pages.map(async (page) => (await (await fetch(`${BASE}${page.path}`)).text()) === readFileSync(page.built, "utf8")));
 if (served.includes(false)) {
   console.error(
@@ -508,6 +531,11 @@ async function compare(results) {
     for (const row of table) console.log(line(row));
     console.log(`\n${rows.length} of ${compared} screens changed.`);
   }
+  const busy = (run, label) => run.load && run.load.average > run.load.cores * 1.5 && `${label} was taken on a busy machine (load ${run.load.average.toFixed(1)} on ${run.load.cores} cores).`;
+  const loadNotes = [busy(baseline, "The baseline"), busy({ load: { average: LOAD, cores: CORES } }, "This run")].filter(Boolean);
+  if (loadNotes.length) notes.push(`${loadNotes.join(" ")} A WebGL part shown as "starting", or a screen that did not settle, may be timing only: run again when it is quieter.`);
+  const unsettled = rows.filter(({ screen }) => screen.settled === false).length;
+  if (unsettled) notes.push(`${unsettled} of the changed screens had not settled after 15 s, so they may differ by timing only.`);
   for (const note of notes) console.log(`Note: ${note}`);
   for (const out of sheets) console.log(`Side by side: ${short(out)}`);
   writeFileSync(
@@ -532,6 +560,12 @@ async function compare(results) {
 
 const started = Date.now();
 console.log(`Review ${runId}: ${pages.map((p) => p.path).join(" ")} on ${deviceNames.join(" and ")}, from ${BASE}`);
+if (BUSY) {
+  console.warn(
+    `Warning: the machine is busy (load ${LOAD.toFixed(1)} on ${CORES} cores). Screens may settle late and WebGL may not draw in\n` +
+      `time, which a compare reports as changes that are only timing. ${args.has("jobs") ? "" : "Running one page at a time; "}best to wait until it is quieter.`,
+  );
+}
 const jobs = pages.flatMap((pageInfo) => deviceNames.map((deviceName) => ({ pageInfo, deviceName })));
 const results = new Array(jobs.length);
 let next = 0;
@@ -569,7 +603,7 @@ await Promise.all(Array.from({ length: Math.min(JOBS, jobs.length) }, worker));
 const done = results.filter(Boolean);
 writeFileSync(
   join(RUN, "manifest.json"),
-  JSON.stringify({ run: runId, commit, dirty, date: new Date().toISOString(), base: BASE, query: QUERY, settle: SETTLE, results: done }, null, 2),
+  JSON.stringify({ run: runId, commit, dirty, date: new Date().toISOString(), base: BASE, query: QUERY, settle: SETTLE, load: { average: LOAD, cores: CORES }, results: done }, null, 2),
 );
 console.log(`Screens and contact sheets: ${short(RUN)}/ (${Math.round((Date.now() - started) / 1000)} s)`);
 

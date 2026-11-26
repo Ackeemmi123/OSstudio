@@ -106,12 +106,19 @@ is wrong in detail (a shader change, another colour) is therefore found by
 looking at the side-by-side sheet, not by the numbers; a WebGL part that
 stops drawing is found by its state.
 
+A busy machine gives false changes: screens settle late and WebGL may not
+draw in time. When the load average is over 1.5 per core, the review warns,
+captures one page at a time, and the compare says which runs were taken
+under load. Run it again when the machine is quieter before trusting a
+"starting" WebGL part or a screen that did not settle.
+
 Options: `--pages=lab,scen` (names or paths), `--devices=phone`, `--jobs=3`
-(pages captured at once, each in its own browser), `--settle=900`,
-`--threshold=0.1` (pixelmatch colour distance) and `--tolerance=0.02` (per
-cent). The review uses a running preview server or starts one, and stops if
-the server on its port serves another checkout's build; `REVIEW_PORT=4320
-npm run review` uses another port.
+(pages captured at once, each in its own browser; 1 on a busy machine),
+`--settle=900`, `--threshold=0.1` (pixelmatch colour distance) and
+`--tolerance=0.02` (per cent). The review uses a running preview server or
+starts one. It stops if that server was started in another folder or serves
+files other than this checkout's `dist/`; `REVIEW_PORT=4320 npm run review`
+uses another port.
 
 ## Pictures made in code
 
