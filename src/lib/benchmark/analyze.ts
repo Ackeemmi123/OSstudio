@@ -67,7 +67,7 @@ const EMAIL = /[\w.+-]+@[\w-]+\.[\w.-]+/;
 /** A five-digit postal code beside a word, as Finnish and Swedish addresses are written. */
 const ADDRESS = /\b\d{5}\s+\p{Lu}\p{L}+|\p{L}+(?:gatan|vägen|gränd|torget|katu|tie|kuja|tori|road|street)\s+\d+/u;
 const WEEKDAYS =
-  /\b(mån(?:dag)?|tis(?:dag)?|ons(?:dag)?|tors(?:dag)?|fre(?:dag)?|lör(?:dag)?|sön(?:dag)?|vardagar|maanantai|tiistai|keskiviikko|torstai|perjantai|lauantai|sunnuntai|ma|ti|ke|to|pe|la|su|arkisin|mon(?:day)?|tue(?:sday)?|wed(?:nesday)?|thu(?:rsday)?|fri(?:day)?|sat(?:urday)?|sun(?:day)?|weekdays)\b/i;
+  /\b(mån(?:dag(?:ar)?)?|tis(?:dag(?:ar)?)?|ons(?:dag(?:ar)?)?|tors(?:dag(?:ar)?)?|fre(?:dag(?:ar)?)?|lör(?:dag(?:ar)?)?|sön(?:dag(?:ar)?)?|vardagar|maanantai\p{L}*|tiistai\p{L}*|keskiviikko\p{L}*|torstai\p{L}*|perjantai\p{L}*|lauantai\p{L}*|sunnuntai\p{L}*|ma|ti|ke|to|pe|la|su|arkisin|mon(?:day)?|tue(?:sday)?|wed(?:nesday)?|thu(?:rsday)?|fri(?:day)?|sat(?:urday)?|sun(?:day)?|weekdays)\b/iu;
 const TIME = /\b\d{1,2}(?:[.:]\d{2})?\s*(?:[-–]|to|till|until)\s*\d{1,2}(?:[.:]\d{2})?\b/i;
 const PRICE = /(?:€\s?\d|\d[\d\s.,]*\s?(?:€|eur\b|euro|kr\b|sek\b))/i;
 
@@ -81,7 +81,7 @@ export function analyzePage(html: string, url: string): PageFacts {
   const images = (html.match(/<img\b[^>]*>/gi) ?? []).filter((tag) => !/\bwidth\s*=\s*["']?1["'\s>]/i.test(tag));
   const lower = text.toLocaleLowerCase("sv");
   const hoursNearby = (() => {
-    for (const match of text.matchAll(new RegExp(WEEKDAYS.source, "gi"))) {
+    for (const match of text.matchAll(new RegExp(WEEKDAYS.source, "giu"))) {
       const around = text.slice(Math.max(0, (match.index ?? 0) - 40), (match.index ?? 0) + 80);
       if (TIME.test(around)) return true;
     }

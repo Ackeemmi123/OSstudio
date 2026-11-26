@@ -12,12 +12,29 @@ describe("one-click fills", () => {
     const { spec } = templateSpec(client, project, "services", ["sv"]);
     spec.forms[0].submitLabel = { sv: "Beställ" };
     const result = fillStandardTexts(spec, { ...client, email: "hej@bageri.fi" })!;
-    expect(result.filled).toBe(3);
+    // Consent, reply note, privacy text, the privacy page's search description and the text beside the contact form.
+    expect(result.filled).toBe(5);
     expect(result.spec.forms[0].submitLabel).toEqual({ sv: "Beställ" });
+    const privacyPage = findPrivacyPage(result.spec)!;
+    expect(privacyPage.seo.description.sv).toMatch(/^Så behandlar .+ uppgifterna du skickar via webbplatsens formulär\.$/);
+    const contact = result.spec.pages.flatMap((p) => p.sections).find((x) => x.kind === "contact") as unknown as { body: { sv: string } };
+    expect(contact.body.sv).toContain("hej@bageri.fi");
     expect(result.spec.forms[0].replyNote?.sv).toContain("hej@bageri.fi");
     const privacy = result.spec.pages.find((p) => p.id === "privacy")!.sections[0] as unknown as { body: { sv: string } };
     expect(privacy.body.sv).toContain("Personuppgiftsansvarig");
     expect(fillStandardTexts(spec, { ...client, email: null })).toBeNull();
+  });
+
+  it("leaves a contact text and a privacy description a person or the draft wrote", () => {
+    const client = briefClient();
+    const { spec } = templateSpec(client, project, "services", ["fi"]);
+    const contact = spec.pages.flatMap((p) => p.sections).find((x) => x.kind === "contact") as unknown as { body: Record<string, string> };
+    contact.body = { fi: "Soita meille arkisin." };
+    findPrivacyPage(spec)!.seo.description = { fi: "Oma kuvaus." };
+    const result = fillStandardTexts(spec, { ...client, email: "moi@leipomo.fi" })!;
+    const after = result.spec.pages.flatMap((p) => p.sections).find((x) => x.kind === "contact") as unknown as { body: Record<string, string> };
+    expect(after.body.fi).toBe("Soita meille arkisin.");
+    expect(findPrivacyPage(result.spec)!.seo.description.fi).toBe("Oma kuvaus.");
   });
 
   it("finds a privacy page an AI draft named after its address, and only that page", () => {

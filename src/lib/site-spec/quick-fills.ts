@@ -1,6 +1,6 @@
 /**
  * One-click fills for what every draft needs and nobody enjoys writing: the
- * studio's standard form and privacy texts, and search descriptions taken
+ * studio's standard form, contact and privacy texts, and search descriptions taken
  * from the page's own words. They only fill what is empty or still an
  * instruction in brackets; nothing a person wrote is replaced. No AI.
  */
@@ -47,6 +47,13 @@ export function fillStandardTexts(spec: SiteSpec, client: { name: string; email:
   if (body) {
     body.body ??= {};
     filled += fill(body.body, standard.privacy, locales);
+  }
+  if (privacy) filled += fill(privacy.seo.description, standard.privacyDescription, locales);
+  // The text beside the contact form, when the draft had nothing from the client to say there.
+  for (const page of next.pages) {
+    for (const section of page.sections) {
+      if (section.kind === "contact") filled += fill(section.body, standard.contact, locales);
+    }
   }
   return { spec: next, filled };
 }
