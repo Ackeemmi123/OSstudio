@@ -48,6 +48,10 @@ describe("reading a page", () => {
 
   it("finds Finnish opening hours", () => {
     expect(analyzePage("<p>Avoinna ma–pe 7.30–17.00</p>", "https://x.example/").hours).toBe(true);
+    // Day names as they are written in a sentence, inflected.
+    expect(analyzePage("<p>Olemme auki tiistaista lauantaihin klo 7–15.</p>", "https://x.example/").hours).toBe(true);
+    expect(analyzePage("<p>Öppet måndagar 9–17.</p>", "https://x.example/").hours).toBe(true);
+    expect(analyzePage("<p>Open Tuesday to Saturday from 7 to 3.</p>", "https://x.example/").hours).toBe(true);
     expect(analyzePage("<p>Vi grundades 1998 och har 12 anställda.</p>", "https://x.example/").hours).toBe(false);
   });
 });

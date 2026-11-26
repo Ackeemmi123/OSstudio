@@ -426,3 +426,31 @@ test("a viewer can see the starting points but cannot create a draft", async ({ 
   await expect(page.getByRole("heading", { level: 1, name: "Start the website spec" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Create draft" })).toHaveCount(0);
 });
+
+test("sends the AI draft's questions to the client's portal with one click", async ({ page }) => {
+  test.setTimeout(90_000);
+  const { repository, client, project, url } = await websiteProject(fixture().member);
+  // A draft needs at least 200 characters of material.
+  await repository.addSource(client.id, {
+    label: "Email from the client",
+    type: "email",
+    content: "We bake sourdough bread every morning in our own oven by the harbour.\nWe also make cardamom buns and celebration cakes to order, and we would like customers to see what we bake, when we are open and how to order a cake.",
+  });
+  await repository.startSiteSpec(project.id);
+  await signIn(page, fixture().member);
+  await page.goto(url);
+
+  const draft = page.getByTestId("site-draft");
+  await draft.getByLabel(/The client agreed that their material is processed by AI/).check();
+  await draft.getByRole("button", { name: "Draft the website" }).click();
+  await expect(draft.getByText("Which photos may the site use?")).toBeVisible();
+
+  await draft.getByTestId("ask-in-portal").click();
+  await expect(draft.getByTestId("asked-in-portal")).toBeVisible();
+  await expect(draft.getByTestId("ask-in-portal")).toHaveCount(0);
+
+  // The question is now one of the client's open questions, which the portal asks.
+  const after = await repository.load();
+  const questions = after.clients.find((c) => c.id === client.id)!.contextItems.filter((item) => item.kind === "question").map((item) => item.text);
+  expect(questions).toEqual(["Which photos may the site use?"]);
+});

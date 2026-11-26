@@ -15,6 +15,10 @@ export interface StandardTexts {
   submit: LocalizedText;
   reply: LocalizedText;
   privacy: LocalizedText;
+  /** What the contact page says beside the form, with the e-mail to write to. */
+  contact: LocalizedText;
+  /** The privacy page's search description. */
+  privacyDescription: LocalizedText;
 }
 
 const SUPERVISOR: Record<SiteLocale, string> = { sv: "Dataombudsmannens byrå", fi: "tietosuojavaltuutetun toimiston", en: "the Data Protection Ombudsman" };
@@ -63,6 +67,12 @@ export function standardTexts(client: { name: string; email: string | null }, lo
       l === "sv" ? `Meddelandet går till ${email}. Vi svarar så snart vi kan.` : l === "fi" ? `Viesti menee osoitteeseen ${email}. Vastaamme mahdollisimman pian.` : `Your message goes to ${email}. We will answer as soon as we can.`,
     ),
     privacy: per(locales, (l) => privacy(l, name, email, tracking)),
+    contact: per(locales, (l) =>
+      l === "sv" ? `Skriv till oss med formuläret eller e-post till ${email}, så svarar vi så snart vi kan.` : l === "fi" ? `Kirjoita meille lomakkeella tai sähköpostilla osoitteeseen ${email}, niin vastaamme mahdollisimman pian.` : `Write to us with the form or by e-mail to ${email}, and we will answer as soon as we can.`,
+    ),
+    privacyDescription: per(locales, (l) =>
+      l === "sv" ? `Så behandlar ${name} uppgifterna du skickar via webbplatsens formulär.` : l === "fi" ? `Näin ${name} käsittelee verkkosivuston lomakkeella lähettämiäsi tietoja.` : `How ${name} handles the details you send through this website's form.`,
+    ),
   };
 }
 
