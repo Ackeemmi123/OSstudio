@@ -61,8 +61,14 @@ test("drafts a message to a client the studio is waiting on, without sending any
   const dialog = page.getByRole("dialog", { name: "Draft message" });
   await expect(dialog).toContainText("Nothing is sent from Studio OS.");
   await expect(dialog).toContainText("To: no email address recorded");
+  // Without a website inquiry to tell the client's language, the draft is in Finnish; any of the three can be chosen.
+  await expect(dialog.getByLabel("Subject")).toHaveValue("Muutama kysymys ennen aloitusta");
+  await expect(dialog.getByLabel("Message", { exact: true })).toHaveValue(/^Hei,[\s\S]*- Onko teillä mielessä budjetti\?[\s\S]*Terveisin/);
+  await dialog.getByLabel("Language of the message").selectOption("en");
   await expect(dialog.getByLabel("Subject")).toHaveValue("A few questions before we start");
-  await expect(dialog.getByLabel("Message")).toHaveValue(/^Hi there,[\s\S]*- Do you have a budget range in mind\?/);
+  await expect(dialog.getByLabel("Message", { exact: true })).toHaveValue(/^Hi there,[\s\S]*- Do you have a budget range in mind\?/);
+  await dialog.getByLabel("Language of the message").selectOption("sv");
+  await expect(dialog.getByLabel("Message", { exact: true })).toHaveValue(/^Hej![\s\S]*- Har ni en budget i tankarna\?[\s\S]*Hälsningar/);
   // Without an address there is nothing to open; the person copies the text instead.
   await expect(dialog.getByRole("link", { name: "Open in email" })).toHaveCount(0);
   await expect(dialog.getByRole("button", { name: "Copy" })).toBeVisible();
