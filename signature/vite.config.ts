@@ -22,6 +22,7 @@ export default defineConfig({
       input: {
         lab: resolve(import.meta.dirname, "lab/index.html"),
         scen: resolve(import.meta.dirname, "lab/scen/index.html"),
+        bibliotek: resolve(import.meta.dirname, "lab/bibliotek/index.html"),
       },
     },
   },

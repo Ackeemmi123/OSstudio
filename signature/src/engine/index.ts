@@ -82,12 +82,24 @@ export function boot(options: BootOptions = {}): Capabilities {
   html.dataset.sgWebgl = webglAllowed() ? "pending" : "off";
   const allowSoftware = options.forceWebGL === true;
 
-  // Modules further down mount as they come near; the engine they need loads then, or after load.
-  const moving = [...document.querySelectorAll<HTMLElement>('[data-sg="lines"], [data-sg="scene"]')];
+  // Modules further down mount as they come near; the engine they need loads then.
+  const moving = [...document.querySelectorAll<HTMLElement>('[data-sg="lines"], [data-sg="scene"], [data-sg="story"], [data-sg="marquee"], [data-sg="object"]')];
   for (const element of moving) {
     whenNear(element, () =>
-      void loadMotion().then(({ mountLines, mountScene }) => (element.dataset.sg === "lines" ? mountLines(element) : mountScene(element))),
+      void loadMotion().then((engine) => {
+        const kind = element.dataset.sg;
+        if (kind === "lines") engine.mountLines(element);
+        else if (kind === "scene") engine.mountScene(element);
+        else if (kind === "story") engine.mountStory(element);
+        else if (kind === "marquee") engine.mountMarquee(element);
+        else if (kind === "object") engine.mountObject(element, capabilities, options.forceWebGL === true);
+      }),
     );
+  }
+
+  // The cursor companion: mouse and trackpad only, from the first time the pointer moves.
+  if (capabilities.finePointer && document.querySelector("[data-sg-cursor]")) {
+    addEventListener("pointermove", () => void loadMotion().then(({ mountCursor }) => mountCursor()), { once: true, passive: true });
   }
 
   const smooth = () => {

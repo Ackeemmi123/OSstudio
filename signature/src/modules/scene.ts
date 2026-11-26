@@ -9,7 +9,7 @@
  * Markup: <section data-sg="scene"> … <circle data-sg-ring pathLength="1"> …
  *         <span data-sg-count>01</span> … <li data-step>…</li> … </section>
  */
-import { EASE, gsap, ScrollTrigger, whenMotion } from "../engine/motion";
+import { EASE, gsap, holdPlace, placeOf, ScrollTrigger, whenMotion } from "../engine/motion";
 
 export function mountScene(section: HTMLElement): void {
   const ring = section.querySelector<SVGGeometryElement>("[data-sg-ring]");
@@ -24,12 +24,14 @@ export function mountScene(section: HTMLElement): void {
   };
 
   whenMotion(() => {
+    const before = placeOf(section);
     section.classList.add("is-scrubbed");
     gsap.fromTo(ring, { strokeDashoffset: 1 }, { strokeDashoffset: 0, ease: EASE.follow, scrollTrigger: { trigger: list, start: "top 60%", end: "bottom 60%", scrub: 0.6 } });
     steps.forEach((step, index) =>
       ScrollTrigger.create({ trigger: step, start: "top 60%", end: "bottom 60%", onToggle: (self) => self.isActive && show(index) }),
     );
     show(0);
+    holdPlace(section, before);
     return () => {
       section.classList.remove("is-scrubbed");
       steps.forEach((step) => step.removeAttribute("data-active"));

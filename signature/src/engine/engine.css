@@ -49,6 +49,19 @@
  * rises out of its word and settles from wide to normal width. CSS only, on
  * transforms only, so it costs no script and no layout.
  */
+/* Text for screen readers only (split paragraphs carry their words here). */
+.sg-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 .sg-w {
   display: inline-block;
   white-space: nowrap;
@@ -61,7 +74,7 @@
   display: inline-block;
 }
 @media (prefers-reduced-motion: no-preference) {
-  .sg-c {
+  [data-sg="kinetic"] .sg-c {
     transform-origin: 50% 100%;
     animation: sg-rise 1.35s cubic-bezier(0.16, 1, 0.3, 1) calc(150ms + var(--i) * 28ms) backwards;
   }
@@ -122,4 +135,111 @@
 }
 [data-sg="ink-field"].is-live > [data-sg-canvas] {
   opacity: 1;
+}
+
+/*
+ * Word mark (`data-sg="mark"`, split at build time): each letter rises out of
+ * its word as the mark scrolls into view, driven by the scroll itself in CSS.
+ * Browsers without scroll-driven animations show the finished mark.
+ */
+@supports (animation-timeline: view()) {
+  @media (prefers-reduced-motion: no-preference) {
+    [data-sg="mark"] .sg-c {
+      transform-origin: 50% 100%;
+      animation: sg-mark linear both;
+      animation-timeline: view();
+      /* Within the entry, so the mark is whole even when it is the last thing on the page. */
+      animation-range: entry calc(var(--i) * 7%) entry calc(55% + var(--i) * 7%);
+    }
+  }
+}
+@keyframes sg-mark {
+  from {
+    transform: translateY(100%) scaleY(1.5);
+  }
+}
+
+/* The cursor companion: a ring beside the system cursor, never instead of it. */
+.sg-cursor {
+  position: fixed;
+  left: 0;
+  top: 0;
+  z-index: 100;
+  width: 2.25rem;
+  height: 2.25rem;
+  margin: -1.125rem 0 0 -1.125rem;
+  border: 1.5px solid currentColor;
+  border-radius: 50%;
+  color: var(--sg-cursor, #879dc7);
+  pointer-events: none;
+  opacity: 0;
+  display: grid;
+  place-items: center;
+  transition:
+    opacity 0.3s,
+    width 0.35s cubic-bezier(0.2, 0.7, 0.2, 1),
+    height 0.35s cubic-bezier(0.2, 0.7, 0.2, 1),
+    margin 0.35s cubic-bezier(0.2, 0.7, 0.2, 1),
+    background-color 0.35s;
+  mix-blend-mode: normal;
+}
+.sg-cursor.is-shown {
+  opacity: 1;
+}
+.sg-cursor.is-over {
+  width: 3.75rem;
+  height: 3.75rem;
+  margin: -1.875rem 0 0 -1.875rem;
+  background-color: rgb(135 157 199 / 0.14);
+}
+.sg-cursor.has-label {
+  width: 5.25rem;
+  height: 5.25rem;
+  margin: -2.625rem 0 0 -2.625rem;
+  background-color: var(--sg-cursor, #879dc7);
+}
+.sg-cursor-label {
+  font: 600 0.72rem/1 system-ui, sans-serif;
+  letter-spacing: 0.04em;
+  color: #fff;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+.sg-cursor.has-label .sg-cursor-label {
+  opacity: 1;
+}
+
+/* Marquee: one still line until the engine runs it. */
+[data-sg="marquee"] {
+  display: flex;
+  overflow: hidden;
+  white-space: nowrap;
+}
+[data-sg="marquee"] > * {
+  flex: none;
+  margin: 0;
+  padding-right: 0.5em;
+}
+
+/* Object: the 3D canvas lies over its drawing and appears once it draws. */
+[data-sg-stage] {
+  position: relative;
+}
+[data-sg-stage] > [data-sg-canvas] {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  opacity: 0;
+  transition: opacity 1s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+[data-sg-stage].is-live > [data-sg-canvas] {
+  opacity: 1;
+}
+[data-sg-stage] > svg {
+  transition: opacity 1s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+[data-sg-stage].is-live > svg {
+  opacity: 0;
 }

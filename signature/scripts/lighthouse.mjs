@@ -12,7 +12,7 @@ import lighthouse from "lighthouse";
 
 const PORT = 4317;
 const BASE = `http://127.0.0.1:${PORT}`;
-const PAGES = ["/", "/scen/"];
+const PAGES = ["/", "/scen/", "/bibliotek/"];
 const GATE = { performance: 0.95, accessibility: 1, "best-practices": 0.95, seo: 0.9 };
 const RUNS = Number(process.env.LH_RUNS ?? 3);
 

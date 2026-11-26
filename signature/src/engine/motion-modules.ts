@@ -9,6 +9,10 @@ export { ScrollTrigger };
 export { startSmoothScroll, stopSmoothScroll } from "./scroll";
 export { mountLines } from "../modules/text";
 export { mountScene } from "../modules/scene";
+export { mountStory } from "../modules/story";
+export { mountMarquee } from "../modules/marquee";
+export { mountCursor } from "../modules/cursor";
+export { mountObject } from "../modules/object";
 
 // Fonts change line breaks; measure scroll positions again once they are in.
 void document.fonts?.ready.then(() => ScrollTrigger.refresh());
