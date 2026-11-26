@@ -35,6 +35,11 @@ test.describe("without JavaScript", () => {
     await page.getByRole("link", { name: /Scen två: sidövergången/ }).click();
     await expect(page.getByRole("heading", { level: 1, name: "Sidan bytte, känslan höll." })).toBeVisible();
   });
+
+  test("there is no intro curtain", async ({ page }) => {
+    await page.goto("/");
+    await expect(page.locator(".sg-intro")).toBeHidden();
+  });
 });
 
 test.describe("with reduced motion", () => {
@@ -59,6 +64,7 @@ test.describe("with reduced motion", () => {
     for (const step of await page.locator("[data-step]").all()) await expect(step).toHaveCSS("opacity", "1");
     expect(requests.some((url) => url.includes("ink-field"))).toBe(false);
     await expect(page.locator('[data-sg-status="motion"]')).toHaveText("Av, eftersom du har bett om mindre rörelse");
+    await expect(page.locator(".sg-intro")).toBeHidden();
     expect(errors).toEqual([]);
   });
 });
@@ -67,7 +73,8 @@ test.describe("with motion", () => {
   test("the headline arrives letter by letter, and screen readers get the whole sentence once", async ({ page }) => {
     const errors = collectErrors(page);
     await page.goto("/");
-    await settle(page, 3000);
+    // The intro curtain plays first on a visit's first page, then the headline.
+    await settle(page, 4500);
     const title = page.locator(".hero-title");
     await expect(title).toHaveAttribute("aria-label", "Rörelse som betyder något.");
     await expect(page.getByRole("heading", { level: 1, name: "Rörelse som betyder något." })).toBeVisible();
@@ -125,6 +132,25 @@ test.describe("with motion", () => {
     await expect(field).toHaveAttribute("data-sg-state", "webgl");
     await expect(page.locator('[data-sg-status="webgl"]')).toHaveText("På: bläcket ritas av grafikkortet");
     expect(errors).toEqual([]);
+  });
+
+  test("the intro plays once per visit, never blocks a click, and the headline waits for it", async ({ page }) => {
+    await page.goto("/");
+    const html = page.locator("html");
+    await expect(html).toHaveClass(/sg-intro-on/);
+    const curtain = page.locator(".sg-intro");
+    await expect(curtain).toHaveAttribute("aria-hidden", "true");
+    await expect(curtain).toHaveCSS("pointer-events", "none");
+    await expect(curtain).toHaveCSS("position", "fixed");
+    const delay = await page.locator(".hero-title .sg-c").first().evaluate((letter) => Number.parseFloat(getComputedStyle(letter).animationDelay));
+    expect(delay).toBeGreaterThanOrEqual(1.5);
+    // Clicks go straight through the curtain while it is up.
+    await page.getByRole("link", { name: "Scen två", exact: true }).click();
+    await expect(page).toHaveURL(/\/scen\/$/);
+    // Back on the first page in the same visit: no curtain again.
+    await page.goto("/");
+    await expect(html).not.toHaveClass(/sg-intro-on/);
+    await expect(curtain).toBeHidden();
   });
 
   test("the next page is an ordinary link, with the browser's own page transition", async ({ page }) => {

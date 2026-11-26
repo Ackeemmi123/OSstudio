@@ -12,8 +12,18 @@ import lighthouse from "lighthouse";
 
 const PORT = 4317;
 const BASE = `http://127.0.0.1:${PORT}`;
-const PAGES = ["/", "/scen/", "/bibliotek/"];
+const PAGES = (process.env.LH_PAGES ?? "/,/scen/,/bibliotek/,/404.html").split(",");
 const GATE = { performance: 0.95, accessibility: 1, "best-practices": 0.95, seo: 0.9 };
+// Pages kept out of search on purpose. Their SEO is judged on everything except
+// being indexable, and they must really say noindex.
+const NOT_INDEXED = new Set(["/404.html"]);
+
+/** The SEO score without the indexability audit, weighted as Lighthouse weights it. */
+function seoWithoutIndexing(lhr) {
+  const refs = lhr.categories.seo.auditRefs.filter((ref) => ref.weight > 0 && ref.id !== "is-crawlable" && lhr.audits[ref.id].score !== null);
+  const weight = refs.reduce((total, ref) => total + ref.weight, 0);
+  return weight ? refs.reduce((total, ref) => total + ref.weight * lhr.audits[ref.id].score, 0) / weight : 1;
+}
 const RUNS = Number(process.env.LH_RUNS ?? 3);
 
 const up = async () => {
@@ -60,11 +70,18 @@ for (const path of PAGES) {
   writeFileSync(`lighthouse/${path === "/" ? "lab" : path.replaceAll("/", "")}.html`, median.report);
   const spread = runs.map((r) => Math.round((r.lhr.categories.performance.score ?? 0) * 100)).join(", ");
   console.log(`\n${path}  (median of ${runs.length}; performance in each run: ${spread})`);
+  const hidden = NOT_INDEXED.has(path);
   for (const [key, min] of Object.entries(GATE)) {
-    const score = categories[key].score ?? 0;
+    const score = hidden && key === "seo" ? seoWithoutIndexing(median.lhr) : (categories[key].score ?? 0);
     const ok = score >= min;
     if (!ok) failed++;
-    console.log(`  ${ok ? "ok  " : "FAIL"} ${key.padEnd(15)} ${Math.round(score * 100)} (gate ${Math.round(min * 100)})`);
+    const note = hidden && key === "seo" ? " (kept out of search on purpose; indexability not counted)" : "";
+    console.log(`  ${ok ? "ok  " : "FAIL"} ${key.padEnd(15)} ${Math.round(score * 100)} (gate ${Math.round(min * 100)})${note}`);
+  }
+  if (hidden) {
+    const noindex = audits["is-crawlable"].score === 0;
+    if (!noindex) failed++;
+    console.log(`  ${noindex ? "ok  " : "FAIL"} noindex         ${noindex ? "yes" : "missing"}`);
   }
   for (const id of ["first-contentful-paint", "largest-contentful-paint", "total-blocking-time", "cumulative-layout-shift"]) {
     console.log(`       ${id.padEnd(26)} ${audits[id]?.displayValue ?? "not measured"}`);

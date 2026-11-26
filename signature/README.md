@@ -4,7 +4,9 @@ The engine for Axivo's award-level client sites: motion, scroll, page
 transitions and WebGL, with accessibility and weight held to a gate. It sits
 beside Website Factory (static sites from a spec, for €500–1,000 clients) and
 will be driven by Studio OS in phase 3. Phase 1 is the engine and a lab that
-proves it; phase 2 is the library of building blocks (`lab/bibliotek/`).
+proves it; phase 2 is the library of building blocks (`lab/bibliotek/`),
+with the intro on the lab's first page and a page for missing addresses
+(`lab/404.html`).
 
 The plan, the research behind it (20 Awwwards nominees, measured) and the
 phases are in the Claude Doc "Axivo på Awwwards-nivå: vad som krävs".
@@ -31,7 +33,12 @@ JavaScript, with reduced motion, and without WebGL. The engine only adds.
 | `data-sg="ink-field"` | `src/modules/ink-field.ts` | A slow ink field in the site's colours, stirred by the pointer, over a still gradient that is the design without WebGL. |
 | `data-sg="story"` | `src/modules/story.ts` | Phase 2. Panels that slide sideways while the section holds still, on wide screens with motion; stacked everywhere else. Tabbing into a hidden panel scrolls it into view. |
 | `data-sg="marquee"` | `src/modules/marquee.ts` | Phase 2. A line that runs without end, faster with scroll speed and backwards when scrolling up. Copies are hidden from screen readers. |
-| `data-sg="object"` | `src/modules/object.ts`, `object-scene.ts` | Phase 2. A 3D ring of slats (Three.js) that comes together as steps scroll past, over an SVG drawing that is the design without WebGL. Three.js loads only here. |
+| `data-sg="object"` | `src/modules/object.ts`, `object-scene.ts` | Phase 2. A glass ring with silver clasps (Three.js: physical glass, a studio light set, gentle bloom) that comes together from twelve pieces as steps scroll past, over a rendered picture of it that is the design without WebGL. Three.js loads only here. Quality adapts to the device: it measures the screen's frame rate, then steps down (bloom off, then frosted glass instead of refraction) only if frames are slow; `?quality=0\|1\|2` fixes it for comparison. |
+| `data-sg="reveal"` | `src/modules/reveal.ts` | Part B. A picture that arrives behind a living edge as it scrolls in and swells like a lens under the mouse. Drawn by a shader over the real `<img>`, which stays for screen readers, search, reduced motion and devices without WebGL. |
+| `data-sg="gallery"` | `src/modules/gallery.ts`, `engine.css` | Part B. A sideways row of pictures: a native scroller with snap points (touch, trackpad, arrow keys, screen readers, no script). The engine adds mouse drag with a throw, buttons, a counter and a progress line; pictures drift in their frames (CSS scroll-driven). |
+| `data-sg="sound"` | `src/modules/sound.ts` | Part B. A quiet ambient chord from the browser's own synthesiser: no file, off until asked for, remembered, never started without a click or key press, paused in hidden tabs. Hidden without JavaScript. |
+| Intro (`.sg-intro`) | `engine.css`, a line in the page head | Part B. A curtain with the word mark, once per visit, in CSS alone. Never blocks a click, never shown with reduced motion; the first view's motion waits for it. |
+| 404 page | `lab/404.html` | Part B. Says plainly that the page is missing and leads back. `<base href="/">` makes it work at any depth; the host serves it for missing addresses. |
 | `data-sg-cursor`, `data-sg-magnetic` | `src/modules/cursor.ts` | Phase 2. A ring beside the system cursor (mouse and trackpad only) and buttons that lean toward the pointer, at most 14 px. |
 | `data-sg="mark"` | `src/build/kinetic.ts`, `engine.css` | Phase 2. A word mark split at build time whose letters rise as it scrolls in, in CSS alone (scroll-driven animations). |
 | Holding the place | `holdPlace()` in `src/engine/motion.ts` | Phase 2. When a section above the visitor changes height as it starts (a pin, a scrubbed list), the page keeps what they are looking at still. |
@@ -46,23 +53,40 @@ npm run check        # build (type-checked) → weight budget → tests → Ligh
 
 `npm run check` is the gate. CI runs the same steps (job "Signature engine").
 
+## Pictures made in code
+
+The lab's pictures (`lab/bilder/`) are rendered by Axivo in code, so there
+are no rights to clear: satin stills from a shader and the glass ring from the
+engine itself, at full quality. The tool page is `lab/verktyg/` (dev server
+only, not built). With `npm run dev` running:
+
+```bash
+node scripts/render-art.mjs              # every picture, full size and 800 px wide
+ONLY=siden node scripts/render-art.mjs   # just the ones whose name starts with "siden"
+```
+
+Client sites use the client's own pictures, with written permission.
+
 ## The gate
 
 | Check | Limit |
 | ----- | ----- |
-| Script for the first view | ≤ 15 KB compressed (now 2.7) |
-| Motion engine, loaded later | ≤ 60 KB (now 53) |
-| WebGL shader, loaded later | ≤ 10 KB (now 3.4) |
-| 3D (Three.js), only on pages with an object | ≤ 150 KB (now 130) |
+| Script for the first view | ≤ 15 KB compressed (now 2.8) |
+| Motion engine, loaded later | ≤ 60 KB (now 55) |
+| WebGL shaders, loaded later | ≤ 10 KB (now 4) |
+| 3D (Three.js), only on pages with an object | ≤ 150 KB (now 137) |
+| Sound, after load, only where used | ≤ 3 KB (now 1) |
+| Largest single picture | ≤ 100 KB (now 56); each comes in two sizes for `srcset` |
 | CSS / HTML / fonts | ≤ 15 / 10 / 140 KB |
-| Lighthouse, simulated phone, median of 3 | performance ≥ 95, accessibility 100, best practices ≥ 95, SEO ≥ 90 |
+| Lighthouse, simulated phone, median of 3 | performance ≥ 95, accessibility 100, best practices ≥ 95, SEO ≥ 90 (the 404 page: SEO without indexability, and it must say noindex) |
 | axe (WCAG 2.2 AA) | no violations, with and without motion |
 | Tests | content without JavaScript, nothing moving with reduced motion, still field without WebGL, no sideways scroll on a phone, no console errors |
 
-Measured 2026-11-26, median of three runs: lab 95 / 100 / 100 / 100 (runs 92,
-95, 100; the ink field on this machine's GPU), scene two and the library
-100 / 100 / 100 / 100. Largest content after 0.8 s on every page; layout shift
-0 to 0.001. 44 tests pass on desktop and phone.
+Measured 2026-11-26 after phase 2 part B, median of three runs: lab
+98 / 100 / 100 / 100 (runs 81, 98, 99; the ink field on this machine's GPU),
+scene two, the library and the 404 page 100 / 100 / 100 / 100. Largest content
+after 0.8 s on every page; layout shift 0 to 0.005. 65 tests pass on desktop
+and phone (7 are desktop-only or run once by design).
 
 ## Licences
 
@@ -71,7 +95,7 @@ Measured 2026-11-26, median of three runs: lab 95 / 100 / 100 / 100 (runs 92,
   build visual animations without code in competition with Webflow, so never
   put GSAP behind a no-code animation builder in Studio OS.
 - **Lenis**: MIT.
-- **Three.js** (with its RoundedBoxGeometry example): MIT.
-- **Simplex noise** in the ink field: Ashima Arts / Stefan Gustavson, MIT.
+- **Three.js** (with its post-processing examples: EffectComposer, UnrealBloomPass, OutputPass): MIT.
+- **Simplex noise** in the ink field, the image effect and the satin stills: Ashima Arts / Stefan Gustavson, MIT.
 - **Fonts** in the lab: Archivo and Instrument Sans, SIL Open Font License
   (`lab/fonts/LICENSE-*.txt`).

@@ -243,3 +243,182 @@
 [data-sg-stage].is-live > svg {
   opacity: 0;
 }
+[data-sg-stage] > img {
+  transition: opacity 1s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+[data-sg-stage].is-live > img {
+  opacity: 0;
+}
+
+/*
+ * Image effect: the shader draws the picture over the real image, which stays
+ * in the page (for screen readers, search and every visitor without WebGL).
+ * Once the shader draws, it takes over: the picture arrives behind its edge.
+ */
+[data-sg="reveal"] {
+  position: relative;
+  overflow: hidden;
+}
+[data-sg="reveal"] > img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+[data-sg="reveal"] > [data-sg-canvas] {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  pointer-events: none;
+  opacity: 0;
+}
+[data-sg="reveal"].is-live > [data-sg-canvas] {
+  opacity: 1;
+}
+[data-sg="reveal"].is-live > img {
+  opacity: 0;
+}
+
+/*
+ * Gallery: a native sideways scroller with snap points, which works with no
+ * script at all. Each picture drifts inside its frame as it passes, where the
+ * browser can tie an animation to the scroller (scroll-driven animations).
+ */
+[data-sg="gallery"] [data-sg-track] {
+  display: flex;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+}
+/* List resets without weight, so the site's own spacing always wins. */
+:where([data-sg="gallery"] [data-sg-track]) {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+[data-sg="gallery"] [data-sg-track]::-webkit-scrollbar {
+  display: none;
+}
+[data-sg="gallery"] [data-sg-slide] {
+  flex: none;
+  scroll-snap-align: start;
+}
+[data-sg="gallery"].is-ready [data-sg-track] {
+  cursor: grab;
+}
+[data-sg="gallery"].is-dragging [data-sg-track] {
+  scroll-snap-type: none;
+  cursor: grabbing;
+  user-select: none;
+}
+/* Clipped, not hidden: a hidden frame would be the scroller the drift follows. */
+[data-sg="gallery"] [data-sg-media] {
+  overflow: clip;
+}
+[data-sg="gallery"] [data-sg-media] > img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+[data-sg="gallery"] [data-sg-progress] > span {
+  display: block;
+  height: 100%;
+  transform-origin: 0 50%;
+  transform: scaleX(max(var(--sg-progress, 0), 0.04));
+}
+@media (prefers-reduced-motion: no-preference) {
+  @supports (animation-timeline: view()) {
+    [data-sg="gallery"] [data-sg-media] > img {
+      scale: 1.14;
+      animation: sg-drift linear both;
+      animation-timeline: view(inline);
+    }
+  }
+}
+@keyframes sg-drift {
+  from {
+    translate: 6% 0;
+  }
+  to {
+    translate: -6% 0;
+  }
+}
+
+/*
+ * Intro: a curtain with the word mark, once per visit, in CSS alone. A line in
+ * the page head adds `sg-intro-on` on the first page of a visit, never with
+ * reduced motion. The curtain never blocks the page: clicks go straight
+ * through, and screen readers never meet it. The first view's own motion
+ * waits until the curtain has lifted.
+ *
+ * Head: <script>try{if(!sessionStorage.getItem("sg-intro")&&!matchMedia("(prefers-reduced-motion: reduce)").matches){document.documentElement.classList.add("sg-intro-on");sessionStorage.setItem("sg-intro","1")}}catch(e){}</script>
+ * Body: <div class="sg-intro" aria-hidden="true"><p class="sg-intro-word"><span style="--i:0">a</span>…</p><span class="sg-intro-line"></span></div>
+ */
+.sg-intro {
+  display: none;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .sg-intro-on .sg-intro {
+    position: fixed;
+    inset: 0;
+    z-index: 100;
+    display: grid;
+    place-content: center;
+    justify-items: center;
+    gap: 1.4rem;
+    background: var(--sg-intro-bg, #151922);
+    color: var(--sg-intro-fg, #fff);
+    pointer-events: none;
+    animation: sg-intro-lift 0.9s cubic-bezier(0.7, 0, 0.2, 1) 1.45s forwards;
+  }
+  .sg-intro-word {
+    display: flex;
+    margin: 0;
+    clip-path: inset(-0.2em -0.2em 0 -0.2em);
+    animation: sg-intro-away 0.9s cubic-bezier(0.7, 0, 0.2, 1) 1.45s forwards;
+  }
+  .sg-intro-word span {
+    display: inline-block;
+    animation: sg-intro-letter 1s cubic-bezier(0.16, 1, 0.3, 1) calc(0.12s + var(--i) * 70ms) backwards;
+  }
+  .sg-intro-line {
+    width: min(14rem, 40vw);
+    height: 1px;
+    background: var(--sg-intro-line, #c3bcf2);
+    transform-origin: 0 50%;
+    animation: sg-intro-draw 1.05s cubic-bezier(0.65, 0, 0.35, 1) 0.3s backwards;
+  }
+  /* The first view's headlines and text start once the curtain is lifting. */
+  .sg-intro-on [data-sg="kinetic"] .sg-c {
+    animation-delay: calc(1.6s + var(--i) * 28ms);
+  }
+  .sg-intro-on [data-sg="rise"] {
+    animation-delay: calc(var(--sg-delay, 0.3s) + 1.45s);
+  }
+}
+@keyframes sg-intro-letter {
+  from {
+    transform: translateY(105%);
+  }
+}
+@keyframes sg-intro-draw {
+  from {
+    transform: scaleX(0);
+  }
+}
+@keyframes sg-intro-away {
+  to {
+    transform: translateY(-6vh);
+    opacity: 0;
+  }
+}
+@keyframes sg-intro-lift {
+  to {
+    clip-path: inset(0 0 100% 0);
+    visibility: hidden;
+  }
+}

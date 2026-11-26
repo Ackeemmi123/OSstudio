@@ -23,6 +23,7 @@ export default defineConfig({
         lab: resolve(import.meta.dirname, "lab/index.html"),
         scen: resolve(import.meta.dirname, "lab/scen/index.html"),
         bibliotek: resolve(import.meta.dirname, "lab/bibliotek/index.html"),
+        "404": resolve(import.meta.dirname, "lab/404.html"),
       },
     },
   },

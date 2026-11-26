@@ -17,6 +17,8 @@ export type { Capabilities };
 export interface BootOptions extends CapabilityOptions {
   /** Skip smooth scrolling even when motion is welcome. */
   nativeScroll?: boolean;
+  /** Fix 3D quality (0–2) instead of measuring the device. For demos and stills. */
+  quality?: 0 | 1 | 2;
 }
 
 type Dispose = () => void;
@@ -83,7 +85,7 @@ export function boot(options: BootOptions = {}): Capabilities {
   const allowSoftware = options.forceWebGL === true;
 
   // Modules further down mount as they come near; the engine they need loads then.
-  const moving = [...document.querySelectorAll<HTMLElement>('[data-sg="lines"], [data-sg="scene"], [data-sg="story"], [data-sg="marquee"], [data-sg="object"]')];
+  const moving = [...document.querySelectorAll<HTMLElement>('[data-sg="lines"], [data-sg="scene"], [data-sg="story"], [data-sg="marquee"], [data-sg="object"], [data-sg="reveal"], [data-sg="gallery"]')];
   for (const element of moving) {
     whenNear(element, () =>
       void loadMotion().then((engine) => {
@@ -92,10 +94,16 @@ export function boot(options: BootOptions = {}): Capabilities {
         else if (kind === "scene") engine.mountScene(element);
         else if (kind === "story") engine.mountStory(element);
         else if (kind === "marquee") engine.mountMarquee(element);
-        else if (kind === "object") engine.mountObject(element, capabilities, options.forceWebGL === true);
+        else if (kind === "object") engine.mountObject(element, capabilities, allowSoftware, options.quality);
+        else if (kind === "reveal") engine.mountReveal(element, capabilities, allowSoftware);
+        else if (kind === "gallery") engine.mountGallery(element);
       }),
     );
   }
+
+  // The sound button: a few kilobytes, after load. It plays nothing until the visitor asks.
+  const sound = document.querySelector<HTMLButtonElement>('[data-sg="sound"]');
+  if (sound) void afterLoad().then(() => import("../modules/sound")).then(({ mountSound }) => mountSound(sound));
 
   // The cursor companion: mouse and trackpad only, from the first time the pointer moves.
   if (capabilities.finePointer && document.querySelector("[data-sg-cursor]")) {

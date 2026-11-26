@@ -13,6 +13,8 @@ export { mountStory } from "../modules/story";
 export { mountMarquee } from "../modules/marquee";
 export { mountCursor } from "../modules/cursor";
 export { mountObject } from "../modules/object";
+export { mountReveal } from "../modules/reveal";
+export { mountGallery } from "../modules/gallery";
 
 // Fonts change line breaks; measure scroll positions again once they are in.
 void document.fonts?.ready.then(() => ScrollTrigger.refresh());
