@@ -42,6 +42,10 @@ next". It opens an editable draft built from fixed wording
 goal, budget and deadline, at most five; for a quiet project, a short
 check-in. No AI is involved and nothing is stored.
 
+The draft is in Finnish, Swedish or English. It starts in the language of the
+client's latest website inquiry, else Finnish, and the person can switch it
+("Language of the message"); greeting, questions and sign-off all follow.
+
 Studio OS never sends it. The person edits the text, then copies it or opens
 it in their own email app ("Open in email", only when an address is recorded)
 and sends it themselves. Approvals, reviews, blocked and overdue tasks are the

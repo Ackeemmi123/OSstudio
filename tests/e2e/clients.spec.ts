@@ -27,6 +27,30 @@ test("creates and edits a client, and the changes are still there after a reload
   await expect(page.getByRole("link", { name: new RegExp(name) })).toBeVisible();
 });
 
+test("test clients stay out of the client list until asked for, and a search still finds them", async ({ page }) => {
+  const name = uniqueName("List Bakery (TEST)");
+  await createClientNamed(page, name);
+  await expect(page.getByRole("heading", { level: 1, name })).toBeVisible();
+  await expect(page.getByRole("heading", { level: 1, name }).locator("..").getByText("Test", { exact: true })).toBeVisible();
+
+  await page.goto("/clients");
+  const row = page.getByRole("link", { name: new RegExp(name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")) });
+  await expect(page.getByTestId("toggle-test-clients")).toBeVisible();
+  await expect(row).toHaveCount(0);
+
+  await page.getByLabel("Search clients").fill(name);
+  await expect(row).toBeVisible();
+  await page.getByLabel("Search clients").fill("");
+
+  await page.getByTestId("toggle-test-clients").click();
+  await expect(row).toBeVisible();
+  await expect(row.getByText("Test", { exact: true })).toBeVisible();
+  // The choice is remembered on this browser.
+  await page.reload();
+  await expect(row).toBeVisible();
+  await expect(page.getByTestId("toggle-test-clients")).toHaveText("Hide test clients");
+});
+
 test("records a brief value as observed, confirms it, and keeps who confirmed it", async ({ page }) => {
   const { member } = fixture();
   await createClientNamed(page, uniqueName("Nordvik"));

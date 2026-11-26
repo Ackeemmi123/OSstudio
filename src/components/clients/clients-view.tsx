@@ -12,15 +12,18 @@ import { Tag } from "@/components/ui/status";
 import { EmptyState, PageHeader, Section, Skeleton, Surface } from "@/components/ui/surface";
 import { describeInquiry, getOpenInquiries } from "@/lib/domain/inquiries";
 import { getClientRows, matchesClientQuery, type ClientRow } from "@/lib/domain/insights";
+import { isTestClient } from "@/lib/domain/test-clients";
 import type { Inquiry } from "@/lib/domain/types";
 import { NewClientDialog } from "./new-client-dialog";
-import { DemoTag } from "./status";
+import { DemoTag, TestTag } from "./status";
+import { useShowTestClients } from "./use-show-test-clients";
 
 export function ClientsView() {
   const state = useStudio();
   const canEdit = useCanEdit();
   const [query, setQuery] = useState("");
   const [showArchived, setShowArchived] = useState(false);
+  const [showTests, setShowTests] = useShowTestClients();
   const [creating, setCreating] = useState(false);
   const deferredQuery = useDeferredValue(query);
 
@@ -28,9 +31,14 @@ export function ClientsView() {
   const inquiries = state.status === "ready" ? getOpenInquiries(state.snapshot) : [];
   const matches = rows.filter((row) => matchesClientQuery(row, deferredQuery));
   const searching = deferredQuery.trim() !== "";
-  // Archived clients stay out of the way unless asked for, or found by a search.
-  const archived = matches.filter((row) => row.client.status === "archived");
-  const visible = searching || showArchived ? matches : matches.filter((row) => row.client.status !== "archived");
+  // Archived and test clients stay out of the way unless asked for, or found by a search.
+  const isArchived = (row: ClientRow) => row.client.status === "archived";
+  const isTest = (row: ClientRow) => isTestClient(row.client);
+  const real = searching || showTests ? matches : matches.filter((row) => !isTest(row));
+  const archived = real.filter(isArchived);
+  const visible = searching || showArchived ? real : real.filter((row) => !isArchived(row));
+  const tests = rows.filter((row) => isTest(row) && (showArchived || !isArchived(row))).length;
+  const onlyHidden = !searching && visible.length === 0 && rows.length > 0;
 
   return (
     <>
@@ -78,6 +86,23 @@ export function ClientsView() {
                 ) : undefined
               }
             />
+          ) : onlyHidden ? (
+            <EmptyState
+              icon={<Users />}
+              title="Only test and archived clients"
+              description="Real clients appear here as soon as you add them."
+              action={
+                tests ? (
+                  <Button size="sm" onClick={() => setShowTests(true)}>
+                    Show test clients
+                  </Button>
+                ) : (
+                  <Button size="sm" onClick={() => setShowArchived(true)}>
+                    Show archived clients
+                  </Button>
+                )
+              }
+            />
           ) : visible.length === 0 ? (
             <EmptyState
               icon={<Search />}
@@ -100,15 +125,24 @@ export function ClientsView() {
         </Surface>
       )}
 
-      {state.status === "ready" && !searching && archived.length > 0 ? (
-        <button
-          type="button"
-          onClick={() => setShowArchived((value) => !value)}
-          className="mt-3 rounded-sm text-[13px] text-ink-subtle hover:text-ink"
-          aria-expanded={showArchived}
-        >
-          {showArchived ? "Hide archived clients" : `Show ${archived.length} archived ${archived.length === 1 ? "client" : "clients"}`}
-        </button>
+      {state.status === "ready" && !searching && (archived.length > 0 || showArchived || tests > 0) ? (
+        <div className="mt-3 flex flex-wrap gap-x-5 gap-y-1">
+          {archived.length > 0 || showArchived ? (
+            <button
+              type="button"
+              onClick={() => setShowArchived((value) => !value)}
+              className="rounded-sm text-[13px] text-ink-subtle hover:text-ink"
+              aria-expanded={showArchived}
+            >
+              {showArchived ? "Hide archived clients" : `Show ${archived.length} archived ${archived.length === 1 ? "client" : "clients"}`}
+            </button>
+          ) : null}
+          {tests > 0 ? (
+            <button type="button" onClick={() => setShowTests(!showTests)} className="rounded-sm text-[13px] text-ink-subtle hover:text-ink" aria-pressed={showTests} data-testid="toggle-test-clients">
+              {showTests ? "Hide test clients" : `Show ${tests === 1 ? "1 test client" : `${tests} test clients`}`}
+            </button>
+          ) : null}
+        </div>
       ) : null}
 
       {state.status === "ready" && state.info.kind === "local-demo" ? (
@@ -168,6 +202,7 @@ function ClientListRow({ row }: { row: ClientRow }) {
           <span className="flex items-center gap-2">
             <span className="truncate text-[14px] font-medium text-ink">{client.name}</span>
             {client.isDemo ? <DemoTag /> : null}
+            {isTestClient(client) ? <TestTag /> : null}
           </span>
           <span className="mt-0.5 block truncate text-[12.5px] text-ink-subtle">{row.situation}</span>
         </span>

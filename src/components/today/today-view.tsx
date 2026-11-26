@@ -10,6 +10,7 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import { ActivityTimeline } from "@/components/activity-timeline";
 import { NewClientDialog } from "@/components/clients/new-client-dialog";
+import { useShowTestClients } from "@/components/clients/use-show-test-clients";
 import { TodayNextSteps } from "@/components/next-steps/next-steps";
 import { LoadError } from "@/components/load-error";
 import { useCanEdit, useStudio, useStudioStore } from "@/components/providers/studio-provider";
@@ -66,35 +67,9 @@ export function TodayView() {
   );
 }
 
-const SHOW_TESTS_KEY = "studio-os:today-show-tests";
-
-/** Test clients stay out of Today unless someone asks for them; the choice is remembered on this browser. */
-function useShowTests(): [boolean, (show: boolean) => void] {
-  // The workspace renders only once the studio has loaded in the browser, so storage can be read at once.
-  const [show, setShow] = useState(() => {
-    try {
-      return typeof window !== "undefined" && window.localStorage.getItem(SHOW_TESTS_KEY) === "1";
-    } catch {
-      // Private windows may refuse storage; test clients then stay hidden.
-      return false;
-    }
-  });
-  return [
-    show,
-    (next) => {
-      setShow(next);
-      try {
-        window.localStorage.setItem(SHOW_TESTS_KEY, next ? "1" : "0");
-      } catch {
-        // Only a convenience.
-      }
-    },
-  ];
-}
-
 function Workspace({ snapshot: everything }: { snapshot: StudioSnapshot }) {
   const now = useNow();
-  const [showTests, setShowTests] = useShowTests();
+  const [showTests, setShowTests] = useShowTestClients();
   const tests = countTestClients(everything);
   const snapshot = useMemo(() => (showTests ? everything : withoutTestClients(everything)), [everything, showTests]);
   const [showAllFollowUps, setShowAllFollowUps] = useState(false);

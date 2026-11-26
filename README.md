@@ -42,13 +42,15 @@ To stand up and check a hosted staging copy, see [docs/staging.md](docs/staging.
 
 ## What works
 
-- **Today**: decisions waiting on you, the next step for each client in play
-  (blocked work first), active projects, and recent activity.
+- **Today**: a pulse (in production, waiting on clients, live, needs you),
+  decisions waiting on you, the next step for each client in play (blocked
+  work first), active projects, and recent activity.
 - **Clients**: search by name, contact, email or project, with one line on each
-  client's situation. Archived clients are tucked away.
+  client's situation. Archived clients and test clients ("(TEST)" in the name)
+  are tucked away; one switch shows test clients in Today and the list.
 - **New client**: a name is enough. Contact details and the original inquiry
   are optional, behind one click.
-- **Client workspace** (one page, no tabs):
+- **Client workspace** (tabs: Overview, Projects, Brief, Sources, Activity):
   - *What's next*: decisions, blocked work and missing essentials for this client.
   - *Projects*: create a project, change its stage and status, add tasks, change
     task status, approve work that is awaiting approval.
@@ -60,7 +62,13 @@ To stand up and check a hosted staging copy, see [docs/staging.md](docs/staging.
 - **Settings**: where data is stored, a reset for the demo data, what is
   connected, the AI budget, and the agents (available and planned).
 - **Follow up** on Today: work that has waited too long, computed when the page
-  opens ([docs/follow-ups.md](docs/follow-ups.md)). Nothing is sent.
+  opens ([docs/follow-ups.md](docs/follow-ups.md)). Drafts to the client are
+  in Finnish, Swedish or English. Nothing is sent.
+- **Offers**: a written offer from the published prices, in the client's
+  language, printed or saved as a PDF ([docs/offers.md](docs/offers.md)).
+- **Client portal**: one private link per client to follow the website, answer
+  open questions and send material with written rights and consent
+  ([docs/portal.md](docs/portal.md)).
 - **Projects from a playbook**: starting a project offers the usual tasks for
   its type; tasks have an owner, a due date and a blocked reason.
 
@@ -118,9 +126,8 @@ checked on the server, and approved for use by a person ([docs/site-images.md](d
 
 ## Not built
 
-- File uploads, email intake, notifications and sending email, invoicing and
-  any money fields, consultation and proposal records, password reset and
-  invites, data export.
+- Email intake, sending email to clients, invoicing and payments, stored
+  offers and consultation records, password reset and invites, data export.
 - Other agents (design, development, QA, sales) are listed in Settings as
   planned.
 - A production environment.

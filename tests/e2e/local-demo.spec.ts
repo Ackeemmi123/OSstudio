@@ -174,7 +174,10 @@ test("the client page fits a phone without scrolling sideways", async ({ page })
 });
 
 test("makes a written offer from the published prices, in the client's language", async ({ page }) => {
-  await page.goto("/clients/demo-nordvik/offer");
+  // The offer is one click from the client page, before any project exists.
+  await page.goto("/clients/demo-nordvik");
+  await page.getByTestId("client-offer").click();
+  await expect(page).toHaveURL(/\/clients\/demo-nordvik\/offer$/);
   const offer = page.getByTestId("offer-document");
   await expect(offer).toContainText("Tarjous");
   await expect(offer).toContainText("Verkkosivusto");
