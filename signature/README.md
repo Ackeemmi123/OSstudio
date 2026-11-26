@@ -84,7 +84,7 @@ Client sites use the client's own pictures, with written permission.
 | 3D band, only on pages with an object | ≤ 10 KB (was 137 with Three.js) |
 | Sound, after load, only where used | ≤ 3 KB (now 1) |
 | Largest single picture | ≤ 100 KB (now 72); each comes in two sizes for `srcset` |
-| CSS / HTML / fonts | ≤ 15 / 10 / 140 KB |
+| CSS / HTML / fonts | ≤ 15 / 10 / 140 KB (fonts now 121, all three faces) |
 | Lighthouse, simulated phone, median of 3 | performance ≥ 95, accessibility 100, best practices ≥ 95, SEO ≥ 90 (the 404 page: SEO without indexability, and it must say noindex) |
 | axe (WCAG 2.2 AA) | no violations, with and without motion |
 | Tests | content without JavaScript, nothing moving with reduced motion, still field without WebGL, no sideways scroll on a phone, no console errors |
@@ -109,3 +109,7 @@ phone (7 are desktop-only or run once by design). The 3D band went from 137 KB
   Open Font License (`lab/fonts/LICENSE-*.txt`). Instrument Serif came from
   the `@fontsource/instrument-serif` 5.3.0 package (Latin, regular); its
   fallback's metrics were measured in the browser against Times New Roman.
+  All three are trimmed with fontTools (`pyftsubset`, no hinting, every
+  layout feature kept) to the Latin letters and punctuation Swedish, Finnish
+  and English need, about 17 KB less in all. No font declares a Reserved Font
+  Name, so the trimmed files keep theirs.
