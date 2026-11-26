@@ -15,6 +15,7 @@ export { mountCursor } from "../modules/cursor";
 export { mountObject } from "../modules/object";
 export { mountReveal } from "../modules/reveal";
 export { mountGallery } from "../modules/gallery";
+export { mountCount } from "../modules/count";
 
 // Fonts change line breaks; measure scroll positions again once they are in.
 void document.fonts?.ready.then(() => ScrollTrigger.refresh());

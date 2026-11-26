@@ -1,8 +1,9 @@
 /**
  * Sound: a quiet ambient chord, off until the visitor turns it on. Played by
  * the browser's own synthesiser (Web Audio), so there is no file to download.
- * It fades in and out, pauses when the tab is hidden, and the choice is
- * remembered; a remembered "on" still waits for the visitor's first click or
+ * It follows the page: scrolling opens the chord's filter, so the sound
+ * brightens while the page moves and settles when it rests. It fades in and
+ * out, pauses when the tab is hidden, and the choice is remembered; a remembered "on" still waits for the visitor's first click or
  * key press, as browsers rightly require.
  *
  * Markup: <button type="button" data-sg="sound" aria-pressed="false" hidden>
@@ -33,6 +34,7 @@ const remember = (on: boolean) => {
 interface Pad {
   context: AudioContext;
   master: GainNode;
+  filter: BiquadFilterNode;
 }
 
 function createPad(): Pad | null {
@@ -90,7 +92,7 @@ function createPad(): Pad | null {
     }
     voice.connect(filter);
   });
-  return { context, master };
+  return { context, master, filter };
 }
 
 export function mountSound(button: HTMLButtonElement): void {
@@ -147,6 +149,21 @@ export function mountSound(button: HTMLButtonElement): void {
     addEventListener("pointerdown", first, true);
     addEventListener("keydown", first, true);
   }
+
+  // The scroll opens the filter: brighter while the page moves, settling as it rests.
+  let lastY = scrollY;
+  let lastTime = performance.now();
+  const onScroll = () => {
+    if (!pad || !playing) return;
+    const now = performance.now();
+    const speed = Math.abs(scrollY - lastY) / Math.max(16, now - lastTime);
+    lastY = scrollY;
+    lastTime = now;
+    const { context, filter } = pad;
+    filter.frequency.setTargetAtTime(900 + Math.min(1800, speed * 900), context.currentTime, 0.08);
+    filter.frequency.setTargetAtTime(900, context.currentTime + 0.25, 0.6);
+  };
+  addEventListener("scroll", onScroll, { passive: true });
 
   // Quiet while the tab is hidden; back when it returns.
   document.addEventListener("visibilitychange", () => {

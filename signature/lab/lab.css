@@ -668,6 +668,9 @@ a {
   display: block;
 }
 .object.is-scrubbed .object-stage {
+  /* The 3D picture's dark is tone-mapped and never exactly the section's: fade its edges into the section instead of meeting it at a line. */
+  -webkit-mask-image: linear-gradient(to bottom, transparent, #000 16%, #000 84%, transparent);
+  mask-image: linear-gradient(to bottom, transparent, #000 16%, #000 84%, transparent);
   position: sticky;
   top: 0;
   width: 100%;
@@ -831,6 +834,7 @@ a {
   margin-bottom: clamp(2rem, 6vh, 3.5rem);
 }
 .gallery-head .label {
+  flex: 1 1 30rem;
   margin-bottom: 0;
 }
 .gallery-lead {
@@ -986,7 +990,10 @@ a {
 }
 @media (max-width: 640px) {
   .bar-tools {
-    gap: 0.75rem;
+    gap: 0.5rem;
+  }
+  .bar-tools nav {
+    gap: 0.85rem;
   }
   .sound {
     padding: 0;
@@ -1028,6 +1035,165 @@ a {
 .pill-outline:hover {
   background: #fff;
   color: var(--ink);
+}
+
+/* ---------- Visning: one idea, built from the library ---------- */
+.page-show {
+  background: #0e1118;
+  color: var(--on-ink);
+}
+.page-show .hero.show-hero {
+  display: flex;
+  align-items: flex-end;
+  padding-bottom: clamp(2rem, 6vh, 4rem);
+  background:
+    radial-gradient(70% 60% at 70% 30%, rgb(61 76 158 / 0.55), transparent 70%),
+    radial-gradient(40% 40% at 85% 70%, rgb(135 157 199 / 0.3), transparent 70%),
+    #0e1118;
+}
+.show-hero-inner {
+  width: 100%;
+}
+.show-title {
+  font: 500 clamp(6rem, 25vw, 26rem) / 0.78 var(--display);
+  font-stretch: 68%;
+  letter-spacing: -0.02em;
+  color: #fff;
+  margin-left: -0.03em;
+}
+.show-hero-foot {
+  display: grid;
+  gap: 2rem;
+  align-items: end;
+  margin-top: clamp(1.5rem, 4vh, 3rem);
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--hair-on-ink);
+}
+.show-lead {
+  max-width: 30rem;
+  font-size: clamp(1.05rem, 1.3vw, 1.2rem);
+  line-height: 1.55;
+  color: var(--on-ink);
+}
+.show-hint {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  font: 500 0.75rem/1 var(--text);
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--on-ink-quiet);
+}
+.show-hint span {
+  width: 3.5rem;
+  height: 1px;
+  background: currentColor;
+  transform-origin: 0 50%;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .show-hint span {
+    animation: show-hint 2.4s var(--ease-roll) infinite;
+  }
+}
+@keyframes show-hint {
+  0% {
+    transform: scaleX(0);
+    transform-origin: 0 50%;
+  }
+  45% {
+    transform: scaleX(1);
+    transform-origin: 0 50%;
+  }
+  55% {
+    transform: scaleX(1);
+    transform-origin: 100% 50%;
+  }
+  100% {
+    transform: scaleX(0);
+    transform-origin: 100% 50%;
+  }
+}
+@media (min-width: 900px) {
+  .show-hero-foot {
+    grid-template-columns: 1fr auto;
+  }
+}
+/* Dark bands share the hairline, number and name colours of the object section. */
+:is(.show-statement, .show-numbers) .label {
+  color: var(--on-ink-quiet);
+  border-color: var(--hair-on-ink);
+}
+:is(.show-statement, .show-numbers) .label > span:first-child {
+  color: var(--lilac);
+}
+:is(.show-statement, .show-numbers) .label .label-name {
+  color: #fff;
+}
+.show-statement {
+  background: #0e1118;
+}
+.show-big {
+  font: 380 clamp(2.3rem, 5.6vw, 6rem) / 1.02 var(--display);
+  font-stretch: 82%;
+  letter-spacing: -0.02em;
+  color: #fff;
+  max-width: 19ch;
+  text-wrap: pretty;
+}
+.page-show .object {
+  background: #0e1118;
+}
+.show-gallery {
+  background: var(--cloud);
+  color: var(--ink);
+}
+.show-numbers {
+  background: #0e1118;
+}
+.show-figures {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: clamp(2rem, 5vw, 3rem) clamp(1rem, 3vw, 2.5rem);
+  margin: 0;
+}
+.show-figures div {
+  padding-top: 1rem;
+  border-top: 1px solid var(--hair-on-ink);
+}
+.show-figures dt {
+  font: 500 0.75rem/1.4 var(--text);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--on-ink-quiet);
+}
+.show-figures dd {
+  margin: 1.25rem 0 0;
+  font: 180 clamp(4.5rem, 11vw, 11rem) / 0.82 var(--display);
+  font-stretch: 62%;
+  letter-spacing: -0.02em;
+  color: #fff;
+  font-variant-numeric: tabular-nums;
+}
+.show-figures small {
+  margin-left: 0.3rem;
+  font: 400 clamp(1rem, 1.6vw, 1.4rem) / 1 var(--text);
+  letter-spacing: 0;
+  color: var(--on-ink-quiet);
+}
+.show-note {
+  max-width: 34rem;
+  margin-top: clamp(2.5rem, 6vh, 4rem);
+  font-size: 0.9rem;
+  color: var(--on-ink-quiet);
+}
+@media (min-width: 900px) {
+  .show-figures {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+.show-foot {
+  background: #0e1118;
+  border-top: 1px solid var(--hair-on-ink);
 }
 
 /* Signature footer with the word mark */
@@ -1088,6 +1254,7 @@ a {
  */
 .roll {
   display: inline-block;
+  white-space: nowrap;
   text-shadow: 0 2.6em currentColor;
 }
 .pill,
@@ -1142,5 +1309,34 @@ a {
   .gallery-progress span,
   .sound-bars i {
     transition: none;
+  }
+}
+
+/* Small phones: the word mark alone, so the menu fits on one line. */
+@media (max-width: 480px) {
+  .mark span {
+    display: none;
+  }
+  .bar nav a {
+    font-size: 0.82rem;
+  }
+}
+
+/* Gallery pictures answer the mouse: a slow push in, and the caption's number lights up. */
+@media (hover: hover) and (prefers-reduced-motion: no-preference) {
+  .gallery-media {
+    transition: filter 0.6s var(--ease-out);
+  }
+  .gallery-media > img {
+    transition: scale 1.1s var(--ease-out);
+  }
+  .gallery-slide:hover .gallery-media > img {
+    scale: 1.2;
+  }
+  .gallery-slide figcaption span {
+    transition: color 0.4s var(--ease-out);
+  }
+  .gallery-slide:hover figcaption span {
+    color: var(--ink);
   }
 }

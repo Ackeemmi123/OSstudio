@@ -85,7 +85,7 @@ export function boot(options: BootOptions = {}): Capabilities {
   const allowSoftware = options.forceWebGL === true;
 
   // Modules further down mount as they come near; the engine they need loads then.
-  const moving = [...document.querySelectorAll<HTMLElement>('[data-sg="lines"], [data-sg="scene"], [data-sg="story"], [data-sg="marquee"], [data-sg="object"], [data-sg="reveal"], [data-sg="gallery"]')];
+  const moving = [...document.querySelectorAll<HTMLElement>('[data-sg="lines"], [data-sg="scene"], [data-sg="story"], [data-sg="marquee"], [data-sg="object"], [data-sg="reveal"], [data-sg="gallery"], [data-sg="count"]')];
   for (const element of moving) {
     whenNear(element, () =>
       void loadMotion().then((engine) => {
@@ -97,6 +97,7 @@ export function boot(options: BootOptions = {}): Capabilities {
         else if (kind === "object") engine.mountObject(element, capabilities, allowSoftware, options.quality);
         else if (kind === "reveal") engine.mountReveal(element, capabilities, allowSoftware);
         else if (kind === "gallery") engine.mountGallery(element);
+        else if (kind === "count") engine.mountCount(element);
       }),
     );
   }

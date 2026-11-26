@@ -145,8 +145,8 @@ test.describe("with motion", () => {
     const delay = await page.locator(".hero-title .sg-c").first().evaluate((letter) => Number.parseFloat(getComputedStyle(letter).animationDelay));
     expect(delay).toBeGreaterThanOrEqual(1.5);
     // Clicks go straight through the curtain while it is up.
-    await page.getByRole("link", { name: "Scen två", exact: true }).click();
-    await expect(page).toHaveURL(/\/scen\/$/);
+    await page.getByRole("link", { name: "Bibliotek", exact: true }).click();
+    await expect(page).toHaveURL(/\/bibliotek\/$/);
     // Back on the first page in the same visit: no curtain again.
     await page.goto("/");
     await expect(html).not.toHaveClass(/sg-intro-on/);
