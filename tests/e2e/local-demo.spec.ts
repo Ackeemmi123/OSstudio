@@ -188,7 +188,7 @@ test("makes a written offer from the published prices, in the client's language"
   await page.getByLabel("Price of line 1").fill("300");
   await expect(offer).toContainText("1 500 €");
 
-  await page.getByLabel("Language").selectOption("en");
+  await page.getByLabel("Language", { exact: true }).selectOption("en");
   await expect(offer).toContainText("Offer");
   await expect(offer).toContainText("€1,200");
   await expect(offer).toContainText("€49/month");
