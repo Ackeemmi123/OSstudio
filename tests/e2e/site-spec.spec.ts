@@ -430,7 +430,12 @@ test("a viewer can see the starting points but cannot create a draft", async ({ 
 test("sends the AI draft's questions to the client's portal with one click", async ({ page }) => {
   test.setTimeout(90_000);
   const { repository, client, project, url } = await websiteProject(fixture().member);
-  await repository.addSource(client.id, { label: "Email from the client", type: "email", content: "We bake sourdough bread every morning." });
+  // A draft needs at least 200 characters of material.
+  await repository.addSource(client.id, {
+    label: "Email from the client",
+    type: "email",
+    content: "We bake sourdough bread every morning in our own oven by the harbour.\nWe also make cardamom buns and celebration cakes to order, and we would like customers to see what we bake, when we are open and how to order a cake.",
+  });
   await repository.startSiteSpec(project.id);
   await signIn(page, fixture().member);
   await page.goto(url);
