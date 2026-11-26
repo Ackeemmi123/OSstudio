@@ -20,4 +20,14 @@ describe("security headers", () => {
     });
     expect(nextConfig.poweredByHeader).toBe(false);
   });
+
+  it("let a client's draft be shown only inside Studio OS, after the baseline", async () => {
+    const rules = await nextConfig.headers!();
+    const drafts = rules.findIndex((rule) => rule.source === "/s/:path*");
+    expect(drafts).toBeGreaterThan(rules.findIndex((rule) => rule.source === "/:path*"));
+    expect(Object.fromEntries(rules[drafts].headers.map((h) => [h.key, h.value]))).toEqual({
+      "Content-Security-Policy": "frame-ancestors 'self'",
+      "X-Frame-Options": "SAMEORIGIN",
+    });
+  });
 });

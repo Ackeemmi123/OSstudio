@@ -25,6 +25,15 @@ const nextConfig: NextConfig = {
           { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=()" },
         ],
       },
+      // A client's draft (/s/<token>) may be shown inside Studio OS itself, in the client's portal,
+      // never in another site.
+      {
+        source: "/s/:path*",
+        headers: [
+          { key: "Content-Security-Policy", value: "frame-ancestors 'self'" },
+          { key: "X-Frame-Options", value: "SAMEORIGIN" },
+        ],
+      },
     ];
   },
   // Sections folded into Today and the client workspace in the simplified layout.

@@ -16,7 +16,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ tok
     "Cache-Control": "no-store",
     "X-Robots-Tag": "noindex, nofollow",
     "Referrer-Policy": "no-referrer",
-    "Content-Security-Policy": `default-src 'none'; script-src 'nonce-${nonce}'; style-src 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'`,
+    "Content-Security-Policy": `default-src 'none'; script-src 'nonce-${nonce}'; style-src 'unsafe-inline'; img-src 'self' data:; frame-src 'self'; connect-src 'self'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'`,
   };
   const deps = portalDeps();
   if (!deps || !PORTAL_TOKEN.test(token)) return new Response(portalClosedPage(nonce), { status: 404, headers });
