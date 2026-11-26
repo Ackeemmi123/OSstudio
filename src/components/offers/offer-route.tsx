@@ -31,16 +31,18 @@ interface SenderDetails {
   legalName: string;
   businessId: string;
   phone: string;
+  /** The work address to answer to; the sign-in address may be a private one. */
+  email: string;
 }
 
 function readSender(): SenderDetails {
   try {
     const stored = typeof window !== "undefined" ? window.localStorage.getItem(SENDER_KEY) : null;
-    if (stored) return { legalName: "", businessId: "", phone: "", ...(JSON.parse(stored) as Partial<SenderDetails>) };
+    if (stored) return { legalName: "", businessId: "", phone: "", email: "", ...(JSON.parse(stored) as Partial<SenderDetails>) };
   } catch {
     // Storage may be off; the fields then start empty.
   }
-  return { legalName: "", businessId: "", phone: "" };
+  return { legalName: "", businessId: "", phone: "", email: "" };
 }
 
 /** The client's language: the one their website inquiry came in, else Finnish. */
@@ -125,6 +127,7 @@ function OfferEditor({ client, project, snapshot }: { client: Client; project: P
     }
   }
 
+  const fallbackEmail = shown.email || info?.user.email || "";
   const offer = useMemo(
     () =>
       buildOffer({
@@ -144,12 +147,12 @@ function OfferEditor({ client, project, snapshot }: { client: Client; project: P
           legalName: sender.legalName,
           businessId: sender.businessId,
           person: me?.displayName ?? "",
-          email: info?.user.email ?? shown.email ?? "",
+          email: sender.email.trim() || fallbackEmail,
           phone: sender.phone,
           website: shown.website ?? "",
         },
       }),
-    [language, validDays, client, title, scope, website, upkeep, extras, vat, intro, shown.name, shown.email, shown.website, sender, me?.displayName, info?.user.email],
+    [language, validDays, client, title, scope, website, upkeep, extras, vat, intro, shown.name, shown.website, sender, me?.displayName, fallbackEmail],
   );
 
   const back = `/clients/${encodeURIComponent(client.id)}`;
@@ -260,6 +263,9 @@ function OfferEditor({ client, project, snapshot }: { client: Client; project: P
                 <TextInput id={`${id}-phone`} value={sender.phone} onChange={(event) => changeSender({ phone: event.target.value })} />
               </Field>
             </div>
+            <Field id={`${id}-email`} label="Your e-mail on the offer">
+              <TextInput id={`${id}-email`} type="email" value={sender.email} placeholder={shown.email ?? info?.user.email ?? "name@agency.fi"} onChange={(event) => changeSender({ email: event.target.value })} />
+            </Field>
           </Surface>
         </form>
 
