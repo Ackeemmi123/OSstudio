@@ -7,7 +7,8 @@
     <meta name="description" content="Axivo Signature, visning två: samma motor i en ljus och varm riktning. Långsamt gjort, snabbt laddat." />
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 32 32%27%3E%3Crect width=%2732%27 height=%2732%27 rx=%277%27 fill=%27%2324170f%27/%3E%3Ccircle cx=%2716%27 cy=%2716%27 r=%277%27 fill=%27none%27 stroke=%27%23d99a52%27 stroke-width=%273%27/%3E%3C/svg%3E" />
     <meta name="theme-color" content="#f3ece2" />
-    <link rel="preload" href="../fonts/archivo-latin-wdth-normal.woff2" as="font" type="font/woff2" crossorigin />
+    <!-- The hero picture is the largest thing on a phone's first screen: fetched first, before the fonts. -->
+    <link rel="preload" as="image" href="../bilder/siden-sand-800.webp" imagesrcset="../bilder/siden-sand-800.webp 800w, ../bilder/siden-sand.webp 1600w" imagesizes="(min-width: 900px) 34vw, 100vw" fetchpriority="high" />
     <link rel="preload" href="../fonts/instrument-sans-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin />
     <link rel="preload" href="../fonts/instrument-serif-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin />
     <script>document.documentElement.classList.add("sg-js");addEventListener("pagereveal",function(e){if(e.viewTransition)document.documentElement.dataset.sgArrived="transition"});</script>
