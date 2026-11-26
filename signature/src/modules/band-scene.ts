@@ -320,6 +320,14 @@ export function createObjectScene(canvas: HTMLCanvasElement, options: ObjectScen
   const fixed = options.quality !== undefined;
   const pixelRatio = () => Math.min(window.devicePixelRatio || 1, level === 2 ? 2 : level === 1 ? 1.25 : 1);
 
+  /*
+   * The two programs compile in the graphics process while the page goes on:
+   * asking for the link status straight away would hold the main thread until
+   * the band's shader is compiled (a long task on a phone, longer still on a
+   * slow driver). The frame loop asks only once the compiler is done
+   * (KHR_parallel_shader_compile), or, without that extension, after a few
+   * frames' grace; until then the picture underneath stays.
+   */
   const compile = (vertex: string, fragment: string) => {
     const program = context.createProgram()!;
     for (const [type, source] of [[context.VERTEX_SHADER, vertex], [context.FRAGMENT_SHADER, `precision highp float;\n${fragment}`]] as const) {
@@ -330,14 +338,38 @@ export function createObjectScene(canvas: HTMLCanvasElement, options: ObjectScen
       context.deleteShader(shader);
     }
     context.linkProgram(program);
-    return context.getProgramParameter(program, context.LINK_STATUS) ? program : null;
+    return program;
   };
   const band = compile(BAND_VERTEX, BAND_FRAGMENT);
   const backdrop = compile(FULL_SCREEN, BACKDROP_FRAGMENT);
-  if (!band || !backdrop) return null;
-  const locate = (program: WebGLProgram, names: string[]) => Object.fromEntries(names.map((name) => [name, context.getUniformLocation(program, name)]));
-  const u = locate(band, ["uModel", "uViewProjection", "uCamera", "uSplit", "uAmp", "uTime", "uBase", "uGlow", "uSamples", "uExposure"]);
-  const b = locate(backdrop, ["uResolution", "uCentre", "uInk", "uTint", "uGlow"]);
+  const parallel = context.getExtension("KHR_parallel_shader_compile");
+  context.flush();
+  type Locations = Record<string, WebGLUniformLocation | null>;
+  const locate = (program: WebGLProgram, names: string[]): Locations => Object.fromEntries(names.map((name) => [name, context.getUniformLocation(program, name)]));
+  let u: Locations = {};
+  let b: Locations = {};
+  let aPosition = 0;
+  let aUv = 0;
+  let linked = false;
+  let grace = 3;
+  /** True once both programs are linked. Waits on the compiler only when `now` (stills) or when the extension is missing and the grace is over. */
+  const ready = (now = false) => {
+    if (linked) return true;
+    if (!now) {
+      if (parallel && !(context.getProgramParameter(band, parallel.COMPLETION_STATUS_KHR) && context.getProgramParameter(backdrop, parallel.COMPLETION_STATUS_KHR))) return false;
+      if (!parallel && grace-- > 0) return false;
+    }
+    if (!context.getProgramParameter(band, context.LINK_STATUS) || !context.getProgramParameter(backdrop, context.LINK_STATUS)) {
+      fail();
+      return false;
+    }
+    u = locate(band, ["uModel", "uViewProjection", "uCamera", "uSplit", "uAmp", "uTime", "uBase", "uGlow", "uSamples", "uExposure"]);
+    b = locate(backdrop, ["uResolution", "uCentre", "uInk", "uTint", "uGlow"]);
+    aPosition = context.getAttribLocation(backdrop, "aPosition");
+    aUv = context.getAttribLocation(band, "aUv");
+    linked = true;
+    return true;
+  };
 
   // The full-screen triangle for the backdrop.
   const screen = context.createBuffer();
@@ -414,16 +446,15 @@ export function createObjectScene(canvas: HTMLCanvasElement, options: ObjectScen
     context.disable(context.DEPTH_TEST);
     context.useProgram(backdrop);
     context.bindBuffer(context.ARRAY_BUFFER, screen);
-    const position = context.getAttribLocation(backdrop, "aPosition");
-    context.enableVertexAttribArray(position);
-    context.vertexAttribPointer(position, 2, context.FLOAT, false, 0, 0);
+    context.enableVertexAttribArray(aPosition);
+    context.vertexAttribPointer(aPosition, 2, context.FLOAT, false, 0, 0);
     context.uniform2f(b.uResolution, width, height);
     context.uniform1f(b.uCentre, centre);
     context.uniform3fv(b.uInk, srgb(ink));
     context.uniform3fv(b.uTint, srgb(tint));
     context.uniform3fv(b.uGlow, srgb(glow));
     context.drawArrays(context.TRIANGLES, 0, 3);
-    context.disableVertexAttribArray(position);
+    context.disableVertexAttribArray(aPosition);
 
     // Turned away while unformed, a three-quarter view once whole; a slow turn in its own plane always.
     const turnY = 0.55 + (1 - progress) * 0.5 + pointerX * 0.3 + Math.sin(time * 0.3) * 0.08;
@@ -435,9 +466,8 @@ export function createObjectScene(canvas: HTMLCanvasElement, options: ObjectScen
     context.enable(context.DEPTH_TEST);
     context.useProgram(band);
     context.bindBuffer(context.ARRAY_BUFFER, mesh.uv);
-    const uv = context.getAttribLocation(band, "aUv");
-    context.enableVertexAttribArray(uv);
-    context.vertexAttribPointer(uv, 2, context.FLOAT, false, 0, 0);
+    context.enableVertexAttribArray(aUv);
+    context.vertexAttribPointer(aUv, 2, context.FLOAT, false, 0, 0);
     context.bindBuffer(context.ELEMENT_ARRAY_BUFFER, mesh.index);
     context.uniformMatrix4fv(u.uModel, false, model);
     context.uniformMatrix4fv(u.uViewProjection, false, viewProjection);
@@ -451,7 +481,7 @@ export function createObjectScene(canvas: HTMLCanvasElement, options: ObjectScen
     context.uniform1f(u.uSamples, level === 0 ? 0 : 2);
     context.uniform1f(u.uExposure, 1.0);
     context.drawElements(context.TRIANGLES, mesh.count, context.UNSIGNED_SHORT, 0);
-    context.disableVertexAttribArray(uv);
+    context.disableVertexAttribArray(aUv);
   };
 
   let visible = false;
@@ -462,18 +492,27 @@ export function createObjectScene(canvas: HTMLCanvasElement, options: ObjectScen
    * Frame-time watch. The first frames compile shaders and are slow by nature,
    * so they are skipped; then each window of 60 frames is judged on its 75th
    * percentile, which one stall cannot sway, and quality steps down only after
-   * two slow windows in a row.
+   * two slow windows in a row. Both are also bounded in time (the warm-up at
+   * three quarters of a second, a window at one second, at least ten frames),
+   * which changes nothing at 60 frames a second or more, but judges a slow
+   * device as soon as a fast one: counted in frames alone, a phone drawing 12
+   * a second waited 14 seconds, longer than it takes to scroll past the band.
    */
   const window60: number[] = [];
   let frames = 0;
+  let warm = 0;
+  let span = 0;
   let slowWindows = 0;
   const watch = (delta: number) => {
     frames++;
-    if (fixed || frames <= 45 || level === 0) return;
+    warm += delta;
+    if (fixed || level === 0 || (frames <= 45 && warm < 0.75)) return;
     window60.push(delta);
-    if (window60.length < 60) return;
-    const p75 = window60.sort((x, y) => x - y)[44];
+    span += delta;
+    if (window60.length < 60 && (span < 1 || window60.length < 10)) return;
+    const p75 = window60.sort((x, y) => x - y)[Math.ceil(window60.length * 0.75) - 1];
     window60.length = 0;
+    span = 0;
     canvas.dataset.frameP75 = (p75 * 1000).toFixed(1);
     slowWindows = p75 > (options.frameBudget ?? 1 / 42) ? slowWindows + 1 : 0;
     if (slowWindows < 2) return;
@@ -487,6 +526,11 @@ export function createObjectScene(canvas: HTMLCanvasElement, options: ObjectScen
   canvas.dataset.frameBudget = ((options.frameBudget ?? 1 / 42) * 1000).toFixed(1);
 
   const frame = (now: number) => {
+    if (!ready()) {
+      last = now;
+      frameId = visible && document.visibilityState === "visible" ? requestAnimationFrame(frame) : 0;
+      return;
+    }
     const raw = (now - last) / 1000;
     const delta = Math.min(0.05, raw);
     last = now;
@@ -518,10 +562,15 @@ export function createObjectScene(canvas: HTMLCanvasElement, options: ObjectScen
   document.addEventListener("visibilitychange", wake);
   const onLost = (event: Event) => {
     event.preventDefault();
-    dispose();
-    options.lost();
+    fail();
   };
   canvas.addEventListener("webglcontextlost", onLost);
+
+  /** The scene cannot draw (context lost, a program refused): the picture underneath stays. */
+  function fail() {
+    dispose();
+    options.lost();
+  }
 
   function dispose() {
     cancelAnimationFrame(frameId);
@@ -548,6 +597,7 @@ export function createObjectScene(canvas: HTMLCanvasElement, options: ObjectScen
       pointerTargetY = x === null ? 0 : y;
     },
     still: (value, at = 4) => {
+      if (!ready(true)) return;
       progress = target = clamp(value, 0, 1);
       time = at;
       spin = at * 0.05;

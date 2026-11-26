@@ -48,6 +48,58 @@ void main() {
   gl_Position = vec4(position, 0.0, 1.0);
 }`;
 
+/** How many horizontal bands a picture is uploaded in, one per frame. */
+const BANDS = 4;
+
+/**
+ * The picture's pixels for the texture, decoded away from the main thread in
+ * horizontal bands. Handing an <img> straight to WebGL decodes it on the main
+ * thread inside the upload: 120–200 ms for a large picture on a phone with a
+ * slow CPU, as the picture scrolls into view. Here the browser decodes the
+ * bytes (from its cache, where the <img> left them) in the background, and
+ * each band is uploaded in a frame of its own. Same pixels: flipped while
+ * decoding, since WebGL ignores its own flip for a bitmap, and not
+ * premultiplied, as WebGL leaves an <img>.
+ */
+async function decodeBands(image: HTMLImageElement): Promise<{ width: number; height: number; bands: { row: number; bitmap: ImageBitmap }[] }> {
+  const response = await fetch(image.currentSrc || image.src, { cache: "force-cache" });
+  if (!response.ok) throw new Error(String(response.status));
+  const blob = await response.blob();
+  const { width, height } = await pixelSize(blob);
+  const rows = Math.ceil(height / BANDS);
+  const tops: number[] = [];
+  for (let top = 0; top < height; top += rows) tops.push(top);
+  const bands = await Promise.all(
+    tops.map(async (top) => {
+      const band = Math.min(rows, height - top);
+      const bitmap = await createImageBitmap(blob, 0, top, width, band, { imageOrientation: "flipY", premultiplyAlpha: "none", colorSpaceConversion: "default" });
+      // Flipped, the band's first row is the picture's row top + band - 1, which belongs at this texture row.
+      return { row: height - top - band, bitmap };
+    }),
+  );
+  return { width, height, bands };
+}
+
+/**
+ * The picture's size in pixels. Not the <img>'s natural size: from a srcset
+ * that is in CSS pixels (a 2000-pixel picture shown at 412 reports 412). A
+ * loaded image that is never shown or decoded reads only the file's header.
+ */
+async function pixelSize(blob: Blob): Promise<{ width: number; height: number }> {
+  const url = URL.createObjectURL(blob);
+  try {
+    const probe = new Image();
+    probe.src = url;
+    await new Promise((resolve, reject) => {
+      probe.onload = resolve;
+      probe.onerror = reject;
+    });
+    return { width: probe.naturalWidth, height: probe.naturalHeight };
+  } finally {
+    URL.revokeObjectURL(url);
+  }
+}
+
 function shader(gl: WebGLRenderingContext, type: number, source: string): WebGLShader | null {
   const object = gl.createShader(type);
   if (!object) return null;
@@ -75,23 +127,48 @@ export function createShaderStage(canvas: HTMLCanvasElement, options: ShaderStag
   gl.attachShader(program, fragment);
   gl.linkProgram(program);
   const parallel = gl.getExtension("KHR_parallel_shader_compile");
+  // Hand the compile to the graphics process now, not at the end of this task.
+  gl.flush();
 
   // One triangle that covers the screen.
   const buffer = gl.createBuffer();
   gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
   gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 3, -1, -1, 3]), gl.STATIC_DRAW);
 
-  // The image, if any, as texture unit 0.
+  // The image, if any, as texture unit 0: decoded off the main thread, then uploaded; nothing is drawn before.
   let texture: WebGLTexture | null = null;
+  let textured = !options.image;
   if (options.image) {
+    const image = options.image;
     texture = gl.createTexture();
     gl.bindTexture(gl.TEXTURE_2D, texture);
-    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
-    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, options.image);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    const uploadBands = async ({ width, height, bands }: Awaited<ReturnType<typeof decodeBands>>) => {
+      gl.bindTexture(gl.TEXTURE_2D, texture);
+      gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, width, height, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+      for (const { row, bitmap } of bands) {
+        await new Promise(requestAnimationFrame);
+        if (!disposed) {
+          gl.bindTexture(gl.TEXTURE_2D, texture);
+          gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, row, gl.RGBA, gl.UNSIGNED_BYTE, bitmap);
+        }
+        bitmap.close();
+      }
+      textured = true;
+    };
+    // Where the browser cannot decode in the background, the picture is uploaded as it always was.
+    const uploadWhole = () => {
+      if (disposed) return;
+      gl.bindTexture(gl.TEXTURE_2D, texture);
+      gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, image);
+      textured = true;
+    };
+    decodeBands(image).then((decoded) => (disposed ? decoded.bands.forEach(({ bitmap }) => bitmap.close()) : uploadBands(decoded)), uploadWhole);
   }
 
   const values = new Map<string, Uniform>(Object.entries(options.uniforms));
@@ -123,10 +200,17 @@ export function createShaderStage(canvas: HTMLCanvasElement, options: ShaderStag
     set("uResolution", [canvas.width, canvas.height]);
   };
 
-  /** True once the program is linked; with the extension, without waiting on it. */
+  /**
+   * True once the program is linked and the picture (if any) uploaded. With
+   * the extension it never waits on the compiler; without it, the first few
+   * frames are left to the compiler before asking, which would wait.
+   */
+  let grace = 3;
   const linked = () => {
     if (ready) return true;
+    if (!textured) return false;
     if (parallel && !gl.getProgramParameter(program, parallel.COMPLETION_STATUS_KHR)) return false;
+    if (!parallel && grace-- > 0) return false;
     if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
       fail();
       return false;
