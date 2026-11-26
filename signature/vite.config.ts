@@ -25,6 +25,7 @@ export default defineConfig({
         bibliotek: resolve(import.meta.dirname, "lab/bibliotek/index.html"),
         visning: resolve(import.meta.dirname, "lab/visning/index.html"),
         hantverk: resolve(import.meta.dirname, "lab/hantverk/index.html"),
+        lekfull: resolve(import.meta.dirname, "lab/lekfull/index.html"),
         "404": resolve(import.meta.dirname, "lab/404.html"),
       },
     },
