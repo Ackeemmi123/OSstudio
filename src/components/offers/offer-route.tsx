@@ -1,10 +1,10 @@
 "use client";
 
-import { ArrowLeft, Plus, Printer, SearchX, Trash2 } from "lucide-react";
+import { ArrowLeft, Mail, Plus, Printer, SearchX, Trash2 } from "lucide-react";
 import { useEffect, useId, useMemo, useState } from "react";
 import { LoadError } from "@/components/load-error";
 import { useStudio, useStudioStore } from "@/components/providers/studio-provider";
-import { Button, ButtonLink } from "@/components/ui/button";
+import { Button, ButtonLink, buttonClasses } from "@/components/ui/button";
 import { Field, Select, TextArea, TextInput } from "@/components/ui/field";
 import { EmptyState, Skeleton, Surface } from "@/components/ui/surface";
 import { brandLogoUrl, shownBrand, type AgencyBrand } from "@/lib/domain/agency-brand";
@@ -16,6 +16,8 @@ import {
   euros,
   OFFER_WORDS,
   offerDate,
+  offerEmail,
+  offerMailto,
   percent,
   projectTitle,
   STANDARD_PRICES,
@@ -166,12 +168,18 @@ function OfferEditor({ client, project, snapshot }: { client: Client; project: P
             {client.name}
           </ButtonLink>
           <h1 className="text-[26px] leading-tight font-medium tracking-[-0.03em] text-ink">Offer</h1>
-          <p className="mt-1 text-[13.5px] text-ink-muted">Starts from the published prices and what they include. Adjust it, then print it or save it as a PDF. Nothing is stored or sent.</p>
+          <p className="mt-1 text-[13.5px] text-ink-muted">Starts from the published prices and what they include. Adjust it, save it as a PDF, then write the e-mail and attach the PDF. Nothing is stored or sent from here.</p>
         </div>
-        <Button variant="primary" onClick={() => window.print()}>
-          <Printer aria-hidden />
-          Print or save as PDF
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <a href={offerMailto(offerEmail(offer))} className={buttonClasses("secondary", "md")} data-testid="offer-email" title={client.email ? `Opens your e-mail app with a message to ${client.email}` : "Opens your e-mail app; no address is recorded for this client"}>
+            <Mail aria-hidden />
+            Write the e-mail
+          </a>
+          <Button variant="primary" onClick={() => window.print()}>
+            <Printer aria-hidden />
+            Print or save as PDF
+          </Button>
+        </div>
       </div>
 
       <div className="grid items-start gap-8 xl:grid-cols-[340px_minmax(0,1fr)]">

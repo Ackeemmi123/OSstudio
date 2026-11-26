@@ -287,3 +287,48 @@ export function projectTitle(name: string, language: OfferLanguage): string {
   if (!/^(new )?website$|^webbplats$|^verkkosivu(sto|t)$/i.test(trimmed)) return trimmed;
   return OFFER_WORDS[language].website;
 }
+
+/** The e-mail that goes with the offer's PDF, in the offer's language. The person attaches the PDF and sends it themselves. */
+export function offerEmail(offer: Offer): { to: string | null; subject: string; body: string } {
+  const language = offer.language;
+  const w = OFFER_WORDS[language];
+  const first = offer.client.contact?.trim().split(/\s+/)[0] ?? "";
+  const vat0 = { fi: "alv 0 %", sv: "moms 0 %", en: "VAT 0%" }[language];
+  const once = `${euros(offer.onceTotal, language)} (${vat0})`;
+  const upkeep = offer.recurring ? `${euros(offer.recurring.price, language)}${w.units[offer.recurring.unit]}` : null;
+  const until = offerDate(offer.validUntil, language);
+  const signature = [offer.from.person, offer.from.studio, offer.from.phone].map((line) => line.trim()).filter(Boolean).join("\n");
+  const text = {
+    fi: {
+      subject: `Tarjous: ${offer.project}`,
+      hello: first ? `Hei ${first},` : "Hei,",
+      thanks: `Kiitos keskustelusta. Liitteenä on tarjouksemme (${offer.project}).`,
+      prices: `Kertamaksu ${once}${upkeep ? ` ja ylläpito ${upkeep} (${vat0})` : ""}. Tarjous on voimassa ${until} asti.`,
+      next: "Kun haluatte jatkaa, vastatkaa tähän viestiin, niin lähetämme sopimuksen.",
+      regards: "Terveisin",
+    },
+    sv: {
+      subject: `Offert: ${offer.project}`,
+      hello: first ? `Hej ${first}!` : "Hej!",
+      thanks: `Tack för samtalet. Som bilaga finns vår offert (${offer.project}).`,
+      prices: `Engångsavgift ${once}${upkeep ? ` och underhåll ${upkeep} (${vat0})` : ""}. Offerten gäller till ${until}.`,
+      next: "När ni vill gå vidare räcker det att svara på det här meddelandet, så skickar vi avtalet.",
+      regards: "Hälsningar",
+    },
+    en: {
+      subject: `Offer: ${offer.project}`,
+      hello: first ? `Hi ${first},` : "Hello,",
+      thanks: `Thank you for the conversation. Attached is our offer (${offer.project}).`,
+      prices: `One-off ${once}${upkeep ? ` and maintenance ${upkeep} (${vat0})` : ""}. The offer is valid until ${until}.`,
+      next: "When you would like to go ahead, just reply to this message and we will send the agreement.",
+      regards: "Best regards",
+    },
+  }[language];
+  const body = [text.hello, text.thanks, text.prices, text.next, signature ? `${text.regards}\n${signature}` : text.regards].join("\n\n");
+  return { to: offer.client.email?.trim() || null, subject: text.subject, body };
+}
+
+/** A mailto link for the offer's e-mail. Every part is encoded, so the text cannot add recipients or headers. */
+export function offerMailto(mail: { to: string | null; subject: string; body: string }): string {
+  return `mailto:${mail.to ? encodeURIComponent(mail.to) : ""}?subject=${encodeURIComponent(mail.subject)}&body=${encodeURIComponent(mail.body)}`;
+}

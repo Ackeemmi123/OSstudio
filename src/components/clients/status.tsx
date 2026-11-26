@@ -62,6 +62,15 @@ export function ConfidenceTag({ confidence }: { confidence: FieldConfidence }) {
   );
 }
 
+/** A client made for trying Studio OS out. Hidden from Today and the client list unless asked for. */
+export function TestTag() {
+  return (
+    <Tag tone="info" title="Made for trying Studio OS out. Not a real client.">
+      Test
+    </Tag>
+  );
+}
+
 export function DemoTag() {
   return (
     <Tag tone="neutral" title="Example record for demonstration. Not a real client.">

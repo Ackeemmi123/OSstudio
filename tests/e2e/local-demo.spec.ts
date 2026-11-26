@@ -174,7 +174,10 @@ test("the client page fits a phone without scrolling sideways", async ({ page })
 });
 
 test("makes a written offer from the published prices, in the client's language", async ({ page }) => {
-  await page.goto("/clients/demo-nordvik/offer");
+  // The offer is one click from the client page, before any project exists.
+  await page.goto("/clients/demo-nordvik");
+  await page.getByTestId("client-offer").click();
+  await expect(page).toHaveURL(/\/clients\/demo-nordvik\/offer$/);
   const offer = page.getByTestId("offer-document");
   await expect(offer).toContainText("Tarjous");
   await expect(offer).toContainText("Verkkosivusto");
@@ -193,4 +196,9 @@ test("makes a written offer from the published prices, in the client's language"
   await expect(offer).toContainText("€1,200");
   await expect(offer).toContainText("€49/month");
   await expect(page.getByRole("button", { name: "Print or save as PDF" })).toBeVisible();
+
+  // The e-mail that goes with the PDF follows the offer's language and prices; nothing is sent from Studio OS.
+  const mail = decodeURIComponent((await page.getByTestId("offer-email").getAttribute("href")) ?? "");
+  expect(mail).toContain("subject=Offer: ");
+  expect(mail).toContain("One-off €1,500 (VAT 0%) and maintenance €49/month (VAT 0%).");
 });

@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft, CircleSlash, Clock, Pencil, SearchX } from "lucide-react";
+import { ArrowLeft, CircleSlash, Clock, FileText, Pencil, SearchX } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { LoadError } from "@/components/load-error";
@@ -14,6 +14,7 @@ import { CLIENT_TAB_LABELS, CLIENT_TABS, hashTarget, tabForHash, type ClientTab 
 import { describeWait, FOLLOW_UP_RULES, getFollowUps } from "@/lib/domain/followups";
 import { getClientProjects, getDecisions, getNextActions } from "@/lib/domain/insights";
 import { findOnboarding } from "@/lib/domain/onboarding";
+import { isTestClient } from "@/lib/domain/test-clients";
 import type { Client, StudioSnapshot } from "@/lib/domain/types";
 import { useNow } from "@/lib/use-now";
 import { BriefSection } from "./brief-section";
@@ -24,7 +25,7 @@ import { EditDetailsDialog } from "./edit-details-dialog";
 import { IntakeReview } from "./intake-review";
 import { ProjectsSection } from "./projects-section";
 import { RetentionSection } from "./retention-section";
-import { ClientStatusLabel, DemoTag } from "./status";
+import { ClientStatusLabel, DemoTag, TestTag } from "./status";
 
 export function ClientWorkspace({ clientId }: { clientId: string }) {
   const state = useStudio();
@@ -79,6 +80,7 @@ function Workspace({ client, snapshot }: { client: Client; snapshot: StudioSnaps
             <div className="flex flex-wrap items-center gap-2.5">
               <h1 className="text-[26px] leading-tight font-medium tracking-[-0.032em] text-ink">{client.name}</h1>
               {client.isDemo ? <DemoTag /> : null}
+              {isTestClient(client) ? <TestTag /> : null}
             </div>
             <p className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[13.5px] text-ink-muted">
               <ClientStatusLabel status={client.status} />
@@ -94,12 +96,20 @@ function Workspace({ client, snapshot }: { client: Client; snapshot: StudioSnaps
             </p>
           </div>
         </div>
-        {canEdit ? (
-          <Button onClick={() => setEditing(true)} className="self-start">
-            <Pencil aria-hidden />
-            Edit details
-          </Button>
-        ) : null}
+        <div className="flex shrink-0 gap-2 self-start">
+          {client.status !== "archived" ? (
+            <ButtonLink href={`/clients/${encodeURIComponent(client.id)}/offer`} data-testid="client-offer">
+              <FileText aria-hidden />
+              Offer
+            </ButtonLink>
+          ) : null}
+          {canEdit ? (
+            <Button onClick={() => setEditing(true)}>
+              <Pencil aria-hidden />
+              Edit details
+            </Button>
+          ) : null}
+        </div>
       </header>
 
       <nav aria-label="Client sections" className="-mt-4 mb-8 flex gap-6 overflow-x-auto border-b border-line">
