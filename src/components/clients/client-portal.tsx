@@ -1,6 +1,7 @@
 "use client";
 
 import { Check, Copy, Link2, Mail } from "lucide-react";
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useSession } from "@/components/providers/session-provider";
 import { useStudio, useStudioStore } from "@/components/providers/studio-provider";
@@ -8,6 +9,7 @@ import { useStudioAction } from "@/components/providers/use-studio-action";
 import { Button } from "@/components/ui/button";
 import { Section } from "@/components/ui/surface";
 import { useToast } from "@/components/ui/toast";
+import type { AgencyBrand } from "@/lib/domain/agency-brand";
 import type { Client } from "@/lib/domain/types";
 
 const DAY = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", year: "numeric" });
@@ -44,6 +46,8 @@ export function ClientPortal({ client }: { client: Client }) {
   const [link, setLink] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [mailLanguage, setMailLanguage] = useState<MailLanguage>("fi");
+  // The studio's contact e-mail is the portal's "Write to us"; without it the client has no way to reply from there.
+  const [contact, setContact] = useState<string | null | undefined>(undefined);
 
   useEffect(() => {
     if (!server) return;
@@ -51,6 +55,10 @@ export function ClientPortal({ client }: { client: Client }) {
     store.read((r) => (r.clientPortal ? r.clientPortal(client.id) : Promise.resolve(null))).then(
       (found) => active && setPortal(found),
       () => active && setPortal(null),
+    );
+    store.read((r) => (r.agencyBrand ? r.agencyBrand() : Promise.resolve<AgencyBrand>({}))).then(
+      (brand) => active && setContact(brand.email?.trim() || null),
+      () => undefined,
     );
     return () => {
       active = false;
@@ -96,6 +104,15 @@ export function ClientPortal({ client }: { client: Client }) {
     <Section id="portal" title="Client portal">
       <div className="flex flex-col gap-3 rounded-[var(--radius-surface)] border border-line bg-surface px-4 py-3.5 text-[13.5px]" data-testid="client-portal">
         <p className="text-ink-muted">One private link for the whole project: the client sees where the website stands, answers the open questions and sends photos and files with their answers about rights. What they send comes under Sources.</p>
+        {contact === null ? (
+          <p className="rounded-[var(--radius-control)] border border-caution/25 bg-caution/[0.06] px-3 py-2 text-[12.5px] text-ink" data-testid="portal-no-contact">
+            The portal has no &ldquo;Write to us&rdquo; button yet: the studio has no contact e-mail.{" "}
+            <Link href="/settings#agency-brand" className="font-medium underline underline-offset-2">
+              Add it under Agency brand
+            </Link>
+            .
+          </p>
+        ) : null}
         {link ? (
           <div className="flex flex-col gap-2 rounded-[var(--radius-control)] border border-accent/40 bg-accent-soft/50 px-3 py-2.5">
             <p className="text-[12.5px] text-ink">Here is the link. It is shown only now; copy it or e-mail it to the client.</p>

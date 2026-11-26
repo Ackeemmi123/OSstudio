@@ -29,6 +29,10 @@ Owners and members can do both; viewers see only whether a link is open.
 message and the link, in Finnish, Swedish or English. Studio OS sends nothing
 to the client.
 
+The portal's "Write to us" button uses the studio's contact e-mail (Settings →
+Agency brand). Without one the button is missing, and the client's portal
+section says so with a link to the setting.
+
 ## What the client sends
 
 | From the portal | Becomes |
