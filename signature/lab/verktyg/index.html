@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="sv">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex" />
+    <title>Verktyg: konstverk · Signature</title>
+    <style>
+      body { margin: 0; background: #0d1016; display: grid; gap: 40px; padding: 40px; }
+      .frame { position: relative; overflow: hidden; }
+      .tall { width: 800px; height: 1000px; }
+      .wide { width: 1000px; height: 750px; }
+      .frame canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+    </style>
+    <script type="module" src="./verktyg.ts"></script>
+  </head>
+  <body>
+    <!-- Each frame becomes one artwork in lab/bilder/ (scripts/render-art.mjs). Rendered in code; Axivo owns them. -->
+    <div class="frame tall" data-art="siden-natt" data-kind="silk" data-colors="#0b0e16 #2c3a82 #6f86c9 #8f7fe0 #e6ecff" data-angle="0.7" data-seed="1.3"><canvas></canvas></div>
+    <div class="frame wide" data-art="siden-lila" data-kind="silk" data-colors="#0e0a1c #4a3aa0 #9b8fe0 #c06cd8 #f3eeff" data-angle="-0.5" data-seed="4.1"><canvas></canvas></div>
+    <div class="frame tall" data-art="siden-terrakotta" data-kind="silk" data-colors="#140b08 #8e3a26 #d0805e #f0a070 #fff0e2" data-angle="1.1" data-seed="7.7"><canvas></canvas></div>
+    <div class="frame wide" data-art="siden-skog" data-kind="silk" data-colors="#07110c #1f5640 #6fa287 #b8d9a0 #eef8f0" data-angle="0.2" data-seed="2.6"><canvas></canvas></div>
+    <div class="frame tall" data-art="siden-sand" data-kind="silk" data-colors="#3a2a1f #c9a582 #e8d3b8 #f4b48a #fff6ea" data-angle="0.9" data-seed="5.4" data-scale="0.7"><canvas></canvas></div>
+    <div class="frame wide" data-art="siden-ockra" data-kind="silk" data-colors="#24130a #9c5a1c #d99a52 #f0c27a #fff2dc" data-angle="-0.3" data-seed="9.2" data-scale="0.8"><canvas></canvas></div>
+    <div class="frame wide" data-art="bandet-hel" data-kind="ring" data-progress="1" data-time="5"><canvas></canvas></div>
+    <div class="frame tall" data-art="bandet-delar" data-kind="ring" data-progress="0.15" data-time="2"><canvas></canvas></div>
+  </body>
+</html>

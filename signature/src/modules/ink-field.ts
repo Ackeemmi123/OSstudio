@@ -1,6 +1,7 @@
 /**
- * Ink field: a slow, flowing field of ink in the site's colours, drawn by a
- * shader, that the pointer stirs as it passes. It sits behind a hero and is
+ * Ink field: a slow, flowing field of silk in the site's colours, drawn by a
+ * shader and lit like satin (long folds, a broad sheen, fine highlights), that
+ * the pointer stirs as it passes. It sits behind a hero and is
  * never the content: the page's still gradient stays underneath, so text is
  * readable before, during and without it.
  *
@@ -13,32 +14,7 @@
  */
 import type { Capabilities } from "../engine/capabilities";
 import { createShaderStage } from "../engine/shader-stage";
-
-// 2D simplex noise: Ian McEwan and Stefan Gustavson (Ashima Arts), MIT licence.
-const NOISE = /* glsl */ `
-vec3 permute(vec3 x) { return mod(((x * 34.0) + 1.0) * x, 289.0); }
-float snoise(vec2 v) {
-  const vec4 C = vec4(0.211324865405187, 0.366025403784439, -0.577350269189626, 0.024390243902439);
-  vec2 i = floor(v + dot(v, C.yy));
-  vec2 x0 = v - i + dot(i, C.xx);
-  vec2 i1 = (x0.x > x0.y) ? vec2(1.0, 0.0) : vec2(0.0, 1.0);
-  vec4 x12 = x0.xyxy + C.xxzz;
-  x12.xy -= i1;
-  i = mod(i, 289.0);
-  vec3 p = permute(permute(i.y + vec3(0.0, i1.y, 1.0)) + i.x + vec3(0.0, i1.x, 1.0));
-  vec3 m = max(0.5 - vec3(dot(x0, x0), dot(x12.xy, x12.xy), dot(x12.zw, x12.zw)), 0.0);
-  m = m * m;
-  m = m * m;
-  vec3 x = 2.0 * fract(p * C.www) - 1.0;
-  vec3 h = abs(x) - 0.5;
-  vec3 ox = floor(x + 0.5);
-  vec3 a0 = x - ox;
-  m *= 1.79284291400159 - 0.85373472095314 * (a0 * a0 + h * h);
-  vec3 g;
-  g.x = a0.x * x0.x + h.x * x0.y;
-  g.yz = a0.yz * x12.xz + h.yz * x12.yw;
-  return 130.0 * dot(m, g);
-}`;
+import { NOISE } from "./noise";
 
 const FRAGMENT = /* glsl */ `
 uniform float uTime;
@@ -57,44 +33,57 @@ float fbm(vec2 p) {
   float value = 0.0;
   float amplitude = 0.5;
   mat2 turn = mat2(0.8, 0.6, -0.6, 0.8);
-  for (int i = 0; i < 6; i++) {
+  for (int i = 0; i < 4; i++) {
     if (float(i) >= uOctaves) break;
     value += amplitude * snoise(p);
-    p = turn * p * 2.02;
-    amplitude *= 0.5;
+    p = turn * p * 2.03;
+    amplitude *= 0.32;
   }
   return value;
 }
 void main() {
   float aspect = uResolution.x / max(uResolution.y, 1.0);
-  vec2 scale = vec2(aspect, 1.0) * 0.95;
-  vec2 p = (vUv - 0.5) * scale;
-  vec2 pointer = (uPointer - 0.5) * scale;
-  float t = uTime * 0.028;
+  vec2 p = (vUv - 0.5) * vec2(aspect, 1.0) * 0.8;
+  vec2 pointer = (uPointer - 0.5) * vec2(aspect, 1.0) * 0.8;
+  float t = uTime * 0.035;
 
   // The pointer stirs: a soft swirl around it that fades with distance.
   vec2 toPointer = p - pointer;
-  float near = exp(-dot(toPointer, toPointer) * 5.0);
-  vec2 swirl = vec2(-toPointer.y, toPointer.x) * uStir * near * 0.9;
+  float near = exp(-dot(toPointer, toPointer) * 9.0);
+  p += vec2(-toPointer.y, toPointer.x) * uStir * near * 0.35;
 
-  // Two gentle rounds of domain warping: large, slow shapes, like ink settling in water.
-  vec2 q = vec2(fbm(p + vec2(0.0, t)), fbm(p + vec2(5.2, 1.3) - t));
-  vec2 r = vec2(fbm(p + 1.5 * q + vec2(1.7, 9.2) + 0.6 * t + swirl), fbm(p + 1.5 * q + vec2(8.3, 2.8) - 0.5 * t - swirl));
-  float v = fbm(p + 1.7 * r) * 0.5 + 0.5;
+  // Silk: folds drawn out along one diagonal, slowly drifting. The warp is shared by the three samples.
+  mat2 lay = mat2(0.82, 0.57, -0.57, 0.82);
+  vec2 s = lay * p * vec2(0.38, 1.0);
+  vec2 q = vec2(fbm(s + vec2(0.0, t)), fbm(s + vec2(5.2, 1.3) - t));
+  vec2 base = s * 0.8 + 0.9 * q + vec2(1.7, 9.2) + vec2(t * 0.6, 0.0);
+  float e = 0.004;
+  float h = fbm(base);
+  vec3 n = normalize(vec3(-(fbm(base + vec2(e, 0.0)) - h) / e * 0.42, -(fbm(base + vec2(0.0, e)) - h) / e * 0.42, 1.0));
 
-  vec3 colour = uInk;
-  colour = mix(colour, uDeep, smoothstep(0.38, 0.78, v));
-  colour = mix(colour, uMid, smoothstep(0.58, 0.92, v) * 0.55);
-  colour = mix(colour, uGlow, smoothstep(0.45, 0.95, length(r)) * smoothstep(0.45, 0.8, v) * 0.5);
-  colour = mix(colour, uLight, smoothstep(0.82, 1.0, v) * 0.25);
+  // Satin light: a key from the upper right, a broad sheen, a fine highlight, glowing flanks.
+  vec3 light = normalize(vec3(0.5, 0.6, 0.62));
+  vec3 halfway = normalize(light + vec3(0.0, 0.0, 1.0));
+  float diffuse = pow(max(dot(n, light), 0.0), 1.6);
+  float facing = max(dot(n, halfway), 0.0);
+  float flank = pow(1.0 - max(n.z, 0.0), 2.0);
+  vec3 cloth = mix(uInk, uDeep, smoothstep(-0.6, 0.5, h));
+  cloth = mix(cloth, uMid, smoothstep(0.1, 0.8, h) * 0.3);
+  vec3 colour = cloth * (0.06 + 1.1 * diffuse);
+  colour += uGlow * flank * 0.2;
+  colour += mix(uMid, uLight, 0.35) * pow(facing, 7.0) * 0.38;
+  colour += uLight * pow(facing, 46.0) * 0.42;
 
-  // Darker toward the lower left, where the headline sits, so text keeps its contrast.
-  float open = smoothstep(1.25, 0.1, length((vUv - vec2(0.7, 0.72)) * vec2(1.1, 1.0)));
-  colour = mix(uInk, colour, 0.22 + 0.78 * open);
+  // Deep silk, not pale: the light lives in the folds. Darker still toward the lower left, where the headline sits.
+  colour *= 0.55;
+  float open = smoothstep(1.05, 0.12, length((vUv - vec2(0.74, 0.72)) * vec2(1.05, 1.0)));
+  colour = mix(uInk * 0.55, colour, 0.06 + 0.94 * open);
 
-  // A trace of grain so the gradients never band.
+  // A filmic curve (ACES, Narkowicz's fit) so highlights roll off, then screen colour, then a trace of grain.
+  colour = clamp((colour * (2.51 * colour + 0.03)) / (colour * (2.43 * colour + 0.59) + 0.14), 0.0, 1.0);
+  colour = pow(colour, vec3(1.0 / 2.2));
   float grain = fract(sin(dot(gl_FragCoord.xy, vec2(12.9898, 78.233))) * 43758.5453);
-  colour += (grain - 0.5) * (2.0 / 255.0);
+  colour += (grain - 0.5) * (2.5 / 255.0);
   gl_FragColor = vec4(colour, 1.0);
 }`;
 
@@ -133,14 +122,16 @@ export function mountInkField(root: HTMLElement, capabilities: Capabilities, all
     fragment: FRAGMENT,
     allowSoftware,
     // A soft field: drawn at three quarters of its size (half on weak devices), 30 times a second.
-    maxPixelRatio: capabilities.lowPower ? 0.5 : 0.75,
+    // `data-resolution` overrides it, for stills; `data-time` starts the flow at another moment.
+    maxPixelRatio: Number(root.dataset.resolution) || (capabilities.lowPower ? 0.5 : 0.75),
     fps: 30,
+    timeOffset: Number(root.dataset.time) || 0,
     uniforms: {
       uTime: 0,
       uResolution: [1, 1],
       uPointer: [0.7, 0.62],
       uStir: 0,
-      uOctaves: capabilities.lowPower ? 3 : 4,
+      uOctaves: capabilities.lowPower ? 2 : 3,
       uInk: colours[0],
       uDeep: colours[1],
       uMid: colours[2],

@@ -18,7 +18,9 @@ const BUDGET = {
   fonts: 140,
   motionEngine: 60,
   webglChunk: 10,
-  threeD: 150,
+  threeD: 10,
+  sound: 3,
+  largestImage: 100,
 };
 
 const kb = (bytes) => Math.round((bytes / 1024) * 10) / 10;
@@ -28,12 +30,15 @@ const files = (dir) => readdirSync(dir).flatMap((name) => (statSync(join(dir, na
 const all = files(DIST);
 const html = all.filter((f) => f.endsWith(".html"));
 const scripts = all.filter((f) => f.endsWith(".js"));
-const webgl = scripts.filter((f) => /ink-field/.test(f));
+// The shader stage and its noise are shared by the ink field and the image effect: loaded later, with them.
+const webgl = scripts.filter((f) => /ink-field|noise|shader-stage/.test(f));
+const sound = scripts.filter((f) => /sound/.test(f));
 const engine = scripts.filter((f) => /motion-modules/.test(f));
-const threeD = scripts.filter((f) => /object-scene/.test(f));
-const initial = scripts.filter((f) => !webgl.includes(f) && !engine.includes(f) && !threeD.includes(f));
+const threeD = scripts.filter((f) => /band-scene/.test(f));
+const initial = scripts.filter((f) => ![webgl, engine, threeD, sound].some((group) => group.includes(f)));
 const css = all.filter((f) => f.endsWith(".css"));
 const fonts = all.filter((f) => f.endsWith(".woff2"));
+const images = all.filter((f) => /\.(webp|avif|jpe?g|png)$/.test(f));
 
 // Fonts are already compressed: count their size as stored.
 const sum = (list, measure = gz) => list.reduce((total, f) => total + measure(f), 0);
@@ -44,7 +49,10 @@ const rows = [
   ["Fonts", kb(sum(fonts, (f) => statSync(f).size)), BUDGET.fonts],
   ["Motion engine, loaded later", kb(sum(engine)), BUDGET.motionEngine],
   ["WebGL chunk, loaded later", kb(sum(webgl)), BUDGET.webglChunk],
-  ["3D (Three.js), only where used", kb(sum(threeD)), BUDGET.threeD],
+  ["3D band, only where used", kb(sum(threeD)), BUDGET.threeD],
+  ["Sound, after load, if used", kb(sum(sound)), BUDGET.sound],
+  // Images are already compressed; each one is fetched only when it comes near, at the size the screen needs.
+  ["Largest single image", kb(Math.max(0, ...images.map((f) => statSync(f).size))), BUDGET.largestImage],
 ];
 
 let over = 0;

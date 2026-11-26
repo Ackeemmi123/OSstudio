@@ -2,7 +2,10 @@ import "../src/engine/engine.css";
 import { boot } from "../src/engine";
 
 // `?webgl` lets tests and demos run the shader on software WebGL; real visitors never need it.
-const capabilities = boot({ forceWebGL: new URLSearchParams(location.search).has("webgl") });
+const params = new URLSearchParams(location.search);
+// `?quality=0|1|2` fixes the 3D quality instead of measuring, to compare the levels.
+const quality = ["0", "1", "2"].includes(params.get("quality") ?? "") ? (Number(params.get("quality")) as 0 | 1 | 2) : undefined;
+const capabilities = boot({ forceWebGL: params.has("webgl"), quality });
 
 const html = document.documentElement;
 const status = (key: string, text: string) => {

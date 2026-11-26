@@ -9,18 +9,21 @@
     <meta name="theme-color" content="#151922" />
     <link rel="preload" href="./fonts/archivo-latin-wdth-normal.woff2" as="font" type="font/woff2" crossorigin />
     <link rel="preload" href="./fonts/instrument-sans-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin />
-    <script>document.documentElement.classList.add("sg-js");</script>
+    <script>document.documentElement.classList.add("sg-js");addEventListener("pagereveal",function(e){if(e.viewTransition)document.documentElement.dataset.sgArrived="transition"});</script>
+    <!-- The intro curtain: on the first page of a visit only, and never with reduced motion. -->
+    <script>try{if(!sessionStorage.getItem("sg-intro")&&!matchMedia("(prefers-reduced-motion: reduce)").matches){document.documentElement.classList.add("sg-intro-on");sessionStorage.setItem("sg-intro","1")}}catch(e){}</script>
     <link rel="stylesheet" href="./lab.css" />
     <script type="module" src="./main.ts"></script>
   </head>
   <body>
+    <div class="sg-intro" aria-hidden="true"><p class="sg-intro-word"><span style="--i: 0">a</span><span style="--i: 1">x</span><span style="--i: 2">i</span><span style="--i: 3">v</span><span style="--i: 4">o</span></p><span class="sg-intro-line"></span></div>
     <a class="skip" href="#main">Hoppa till innehållet</a>
     <header class="bar">
       <a class="mark" href="./" aria-label="Axivo Signature, labbets startsida">axivo<span>signature</span></a>
       <nav aria-label="Labbet">
-        <a href="./" aria-current="page">Labb 01</a>
-        <a href="./scen/">Scen två</a>
-        <a href="./bibliotek/">Bibliotek</a>
+        <a href="./" aria-current="page"><span class="roll">Labb 01</span></a>
+        <a href="./bibliotek/"><span class="roll">Bibliotek</span></a>
+        <a href="./visning/"><span class="roll">Visning</span></a>
       </nav>
     </header>
 
@@ -36,12 +39,12 @@
       </section>
 
       <section class="band intro" aria-labelledby="why-title">
-        <h2 class="label" id="why-title"><span>01</span> Varför</h2>
+        <h2 class="label" id="why-title"><span>01</span> <span class="label-name">Rörelse med ett skäl</span> <span class="label-note">Varför</span></h2>
         <p class="statement" data-sg="lines">Varje rörelse på en Signature-sajt har ett skäl. Den visar vart blicken ska, berättar vad som hör ihop, eller ger en känsla som ord inte räcker till. Rörelse utan skäl tar vi bort.</p>
       </section>
 
       <section class="band scene" data-sg="scene" aria-labelledby="scene-title">
-        <h2 class="label" id="scene-title"><span>02</span> En idé i tre takter</h2>
+        <h2 class="label" id="scene-title"><span>02</span> <span class="label-name">En idé i tre takter</span> <span class="label-note">Scen som följer scrollen</span></h2>
         <div class="scene-body">
           <div class="scene-stage" aria-hidden="true">
             <svg viewBox="0 0 200 200" focusable="false">
@@ -68,7 +71,7 @@
       </section>
 
       <section class="band modes" aria-labelledby="modes-title">
-        <h2 class="label" id="modes-title"><span>03</span> Samma sida för alla</h2>
+        <h2 class="label" id="modes-title"><span>03</span> <span class="label-name">Samma sida för alla</span> <span class="label-note">Tillgänglighet</span></h2>
         <p class="modes-lead">Motorn frågar enheten innan den gör något. Så här ser det ut för dig just nu:</p>
         <dl class="modes-list" aria-live="polite">
           <div>
@@ -96,7 +99,7 @@
     </main>
 
     <footer class="foot">
-      <p>Axivo Signature · Labb 01 · GSAP, Lenis och Three.js</p>
+      <p>Axivo Signature · Labb 01 · GSAP, Lenis och WebGL</p>
     </footer>
   </body>
 </html>

@@ -1,7 +1,7 @@
 /**
  * A full-screen fragment shader on one canvas, in plain WebGL: no 3D library,
- * a few kilobytes. For fields, gradients and image effects; real 3D scenes
- * bring Three.js with them when a module needs it.
+ * a few kilobytes. For fields, gradients and image effects; the 3D band
+ * (band-scene.ts) draws its own two programs the same way, without a library.
  *
  * It compiles the shader in the background where the browser can
  * (KHR_parallel_shader_compile), so the page never freezes while it does,
@@ -22,6 +22,12 @@ export interface ShaderStageOptions {
   maxPixelRatio: number;
   /** Frames per second. Slow fields look the same at 30 and cost half. */
   fps?: number;
+  /** Seconds added to the clock, so two fields with the same shader show different moments. */
+  timeOffset?: number;
+  /** An image (same origin, loaded) for the shader as `uImage`, with its size as `uImageSize`. */
+  image?: HTMLImageElement;
+  /** A transparent canvas, for effects that reveal what is underneath; the shader writes premultiplied colour. */
+  transparent?: boolean;
   /** Called before each frame with seconds since start and since the last frame. */
   frame?: (time: number, delta: number, set: (name: string, value: Uniform) => void) => void;
   /** Called once, after the first frame is on screen. */
@@ -51,7 +57,7 @@ function shader(gl: WebGLRenderingContext, type: number, source: string): WebGLS
 }
 
 export function createShaderStage(canvas: HTMLCanvasElement, options: ShaderStageOptions): ShaderStage | null {
-  const gl = canvas.getContext("webgl", { antialias: false, alpha: false, depth: false, stencil: false, powerPreference: "default", preserveDrawingBuffer: false, failIfMajorPerformanceCaveat: !options.allowSoftware });
+  const gl = canvas.getContext("webgl", { antialias: false, alpha: options.transparent === true, premultipliedAlpha: true, depth: false, stencil: false, powerPreference: "default", preserveDrawingBuffer: false, failIfMajorPerformanceCaveat: !options.allowSoftware });
   if (!gl) return null;
   const context = gl;
   // A flowing shader on the CPU makes the whole page stutter; the still version looks better. Not every software renderer admits to being slow, so ask its name.
@@ -75,7 +81,21 @@ export function createShaderStage(canvas: HTMLCanvasElement, options: ShaderStag
   gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
   gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 3, -1, -1, 3]), gl.STATIC_DRAW);
 
+  // The image, if any, as texture unit 0.
+  let texture: WebGLTexture | null = null;
+  if (options.image) {
+    texture = gl.createTexture();
+    gl.bindTexture(gl.TEXTURE_2D, texture);
+    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, options.image);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  }
+
   const values = new Map<string, Uniform>(Object.entries(options.uniforms));
+  if (options.image) values.set("uImageSize", [options.image.naturalWidth, options.image.naturalHeight]);
   const locations = new Map<string, WebGLUniformLocation | null>();
   let ready = false;
   let disposed = false;
@@ -112,6 +132,11 @@ export function createShaderStage(canvas: HTMLCanvasElement, options: ShaderStag
       return false;
     }
     gl.useProgram(program);
+    if (texture) {
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, texture);
+      gl.uniform1i(gl.getUniformLocation(program, "uImage"), 0);
+    }
     const position = gl.getAttribLocation(program, "position");
     gl.enableVertexAttribArray(position);
     gl.vertexAttribPointer(position, 2, gl.FLOAT, false, 0, 0);
@@ -131,8 +156,12 @@ export function createShaderStage(canvas: HTMLCanvasElement, options: ShaderStag
     if (!start) start = last = now;
     options.frame?.(now - start, Math.min(now - last, 0.1), set);
     last = now;
-    set("uTime", now - start);
+    set("uTime", now - start + (options.timeOffset ?? 0));
     upload();
+    if (options.transparent) {
+      gl.clearColor(0, 0, 0, 0);
+      gl.clear(gl.COLOR_BUFFER_BIT);
+    }
     gl.drawArrays(gl.TRIANGLES, 0, 3);
     if (!shown) {
       shown = true;
@@ -192,6 +221,7 @@ export function createShaderStage(canvas: HTMLCanvasElement, options: ShaderStag
     document.removeEventListener("visibilitychange", update);
     canvas.removeEventListener("webglcontextlost", onLost);
     context.deleteBuffer(buffer);
+    if (texture) context.deleteTexture(texture);
     context.deleteProgram(program);
     context.deleteShader(vertex);
     context.deleteShader(fragment);
