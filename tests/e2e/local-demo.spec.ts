@@ -172,3 +172,25 @@ test("the client page fits a phone without scrolling sideways", async ({ page })
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
   expect(overflow).toBeLessThanOrEqual(0);
 });
+
+test("makes a written offer from the published prices, in the client's language", async ({ page }) => {
+  await page.goto("/clients/demo-nordvik/offer");
+  const offer = page.getByTestId("offer-document");
+  await expect(offer).toContainText("Tarjous");
+  await expect(offer).toContainText("Verkkosivusto");
+  await expect(offer).toContainText("1 000 €");
+  await expect(offer).toContainText("49 €/kk");
+  await expect(offer).toContainText("Vähintään 12 kuukautta");
+
+  await page.getByLabel("Website, once (€, VAT 0%)").fill("1200");
+  await page.getByRole("button", { name: "Add a line" }).click();
+  await page.getByLabel("Line 1", { exact: true }).fill("Toinen kieli");
+  await page.getByLabel("Price of line 1").fill("300");
+  await expect(offer).toContainText("1 500 €");
+
+  await page.getByLabel("Language", { exact: true }).selectOption("en");
+  await expect(offer).toContainText("Offer");
+  await expect(offer).toContainText("€1,200");
+  await expect(offer).toContainText("€49/month");
+  await expect(page.getByRole("button", { name: "Print or save as PDF" })).toBeVisible();
+});
