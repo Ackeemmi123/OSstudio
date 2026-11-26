@@ -3,6 +3,7 @@ dist/
 test-results/
 playwright-report/
 lighthouse/
+review/
 
 # Scratch scripts used while reviewing
 *.tmp.mjs

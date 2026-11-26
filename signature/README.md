@@ -60,6 +60,66 @@ npm run check        # build (type-checked) → weight budget → tests → Ligh
 
 `npm run check` is the gate. CI runs the same steps (job "Signature engine").
 
+### Visual review
+
+Every change is looked at screen by screen, on desktop and phone, and
+compared with how it looked before. After `npm run build`:
+
+```bash
+npm run review                  # screenshots and contact sheets in review/<run>/
+npm run review -- --baseline    # the same, and keep it as review/baseline/
+npm run review -- --compare     # the same, and compare it with the baseline
+```
+
+Every page in `vite.config.ts` is opened on desktop (1440 × 900) and on a
+phone (Pixel 7), scrolled the way a visitor scrolls (wheel notches, so
+modules mount as they come near), and photographed once per screen height
+when motion has settled: scrolling has stopped, CSS animations have ended,
+pictures in view have loaded, WebGL in view has drawn its first frame, and
+then a fixed 0.9 s for springs and GSAP. The intro curtains are skipped,
+WebGL runs in software (`?webgl`) and the 3D band's quality is fixed
+(`?quality=2`), so it never steps down mid-run. Each page and device also
+gets a contact sheet (`review/<run>/<page>-<device>.jpg`) with all its
+screens, for looking at a whole page at once. A run of every page takes
+about two minutes.
+
+Each screen is photographed twice: as the visitor sees it (`NN.png`, on the
+contact sheets) and held still (`NN.still.png`): WebGL canvases hidden, so
+the still design beneath them shows with the text over it, marquees at
+their start and looping CSS at its first frame. The still picture is the
+same in every run, to the pixel, so `--compare` judges it strictly: a screen
+has changed when more than 0.02 % of its still picture differs, when a WebGL
+part drew differently (drawn, starting or still) or sits elsewhere, or when
+the screen ended at another scroll position. It prints a table of those
+screens, saves a diff next to each (`NN.diff.png`: changes in red, moving
+parts outlined in blue) and a side-by-side sheet per page and device
+(`<page>-<device>.compare.jpg`: baseline, now, diff). When a page's height
+changes, every screen after the change shows another part of the page; the
+compare says so.
+
+Expected noise, which the compare ignores: the silk field, the band and the
+picture effect run on time since they started, which differs between runs by
+up to a few seconds, so their live pixels differ by 5–50 % (the hero's silk
+the most); a marquee is wherever its loop has got to. The table's "moving
+parts" column shows that difference, for information. A WebGL picture that
+is wrong in detail (a shader change, another colour) is therefore found by
+looking at the side-by-side sheet, not by the numbers; a WebGL part that
+stops drawing is found by its state.
+
+A busy machine gives false changes: screens settle late and WebGL may not
+draw in time. When the load average is over 1.5 per core, the review warns,
+captures one page at a time, and the compare says which runs were taken
+under load. Run it again when the machine is quieter before trusting a
+"starting" WebGL part or a screen that did not settle.
+
+Options: `--pages=lab,scen` (names or paths), `--devices=phone`, `--jobs=3`
+(pages captured at once, each in its own browser; 1 on a busy machine),
+`--settle=900`, `--threshold=0.1` (pixelmatch colour distance) and
+`--tolerance=0.02` (per cent). The review uses a running preview server or
+starts one. It stops if that server was started in another folder or serves
+files other than this checkout's `dist/`; `REVIEW_PORT=4320 npm run review`
+uses another port.
+
 ## Pictures made in code
 
 The lab's pictures (`lab/bilder/`) are rendered by Axivo in code, so there
