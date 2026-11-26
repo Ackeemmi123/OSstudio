@@ -12,20 +12,20 @@ import type { Client } from "@/lib/domain/types";
 
 const DAY = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", year: "numeric" });
 
-/** A first e-mail with the link, in Swedish, for the person to send from their own mail and change as they like. */
-function mailto(client: Client, link: string, sender: string, studio: string): string {
+type MailLanguage = "fi" | "sv" | "en";
+
+const MAIL: Record<MailLanguage, { label: string; hello: string; subject: string; body: string; private: string; regards: string }> = {
+  fi: { label: "Suomi", hello: "Hei", subject: "Verkkosivustonne oma sivu", body: "Tässä on verkkosivustonne oma sivu. Siellä näette, miten työ etenee, vastaatte kysymyksiimme ja lähetätte kuvia ja tiedostoja:", private: "Linkki on yksityinen, joten jakakaa se vain organisaationne sisällä.", regards: "Terveisin" },
+  sv: { label: "Svenska", hello: "Hej", subject: "Er sida för webbplatsen", body: "Här är er egen sida för webbplatsen. Där ser ni hur arbetet går, svarar på våra frågor och skickar bilder och filer:", private: "Länken är privat, så dela den bara inom er organisation.", regards: "Hälsningar" },
+  en: { label: "English", hello: "Hi", subject: "Your page for the website", body: "Here is your own page for the website. There you can see how the work is going, answer our questions and send photos and files:", private: "The link is private, so please share it only within your organisation.", regards: "Best regards" },
+};
+
+/** A first e-mail with the link, in the client's language, for the person to send from their own mail and change as they like. */
+export function portalMailto(client: Pick<Client, "contactPerson" | "email">, link: string, sender: string, studio: string, language: MailLanguage): string {
+  const t = MAIL[language];
   const first = client.contactPerson?.trim().split(/\s+/)[0];
-  const body = [
-    `Hej${first ? ` ${first}` : ""}!`,
-    "",
-    "Här är er egen sida för webbplatsen. Där ser ni hur arbetet går, svarar på våra frågor och skickar bilder och filer:",
-    link,
-    "",
-    "Länken är privat, så dela den bara inom er organisation.",
-    "",
-    `Hälsningar\n${sender}\n${studio}`,
-  ].join("\n");
-  return `mailto:${encodeURIComponent(client.email ?? "")}?subject=${encodeURIComponent("Er sida för webbplatsen")}&body=${encodeURIComponent(body)}`;
+  const body = [`${t.hello}${first ? ` ${first}` : ""}!`, "", t.body, link, "", t.private, "", `${t.regards}\n${sender}\n${studio}`].join("\n");
+  return `mailto:${encodeURIComponent(client.email ?? "")}?subject=${encodeURIComponent(t.subject)}&body=${encodeURIComponent(body)}`;
 }
 
 /**
@@ -43,6 +43,7 @@ export function ClientPortal({ client }: { client: Client }) {
   const [portal, setPortal] = useState<{ createdAt: string; expiresAt: string } | null | undefined>(undefined);
   const [link, setLink] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [mailLanguage, setMailLanguage] = useState<MailLanguage>("fi");
 
   useEffect(() => {
     if (!server) return;
@@ -104,10 +105,22 @@ export function ClientPortal({ client }: { client: Client }) {
                 {copied ? <Check aria-hidden /> : <Copy aria-hidden />}
                 Copy the link
               </Button>
-              <a className="inline-flex h-7 items-center gap-1 rounded-full border border-line-strong px-2 text-[12.5px] font-medium text-ink hover:bg-sunken" href={mailto(client, link, sender, studio)}>
+              <a className="inline-flex h-7 items-center gap-1 rounded-full border border-line-strong px-2 text-[12.5px] font-medium text-ink hover:bg-sunken" href={portalMailto(client, link, sender, studio, mailLanguage)}>
                 <Mail aria-hidden className="size-3.5" />
                 E-mail it to the client
               </a>
+              <select
+                aria-label="Language of the e-mail"
+                value={mailLanguage}
+                onChange={(event) => setMailLanguage(event.target.value as MailLanguage)}
+                className="h-7 rounded-full border border-line-strong bg-surface px-2 text-[12.5px] text-ink"
+              >
+                {(Object.keys(MAIL) as MailLanguage[]).map((key) => (
+                  <option key={key} value={key}>
+                    {MAIL[key].label}
+                  </option>
+                ))}
+              </select>
             </div>
           </div>
         ) : null}

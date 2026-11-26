@@ -7,6 +7,14 @@
 import type { ReviewEvent } from "@/server/reminders/mail";
 import { z } from "zod";
 
+export type ReviewLanguage = "fi" | "sv" | "en";
+/** What the client ticks to approve, in the site's language; it is saved with the approval. */
+export const APPROVAL_STATEMENTS: Record<ReviewLanguage, string> = {
+  fi: "Hyväksyn verkkosivuston sellaisena kuin se näkyy tässä versiossa.",
+  sv: "Jag godkänner webbplatsen som den ser ut i den här versionen.",
+  en: "I approve the website as it looks in this version.",
+};
+/** The wording from before the bar spoke the site's language; used when a request names none. */
 export const APPROVAL_STATEMENT = "Jag godkänner webbplatsen som den ser ut i den här versionen. I approve the website as it looks in this version.";
 const TOKEN = /^[A-Za-z0-9_-]{32,64}$/;
 
@@ -26,6 +34,8 @@ export const approvalInput = z.object({
   role: z.string().trim().max(120).default(""),
   email: z.string().trim().max(200).regex(/^[^\s@]+@[^\s@]+\.[^\s@]+$/),
   agree: z.literal(true),
+  /** The language the bar showed the statement in. */
+  lang: z.enum(["fi", "sv", "en"]).optional(),
   website: z.string().max(0).optional(),
 });
 
@@ -83,8 +93,8 @@ export async function postApproval(token: string, body: unknown, deps: ReviewDep
   const parsed = approvalInput.safeParse(body);
   if (!parsed.success) return json(400, { error: "Write your name and e-mail, and tick the approval." });
   if (parsed.data.website) return json(200, { ok: true });
-  const { name, role, email } = parsed.data;
-  const { error } = await deps.approve(token, { name, role, email, statement: APPROVAL_STATEMENT });
+  const { name, role, email, lang } = parsed.data;
+  const { error } = await deps.approve(token, { name, role, email, statement: lang ? APPROVAL_STATEMENTS[lang] : APPROVAL_STATEMENT });
   if (error?.code === "42501") return closed();
   if (error?.code === "23505") return json(409, { error: "This version is already approved." });
   if (error) return json(500, { error: "The approval was not saved. Try again." });
