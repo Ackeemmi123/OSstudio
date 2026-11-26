@@ -12,7 +12,10 @@ library's parts, to judge the whole against award nominees rather than the
 parts one by one. A second showcase (`lab/hantverk/`) uses the same engine in
 a light, warm direction with a display serif (Instrument Serif) and its own
 curtain, to show that every client gets their own look, never a template in a
-new colour.
+new colour. A third (`lab/lekfull/`) goes the opposite way from both: bold
+colour, Archivo at its widest and heaviest, sections laid on each other like
+cut paper, and shapes drawn in code (inline SVG, no picture files) that can be
+picked up and thrown. Its styles are its own file, `lab/lekfull/lekfull.css`.
 
 The plan, the research behind it (20 Awwwards nominees, measured) and the
 phases are in the Claude Doc "Axivo på Awwwards-nivå: vad som krävs".
@@ -43,6 +46,7 @@ JavaScript, with reduced motion, and without WebGL. The engine only adds.
 | `data-sg="reveal"` | `src/modules/reveal.ts` | Part B. A picture that arrives behind a living edge as it scrolls in and swells like a lens under the mouse. Drawn by a shader over the real `<img>`, which stays for screen readers, search, reduced motion and devices without WebGL. |
 | `data-sg="gallery"` | `src/modules/gallery.ts`, `engine.css` | Part B. A sideways row of pictures: a native scroller with snap points (touch, trackpad, arrow keys, screen readers, no script). The engine adds mouse drag with a throw, buttons, a counter and a progress line; pictures drift in their frames (CSS scroll-driven). |
 | `data-sg="sound"` | `src/modules/sound.ts` | Part B. A quiet ambient chord from the browser's own synthesiser: no file, off until asked for, remembered, never started without a click or key press, paused in hidden tabs. Scrolling opens its filter, so it brightens while the page moves. Hidden without JavaScript. |
+| `data-sg="play"` | `src/modules/play.ts` | Shapes on springs: the pointer pushes them aside, a drag pulls them away and they swing back, a tap nudges them, and those with eyes look at the pointer. About 1 KB compressed, in the motion engine. Decoration only: hidden from screen readers, still where they were drawn without JavaScript or with reduced motion. Rests when nothing moves or the stage is off screen. |
 | `data-sg="count"` | `src/modules/count.ts` | A figure that counts up to its value as it comes into view. The value is in the page from the start, read once from hidden text; without motion it simply shows. |
 | Intro (`.sg-intro`) | `engine.css`, a line in the page head | Part B. A curtain with the word mark, once per visit, in CSS alone. Never blocks a click, never shown with reduced motion; the first view's motion waits for it. |
 | 404 page | `lab/404.html` | Part B. Says plainly that the page is missing and leads back. `<base href="/">` makes it work at any depth; the host serves it for missing addresses. |

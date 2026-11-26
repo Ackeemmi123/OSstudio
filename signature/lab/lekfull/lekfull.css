@@ -1,0 +1,760 @@
+/*
+ * Lekfull: the same engine a third time, bold and colourful. Five colours and
+ * ink, Archivo at its widest and heaviest, sections that lie on each other
+ * like sheets of cut paper, and shapes drawn in code that can be picked up.
+ * Every text colour pair here is checked against WCAG AA.
+ */
+.page-play {
+  --blue: #2438e0;
+  --sun: #ffcf33;
+  --coral: #ff5b3a;
+  --pink: #ff9fd0;
+  --mint: #6fe3b4;
+  --cream: #fff5e4;
+  --plum: #1b1340;
+  --quiet: #4f4477;
+  --round: clamp(1.75rem, 4vw, 3.5rem);
+  --spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --sg-cursor: var(--cream);
+  background: var(--blue);
+  color: var(--plum);
+}
+.page-play :focus-visible {
+  outline: 3px solid currentColor;
+}
+.play-defs {
+  position: absolute;
+}
+
+/* ---------- Toys: the shapes, wherever they are used ---------- */
+.toy {
+  position: relative;
+  display: block;
+  width: var(--s, 100%);
+  --a: var(--sun);
+  --b: var(--coral);
+}
+.is-live .toy {
+  cursor: grab;
+  touch-action: pan-y;
+  user-select: none;
+}
+.is-live .toy.is-held {
+  cursor: grabbing;
+  z-index: 5;
+}
+.toy svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 1;
+  overflow: visible;
+  rotate: var(--r, 0deg);
+}
+svg:has([href="#f-arch"]) {
+  aspect-ratio: 2;
+}
+svg:has([href="#f-wave"]) {
+  aspect-ratio: 2.5;
+}
+svg:has([href="#f-pill"]) {
+  aspect-ratio: 100 / 44;
+}
+/* Eyes: two dots that look where the pointer is. */
+.play-eyes {
+  position: absolute;
+  left: 27%;
+  top: 30%;
+  width: 46%;
+  display: flex;
+  gap: 12%;
+  pointer-events: none;
+}
+.play-eyes i {
+  position: relative;
+  flex: 1;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: #fff;
+}
+.play-eyes i::after {
+  content: "";
+  position: absolute;
+  inset: 27%;
+  border-radius: 50%;
+  background: var(--plum);
+  translate: calc(var(--ex, 0.3) * 58%) calc(var(--ey, 0.5) * 58%);
+}
+
+/* ---------- Hero ---------- */
+.play-hero {
+  position: relative;
+  min-height: 100svh;
+  display: grid;
+  align-items: end;
+  padding: 6rem var(--gutter) calc(var(--round) + clamp(2rem, 6vh, 4rem));
+  color: var(--cream);
+  overflow: clip;
+}
+.play-stage {
+  position: absolute;
+  inset: 0;
+}
+.play-stage .toy {
+  position: absolute;
+  left: var(--x);
+  top: var(--y);
+}
+.toy-sun {
+  --x: 42%;
+  --y: 8.5%;
+  --s: 47vw;
+  --d: 0.15s;
+}
+.toy-arch {
+  --x: -8%;
+  --y: 22%;
+  --s: 48vw;
+  --r: -14deg;
+  --a: var(--coral);
+  --b: var(--pink);
+  --d: 0.3s;
+}
+.toy-flower {
+  --x: 8%;
+  --y: 7.5%;
+  --s: 24vw;
+  --a: var(--pink);
+  --b: var(--sun);
+  --d: 0.45s;
+}
+.toy-pill {
+  --x: 56%;
+  --y: 33%;
+  --s: 34vw;
+  --r: 22deg;
+  --a: var(--mint);
+  --b: var(--cream);
+  --d: 0.25s;
+}
+.toy-star {
+  --x: 5%;
+  --y: 35.5%;
+  --s: 22vw;
+  --a: var(--cream);
+  --d: 0.55s;
+}
+.toy-star .play-eyes i {
+  background: var(--sun);
+}
+.toy-wave {
+  --x: 30%;
+  --y: 40%;
+  --s: 30vw;
+  --r: -8deg;
+  --a: var(--pink);
+  --d: 0.6s;
+}
+.toy-fan {
+  --x: auto;
+  --y: auto;
+  --s: 30vw;
+  --r: 180deg;
+  --a: var(--coral);
+  --b: var(--sun);
+  --d: 0.05s;
+  right: 0;
+  bottom: 0;
+  display: none;
+}
+.toy-spark {
+  --x: 82%;
+  --y: 8%;
+  --s: 9vw;
+  --a: var(--cream);
+  --d: 0.7s;
+}
+.toy-spark2 {
+  --x: 44%;
+  --y: 30%;
+  --s: 6vw;
+  --d: 0.8s;
+}
+.play-hero-text {
+  position: relative;
+  pointer-events: none;
+}
+.play-hero-text > * {
+  pointer-events: auto;
+}
+.page-play .eyebrow {
+  color: var(--cream);
+}
+.play-title {
+  font: 800 clamp(3.6rem, 17.5vw, 5.5rem) / 0.84 var(--display);
+  font-stretch: 125%;
+  letter-spacing: -0.05em;
+  max-width: 7ch;
+  margin-left: -0.04em;
+}
+.play-lead {
+  margin-top: clamp(1.25rem, 3vh, 2rem);
+  max-width: 31rem;
+  font-size: clamp(1.05rem, 1.4vw, 1.25rem);
+  line-height: 1.5;
+}
+.play-hint {
+  visibility: hidden;
+  display: inline-block;
+  margin-top: 1.25rem;
+  padding: 0.55rem 1rem;
+  border-radius: 99px;
+  background: var(--sun);
+  color: var(--plum);
+  font: 600 0.8rem/1 var(--text);
+  letter-spacing: 0.04em;
+  rotate: -3deg;
+}
+.play-hero:has(.is-live) .play-hint {
+  visibility: visible;
+}
+
+/* ---------- Sheets: each section lies on the one before, corners rounded ---------- */
+.play-sheet,
+.play-steps {
+  padding: clamp(4.5rem, 12vh, 9rem) var(--gutter);
+  background: var(--cream);
+}
+.play-sheet {
+  position: relative;
+  margin-top: calc(var(--round) * -1);
+  border-radius: var(--round) var(--round) 0 0;
+}
+.page-play .label {
+  border-top: 2px solid;
+  color: var(--quiet);
+}
+.page-play .label > span:first-child {
+  display: grid;
+  place-items: center;
+  width: 2.6rem;
+  height: 2.6rem;
+  border-radius: 50%;
+  background: var(--plum);
+  color: var(--cream);
+  font-weight: 700;
+}
+.page-play .label .label-name {
+  font-weight: 800;
+  font-stretch: 122%;
+  letter-spacing: -0.045em;
+  color: inherit;
+}
+.play-say .label,
+.play-steps .label,
+.play-light .label,
+.play-next {
+  color: var(--plum);
+}
+.play-big {
+  font: 750 clamp(1.75rem, 4.3vw, 4.1rem) / 1.06 var(--display);
+  font-stretch: 112%;
+  letter-spacing: -0.035em;
+  max-width: 23ch;
+  text-wrap: pretty;
+}
+
+/* Shapes beside the statement and the last links, on wide screens. */
+.play-say-stage,
+.play-next-toy {
+  display: none;
+  position: absolute;
+  right: var(--gutter);
+  top: 50%;
+  width: 24vw;
+  aspect-ratio: 1;
+  translate: 0 -50%;
+}
+.play-say-stage .toy {
+  position: absolute;
+  left: var(--x);
+  top: var(--y);
+}
+.say-arch {
+  --x: 0%;
+  --y: 38%;
+  --s: 100%;
+  --a: var(--blue);
+  --b: var(--mint);
+}
+.say-sun {
+  --x: 44%;
+  --y: 0%;
+  --s: 42%;
+  --a: var(--coral);
+}
+.say-spark {
+  --x: 8%;
+  --y: 8%;
+  --s: 20%;
+  --a: var(--pink);
+}
+.play-next-toy {
+  width: 12vw;
+  aspect-ratio: auto;
+  top: clamp(3rem, 9vh, 6rem);
+  translate: none;
+}
+.play-next-toy .toy {
+  --a: var(--sun);
+}
+
+/* A strip of tape across the page, a little crooked. */
+.play-tape {
+  overflow: clip;
+  padding-block: 1.5rem 3rem;
+  background: var(--cream);
+}
+.play-ticker {
+  width: 106%;
+  margin-left: -3%;
+  border: 0;
+  background: var(--coral);
+  color: var(--plum);
+  font-weight: 800;
+  font-stretch: 122%;
+  letter-spacing: -0.04em;
+  rotate: -2.2deg;
+}
+.play-ticker svg {
+  display: inline-block;
+  width: 0.62em;
+  height: 0.62em;
+  margin-inline: 0.28em;
+  vertical-align: -0.02em;
+  --a: var(--cream);
+  --b: var(--sun);
+}
+.play-ticker svg:nth-of-type(2n) {
+  --a: var(--sun);
+  --b: var(--blue);
+}
+.play-ticker svg:nth-of-type(3n) {
+  --a: var(--blue);
+  --b: var(--pink);
+}
+
+/* ---------- Steps: cards that stack as you scroll ---------- */
+.play-steps {
+  padding-top: clamp(2rem, 6vh, 4rem);
+  padding-bottom: calc(var(--round) + clamp(4.5rem, 12vh, 9rem));
+}
+.play-cards {
+  list-style: none;
+  padding: 0;
+  display: grid;
+  gap: 1.25rem;
+}
+.play-card {
+  position: sticky;
+  top: calc(1rem + var(--n) * 0.9rem);
+  min-height: min(27rem, 74svh);
+  display: grid;
+  grid-template-rows: 1fr auto auto;
+  gap: 0.9rem;
+  padding: clamp(1.5rem, 4vw, 3.5rem);
+  border-radius: var(--round);
+  background: var(--sun);
+  overflow: clip;
+}
+.card-sun {
+  --n: 0;
+}
+.card-pink {
+  --n: 1;
+  background: var(--pink);
+}
+.card-mint {
+  --n: 2;
+  background: var(--mint);
+}
+.card-blue {
+  --n: 3;
+  background: var(--blue);
+  color: var(--cream);
+}
+.play-card-number {
+  font: 800 clamp(1rem, 1.4vw, 1.25rem) / 1 var(--display);
+  font-stretch: 125%;
+  justify-self: start;
+  align-self: start;
+  padding: 0.6rem 0.95rem;
+  border: 2px solid;
+  border-radius: 99px;
+}
+.play-card h3 {
+  font: 800 clamp(2.1rem, 6vw, 5.5rem) / 0.9 var(--display);
+  font-stretch: 122%;
+  letter-spacing: -0.05em;
+  max-width: 9ch;
+}
+.play-card p {
+  max-width: 27rem;
+  font-size: clamp(1rem, 1.35vw, 1.2rem);
+  line-height: 1.5;
+}
+.play-card-toy {
+  position: absolute;
+  right: clamp(1.25rem, 6vw, 6rem);
+  top: clamp(1.25rem, 4vw, 3.5rem);
+  width: min(36%, 22rem);
+}
+.card-sun .toy {
+  --a: var(--coral);
+  --b: var(--cream);
+}
+.card-pink .toy {
+  --a: var(--blue);
+  --b: var(--sun);
+}
+.card-mint .toy {
+  --a: var(--blue);
+}
+@media (max-height: 34rem) {
+  .play-card {
+    position: static;
+  }
+}
+
+/* ---------- The kit ---------- */
+.play-kit {
+  background: var(--plum);
+  color: var(--cream);
+}
+.page-play .play-kit .label {
+  color: var(--cream);
+}
+.page-play .play-kit .label > span:first-child {
+  background: var(--sun);
+  color: var(--plum);
+}
+.play-tiles {
+  list-style: none;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: clamp(0.75rem, 1.6vw, 1.5rem);
+}
+.play-tiles li {
+  position: relative;
+  aspect-ratio: 1;
+  display: grid;
+  place-items: center;
+  border-radius: clamp(1.25rem, 2.5vw, 2.25rem);
+  background: var(--blue);
+  color: var(--plum);
+}
+.play-tiles .toy {
+  --s: 54%;
+}
+.play-tile-name {
+  position: absolute;
+  left: clamp(0.9rem, 1.6vw, 1.5rem);
+  bottom: clamp(0.7rem, 1.3vw, 1.2rem);
+  font: 700 clamp(0.85rem, 1.2vw, 1.05rem) / 1 var(--display);
+  font-stretch: 118%;
+  pointer-events: none;
+}
+.play-tiles .tile-sun {
+  color: var(--cream);
+}
+.play-tiles .tile-arch {
+  background: var(--sun);
+  --a: var(--coral);
+  --b: var(--plum);
+}
+.tile-arch .toy,
+.tile-flower .toy,
+.tile-star .toy,
+.tile-pill .toy,
+.tile-wave .toy {
+  --a: inherit;
+  --b: inherit;
+}
+.play-tiles .tile-wave {
+  background: var(--pink);
+  --a: var(--blue);
+}
+.tile-wave .toy,
+.tile-pill .toy {
+  --s: 62%;
+}
+.play-tiles .tile-flower {
+  background: var(--mint);
+  --a: var(--plum);
+  --b: var(--sun);
+}
+.play-tiles .tile-star {
+  background: var(--coral);
+  --a: var(--cream);
+}
+.play-tiles .tile-pill {
+  background: var(--cream);
+  --a: var(--blue);
+  --b: var(--coral);
+}
+.play-note {
+  max-width: 34rem;
+  margin-top: clamp(2rem, 5vh, 3.5rem);
+  font-size: 0.95rem;
+}
+
+/* ---------- Figures ---------- */
+.play-light {
+  background: var(--sun);
+}
+.play-figures {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: clamp(2rem, 5vw, 3rem) clamp(1rem, 3vw, 2.5rem);
+  margin: 0;
+}
+.play-figures div {
+  padding-top: 1rem;
+  border-top: 2px solid;
+}
+.play-figures dt {
+  font: 600 0.78rem/1.4 var(--text);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.play-figures dd {
+  margin: 1.1rem 0 0;
+  font: 800 clamp(3.2rem, 8.6vw, 8.5rem) / 0.85 var(--display);
+  font-stretch: 122%;
+  letter-spacing: -0.06em;
+  font-variant-numeric: tabular-nums;
+}
+.play-figures small {
+  margin-left: 0.4rem;
+  font: 600 clamp(0.95rem, 1.5vw, 1.3rem) / 1 var(--text);
+  letter-spacing: 0;
+}
+
+/* ---------- Next and footer ---------- */
+.play-next {
+  display: grid;
+  justify-items: start;
+  gap: clamp(2.5rem, 7vh, 4.5rem);
+  padding-bottom: calc(var(--round) + clamp(4.5rem, 12vh, 9rem));
+  background: var(--coral);
+}
+.play-next .next-label {
+  color: inherit;
+}
+.play-next .next-title {
+  font-weight: 800;
+  font-stretch: 118%;
+  letter-spacing: -0.05em;
+  color: inherit;
+  background-image: linear-gradient(currentColor, currentColor);
+  background-size: 0 5px;
+}
+.play-next .next-link:hover .next-title,
+.play-next .next-link:focus-visible .next-title {
+  background-size: 100% 5px;
+  font-stretch: 125%;
+}
+.page-play .play-foot {
+  position: relative;
+  margin-top: calc(var(--round) * -1);
+  border-radius: var(--round) var(--round) 0 0;
+  background: var(--plum);
+  color: var(--cream);
+}
+.page-play .play-foot .foot-row p {
+  color: var(--cream);
+}
+.page-play .play-foot .pill {
+  background: var(--sun);
+  color: var(--plum);
+}
+.page-play .play-foot .pill:hover {
+  background: var(--mint);
+}
+.page-play .play-foot .foot-word {
+  font-weight: 800;
+  font-stretch: 125%;
+  font-size: clamp(5rem, 25.5vw, 26rem);
+  letter-spacing: -0.06em;
+}
+.play-foot .sg-c:nth-child(1) {
+  color: var(--sun);
+}
+.play-foot .sg-c:nth-child(2) {
+  color: var(--coral);
+}
+.play-foot .sg-c:nth-child(3) {
+  color: var(--pink);
+}
+.play-foot .sg-c:nth-child(4) {
+  color: var(--mint);
+}
+.play-foot .sg-c:nth-child(5) {
+  color: var(--cream);
+}
+
+@media (min-width: 900px) {
+  .toy-sun {
+    --x: 58%;
+    --y: 10%;
+    --s: 25vw;
+  }
+  .toy-arch {
+    --x: 73%;
+    --y: 47%;
+    --s: 21vw;
+  }
+  .toy-flower {
+    --x: 43%;
+    --y: 9%;
+    --s: 9.5vw;
+  }
+  .toy-pill {
+    --x: 82%;
+    --y: 16%;
+    --s: 14vw;
+  }
+  .toy-star {
+    --x: 55%;
+    --y: 60%;
+    --s: 11vw;
+  }
+  .toy-wave {
+    --x: 15%;
+    --y: 15%;
+    --s: 15vw;
+  }
+  .toy-fan {
+    --s: 17vw;
+    display: block;
+  }
+  .toy-spark {
+    --x: 7%;
+    --y: 14%;
+    --s: 4vw;
+  }
+  .toy-spark2 {
+    --x: 52%;
+    --y: 40%;
+    --s: 3vw;
+  }
+  .play-title {
+    font-size: clamp(5.5rem, 12.6vw, 14rem);
+  }
+  .play-say-stage {
+    display: block;
+  }
+  .play-next-toy {
+    display: block;
+  }
+  .play-card {
+    top: calc(5.5rem + var(--n) * 1.1rem);
+    min-height: min(34rem, 70svh);
+  }
+  .play-card-toy {
+    top: 50%;
+    translate: 0 -50%;
+    width: min(30%, 24rem);
+  }
+  .play-tiles {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .play-figures {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+/* ---------- Motion: only when welcome ---------- */
+@media (prefers-reduced-motion: no-preference) {
+  /* Letters land with a bounce, leaning in from alternate sides. */
+  .page-play [data-sg="kinetic"] .sg-c {
+    animation: play-letter 1s var(--spring) calc(80ms + var(--i) * 55ms) backwards;
+  }
+  .page-play [data-sg="kinetic"] .sg-c:nth-child(2n) {
+    --lean: -16deg;
+  }
+  /* Toys pop into place, then float. */
+  .play-stage .toy svg {
+    animation:
+      play-pop 0.9s var(--spring) var(--d, 0s) backwards,
+      play-float 5s ease-in-out var(--d, 0s) infinite alternate;
+  }
+  .play-eyes {
+    animation: play-pop 0.9s var(--spring) var(--d, 0s) backwards;
+  }
+  .play-eyes i::after {
+    transition: translate 0.15s;
+  }
+  .play-eyes i {
+    animation: play-blink 5.5s 2s infinite;
+  }
+  .play-hint {
+    animation: play-pop 0.7s var(--spring) 1.5s backwards;
+  }
+  @supports (animation-timeline: view()) {
+    .play-card-toy svg,
+    .play-next-toy svg,
+    .say-spark svg {
+      animation: play-turn linear both;
+      animation-timeline: view();
+    }
+  }
+}
+@media (hover: hover) and (prefers-reduced-motion: no-preference) {
+  .play-tiles svg {
+    transition:
+      rotate 0.7s var(--spring),
+      scale 0.7s var(--spring);
+  }
+  .play-tiles li:hover svg {
+    rotate: 24deg;
+    scale: 1.14;
+  }
+  .play-tiles li:nth-child(2n):hover svg {
+    rotate: -18deg;
+  }
+}
+@keyframes play-letter {
+  from {
+    transform: translateY(80%) rotate(var(--lean, 16deg)) scale(0.6);
+  }
+}
+@keyframes play-pop {
+  from {
+    scale: 0;
+  }
+}
+@keyframes play-float {
+  to {
+    translate: 0 -4%;
+  }
+}
+@keyframes play-blink {
+  0%,
+  96%,
+  100% {
+    scale: 1;
+  }
+  98% {
+    scale: 1 0.1;
+  }
+}
+@keyframes play-turn {
+  from {
+    rotate: -50deg;
+  }
+  to {
+    rotate: 50deg;
+  }
+}

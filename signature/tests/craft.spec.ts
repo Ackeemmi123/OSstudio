@@ -64,7 +64,7 @@ test("the picture in the dark showcase's link flies into this page's hero, which
     sessionStorage.setItem("sg-intro-hantverk", "1");
   });
   await page.goto("/visning/");
-  const link = page.locator(".show-next .next-link");
+  const link = page.locator('.show-next .next-link[href="../hantverk/"]');
   await link.scrollIntoViewIfNeeded();
   await expect(link.locator(".next-picture")).toHaveCSS("view-transition-name", "craft-picture");
   await link.click();

@@ -12,7 +12,7 @@ import lighthouse from "lighthouse";
 
 const PORT = 4317;
 const BASE = `http://127.0.0.1:${PORT}`;
-const PAGES = (process.env.LH_PAGES ?? "/,/scen/,/bibliotek/,/visning/,/hantverk/,/404.html").split(",");
+const PAGES = (process.env.LH_PAGES ?? "/,/scen/,/bibliotek/,/visning/,/hantverk/,/lekfull/,/404.html").split(",");
 const GATE = { performance: 0.95, accessibility: 1, "best-practices": 0.95, seo: 0.9 };
 // Pages kept out of search on purpose. Their SEO is judged on everything except
 // being indexable, and they must really say noindex.

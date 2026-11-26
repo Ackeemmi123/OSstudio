@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="sv">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Lekfull · Signature · Axivo</title>
+    <meta name="description" content="Axivo Signature, visning tre: samma motor i en färgstark och lekfull riktning. Former ritade i kod som går att dra i, mätta lika hårt som resten." />
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 32 32%27%3E%3Crect width=%2732%27 height=%2732%27 rx=%277%27 fill=%27%232438e0%27/%3E%3Ccircle cx=%2716%27 cy=%2716%27 r=%278%27 fill=%27%23ffcf33%27/%3E%3C/svg%3E" />
+    <meta name="theme-color" content="#2438e0" />
+    <link rel="preload" href="../fonts/archivo-latin-wdth-normal.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href="../fonts/instrument-sans-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin />
+    <script>document.documentElement.classList.add("sg-js");addEventListener("pagereveal",function(e){if(e.viewTransition)document.documentElement.dataset.sgArrived="transition"});</script>
+    <link rel="stylesheet" href="../lab.css" />
+    <link rel="stylesheet" href="./lekfull.css" />
+    <script type="module" src="../main.ts"></script>
+  </head>
+  <body class="page-play" data-sg-cursor>
+    <!-- The shapes, drawn once in code and used all over the page. Colours come from each use (--a, --b). -->
+    <svg class="play-defs" width="0" height="0" aria-hidden="true" focusable="false">
+      <symbol id="f-sun" viewBox="0 0 100 100"><circle cx="50" cy="50" r="50" fill="var(--a)" /></symbol>
+      <symbol id="f-arch" viewBox="0 0 100 50"><path d="M0 50a50 50 0 0 1 100 0H0Z" fill="var(--a)" /><path d="M22 50a28 28 0 0 1 56 0H22Z" fill="var(--b)" /></symbol>
+      <symbol id="f-wave" viewBox="0 0 100 40"><path d="M8 20q10.5-24 21 0t21 0 21 0 21 0" fill="none" stroke="var(--a)" stroke-width="13" stroke-linecap="round" /></symbol>
+      <symbol id="f-flower" viewBox="0 0 100 100"><g fill="var(--a)"><circle cx="50" cy="26" r="26" /><circle cx="74" cy="50" r="26" /><circle cx="50" cy="74" r="26" /><circle cx="26" cy="50" r="26" /></g><circle cx="50" cy="50" r="13" fill="var(--b)" /></symbol>
+      <symbol id="f-star" viewBox="0 0 100 100"><path d="M50 0 59.3 15.2 75 6.7 75.5 24.5 93.3 25 84.8 40.7 100 50 84.8 59.3 93.3 75 75.5 75.5 75 93.3 59.3 84.8 50 100 40.7 84.8 25 93.3 24.5 75.5 6.7 75 15.2 59.3 0 50 15.2 40.7 6.7 25 24.5 24.5 25 6.7 40.7 15.200Z" fill="var(--a)" /></symbol>
+      <symbol id="f-pill" viewBox="0 0 100 44"><rect width="100" height="44" rx="22" fill="var(--a)" /><path d="M50 0h28a22 22 0 0 1 0 44H50Z" fill="var(--b)" /></symbol>
+      <symbol id="f-spark" viewBox="0 0 100 100"><path d="M50 0c4 34 16 46 50 50-34 4-46 16-50 50-4-34-16-46-50-50 34-4 46-16 50-50Z" fill="var(--a)" /></symbol>
+      <symbol id="f-fan" viewBox="0 0 100 100"><path d="M0 0h100A100 100 0 0 1 0 100Z" fill="var(--a)" /><path d="M0 0h56A56 56 0 0 1 0 56Z" fill="var(--b)" /></symbol>
+    </svg>
+
+    <a class="skip" href="#main">Hoppa till innehållet</a>
+    <header class="bar">
+      <a class="mark" href="../" aria-label="Axivo Signature, labbets startsida">axivo<span>signature</span></a>
+      <nav aria-label="Labbet">
+        <a href="../"><span class="roll">Labb 01</span></a>
+        <a href="../bibliotek/"><span class="roll">Bibliotek</span></a>
+        <a href="../visning/" aria-current="page"><span class="roll">Visning</span></a>
+      </nav>
+    </header>
+
+    <main id="main">
+      <section class="play-hero" aria-labelledby="play-title">
+        <div class="play-stage" data-sg="play" aria-hidden="true">
+          <span class="toy toy-fan" data-sg-toy><svg><use href="#f-fan" /></svg></span>
+          <span class="toy toy-sun" data-sg-toy data-cursor-label="Dra"><svg><use href="#f-sun" /></svg><span class="play-eyes" data-sg-eyes><i></i><i></i></span></span>
+          <span class="toy toy-arch" data-sg-toy data-cursor-label="Dra"><svg><use href="#f-arch" /></svg></span>
+          <span class="toy toy-flower" data-sg-toy data-cursor-label="Dra"><svg><use href="#f-flower" /></svg></span>
+          <span class="toy toy-pill" data-sg-toy data-cursor-label="Dra"><svg><use href="#f-pill" /></svg></span>
+          <span class="toy toy-star" data-sg-toy data-cursor-label="Dra"><svg><use href="#f-star" /></svg><span class="play-eyes" data-sg-eyes><i></i><i></i></span></span>
+          <span class="toy toy-wave" data-sg-toy data-cursor-label="Dra"><svg><use href="#f-wave" /></svg></span>
+          <span class="toy toy-spark" data-sg-toy><svg><use href="#f-spark" /></svg></span>
+          <span class="toy toy-spark2" data-sg-toy><svg><use href="#f-spark" /></svg></span>
+        </div>
+        <div class="play-hero-text">
+          <p class="eyebrow">Axivo Signature · Visning tre</p>
+          <h1 class="play-title" id="play-title" data-sg="kinetic">Lek på allvar.</h1>
+          <p class="play-lead" data-sg="rise" style="--sg-delay: 0.7s">Samma motor en tredje gång, nu färgstark och lekfull. Formerna är ritade i kod, och sidan mäts lika hårt som de två andra.</p>
+          <p class="play-hint" aria-hidden="true">Dra i formerna</p>
+        </div>
+      </section>
+
+      <section class="play-sheet play-say" aria-labelledby="play-why">
+        <h2 class="label" id="play-why"><span>01</span> <span class="label-note">Leken</span></h2>
+        <div class="play-say-stage" data-sg="play" aria-hidden="true">
+          <span class="toy say-arch" data-sg-toy><svg><use href="#f-arch" /></svg></span>
+          <span class="toy say-sun" data-sg-toy><svg><use href="#f-sun" /></svg></span>
+          <span class="toy say-spark" data-sg-toy><svg><use href="#f-spark" /></svg></span>
+        </div>
+        <p class="play-big" data-sg="lines">Lekfullt betyder inte slarvigt. Varje form här är ritad i kod, varje färg är vald för att gå att läsa, och sidan mäts innan kunden ser den: hastighet, tillgänglighet och vikt.</p>
+      </section>
+
+      <div class="play-tape">
+        <div class="ticker play-ticker" data-sg="marquee" data-duration="22" aria-label="Brief, idé, form, färg, granskning, lansering">
+          <p data-sg-line>Brief <svg><use href="#f-spark" /></svg> Idé <svg><use href="#f-sun" /></svg> Form <svg><use href="#f-flower" /></svg> Färg <svg><use href="#f-star" /></svg> Granskning <svg><use href="#f-fan" /></svg> Lansering <svg><use href="#f-spark" /></svg></p>
+        </div>
+      </div>
+
+      <section class="play-steps" aria-labelledby="play-steps-title">
+        <h2 class="label" id="play-steps-title"><span>02</span> <span class="label-name">Fyra steg, inget fusk</span> <span class="label-note">Så går det till</span></h2>
+        <ol class="play-cards">
+          <li class="play-card card-sun">
+            <span class="play-card-number" aria-hidden="true">01</span>
+            <h3>Brief och idé</h3>
+            <p>Vi lär känna verksamheten och hittar en idé som bara passar er. Ni godkänner den i kundportalen innan något byggs.</p>
+            <span class="play-card-toy" data-sg="play" aria-hidden="true"><span class="toy" data-sg-toy><svg><use href="#f-flower" /></svg></span></span>
+          </li>
+          <li class="play-card card-pink">
+            <span class="play-card-number" aria-hidden="true">02</span>
+            <h3>Innehåll</h3>
+            <p>Texter, bilder och godkännanden samlas i Studio OS. Bilder kräver skriftligt tillstånd, och AI används bara om ni säger ja.</p>
+            <span class="play-card-toy" data-sg="play" aria-hidden="true"><span class="toy" data-sg-toy><svg><use href="#f-fan" /></svg></span></span>
+          </li>
+          <li class="play-card card-mint">
+            <span class="play-card-number" aria-hidden="true">03</span>
+            <h3>Form och färg</h3>
+            <p>Figurer, färger och rörelse formas efter idén. Allt mäts innan ni ser det: hastighet, tillgänglighet och vikt.</p>
+            <span class="play-card-toy" data-sg="play" aria-hidden="true"><span class="toy" data-sg-toy><svg><use href="#f-star" /></svg></span></span>
+          </li>
+          <li class="play-card card-blue">
+            <span class="play-card-number" aria-hidden="true">04</span>
+            <h3>Lansering</h3>
+            <p>Ni kommenterar och godkänner på en privat länk. Sedan publicerar vi, och sajten kontrolleras varje dag.</p>
+            <span class="play-card-toy" data-sg="play" aria-hidden="true"><span class="toy" data-sg-toy><svg><use href="#f-sun" /></svg><span class="play-eyes" data-sg-eyes><i></i><i></i></span></span></span>
+          </li>
+        </ol>
+      </section>
+
+      <section class="play-sheet play-kit" aria-labelledby="play-kit-title">
+        <h2 class="label" id="play-kit-title"><span>03</span> <span class="label-name">Sex former, fem färger</span> <span class="label-note">Ritade i kod</span></h2>
+        <ul class="play-tiles" data-sg="play">
+          <li class="tile-sun"><span class="toy" data-sg-toy aria-hidden="true"><svg><use href="#f-sun" /></svg><span class="play-eyes" data-sg-eyes><i></i><i></i></span></span><span class="play-tile-name">Solen</span></li>
+          <li class="tile-arch"><span class="toy" data-sg-toy aria-hidden="true"><svg><use href="#f-arch" /></svg></span><span class="play-tile-name">Bågen</span></li>
+          <li class="tile-wave"><span class="toy" data-sg-toy aria-hidden="true"><svg><use href="#f-wave" /></svg></span><span class="play-tile-name">Vågen</span></li>
+          <li class="tile-flower"><span class="toy" data-sg-toy aria-hidden="true"><svg><use href="#f-flower" /></svg></span><span class="play-tile-name">Blomman</span></li>
+          <li class="tile-star"><span class="toy" data-sg-toy aria-hidden="true"><svg><use href="#f-star" /></svg></span><span class="play-tile-name">Stjärnan</span></li>
+          <li class="tile-pill"><span class="toy" data-sg-toy aria-hidden="true"><svg><use href="#f-pill" /></svg></span><span class="play-tile-name">Kapseln</span></li>
+        </ul>
+        <p class="play-note">Här är figurerna ritade i kod av Axivo. En kund med egen illustratör får sina figurer här i stället, med skriftligt tillstånd.</p>
+      </section>
+
+      <section class="play-sheet play-light" aria-labelledby="play-light-title">
+        <h2 class="label" id="play-light-title"><span>04</span> <span class="label-name">Lätt som en lek</span> <span class="label-note">Uppmätt på den här sidan</span></h2>
+        <dl class="play-figures">
+          <div>
+            <dt>Bildfiler på sidan</dt>
+            <dd><span data-sg="count" data-to="0"><span class="sg-sr">0</span><span aria-hidden="true" data-sg-digits>0</span></span></dd>
+          </div>
+          <div>
+            <dt>Skriptet som låter formerna leka</dt>
+            <dd><span data-sg="count" data-to="1.0" data-decimals="1"><span class="sg-sr">1,0</span><span aria-hidden="true" data-sg-digits>1,0</span></span><small>KB</small></dd>
+          </div>
+          <div>
+            <dt>Sidans egen stilmall</dt>
+            <dd><span data-sg="count" data-to="3.2" data-decimals="1"><span class="sg-sr">3,2</span><span aria-hidden="true" data-sg-digits>3,2</span></span><small>KB</small></dd>
+          </div>
+          <div>
+            <dt>Lighthouse-prestanda</dt>
+            <dd><span data-sg="count" data-to="99"><span class="sg-sr">99</span><span aria-hidden="true" data-sg-digits>99</span></span></dd>
+          </div>
+        </dl>
+        <p class="play-note">Vikter komprimerade, som de skickas. Lighthouse på en simulerad mellanklasstelefon, median av tre körningar. Tillgänglighet testad med axe mot WCAG 2.2 AA, med och utan rörelse.</p>
+      </section>
+
+      <section class="play-sheet play-next" aria-label="Fler visningar">
+        <a class="next-link" href="../visning/">
+          <span class="next-label">Samma motor, mörk riktning</span>
+          <span class="next-title">Visning ett: En sida.</span>
+        </a>
+        <a class="next-link" href="../hantverk/">
+          <span class="next-label">Samma motor, ljus riktning</span>
+          <span class="next-title">Visning två: Hantverk</span>
+        </a>
+        <span class="play-next-toy" data-sg="play" aria-hidden="true"><span class="toy" data-sg-toy><svg><use href="#f-star" /></svg><span class="play-eyes" data-sg-eyes><i></i><i></i></span></span></span>
+      </section>
+    </main>
+
+    <footer class="signature-foot play-foot" aria-labelledby="foot-title">
+      <h2 class="visually-hidden" id="foot-title">Sidfot</h2>
+      <div class="foot-row">
+        <p>Allt på sidan fungerar lika bra utan rörelse och utan JavaScript. Formerna står då stilla där de ritades.</p>
+        <a class="pill" href="../bibliotek/" data-sg-magnetic data-cursor-label="Öppna"><span class="roll">Till biblioteket</span></a>
+      </div>
+      <p class="foot-word" data-sg="mark">axivo</p>
+    </footer>
+  </body>
+</html>
