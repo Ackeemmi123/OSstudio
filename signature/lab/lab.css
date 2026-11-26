@@ -1,0 +1,451 @@
+/* Axivo Signature lab. Axivo's five brand colours plus the website's two extended accents. */
+
+@font-face {
+  font-family: "Archivo";
+  src: url("./fonts/archivo-latin-wdth-normal.woff2") format("woff2");
+  font-weight: 100 900;
+  font-stretch: 62% 125%;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Instrument Sans";
+  src: url("./fonts/instrument-sans-latin-wght-normal.woff2") format("woff2");
+  font-weight: 400 700;
+  font-display: swap;
+}
+/*
+ * Fallbacks with the real fonts' metrics (Next.js's capsize table, against
+ * Arial), so text keeps its size and place when the real font arrives.
+ */
+@font-face {
+  font-family: "Archivo fallback";
+  src: local("Arial Bold"), local("Arial-BoldMT"), local("Arial");
+  size-adjust: 95%;
+  ascent-override: 92.42%;
+  descent-override: 22.1%;
+  line-gap-override: 0%;
+}
+@font-face {
+  font-family: "Instrument Sans fallback";
+  src: local("Arial"), local("ArialMT");
+  size-adjust: 102.74%;
+  ascent-override: 94.42%;
+  descent-override: 24.33%;
+  line-gap-override: 0%;
+}
+
+:root {
+  --ink: #151922;
+  --cloud: #f7f9fc;
+  --ice: #e9eef8;
+  --soft: #c9d9f0;
+  --periwinkle: #879dc7;
+  --indigo: #4a5bb5;
+  --lilac: #c3bcf2;
+  --on-ink: #e6ebf5;
+  --on-ink-quiet: #b4bfd6;
+  --ink-quiet: #4a5262;
+  --display: "Archivo", "Archivo fallback", Arial, sans-serif;
+  --text: "Instrument Sans", "Instrument Sans fallback", Arial, sans-serif;
+  --gutter: clamp(1.25rem, 4.5vw, 4.5rem);
+  --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
+  color-scheme: light;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+body {
+  margin: 0;
+  background: var(--cloud);
+  color: var(--ink);
+  font: 400 1.0625rem/1.6 var(--text);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+h1,
+h2,
+h3,
+p,
+ol,
+ul,
+dl,
+dd {
+  margin: 0;
+}
+a {
+  color: inherit;
+}
+:focus-visible {
+  outline: 2px solid var(--indigo);
+  outline-offset: 4px;
+  border-radius: 2px;
+}
+
+.skip {
+  position: absolute;
+  left: var(--gutter);
+  top: -4rem;
+  z-index: 20;
+  padding: 0.7rem 1rem;
+  background: var(--cloud);
+  color: var(--ink);
+  border-radius: 6px;
+}
+.skip:focus {
+  top: 1rem;
+}
+
+/* The bar stays put across page transitions. */
+.bar {
+  position: absolute;
+  inset: 0 0 auto 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1.25rem var(--gutter);
+  color: #fff;
+  view-transition-name: sg-bar;
+}
+.mark {
+  font: 600 1.25rem/1 var(--display);
+  letter-spacing: -0.03em;
+  text-decoration: none;
+  color: inherit;
+}
+.mark span {
+  margin-left: 0.5rem;
+  font: 500 0.7rem/1 var(--text);
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  vertical-align: 0.2em;
+}
+.bar nav {
+  display: flex;
+  gap: 1.5rem;
+}
+.bar nav a {
+  color: inherit;
+  font-size: 0.9rem;
+  text-decoration: none;
+  padding-block: 0.6rem;
+  background: linear-gradient(currentColor, currentColor) 0 78% / 0 1px no-repeat;
+  transition: background-size 0.45s var(--ease);
+}
+.bar nav a:hover,
+.bar nav a[aria-current="page"] {
+  background-size: 100% 1px;
+}
+
+/* Hero: the still gradient is the design; the ink field moves over it when it can. */
+.hero {
+  min-height: 100svh;
+  display: flex;
+  align-items: flex-end;
+  padding: 8rem var(--gutter) clamp(2.5rem, 7vh, 5rem);
+  background:
+    radial-gradient(60% 55% at 74% 30%, rgb(195 188 242 / 0.5), transparent 70%),
+    radial-gradient(55% 60% at 60% 55%, rgb(74 91 181 / 0.75), transparent 72%),
+    radial-gradient(45% 45% at 88% 72%, rgb(135 157 199 / 0.45), transparent 70%),
+    var(--ink);
+  color: var(--on-ink);
+  overflow: hidden;
+}
+.hero-inner {
+  max-width: 78rem;
+}
+.eyebrow {
+  font: 500 0.78rem/1 var(--text);
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--on-ink-quiet);
+  margin-bottom: clamp(1.25rem, 3vh, 2rem);
+}
+.hero-title {
+  font: 620 clamp(3.4rem, 11.5vw, 11rem) / 0.88 var(--display);
+  font-stretch: 100%;
+  letter-spacing: -0.045em;
+  text-wrap: balance;
+  max-width: 11ch;
+  color: #fff;
+}
+.hero-lead {
+  margin-top: clamp(1.5rem, 4vh, 2.5rem);
+  max-width: 34rem;
+  font-size: clamp(1.05rem, 1.4vw, 1.25rem);
+  line-height: 1.55;
+  color: var(--on-ink);
+}
+.hero-hint {
+  margin-top: 2rem;
+  font-size: 0.8rem;
+  letter-spacing: 0.08em;
+  color: var(--on-ink-quiet);
+  opacity: 0;
+  transition: opacity 1s 1.2s var(--ease);
+}
+@media (pointer: fine) {
+  .hero.is-live .hero-hint {
+    opacity: 1;
+  }
+}
+
+/* Bands */
+.band {
+  padding: clamp(5rem, 14vh, 10rem) var(--gutter);
+}
+.label {
+  display: flex;
+  align-items: baseline;
+  gap: 0.9rem;
+  font: 500 0.82rem/1 var(--text);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--ink-quiet);
+  margin-bottom: clamp(2rem, 6vh, 3.5rem);
+}
+.label span {
+  font: 600 0.82rem/1 var(--display);
+  color: var(--indigo);
+  letter-spacing: 0.04em;
+}
+.statement {
+  font: 500 clamp(1.9rem, 4.4vw, 4.1rem) / 1.08 var(--display);
+  letter-spacing: -0.03em;
+  max-width: 22ch;
+  text-wrap: pretty;
+}
+
+/* Scene */
+.scene {
+  background: var(--ice);
+}
+.scene-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 3rem;
+}
+.scene-stage {
+  position: relative;
+  width: min(22rem, 70vw);
+  aspect-ratio: 1;
+}
+.scene-stage svg {
+  width: 100%;
+  height: 100%;
+  rotate: -90deg;
+}
+.ring-track,
+.ring {
+  fill: none;
+  stroke-width: 2.5;
+}
+.ring-track {
+  stroke: var(--soft);
+}
+.ring {
+  stroke: var(--indigo);
+  stroke-linecap: round;
+  stroke-dasharray: 1;
+  stroke-dashoffset: 0;
+}
+.scene-count {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-content: center;
+  grid-auto-flow: column;
+  align-items: baseline;
+  font: 600 clamp(4rem, 9vw, 6.5rem) / 1 var(--display);
+  letter-spacing: -0.05em;
+  font-variant-numeric: tabular-nums;
+}
+.scene-count .of {
+  font-size: 0.28em;
+  letter-spacing: 0;
+  color: var(--ink-quiet);
+  margin-left: 0.3em;
+}
+.scene-steps {
+  list-style: none;
+  padding: 0;
+  display: grid;
+  gap: 2.5rem;
+}
+.scene-steps h3 {
+  font: 600 clamp(1.8rem, 3.6vw, 3rem) / 1 var(--display);
+  letter-spacing: -0.035em;
+  margin-bottom: 0.9rem;
+}
+.scene-steps p {
+  max-width: 30rem;
+  font-size: 1.1rem;
+  color: var(--ink-quiet);
+}
+@media (min-width: 900px) {
+  .scene-body {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    align-items: start;
+  }
+  .scene.is-scrubbed .scene-stage {
+    position: sticky;
+    top: calc(50vh - 11rem);
+  }
+  .scene.is-scrubbed .scene-steps {
+    gap: 0;
+  }
+  .scene.is-scrubbed .scene-steps li {
+    min-height: 70vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+}
+/* Steps not in view step back, but stay readable: #626a7a is 4.67:1 on Ice Blue. */
+.scene.is-scrubbed .scene-steps li :is(h3, p) {
+  color: #626a7a;
+  transition: color 0.6s var(--ease);
+}
+.scene.is-scrubbed .scene-steps li[data-active] h3 {
+  color: var(--ink);
+}
+.scene.is-scrubbed .scene-steps li[data-active] p {
+  color: var(--ink-quiet);
+}
+
+/* Modes */
+.modes-lead {
+  max-width: 34rem;
+  font-size: 1.2rem;
+  margin-bottom: 2.5rem;
+}
+.modes-list {
+  display: grid;
+  gap: 0;
+  max-width: 52rem;
+  border-top: 1px solid var(--soft);
+}
+.modes-list > div {
+  display: grid;
+  grid-template-columns: minmax(8rem, 14rem) 1fr;
+  gap: 1rem;
+  padding: 1.1rem 0;
+  border-bottom: 1px solid var(--soft);
+}
+.modes-list dt {
+  font: 600 1.05rem/1.4 var(--display);
+  letter-spacing: -0.01em;
+}
+.modes-list dd {
+  color: var(--ink-quiet);
+}
+.modes-note {
+  margin-top: 2rem;
+  max-width: 40rem;
+  color: var(--ink-quiet);
+}
+
+/* Next */
+.next {
+  background: var(--ink);
+  color: var(--on-ink);
+}
+.next-link {
+  display: inline-grid;
+  gap: 1rem;
+  text-decoration: none;
+}
+.next-label {
+  font: 500 0.82rem/1 var(--text);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--on-ink-quiet);
+}
+.next-title {
+  font: 600 clamp(2.4rem, 7vw, 6.5rem) / 0.95 var(--display);
+  letter-spacing: -0.04em;
+  color: #fff;
+  background: linear-gradient(var(--lilac), var(--lilac)) 0 100% / 0 3px no-repeat;
+  padding-bottom: 0.12em;
+  transition:
+    background-size 0.7s var(--ease),
+    font-stretch 0.7s var(--ease);
+}
+.next-link:hover .next-title,
+.next-link:focus-visible .next-title {
+  background-size: 100% 3px;
+  font-stretch: 112%;
+}
+
+.foot {
+  padding: 2rem var(--gutter);
+  background: var(--ink);
+  color: var(--on-ink-quiet);
+  font-size: 0.85rem;
+  border-top: 1px solid rgb(201 217 240 / 0.14);
+}
+
+/* Page two */
+.page-two .two-head {
+  padding-top: clamp(9rem, 24vh, 14rem);
+  background: var(--cloud);
+}
+.page-two .bar {
+  color: var(--ink);
+}
+.page-two .eyebrow {
+  color: var(--ink-quiet);
+}
+.two-title {
+  font: 620 clamp(3rem, 9vw, 8.5rem) / 0.9 var(--display);
+  letter-spacing: -0.045em;
+  max-width: 12ch;
+  text-wrap: balance;
+}
+.two-lead {
+  margin-top: 2.5rem;
+  max-width: 38rem;
+  font-size: 1.2rem;
+  color: var(--ink-quiet);
+}
+.facts {
+  background: var(--ice);
+}
+.facts-list {
+  list-style: none;
+  padding: 0;
+  display: grid;
+  gap: 1.25rem;
+  max-width: 44rem;
+  font-size: 1.1rem;
+}
+.facts-list li {
+  padding-bottom: 1.25rem;
+  border-bottom: 1px solid var(--soft);
+}
+
+@media (max-width: 640px) {
+  .bar nav {
+    gap: 1rem;
+  }
+  .modes-list > div {
+    grid-template-columns: 1fr;
+    gap: 0.25rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bar nav a,
+  .next-title,
+  .hero-hint {
+    transition: none;
+  }
+}

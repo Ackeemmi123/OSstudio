@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="sv">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Scen två · Signature · Axivo</title>
+    <meta name="description" content="Axivo Signature, scen två: en sidövergång med webbläsarens egna View Transitions, utan att sajten blir en app." />
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 32 32%27%3E%3Crect width=%2732%27 height=%2732%27 rx=%277%27 fill=%27%23151922%27/%3E%3Ccircle cx=%2716%27 cy=%2716%27 r=%277%27 fill=%27none%27 stroke=%27%23c3bcf2%27 stroke-width=%273%27/%3E%3C/svg%3E" />
+    <meta name="theme-color" content="#f7f9fc" />
+    <link rel="preload" href="../fonts/archivo-latin-wdth-normal.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href="../fonts/instrument-sans-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin />
+    <script>document.documentElement.classList.add("sg-js");</script>
+    <link rel="stylesheet" href="../lab.css" />
+    <script type="module" src="../main.ts"></script>
+  </head>
+  <body class="page-two">
+    <a class="skip" href="#main">Hoppa till innehållet</a>
+    <header class="bar">
+      <a class="mark" href="../" aria-label="Axivo Signature, labbets startsida">axivo<span>signature</span></a>
+      <nav aria-label="Labbet">
+        <a href="../">Labb 01</a>
+        <a href="./" aria-current="page">Scen två</a>
+      </nav>
+    </header>
+
+    <main id="main">
+      <section class="band two-head" aria-labelledby="two-title">
+        <p class="eyebrow">Scen två</p>
+        <h1 class="two-title" id="two-title" data-sg="kinetic">Sidan bytte, känslan höll.</h1>
+        <p class="two-lead" data-sg="rise" style="--sg-delay: 0.8s">Det du nyss såg var en vanlig länk till en vanlig sida. Webbläsaren sköter övergången själv, med sina egna View Transitions. Inget ramverk håller sidan vid liv i bakgrunden, så varje sida laddar lika snabbt som om övergången inte fanns.</p>
+      </section>
+
+      <section class="band facts" aria-labelledby="facts-title">
+        <h2 class="label" id="facts-title"><span>04</span> Vad det betyder</h2>
+        <ul class="facts-list">
+          <li><strong>Vanliga sidor.</strong> Bra för sökmotorer, länkar och bakåtknappen.</li>
+          <li><strong>Inget extra att ladda.</strong> Övergången är inbyggd i webbläsaren.</li>
+          <li><strong>Av för den som vill.</strong> Med minskad rörelse byts sidan direkt.</li>
+          <li><strong>Webbläsare utan stöd</strong> byter sida som vanligt. Inget går sönder.</li>
+        </ul>
+      </section>
+
+      <section class="band next" aria-label="Tillbaka">
+        <a class="next-link" href="../">
+          <span class="next-label">Tillbaka</span>
+          <span class="next-title">Labb 01: bläcket</span>
+        </a>
+      </section>
+    </main>
+
+    <footer class="foot">
+      <p>Axivo Signature · Scen två · View Transitions</p>
+    </footer>
+  </body>
+</html>

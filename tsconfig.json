@@ -34,5 +34,5 @@
     ".next-e2e-local/types/**/*.ts",
     ".next-e2e-local/dev/types/**/*.ts"
   ],
-  "exclude": ["node_modules"]
+  "exclude": ["node_modules", "signature"]
 }

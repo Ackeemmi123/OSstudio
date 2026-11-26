@@ -15,6 +15,11 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Axivo Signature builds and tests itself (signature/package.json); only its sources are linted here.
+    "signature/dist/**",
+    "signature/test-results/**",
+    "signature/playwright-report/**",
+    "signature/lighthouse/**",
   ]),
 ]);
 
