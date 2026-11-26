@@ -6,7 +6,7 @@
  * Studio OS's); a page that is not there answers the build's own 404 page.
  */
 import type { ShownBrand } from "@/lib/domain/agency-brand";
-import { reviewBar, withReviewBar } from "@/server/site-reviews/bar";
+import { pageLanguage, reviewBar, withReviewBar } from "@/server/site-reviews/bar";
 import { contentTypeOf } from "./build";
 
 export interface ServedBuild {
@@ -118,7 +118,7 @@ export async function serveBuild(token: string, segments: readonly string[], dep
   if (type.startsWith("text/html")) {
     let html = withBase(underPrefix(new TextDecoder().decode(body), prefix), prefix, file);
     const brand = deps.review ? await deps.review(token).catch(() => null) : null;
-    if (brand) html = withReviewBar(html, reviewBar(token, brand));
+    if (brand) html = withReviewBar(html, reviewBar(token, brand, pageLanguage(html)));
     out = new TextEncoder().encode(html);
   }
   return new Response(out as BodyInit, { status, headers: { ...HEADERS, "Content-Type": type } });
