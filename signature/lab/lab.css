@@ -13,6 +13,14 @@
   font-weight: 400 700;
   font-display: swap;
 }
+/* A display serif for the warm showcase only: browsers fetch it only on pages whose text uses it. */
+@font-face {
+  font-family: "Instrument Serif";
+  src: url("./fonts/instrument-serif-latin-400-normal.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
 /*
  * Fallbacks with the real fonts' metrics (Next.js's capsize table, against
  * Arial), so text keeps its size and place when the real font arrives.
@@ -23,6 +31,15 @@
   size-adjust: 95%;
   ascent-override: 92.42%;
   descent-override: 22.1%;
+  line-gap-override: 0%;
+}
+/* Instrument Serif's metrics, measured in the browser against Times New Roman, so text keeps its size when the font arrives. */
+@font-face {
+  font-family: "Instrument Serif fallback";
+  src: local("Times New Roman"), local("TimesNewRomanPSMT");
+  size-adjust: 85.13%;
+  ascent-override: 116.29%;
+  descent-override: 36.41%;
   line-gap-override: 0%;
 }
 @font-face {
@@ -1090,6 +1107,17 @@ a {
   background: currentColor;
   transform-origin: 0 50%;
 }
+/* The warm page's headline rises without the dark page's stretch: a serif keeps its proportions. */
+@media (prefers-reduced-motion: no-preference) {
+  .page-craft [data-sg="kinetic"] .sg-c {
+    animation-name: sg-rise-plain;
+  }
+}
+@keyframes sg-rise-plain {
+  from {
+    transform: translateY(70%);
+  }
+}
 @media (prefers-reduced-motion: no-preference) {
   .show-hint span {
     animation: show-hint 2.4s var(--ease-roll) infinite;
@@ -1202,6 +1230,7 @@ a {
 
 /* ---------- Hantverk: the same engine, light and warm ---------- */
 .page-craft {
+  --serif: "Instrument Serif", "Instrument Serif fallback", "Times New Roman", serif;
   --craft-bg: #f3ece2;
   --craft-ink: #24170f;
   --craft-quiet: #6b5546;
@@ -1220,10 +1249,8 @@ a {
 }
 /* Wide and light: the opposite of the dark showcase's tall, narrow type. */
 .page-craft .sg-intro-word {
-  font-weight: 280;
-  font-stretch: 125%;
-  font-size: clamp(2.8rem, 11vw, 9rem);
-  letter-spacing: -0.03em;
+  font: 400 clamp(3.4rem, 13vw, 10rem) / 0.9 var(--serif);
+  letter-spacing: -0.02em;
 }
 .page-craft .eyebrow {
   color: var(--craft-quiet);
@@ -1235,9 +1262,8 @@ a {
   color: var(--craft-clay);
 }
 .page-craft .label .label-name {
-  font-weight: 280;
-  font-stretch: 125%;
-  letter-spacing: -0.035em;
+  font: 400 clamp(2.8rem, 7.4vw, 7rem) / 0.95 var(--serif);
+  letter-spacing: -0.02em;
   color: var(--craft-ink);
 }
 .craft-hero {
@@ -1248,10 +1274,9 @@ a {
   padding: 7.5rem var(--gutter) clamp(2.5rem, 7vh, 5rem);
 }
 .craft-title {
-  font: 280 clamp(2.9rem, 7.6vw, 8.6rem) / 0.94 var(--display);
-  font-stretch: 125%;
-  letter-spacing: -0.045em;
-  max-width: 11ch;
+  font: 400 clamp(3.4rem, 9.2vw, 10.5rem) / 0.9 var(--serif);
+  letter-spacing: -0.025em;
+  max-width: 10ch;
   color: var(--craft-ink);
 }
 .craft-lead {
@@ -1288,9 +1313,8 @@ a {
   background: var(--craft-bg);
 }
 .craft-big {
-  font: 300 clamp(2rem, 4.6vw, 4.8rem) / 1.08 var(--display);
-  font-stretch: 112%;
-  letter-spacing: -0.035em;
+  font: 400 clamp(2.3rem, 5.2vw, 5.6rem) / 1.04 var(--serif);
+  letter-spacing: -0.015em;
   max-width: 22ch;
   color: var(--craft-ink);
   text-wrap: pretty;
@@ -1311,9 +1335,8 @@ a {
   color: var(--craft-clay);
 }
 .page-craft .story-panel h3 {
-  font-weight: 340;
-  font-stretch: 118%;
-  letter-spacing: -0.03em;
+  font: 400 clamp(2.2rem, 3.4vw, 3.2rem) / 1 var(--serif);
+  letter-spacing: -0.01em;
   color: var(--craft-ink);
 }
 .page-craft .story-panel p,
@@ -1334,14 +1357,14 @@ a {
   color: #cdbba8;
 }
 .craft-next .next-title {
-  font-weight: 280;
-  font-stretch: 125%;
+  font: 400 clamp(2.8rem, 8vw, 7.5rem) / 0.95 var(--serif);
+  letter-spacing: -0.02em;
   color: var(--craft-bg);
   background-image: linear-gradient(var(--craft-ochre), var(--craft-ochre));
 }
 .craft-next .next-link:hover .next-title,
 .craft-next .next-link:focus-visible .next-title {
-  font-stretch: 100%;
+  font-stretch: normal;
 }
 .page-craft .craft-foot {
   background: var(--craft-ink);
@@ -1365,6 +1388,34 @@ a {
 }
 .page-craft .sg-cursor-label {
   color: #000;
+}
+
+/* "Next" links that carry a picture: it flies into the next page and becomes its main picture there. */
+.next-with-picture {
+  grid-template-columns: auto 1fr;
+  column-gap: clamp(1.25rem, 3vw, 2.5rem);
+  align-items: end;
+}
+.next-with-picture .next-picture {
+  grid-row: 1 / span 2;
+  width: clamp(6rem, 13vw, 11rem);
+  aspect-ratio: 4 / 5;
+  overflow: hidden;
+}
+.next-picture img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: scale 0.9s var(--ease-out);
+}
+.next-with-picture:hover .next-picture img {
+  scale: 1.08;
+}
+@media (prefers-reduced-motion: reduce) {
+  .next-picture img {
+    transition: none;
+  }
 }
 
 /* Signature footer with the word mark */

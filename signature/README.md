@@ -10,8 +10,9 @@ with the intro on the lab's first page, a page for missing addresses
 Möbius band has only one side, and so does a good site), built only from the
 library's parts, to judge the whole against award nominees rather than the
 parts one by one. A second showcase (`lab/hantverk/`) uses the same engine in
-a light, warm direction with wide, light type and its own curtain, to show
-that every client gets their own look, never a template in a new colour.
+a light, warm direction with a display serif (Instrument Serif) and its own
+curtain, to show that every client gets their own look, never a template in a
+new colour.
 
 The plan, the research behind it (20 Awwwards nominees, measured) and the
 phases are in the Claude Doc "Axivo på Awwwards-nivå: vad som krävs".
@@ -29,7 +30,7 @@ JavaScript, with reduced motion, and without WebGL. The engine only adds.
 | Boot | `src/engine/index.ts` | Mounts `data-sg` modules. Loads the motion engine only when a moving section comes near or the visitor first scrolls. |
 | Motion | `src/engine/motion.ts` | GSAP + ScrollTrigger + SplitText. `whenMotion()` runs animations only while motion is welcome and reverts them when it is not. |
 | Smooth scroll | `src/engine/scroll.ts` | Lenis, in step with ScrollTrigger. Native scrolling, keyboard, anchors and touch keep working. |
-| Page transitions | `src/engine/engine.css` | The browser's own cross-document View Transitions. Off with reduced motion; browsers without them change page as usual. |
+| Page transitions | `src/engine/engine.css` | The browser's own cross-document View Transitions: the new page rises like a curtain. A picture with the same `view-transition-name` on two pages flies from one to the other (the showcases' "next" pictures grow into the next page's main picture); a line in each page head marks an arrival by transition, so a picture that flew in needs no second entrance. Off with reduced motion; browsers without them change page as usual. |
 | Shader stage | `src/engine/shader-stage.ts` | A full-screen fragment shader in plain WebGL: compiles in the background, draws only when visible, refuses software renderers, recovers from a lost context. |
 | Moving headlines | `src/build/kinetic.ts` | Split into letters **at build time**; CSS animates them. No script, visible from the first paint, the whole sentence as the accessible name. |
 | `data-sg="rise"` | `src/engine/engine.css` | First-view text that arrives with one CSS rise. |
@@ -89,10 +90,10 @@ Client sites use the client's own pictures, with written permission.
 | Tests | content without JavaScript, nothing moving with reduced motion, still field without WebGL, no sideways scroll on a phone, no console errors |
 
 Measured 2026-11-26, median of three runs: lab 99 / 100 / 100 / 100 (the
-silk field on this machine's GPU), the warm showcase 98 / 100 / 100 / 100,
+silk field on this machine's GPU), the warm showcase 99 / 100 / 100 / 100,
 scene two, the library, the dark showcase and the 404 page
 100 / 100 / 100 / 100. Largest content after 0.8 s on every page; layout
-shift 0 to 0.003. 89 tests pass on desktop and phone (7 are desktop-only or
+shift 0 to 0.003. 91 tests pass on desktop and phone (7 are desktop-only or
 run once by design).
 
 ## Licences
@@ -104,5 +105,7 @@ run once by design).
 - **Lenis**: MIT.
 - **Three.js** (with its post-processing examples: EffectComposer, UnrealBloomPass, OutputPass): MIT.
 - **Simplex noise** in the ink field, the image effect and the satin stills: Ashima Arts / Stefan Gustavson, MIT.
-- **Fonts** in the lab: Archivo and Instrument Sans, SIL Open Font License
-  (`lab/fonts/LICENSE-*.txt`).
+- **Fonts** in the lab: Archivo, Instrument Sans and Instrument Serif, SIL
+  Open Font License (`lab/fonts/LICENSE-*.txt`). Instrument Serif came from
+  the `@fontsource/instrument-serif` 5.3.0 package (Latin, regular); its
+  fallback's metrics were measured in the browser against Times New Roman.

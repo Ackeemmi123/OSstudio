@@ -94,6 +94,11 @@ export function mountReveal(frame: HTMLElement, capabilities: Capabilities, allo
       });
       frame.dataset.sgState = stage ? "webgl" : "still";
       if (!stage) return;
+      // A picture that just flew in from the previous page (a shared view transition) has already arrived.
+      if (document.documentElement.dataset.sgArrived === "transition" && getComputedStyle(frame).viewTransitionName !== "none") {
+        state.reveal = 1;
+        return;
+      }
       // The picture arrives once, as it comes into view.
       trigger = ScrollTrigger.create({
         trigger: frame,

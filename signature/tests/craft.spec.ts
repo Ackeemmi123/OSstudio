@@ -58,6 +58,23 @@ test("its own curtain plays once per visit, separately from the lab's", async ({
   await expect(page.locator("html")).not.toHaveClass(/sg-intro-on/);
 });
 
+test("the picture in the dark showcase's link flies into this page's hero, which then needs no second entrance", async ({ page }) => {
+  await page.addInitScript(() => {
+    sessionStorage.setItem("sg-intro", "1");
+    sessionStorage.setItem("sg-intro-hantverk", "1");
+  });
+  await page.goto("/visning/");
+  const link = page.locator(".show-next .next-link");
+  await link.scrollIntoViewIfNeeded();
+  await expect(link.locator(".next-picture")).toHaveCSS("view-transition-name", "craft-picture");
+  await link.click();
+  await expect(page).toHaveURL(/\/hantverk\/$/);
+  const frame = page.locator(".craft-hero-figure [data-sg=reveal]");
+  await expect(frame).toHaveCSS("view-transition-name", "craft-picture");
+  // Reached through the browser's own view transition: the picture is already in place.
+  await expect(page.locator("html")).toHaveAttribute("data-sg-arrived", "transition");
+});
+
 for (const motion of ["no-preference", "reduce"] as const) {
   test(`no accessibility errors on the warm showcase (${motion === "reduce" ? "reduced motion" : "motion"})`, async ({ page }) => {
     await page.emulateMedia({ reducedMotion: motion });

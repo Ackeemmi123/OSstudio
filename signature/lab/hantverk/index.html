@@ -9,7 +9,8 @@
     <meta name="theme-color" content="#f3ece2" />
     <link rel="preload" href="../fonts/archivo-latin-wdth-normal.woff2" as="font" type="font/woff2" crossorigin />
     <link rel="preload" href="../fonts/instrument-sans-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin />
-    <script>document.documentElement.classList.add("sg-js");</script>
+    <link rel="preload" href="../fonts/instrument-serif-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin />
+    <script>document.documentElement.classList.add("sg-js");addEventListener("pagereveal",function(e){if(e.viewTransition)document.documentElement.dataset.sgArrived="transition"});</script>
     <!-- This page's own curtain: once per visit, never with reduced motion. -->
     <script>try{if(!sessionStorage.getItem("sg-intro-hantverk")&&!matchMedia("(prefers-reduced-motion: reduce)").matches){document.documentElement.classList.add("sg-intro-on");sessionStorage.setItem("sg-intro-hantverk","1")}}catch(e){}</script>
     <link rel="stylesheet" href="../lab.css" />
@@ -35,7 +36,7 @@
           <p class="craft-lead" data-sg="rise" style="--sg-delay: 0.9s">Samma motor som den mörka visningen, i en ljus och varm riktning. Varje kund får sin egen, aldrig en mall med en ny färg.</p>
         </div>
         <figure class="craft-hero-figure">
-          <div class="reveal-frame" data-sg="reveal">
+          <div class="reveal-frame" data-sg="reveal" style="view-transition-name: craft-picture">
             <img src="../bilder/siden-sand-800.webp" srcset="../bilder/siden-sand-800.webp 800w, ../bilder/siden-sand.webp 1600w" sizes="(min-width: 900px) 34vw, 100vw" width="1600" height="2000" decoding="async" alt="Champagnefärgat siden i långa, mjuka veck" />
             <canvas data-sg-canvas aria-hidden="true"></canvas>
           </div>
@@ -102,7 +103,8 @@
       </section>
 
       <section class="band craft-next" aria-label="Fler visningar">
-        <a class="next-link" href="../visning/">
+        <a class="next-link next-with-picture" href="../visning/">
+          <span class="next-picture" style="view-transition-name: show-picture"><img src="../bilder/siden-natt-800.webp" width="800" height="1000" loading="lazy" decoding="async" alt="" /></span>
           <span class="next-label">Samma motor, mörk riktning</span>
           <span class="next-title">Visning ett: En sida.</span>
         </a>

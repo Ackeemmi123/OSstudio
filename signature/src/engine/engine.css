@@ -29,8 +29,20 @@
   animation-name: sg-enter;
 }
 ::view-transition-group(*) {
-  animation-duration: 0.7s;
-  animation-timing-function: cubic-bezier(0.7, 0, 0.2, 1);
+  animation-duration: 0.85s;
+  animation-timing-function: cubic-bezier(0.76, 0, 0.24, 1);
+}
+/* A shared picture travels above both pages, and its two snapshots cross over without a flash. */
+::view-transition-group(craft-picture),
+::view-transition-group(show-picture) {
+  z-index: 2;
+}
+::view-transition-old(craft-picture),
+::view-transition-new(craft-picture),
+::view-transition-old(show-picture),
+::view-transition-new(show-picture) {
+  height: 100%;
+  object-fit: cover;
 }
 @keyframes sg-leave {
   to {
