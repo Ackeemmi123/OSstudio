@@ -378,7 +378,7 @@ export function OfferDocument({ offer, color, logoUrl }: { offer: Offer; color: 
         <p className="text-[13px] font-semibold">{w.stepsTitle}</p>
         <ol className="mt-3 grid gap-2 sm:grid-cols-5">
           {w.steps.map((step, i) => (
-            <li key={step} className="rounded-[12px] border border-[#e6e8ee] p-3 text-[12px] leading-snug">
+            <li key={step} className="rounded-[12px] border border-[#e6e8ee] p-3 text-[12px] leading-snug [overflow-wrap:anywhere] hyphens-auto">
               <span className="mb-1 block text-[11px] font-semibold" style={{ color }}>
                 {String(i + 1).padStart(2, "0")}
               </span>
