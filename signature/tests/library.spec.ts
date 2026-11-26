@@ -57,7 +57,7 @@ test.describe("with reduced motion", () => {
     await expect(page.locator(".story")).not.toHaveClass(/is-horizontal/);
     await expect(page.locator(".object")).toHaveAttribute("data-sg-state", "still");
     await expect(page.locator(".sg-cursor")).toHaveCount(0);
-    expect(requests.some((url) => url.includes("object-scene"))).toBe(false);
+    expect(requests.some((url) => url.includes("band-scene"))).toBe(false);
     expect(await page.evaluate(() => document.getAnimations().filter((a) => a.playState === "running").length)).toBe(0);
     expect(errors).toEqual([]);
   });

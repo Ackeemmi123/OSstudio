@@ -1,6 +1,6 @@
 /**
  * An object that comes together as the visitor scrolls: a 3D scene (see
- * object-scene.ts) held beside a few steps of text, driven by the scroll.
+ * band-scene.ts) held beside a few steps of text, driven by the scroll.
  *
  * The picture underneath (a rendered still of the finished object) is the
  * design without WebGL, with reduced motion and without JavaScript; the 3D
@@ -11,7 +11,7 @@
  *           <ol data-sg-steps><li data-step>…</li>…</ol></section>
  */
 import type { Capabilities } from "../engine/capabilities";
-import type { ObjectScene } from "./object-scene";
+import type { ObjectScene } from "./band-scene";
 import { holdPlace, placeOf, ScrollTrigger, whenMotion } from "../engine/motion";
 
 /** How often this screen draws, in seconds per frame, measured before anything heavy runs (median of 24 frames). */
@@ -70,7 +70,7 @@ export function mountObject(section: HTMLElement, capabilities: Capabilities, al
     section.addEventListener("pointerleave", onLeave);
 
     if (!capabilities.saveData) {
-      void Promise.all([import("./object-scene"), cadence()])
+      void Promise.all([import("./band-scene"), cadence()])
         .then(([{ createObjectScene }, interval]) => {
           if (cancelled) return;
           scene = createObjectScene(canvas, {

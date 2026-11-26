@@ -39,7 +39,7 @@ JavaScript, with reduced motion, and without WebGL. The engine only adds.
 | `data-sg="ink-field"` | `src/modules/ink-field.ts` | A slow field of silk in the site's colours, lit like satin and stirred by the pointer, over a still gradient that is the design without WebGL. |
 | `data-sg="story"` | `src/modules/story.ts` | Phase 2. Panels that slide sideways while the section holds still, on wide screens with motion; stacked everywhere else. Tabbing into a hidden panel scrolls it into view. |
 | `data-sg="marquee"` | `src/modules/marquee.ts` | Phase 2. A line that runs without end, faster with scroll speed and backwards when scrolling up. Copies are hidden from screen readers. |
-| `data-sg="object"` | `src/modules/object.ts`, `object-scene.ts` | Phase 2. A Möbius band of brushed satin metal (Three.js: anisotropic physical material, a studio light set, gentle bloom) that starts as eight loose pieces and flows together into one band as steps scroll past. The whole shape is computed on the graphics card from flowing noise; the scroll drives a spring. Over a rendered picture of it that is the design without WebGL. Three.js loads only here. Quality adapts to the device: it measures the screen's frame rate, then steps down (bloom off and a coarser band, then plain satin) only if frames are slow; `?quality=0\|1\|2` fixes it for comparison. |
+| `data-sg="object"` | `src/modules/object.ts`, `band-scene.ts` | Phase 2. A Möbius band of brushed satin metal that starts as eight loose pieces and flows together into one band as steps scroll past. Plain WebGL, about 5 KB compressed (it was Three.js, 140 KB, until the same picture was drawn without it): the shape is computed on the graphics card from flowing noise, the studio it reflects is drawn analytically in the shader, and the satin streaks come from blurring that reflection along the band. The scroll drives a spring. Over a rendered picture of it that is the design without WebGL. Quality adapts to the device: it measures the screen's frame rate, then steps down (fewer pixels and a coarser band, then one reflection sample) only if frames are slow; `?quality=0\|1\|2` fixes it for comparison. |
 | `data-sg="reveal"` | `src/modules/reveal.ts` | Part B. A picture that arrives behind a living edge as it scrolls in and swells like a lens under the mouse. Drawn by a shader over the real `<img>`, which stays for screen readers, search, reduced motion and devices without WebGL. |
 | `data-sg="gallery"` | `src/modules/gallery.ts`, `engine.css` | Part B. A sideways row of pictures: a native scroller with snap points (touch, trackpad, arrow keys, screen readers, no script). The engine adds mouse drag with a throw, buttons, a counter and a progress line; pictures drift in their frames (CSS scroll-driven). |
 | `data-sg="sound"` | `src/modules/sound.ts` | Part B. A quiet ambient chord from the browser's own synthesiser: no file, off until asked for, remembered, never started without a click or key press, paused in hidden tabs. Scrolling opens its filter, so it brightens while the page moves. Hidden without JavaScript. |
@@ -81,7 +81,7 @@ Client sites use the client's own pictures, with written permission.
 | Script for the first view | ≤ 15 KB compressed (now 2.8) |
 | Motion engine, loaded later | ≤ 60 KB (now 55) |
 | WebGL shaders, loaded later | ≤ 10 KB (now 4.3) |
-| 3D (Three.js), only on pages with an object | ≤ 150 KB (now 137) |
+| 3D band, only on pages with an object | ≤ 10 KB (was 137 with Three.js) |
 | Sound, after load, only where used | ≤ 3 KB (now 1) |
 | Largest single picture | ≤ 100 KB (now 72); each comes in two sizes for `srcset` |
 | CSS / HTML / fonts | ≤ 15 / 10 / 140 KB |
@@ -89,12 +89,13 @@ Client sites use the client's own pictures, with written permission.
 | axe (WCAG 2.2 AA) | no violations, with and without motion |
 | Tests | content without JavaScript, nothing moving with reduced motion, still field without WebGL, no sideways scroll on a phone, no console errors |
 
-Measured 2026-11-26, median of three runs: lab 99 / 100 / 100 / 100 (the
-silk field on this machine's GPU), the warm showcase 99 / 100 / 100 / 100,
-scene two, the library, the dark showcase and the 404 page
-100 / 100 / 100 / 100. Largest content after 0.8 s on every page; layout
-shift 0 to 0.003. 91 tests pass on desktop and phone (7 are desktop-only or
-run once by design).
+Measured 2026-11-26, median of three runs: lab 98 (its first run is slower,
+while the graphics card compiles the silk shader cold), the warm showcase 98,
+the library and the dark showcase 99, scene two and the 404 page 100;
+accessibility, best practices and SEO 100 everywhere. Largest content after
+0.8 s on every page; layout shift 0 to 0.003. 91 tests pass on desktop and
+phone (7 are desktop-only or run once by design). The 3D band went from 137 KB
+(Three.js) to 5.7 KB compressed, with the same picture.
 
 ## Licences
 
@@ -103,8 +104,7 @@ run once by design).
   build visual animations without code in competition with Webflow, so never
   put GSAP behind a no-code animation builder in Studio OS.
 - **Lenis**: MIT.
-- **Three.js** (with its post-processing examples: EffectComposer, UnrealBloomPass, OutputPass): MIT.
-- **Simplex noise** in the ink field, the image effect and the satin stills: Ashima Arts / Stefan Gustavson, MIT.
+- **Simplex noise** (2D and 3D) in the silk field, the image effect, the band and the satin stills: Ashima Arts / Stefan Gustavson, MIT.
 - **Fonts** in the lab: Archivo, Instrument Sans and Instrument Serif, SIL
   Open Font License (`lab/fonts/LICENSE-*.txt`). Instrument Serif came from
   the `@fontsource/instrument-serif` 5.3.0 package (Latin, regular); its

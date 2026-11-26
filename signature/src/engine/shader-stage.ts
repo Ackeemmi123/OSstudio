@@ -1,7 +1,7 @@
 /**
  * A full-screen fragment shader on one canvas, in plain WebGL: no 3D library,
- * a few kilobytes. For fields, gradients and image effects; real 3D scenes
- * bring Three.js with them when a module needs it.
+ * a few kilobytes. For fields, gradients and image effects; the 3D band
+ * (band-scene.ts) draws its own two programs the same way, without a library.
  *
  * It compiles the shader in the background where the browser can
  * (KHR_parallel_shader_compile), so the page never freezes while it does,

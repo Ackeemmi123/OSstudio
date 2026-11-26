@@ -6,7 +6,7 @@
  */
 import { createShaderStage } from "../../src/engine/shader-stage";
 import { NOISE } from "../../src/modules/noise";
-import { createObjectScene } from "../../src/modules/object-scene";
+import { createObjectScene } from "../../src/modules/band-scene";
 
 /**
  * Silk: a height field of slow, stretched noise, lit like satin. Folds catch a
