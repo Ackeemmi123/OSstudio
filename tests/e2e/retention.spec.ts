@@ -45,6 +45,8 @@ test("an owner sees the retention date, gets a warning on Today, and holds and r
   // Eleven months and 20 days later, Today lists it.
   await age(clientId, "11 months 20 days");
   await page.goto("/");
+  // A test client stays out of Today until someone asks to see test clients; the choice is remembered.
+  await page.getByTestId("toggle-test-clients").click();
   const warning = page.locator("section#decisions").getByRole("link", { name: new RegExp(`${name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}: client data will be anonymised`) });
   await expect(warning).toBeVisible();
   await expect(warning).toContainText(/Anonymised in (9|10|11) days/);
