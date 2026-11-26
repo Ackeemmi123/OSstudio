@@ -449,3 +449,284 @@ a {
     transition: none;
   }
 }
+
+/* ---------- Library (phase 2) ---------- */
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+.page-library .bar {
+  color: var(--ink);
+}
+.page-library .eyebrow {
+  color: var(--ink-quiet);
+}
+.library-head {
+  padding-top: clamp(9rem, 24vh, 14rem);
+  padding-bottom: clamp(3rem, 8vh, 5rem);
+}
+.library-title {
+  font: 620 clamp(3.2rem, 11vw, 10rem) / 0.9 var(--display);
+  letter-spacing: -0.045em;
+}
+.library-lead {
+  margin-top: 2rem;
+  max-width: 36rem;
+  font-size: 1.2rem;
+  color: var(--ink-quiet);
+}
+
+/* Ticker */
+.ticker {
+  padding: 1.6rem 0;
+  border-block: 1px solid var(--soft);
+  font: 600 clamp(2.2rem, 6vw, 5rem) / 1 var(--display);
+  letter-spacing: -0.035em;
+  color: var(--ink);
+}
+.ticker p {
+  padding-left: var(--gutter);
+}
+.ticker.is-running p {
+  padding-left: 0;
+}
+
+/* Story: stacked panels, or a horizontal row with motion on wide screens */
+.story {
+  background: var(--ice);
+}
+.story-track {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 1.25rem;
+}
+.story-panel {
+  position: relative;
+  padding: clamp(1.75rem, 3vw, 2.75rem);
+  background: var(--cloud);
+  border: 1px solid var(--soft);
+  border-radius: 14px;
+  overflow: hidden;
+}
+.story-number {
+  display: block;
+  font: 600 clamp(4rem, 9vw, 7.5rem) / 0.85 var(--display);
+  letter-spacing: -0.06em;
+  color: var(--indigo);
+  margin-bottom: 1.5rem;
+}
+.story-panel h3 {
+  font: 600 clamp(1.6rem, 2.6vw, 2.3rem) / 1.05 var(--display);
+  letter-spacing: -0.03em;
+  margin-bottom: 0.8rem;
+}
+.story-panel p {
+  color: var(--ink-quiet);
+  max-width: 30rem;
+}
+.story-link {
+  display: inline-block;
+  margin-top: 1.25rem;
+  font-weight: 600;
+  text-underline-offset: 0.2em;
+}
+@media (min-width: 700px) {
+  .story-track {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (min-width: 900px) {
+  .story.is-horizontal {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding-block: clamp(4rem, 10vh, 6rem);
+    overflow: hidden;
+  }
+  .story.is-horizontal .story-track {
+    display: flex;
+    gap: clamp(1.25rem, 2vw, 2rem);
+    width: max-content;
+    will-change: transform;
+  }
+  .story.is-horizontal .story-panel {
+    width: min(38rem, 46vw);
+    min-height: 58vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+  }
+  .story.is-horizontal .story-number {
+    margin-bottom: auto;
+  }
+}
+
+/* Object: dark, so the 3D ring glows */
+.object {
+  background: var(--ink);
+  color: var(--on-ink);
+}
+.object .label {
+  color: var(--on-ink-quiet);
+}
+.object .label span {
+  color: var(--lilac);
+}
+.object-body {
+  display: grid;
+  gap: 2.5rem;
+}
+.object-stage {
+  width: min(34rem, 100%);
+  aspect-ratio: 1;
+  margin-inline: auto;
+}
+.object-poster {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+.object-steps {
+  list-style: none;
+  padding: 0;
+  display: grid;
+  gap: 2rem;
+}
+.object-steps h3 {
+  font: 600 clamp(1.8rem, 3.4vw, 2.8rem) / 1 var(--display);
+  letter-spacing: -0.035em;
+  color: #fff;
+  margin-bottom: 0.7rem;
+}
+.object-steps p {
+  max-width: 28rem;
+  color: var(--on-ink);
+}
+@media (min-width: 900px) {
+  .object-body {
+    grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
+    align-items: start;
+  }
+  .object.is-scrubbed .object-stage {
+    position: sticky;
+    top: calc(50vh - min(17rem, 23vw));
+    width: min(34rem, 46vw);
+  }
+  .object.is-scrubbed .object-steps li {
+    min-height: 65vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+}
+/* Steps not in view step back but stay readable: #9aa4bb is 7.04:1 on Ink Black. */
+.object.is-scrubbed .object-steps li :is(h3, p) {
+  color: #9aa4bb;
+  transition: color 0.6s var(--ease);
+}
+.object.is-scrubbed .object-steps li[data-active] h3 {
+  color: #fff;
+}
+.object.is-scrubbed .object-steps li[data-active] p {
+  color: var(--on-ink);
+}
+
+/* Magnetic buttons */
+.magnets-lead {
+  max-width: 40rem;
+  font-size: 1.15rem;
+  color: var(--ink-quiet);
+  margin-bottom: 2.5rem;
+}
+.magnets-row {
+  display: flex;
+  flex-wrap: wrap;
+  /* Wider than two magnets leaning toward each other (2 × 14 px). */
+  gap: 2rem;
+}
+.pill {
+  display: inline-flex;
+  align-items: center;
+  min-height: 3.5rem;
+  padding: 0 1.75rem;
+  border-radius: 999px;
+  background: var(--ink);
+  color: #fff;
+  font: 600 1rem/1 var(--text);
+  text-decoration: none;
+  transition: background-color 0.3s var(--ease);
+}
+.pill:hover {
+  background: var(--indigo);
+}
+.pill-quiet {
+  background: transparent;
+  color: var(--ink);
+  box-shadow: inset 0 0 0 1.5px var(--ink);
+}
+.pill-quiet:hover {
+  background: var(--ink);
+  color: #fff;
+}
+
+/* Signature footer with the word mark */
+.signature-foot {
+  background: var(--ink);
+  color: var(--on-ink);
+  padding: clamp(4rem, 10vh, 7rem) var(--gutter) 0;
+  overflow: hidden;
+}
+.foot-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  justify-content: space-between;
+  gap: 2rem;
+  margin-bottom: clamp(2rem, 6vh, 4rem);
+}
+.foot-row p {
+  max-width: 30rem;
+  color: var(--on-ink);
+}
+.foot-row .label {
+  display: flex;
+  margin-bottom: 1rem;
+  color: var(--on-ink-quiet);
+}
+.foot-row .label span {
+  color: var(--lilac);
+}
+.signature-foot .pill {
+  background: var(--cloud);
+  color: var(--ink);
+}
+.signature-foot .pill:hover {
+  background: var(--lilac);
+}
+.foot-word {
+  font: 640 clamp(6rem, 31vw, 30rem) / 0.78 var(--display);
+  letter-spacing: -0.05em;
+  color: #fff;
+  margin-left: -0.04em;
+  padding-bottom: 0.06em;
+}
+
+@media (max-width: 640px) {
+  .bar nav {
+    gap: 0.85rem;
+  }
+  .bar nav a {
+    font-size: 0.85rem;
+  }
+}

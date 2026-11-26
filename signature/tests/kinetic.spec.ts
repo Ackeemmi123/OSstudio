@@ -22,3 +22,9 @@ test("only plain text is split, and an element that already has a name is left a
   expect(splitKinetic(named)).toBe(named);
   expect(splitKinetic("<h1>Vanlig rubrik</h1>")).toBe("<h1>Vanlig rubrik</h1>");
 });
+
+test("a split paragraph keeps its words for screen readers in hidden text, since aria-label is not allowed on it", () => {
+  const html = splitKinetic('<p class="m" data-sg="mark">axivo</p>');
+  expect(html).not.toContain("aria-label");
+  expect(html).toContain('<span class="sg-sr">axivo</span><span aria-hidden="true">');
+});
