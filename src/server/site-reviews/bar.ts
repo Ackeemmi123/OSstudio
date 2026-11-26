@@ -41,6 +41,7 @@ const STYLE = `
 
 /** The script; `CONFIG` is replaced with the link's settings as JSON. */
 const SCRIPT = `(function(){
+if(window.self!==window.top)return;
 var C=CONFIG,W=C.words,api="/api/site-reviews/"+C.token,prefix="/s/"+C.token,state={comments:[],approval:null,questions:[],answered:false},mode=false,hovered=null,panel=null;
 function el(tag,props,kids){var e=document.createElement(tag);if(props)for(var k in props){if(k==="text")e.textContent=props[k];else if(k==="cls")e.className=props[k];else e.setAttribute(k,props[k]);}(kids||[]).forEach(function(c){if(c)e.appendChild(c);});return e;}
 function page(){var p=location.pathname;if(p.indexOf(prefix)===0)p=p.slice(prefix.length);return p||"/";}

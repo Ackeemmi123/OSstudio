@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { buildNewClient } from "./clients";
-import { chaseDraft, mailtoLink } from "./chase";
+import { chaseDraft, clientLanguage, mailtoLink } from "./chase";
 import { getFollowUps } from "./followups";
 import { buildOnboarding } from "./onboarding";
 import { buildProject, buildTask } from "./projects";
@@ -83,5 +83,27 @@ describe("chase drafts", () => {
   it("encodes the email link so the text cannot add recipients or headers", () => {
     const link = mailtoLink({ to: "mia@lumen.example", subject: "Hi & bye?cc=x@evil.example", body: "Line 1\nLine 2&bcc=y@evil.example" })!;
     expect(link).toBe("mailto:mia%40lumen.example?subject=Hi%20%26%20bye%3Fcc%3Dx%40evil.example&body=Line%201%0ALine%202%26bcc%3Dy%40evil.example");
+  });
+
+  it("writes to the client in Finnish, Swedish or English, with the essentials asked in that language", () => {
+    const c = client();
+    const onboarding = { ...buildOnboarding(c, testDeps()).onboarding, id: "onb-1", updatedAt: ago(7) };
+    const snapshot = snapshotWith({ clients: [c], onboardings: [onboarding] });
+    const followUp = only(snapshot);
+    const fi = chaseDraft(followUp, snapshot, SENDER, "fi")!;
+    const sv = chaseDraft(followUp, snapshot, SENDER, "sv")!;
+    expect(fi.subject).toBe("Muutama kysymys ennen aloitusta");
+    expect(fi.body).toMatch(/^Hei Mia,/);
+    expect(fi.body).toContain("- Mitä projektin pitäisi ennen kaikkea saavuttaa?");
+    expect(fi.body).toContain("Terveisin");
+    expect(sv.body).toMatch(/^Hej Mia!/);
+    expect(sv.body).toContain("Hälsningar");
+    expect(fi.body).not.toMatch(/Best regards|Hälsningar/);
+  });
+
+  it("takes the client's language from their website inquiry, else Finnish", () => {
+    const inquiry = (clientId: string | null, locale: "fi" | "sv" | "en", receivedAt: string) => ({ clientId, locale, receivedAt }) as unknown as StudioSnapshot["inquiries"][number];
+    expect(clientLanguage("c1", { inquiries: [] })).toBe("fi");
+    expect(clientLanguage("c1", { inquiries: [inquiry("c1", "sv", "2026-11-01T10:00:00Z"), inquiry("c1", "en", "2026-11-20T10:00:00Z"), inquiry("c2", "fi", "2026-11-25T10:00:00Z")] })).toBe("en");
   });
 });

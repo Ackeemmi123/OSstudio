@@ -4,7 +4,7 @@ import { Archive, ArrowRight, Check, CircleSlash, Circle, Clock, FileQuestion, I
 import { Celebration, CopyReviewLink, DeliveryTrack, useDeliveries } from "@/components/delivery/delivery";
 import { useSession } from "@/components/providers/session-provider";
 import { daysSince, type Delivery } from "@/lib/domain/delivery";
-import { isTestClient } from "@/lib/domain/test-clients";
+import { countTestClients, isTestClient, withoutTestClients } from "@/lib/domain/test-clients";
 import { Avatar } from "@/components/ui/avatar";
 import Link from "next/link";
 import { useMemo, useState } from "react";
@@ -66,8 +66,37 @@ export function TodayView() {
   );
 }
 
-function Workspace({ snapshot }: { snapshot: StudioSnapshot }) {
+const SHOW_TESTS_KEY = "studio-os:today-show-tests";
+
+/** Test clients stay out of Today unless someone asks for them; the choice is remembered on this browser. */
+function useShowTests(): [boolean, (show: boolean) => void] {
+  // The workspace renders only once the studio has loaded in the browser, so storage can be read at once.
+  const [show, setShow] = useState(() => {
+    try {
+      return typeof window !== "undefined" && window.localStorage.getItem(SHOW_TESTS_KEY) === "1";
+    } catch {
+      // Private windows may refuse storage; test clients then stay hidden.
+      return false;
+    }
+  });
+  return [
+    show,
+    (next) => {
+      setShow(next);
+      try {
+        window.localStorage.setItem(SHOW_TESTS_KEY, next ? "1" : "0");
+      } catch {
+        // Only a convenience.
+      }
+    },
+  ];
+}
+
+function Workspace({ snapshot: everything }: { snapshot: StudioSnapshot }) {
   const now = useNow();
+  const [showTests, setShowTests] = useShowTests();
+  const tests = countTestClients(everything);
+  const snapshot = useMemo(() => (showTests ? everything : withoutTestClients(everything)), [everything, showTests]);
   const [showAllFollowUps, setShowAllFollowUps] = useState(false);
   // Before the clock is known (server render) there are no follow-ups, and every item stays in its usual section.
   const followUps = now ? getFollowUps(snapshot, now) : [];
@@ -75,7 +104,12 @@ function Workspace({ snapshot }: { snapshot: StudioSnapshot }) {
   const shown = new Set(followUps.flatMap((item) => item.relatedIds));
   const decisions = getDecisions(snapshot).filter((item) => !shown.has(item.id));
   const actions = getNextActions(snapshot).filter((action) => !shown.has(action.id));
-  const deliveries = useDeliveries();
+  const allDeliveries = useDeliveries();
+  const deliveries = useMemo(() => {
+    if (!allDeliveries) return null;
+    const shown = new Set(snapshot.clients.map((c) => c.id));
+    return new Map([...allDeliveries].filter(([, d]) => shown.has(d.clientId)));
+  }, [allDeliveries, snapshot.clients]);
   // Websites have their own list with where each one stands; other active projects stay here.
   const work = getActiveWork(snapshot).filter(({ project }) => !deliveries?.has(project.id));
   const names = useMemo(() => new Map(snapshot.clients.map((c) => [c.id, c.name])), [snapshot.clients]);
@@ -83,6 +117,7 @@ function Workspace({ snapshot }: { snapshot: StudioSnapshot }) {
   return (
     <div className="grid gap-x-12 gap-y-12 lg:grid-cols-[minmax(0,1fr)_320px]">
       <Celebration deliveries={deliveries} names={names} />
+      <Pulse deliveries={deliveries} needsYou={followUps.length + decisions.length} now={now} />
       <div className="flex min-w-0 flex-col gap-12">
         <TodayNextSteps />
         {followUps.length > 0 ? (
@@ -184,6 +219,11 @@ function Workspace({ snapshot }: { snapshot: StudioSnapshot }) {
         <Section id="recent" title="Recent">
           <ActivityTimeline entries={getRecentActivity(snapshot, 5)} />
         </Section>
+        {tests ? (
+          <button type="button" onClick={() => setShowTests(!showTests)} className="self-start rounded-full border border-line-strong px-3 py-1.5 text-[12.5px] text-ink-muted transition-colors hover:text-ink" data-testid="toggle-test-clients">
+            {showTests ? "Hide test clients" : `Show ${tests === 1 ? "1 test client" : `${tests} test clients`}`}
+          </button>
+        ) : null}
       </div>
     </div>
   );
@@ -275,6 +315,37 @@ function ApproveTask({ taskId }: { taskId: string }) {
         Approve
       </Button>
     </span>
+  );
+}
+
+/**
+ * The studio at a glance: websites still being made, how many wait on a
+ * client and for how long, what is live, and what needs a person now. Each
+ * number leads to the list behind it.
+ */
+function Pulse({ deliveries, needsYou, now }: { deliveries: Map<string, Delivery> | null; needsYou: number; now: number | null }) {
+  if (!deliveries) return null;
+  const all = [...deliveries.values()];
+  const making = all.filter((d) => d.stage !== "live");
+  const waiting = making.filter((d) => d.waitingOnClient);
+  const longest = now ? Math.max(0, ...waiting.map((d) => daysSince(d.since, now) ?? 0)) : 0;
+  const live = all.filter((d) => d.stage === "live" || d.liveUrl);
+  const tiles = [
+    { href: "#websites", value: making.length, label: "In production", detail: making.length === 1 ? "website not live yet" : "websites not live yet" },
+    { href: "#websites", value: waiting.length, label: "Waiting on clients", detail: waiting.length ? (longest > 0 ? `longest ${longest === 1 ? "1 day" : `${longest} days`}` : "since today") : "nothing waits on a client", tone: waiting.length && longest >= 5 ? "caution" : undefined },
+    { href: "#websites", value: live.length, label: "Live", detail: live.length ? "checked every morning" : "no site live yet", tone: live.length ? "positive" : undefined },
+    { href: needsYou ? "#decisions" : "#next", value: needsYou, label: "Needs you", detail: needsYou ? "decisions and follow-ups" : "nothing waiting for you" },
+  ] as const;
+  return (
+    <section aria-label="The studio at a glance" className="grid grid-cols-2 gap-3 lg:col-span-2 lg:grid-cols-4" data-testid="pulse">
+      {tiles.map((tile) => (
+        <a key={tile.label} href={tile.href} className="group rounded-[var(--radius-surface)] border border-line bg-surface px-4 py-3.5 transition-colors hover:border-line-strong hover:bg-surface-muted">
+          <span className="block text-[12px] font-medium tracking-[0.02em] text-ink-subtle uppercase">{tile.label}</span>
+          <span className={cn("mt-1 block text-[30px] leading-none font-medium tracking-[-0.03em] tabular-nums", "tone" in tile && tile.tone === "positive" ? "text-positive" : "tone" in tile && tile.tone === "caution" ? "text-caution" : "text-ink")}>{tile.value}</span>
+          <span className="mt-1.5 block truncate text-[12.5px] text-ink-muted">{tile.detail}</span>
+        </a>
+      ))}
+    </section>
   );
 }
 

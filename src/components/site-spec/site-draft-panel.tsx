@@ -1,12 +1,13 @@
 "use client";
 
-import { Sparkles } from "lucide-react";
+import { Check, MessageCircleQuestion, Sparkles } from "lucide-react";
 import { useState } from "react";
 import { AiConsent } from "@/components/agents/ai-consent";
 import { useAgentStatus } from "@/components/agents/use-agent-status";
 import { useStudio } from "@/components/providers/studio-provider";
 import { useStudioAction } from "@/components/providers/use-studio-action";
 import { Button } from "@/components/ui/button";
+import { useToast } from "@/components/ui/toast";
 import { siteDraftResultOf, type AgentRunRecord } from "@/lib/agents/contract";
 import { formatUsd } from "@/lib/agents/pricing";
 import { SiteDraftReview } from "./site-draft-review";
@@ -25,10 +26,23 @@ export function SiteDraftPanel({ clientId, projectId, editing }: { clientId: str
   const supabase = state.status === "ready" && state.info.kind === "supabase";
   const status = useAgentStatus(supabase);
   const { run: act, pending, canEdit } = useStudioAction();
+  const toast = useToast();
   if (!supabase || status.state === "unavailable" || state.status !== "ready") return null;
   const runs = state.snapshot.agentRuns.filter((r) => r.taskType === "design.site_draft" && r.inputs.some((i) => i.type === "project" && i.id === projectId));
   const latest: AgentRunRecord | undefined = [...runs].sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0];
   const result = siteDraftResultOf(latest);
+  const client = state.snapshot.clients.find((c) => c.id === clientId);
+  const asked = new Set((client?.contextItems ?? []).filter((item) => item.kind === "question" && item.confidence !== "superseded").map((item) => item.text.trim()));
+  const toAsk = (result?.questions ?? []).filter((question) => !asked.has(question.trim()));
+
+  /** The draft's questions become the client's open questions, which their portal asks them. */
+  async function askInPortal() {
+    const added = await act(async (r) => {
+      for (const question of toAsk) await r.addContextItem(clientId, { kind: "question", text: question });
+      return true;
+    }, "The questions were not added.");
+    if (added) toast.success(`${toAsk.length === 1 ? "1 question is" : `${toAsk.length} questions are`} now in the client's portal and the brief.`);
+  }
 
   async function ask(force: boolean) {
     await act((r) => r.requestSiteDraft!(clientId, projectId, { force, aiConsent: true }), "The draft could not be started.");
@@ -70,6 +84,19 @@ export function SiteDraftPanel({ clientId, projectId, editing }: { clientId: str
                   <li key={q}>{q}</li>
                 ))}
               </ul>
+              {canEdit ? (
+                toAsk.length ? (
+                  <Button size="xs" variant="secondary" className="mt-2" onClick={askInPortal} disabled={pending} data-testid="ask-in-portal">
+                    <MessageCircleQuestion aria-hidden />
+                    Ask the client in their portal ({toAsk.length})
+                  </Button>
+                ) : (
+                  <p className="mt-2 inline-flex items-center gap-1 text-[12px] text-ink-subtle" data-testid="asked-in-portal">
+                    <Check aria-hidden className="size-3.5" />
+                    In the client&apos;s portal and open questions
+                  </p>
+                )
+              ) : null}
             </div>
           ) : null}
           {reviewing ? (
