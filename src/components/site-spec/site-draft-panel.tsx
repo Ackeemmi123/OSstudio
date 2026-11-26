@@ -88,7 +88,7 @@ export function SiteDraftPanel({ clientId, projectId, editing }: { clientId: str
                 toAsk.length ? (
                   <Button size="xs" variant="secondary" className="mt-2" onClick={askInPortal} disabled={pending} data-testid="ask-in-portal">
                     <MessageCircleQuestion aria-hidden />
-                    Ask the client in their portal ({toAsk.length})
+                    {pending ? "Adding the questions…" : `Ask the client in their portal (${toAsk.length})`}
                   </Button>
                 ) : (
                   <p className="mt-2 inline-flex items-center gap-1 text-[12px] text-ink-subtle" data-testid="asked-in-portal">
