@@ -11,6 +11,7 @@
     "budget": "node scripts/budget.mjs",
     "test": "playwright test",
     "lighthouse": "node scripts/lighthouse.mjs",
+    "review": "node scripts/review.mjs",
     "check": "npm run build && npm run budget && npm run test && npm run lighthouse"
   },
   "dependencies": {
@@ -23,6 +24,8 @@
     "@types/node": "22.20.5",
     "chrome-launcher": "1.2.3",
     "lighthouse": "13.6.0",
+    "pixelmatch": "8.0.0",
+    "pngjs": "7.0.0",
     "typescript": "5.9.3",
     "vite": "8.4.0"
   },
