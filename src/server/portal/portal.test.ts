@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { portalStep } from "./page";
+import { portalPage, portalStep } from "./page";
 import { postPortalAnswers, postPortalFiles, readPortal, type PortalDeps, type PortalState } from "./portal";
 
 const TOKEN = "a".repeat(64);
@@ -70,5 +70,27 @@ describe("the client portal", () => {
     expect(portalStep({ ...STATE, spec: { version: 1, status: "approved" }, build: { link: "/s/x/", approval: null, expiresAt: "" } }).key).toBe("review");
     expect(portalStep({ ...STATE, build: { link: "/s/x/", approval: { name: "Sara", at: "" }, expiresAt: "" } }).key).toBe("approved");
     expect(portalStep({ ...STATE, live: { domain: "bageri.fi", url: "https://bageri.fi" } })).toEqual({ step: 4, key: "live" });
+  });
+
+  it("shows the draft in a small frame, says whose turn it is, and speaks the client's language", () => {
+    const draft = { ...STATE, locale: "fi" as const, studioEmail: "hei@axivo.fi", spec: { version: 1, status: "approved" }, build: { link: "/s/abc/", approval: null, expiresAt: "" } };
+    const html = portalPage(draft, TOKEN, "n0nce");
+    expect(html).toContain('<html lang="fi">');
+    expect(html).toContain('<iframe src="/s/abc/"');
+    expect(html).toContain("Teidän vuoronne · Vaihe 3/5");
+    expect(html).toContain("Tarkasta ja hyväksy luonnos");
+    expect(html).toContain('href="mailto:hei@axivo.fi"');
+    expect(html).not.toMatch(/Granska|Er tur/);
+    // Nothing a person typed becomes markup.
+    const named = portalPage({ ...draft, client: "<b>x</b>", questions: [{ id: QID, text: "<img src=x>" }] }, TOKEN, "n0nce");
+    expect(named).not.toContain("<b>x</b>");
+    expect(named).not.toContain("<img src=x>");
+  });
+
+  it("says the work is with the studio when nothing waits on the client", () => {
+    const html = portalPage({ ...STATE, locale: "en", questions: [], spec: { version: 1, status: "draft" } }, TOKEN, "n0nce");
+    expect(html).toContain("We are on it · Step 2 of 5");
+    expect(html).toContain("The draft appears here when it is ready.");
+    expect(html).not.toContain("<iframe");
   });
 });
