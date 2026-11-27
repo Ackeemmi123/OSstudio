@@ -201,11 +201,18 @@ creating the first WebGL context: 70 to 210 ms of blocked main thread under
 Lighthouse. It now happens in a worker, and the first run scores like the
 rest (TBT 0 in six of six). With the menu and the reveal list, each run
 started at a 1-minute load under 3: the library 100 (100, 100, 100), the warm
-showcase 99 (99, 99, 99, largest content 1.9 s, its hero picture). With the
-film in the library: the library 100 (97, 100, 100; largest content 1.0 s,
-layout shift 0.003) and the lab 99. Largest content within 0.8–0.9 s on every
-page but the warm showcase; layout shift 0 to 0.004. The 3D band went from
-137 KB (Three.js) to about 6 KB compressed, with the same picture.
+showcase 99 (99, 99, 99, largest content 1.9 s, its hero picture). With all
+three together and the film in the library (its twelve-second loop and the
+full HD source), each run started at a 1-minute load under 3: the library 100
+(99, 100, 100; largest content 1.0 s, layout shift 0.003) and the lab 99 (99,
+99, 99; 0.8 s, 0). Largest content within 0.8–1.0 s on every page but the
+warm showcase; layout shift 0 to 0.004. 181 tests pass on desktop and phone
+(11 are skipped: desktop-only, run once by design, or needing a software
+renderer, as CI has); the film's 18 include Save-Data, emulated by sending the
+`Save-Data` header and setting `navigator.connection.saveData`, which is what
+the engine reads, since Playwright cannot turn on Chrome's data saver. The 3D
+band went from 137 KB (Three.js) to about 6 KB compressed, with the same
+picture.
 
 ## Licences
 
