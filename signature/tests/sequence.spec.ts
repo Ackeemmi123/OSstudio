@@ -107,11 +107,14 @@ async function record(page: Page) {
 /**
  * Steps between two painted frames that are larger than the scroll between them explains (plus two frames): a jump.
  * The scroll is what moves the frames, so a busy machine that paints less often may take larger steps, never jumps.
+ * The scroll counted is that since the sample before the last: this recorder reads a frame before the module draws
+ * in it, so the picture it sees answers the scroll it read one sample earlier.
  */
 const jumps = (samples: Sample[], perFrame: number) =>
   samples.slice(1).flatMap((sample, i) => {
     const before = samples[i];
-    return Math.abs(sample.frame - before.frame) > Math.abs(sample.y - before.y) / perFrame + 2 ? [`${before.frame} → ${sample.frame} over ${Math.round(sample.y - before.y)} px`] : [];
+    const earlier = samples[Math.max(0, i - 1)];
+    return Math.abs(sample.frame - before.frame) > Math.abs(sample.y - earlier.y) / perFrame + 2 ? [`${before.frame} → ${sample.frame} over ${Math.round(sample.y - earlier.y)} px`] : [];
   });
 
 /**
@@ -282,10 +285,10 @@ test.describe("with motion", () => {
     const frames = reading.map((sample) => sample.frame);
     expect(frames[0]).toBe(0);
     expect(frames[frames.length - 1]).toBe(LAST);
-    // One way only, and gradual: most of the pictures shown, and no step larger than the scroll between them.
+    // One way only, and gradual: no step larger than the scroll between them, and a picture for every step of the hand (30 px is two and a half pictures, so some 48 of the 121).
     for (let i = 1; i < frames.length; i++) expect(frames[i]).toBeGreaterThanOrEqual(frames[i - 1]);
     expect(jumps(reading, perFrame)).toEqual([]);
-    expect(new Set(frames.map(Math.round)).size).toBeGreaterThan(60);
+    expect(new Set(frames.map(Math.round)).size).toBeGreaterThan(40);
     // Between two pictures it shows both: most painted positions are not whole frames.
     expect(frames.filter((frame) => frame % 1 !== 0).length).toBeGreaterThan(frames.filter((frame) => frame > 0 && frame < LAST).length * 0.5);
     // The canvas showed from its first frame on, and the stage held still at the top of the screen while the frames ran.
@@ -306,7 +309,7 @@ test.describe("with motion", () => {
     expect(back[back.length - 1]).toBe(0);
     for (let i = 1; i < back.length; i++) expect(back[i]).toBeLessThanOrEqual(back[i - 1]);
     expect(jumps(returning, perFrame)).toEqual([]);
-    expect(new Set(back.map(Math.round)).size).toBeGreaterThan(60);
+    expect(new Set(back.map(Math.round)).size).toBeGreaterThan(40);
     expect(errors).toEqual([]);
   });
 

@@ -15,14 +15,8 @@
 /** Frames fetched at once. */
 const PARALLEL = 4;
 
-/**
- * Messages to the loader. A new `load` drops the frames of the last one (the screen crossed to another shape).
- * `decode` may name a size to decode to: the canvas's, where that is smaller than the frame.
- */
-export type ToLoader =
-  | { type: "load"; generation: number; sets: string[][] }
-  | { type: "decode"; generation: number; index: number; width?: number; height?: number }
-  | { type: "stop" };
+/** Messages to the loader. A new `load` drops the frames of the last one (the screen crossed to another shape). */
+export type ToLoader = { type: "load"; generation: number; sets: string[][] } | { type: "decode"; generation: number; index: number } | { type: "stop" };
 
 /** Messages from it, each with the generation of the `load` it belongs to. `set` comes first: which of the sets it loads. */
 export type FromLoader =
@@ -102,12 +96,11 @@ export function loader(post: (message: FromLoader, transfer?: Transferable[]) =>
       void load(message.sets);
       return;
     }
-    const { index, width, height } = message;
+    const { index } = message;
     const file = message.generation === generation ? files[index] : undefined;
     const mine = generation;
     if (!file) return post({ type: "failed", generation: message.generation, index });
-    // Decoded at the canvas's size where that is smaller: a frame for a 2× screen takes a third of the memory on a 1× one.
-    (width ? createImageBitmap(file, { resizeWidth: width, resizeHeight: height, resizeQuality: "medium" }) : createImageBitmap(file)).then(
+    createImageBitmap(file).then(
       (bitmap) => post({ type: "frame", generation: mine, index, bitmap }, [bitmap]),
       () => {
         // A file the browser cannot decode: its neighbours stand in.

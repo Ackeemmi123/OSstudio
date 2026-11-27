@@ -17,7 +17,7 @@
  * Loading and decoding happen in a worker (sequence-loader.ts): every fourth
  * frame first (and the last), so the whole movement can be scrubbed coarsely
  * at once, then the rest, kept compressed; a frame is decoded only when this
- * asks for it, at the canvas's size. Only the frames near the one shown are
+ * asks for it. Only the frames near the one shown are
  * kept decoded, more of them ahead in the direction of reading: a
  * 2400 × 1350 frame is 13 MB decoded, so all of them would be 1.6 GB. From
  * half a screen away they are decoded, further off let go.
@@ -65,13 +65,13 @@ import type { FromLoader, ToLoader } from "./sequence-loader";
 /** How much of the held distance the frames take; over the rest the last frame holds before the section moves on. */
 const RUN = 0.85;
 /** Frames being decoded at once. */
-const DECODING = 3;
+const DECODING = 2;
 /**
- * Decoded frames kept, in bytes: six wide frames at their full 2400 × 1350 (a 2× desktop screen), eight tall ones at
- * 1080 × 2340, and more where the canvas is smaller than the frame, since frames are decoded at the canvas's size
- * (seventeen on a 1440 × 900 screen at 1×).
+ * Decoded frames kept, in bytes: eight wide frames of 2400 × 1350 (13 MB each), ten tall ones of 1080 × 2340. They
+ * are kept at their own size on every screen: decoding to the canvas's size instead (`createImageBitmap` can) took
+ * 50 ms a frame against 20, measured, and how fast a frame comes is what a quick scroll shows.
  */
-const KEEP = 80e6;
+const KEEP = 110e6;
 /** How far past a step's threshold the frame shown must be, either way, before the step changes (a part of the movement). */
 const HYSTERESIS = 0.03;
 /** Nearer a frame than this (in frames) it is drawn alone: a fiftieth of the next one would not be seen. */
@@ -149,11 +149,8 @@ export function mountSequence(root: HTMLElement): void {
   let stageHeight = 0;
   let frameWidth = 0;
   let frameHeight = 1;
-  /** The size frames are decoded at; 0 for their own. */
-  let decodeWidth = 0;
-  let decodeHeight = 0;
 
-  const keep = () => Math.max(4, Math.min(count, Math.floor(KEEP / ((decodeWidth ? decodeWidth * decodeHeight : frameWidth * frameHeight) * 4))));
+  const keep = () => Math.max(4, Math.min(count, Math.floor(KEEP / (frameWidth * frameHeight * 4))));
 
   const release = () => {
     for (const bitmap of bitmaps.values()) bitmap.close();
@@ -177,11 +174,6 @@ export function mountSequence(root: HTMLElement): void {
     const ratio = Math.min(window.devicePixelRatio || 1, 1 / Math.max(width / frameWidth, stageHeight / frameHeight));
     canvas.width = Math.round(width * ratio);
     canvas.height = Math.round(stageHeight * ratio);
-    // A frame much larger than the canvas is decoded at the size it is drawn. Frames already decoded for another size
-    // stay and are drawn scaled until the scroll moves on from them, so a window being resized never shows an empty stage.
-    const scale = Math.max(canvas.width / frameWidth, canvas.height / frameHeight);
-    decodeWidth = scale < 0.9 ? Math.round(frameWidth * scale) : 0;
-    decodeHeight = Math.round(frameHeight * scale);
     // Resizing clears the canvas: draw again at once, before the screen shows it empty.
     shown = -1;
     if (running) update();
@@ -222,15 +214,14 @@ export function mountSequence(root: HTMLElement): void {
   };
   /**
    * Draws where the scroll is: the frame before it, and over that the frame after, as strong as the scroll is far
-   * into the step between them. If either has not come, the decoded frame nearest is drawn whole instead; it looks
-   * first between what is shown and what is wanted, so the movement never runs past where the scroll is and comes back.
+   * into the step between them. If either has not come, the decoded frame nearest is drawn whole instead, and only one
+   * between what is shown and what is wanted: the movement never runs past where the scroll is, nor back from it.
    */
   const draw = () => {
     let next = wanted;
     const under = Math.floor(next);
     if (!bitmaps.has(under) || (next > under && !bitmaps.has(under + 1))) {
-      next = shown < 0 ? -1 : nearest(Math.min(shown, wanted), Math.max(shown, wanted));
-      if (next < 0) next = nearest(0, count - 1);
+      next = shown < 0 ? nearest(0, count - 1) : nearest(Math.min(shown, wanted), Math.max(shown, wanted));
     }
     if (next < 0 || next === shown) return;
     const first = Math.floor(next);
@@ -266,7 +257,7 @@ export function mountSequence(root: HTMLElement): void {
       if (decoding.size >= DECODING) break;
       if (bitmaps.has(index) || decoding.has(index)) continue;
       decoding.add(index);
-      tell({ type: "decode", generation, index, width: decodeWidth, height: decodeHeight });
+      tell({ type: "decode", generation, index });
     }
   };
 
@@ -293,7 +284,9 @@ export function mountSequence(root: HTMLElement): void {
       else {
         bitmaps.get(index)?.close();
         bitmaps.set(index, message.bitmap);
-        schedule();
+        // Drawn at once, before the frames far from the scroll are let go below: in a fast scroll a frame arrives
+        // when the scroll has already left it behind, and it is still the nearest picture there is.
+        draw();
       }
     } else {
       decoding.delete(index);

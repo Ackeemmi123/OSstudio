@@ -29,10 +29,8 @@ const BUDGET = {
   threeD: 10,
   sound: 3,
   video: 3,
-  // Raised from 3 when the sequence learned to draw between two frames, to choose AVIF or WebP by decoding a frame,
-  // and to decode at the canvas's size: measured 3.1 (it was 2.5). Half a kilobyte of script, loaded a screen ahead
-  // of a sequence and nowhere else, for a movement that no longer steps and frames with twice the pixels.
-  sequence: 3.5,
+  // Not raised for drawing between two frames and choosing AVIF or WebP: measured 2.97 (it was 2.5), so it is full.
+  sequence: 3,
   largestImage: 100,
   largestFilm: 600,
   largestFullHdFilm: 1200,
@@ -42,6 +40,8 @@ const BUDGET = {
   // they were not raised when it went to 121 pictures at 2400 × 1350 and 1080 × 2340. AVIF pays for that: each limit
   // now holds for the AVIF set and, separately, for the WebP set that browsers without AVIF fetch instead (61
   // pictures at the old sizes). What a visitor downloads is unchanged; what the built site stores has doubled.
+  sequenceWide: 1200,
+  sequencePhone: 640,
   // The Signature layer, on an enhanced site.
   layerScript: 6,
   layerCss: 2.5,
@@ -49,8 +49,6 @@ const BUDGET = {
   layerCta: 2,
   layerCount: 1,
   layerList: 50,
-  sequenceWide: 1200,
-  sequencePhone: 640,
 };
 
 const kb = (bytes) => Math.round((bytes / 1024) * 10) / 10;
