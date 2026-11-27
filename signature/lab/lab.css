@@ -632,14 +632,14 @@ a {
   background: var(--ink);
   color: var(--on-ink);
 }
-.object .label {
+:is(.object, .sequence) .label {
   color: var(--on-ink-quiet);
   border-color: var(--hair-on-ink);
 }
-.object .label > span:first-child {
+:is(.object, .sequence) .label > span:first-child {
   color: var(--lilac);
 }
-.object .label .label-name {
+:is(.object, .sequence) .label .label-name {
   color: #fff;
 }
 .object-body {
@@ -2168,4 +2168,63 @@ a {
   outline-color: var(--ink);
   outline-offset: 3px;
   box-shadow: 0 0 0 7px var(--cloud);
+}
+
+/*
+ * Sequence: the band gathers frame by frame while the page scrolls, held on
+ * the whole screen. Three words over it, one for each part of the movement:
+ * the engine names the part (`--sg-step`, from `data-sg-steps`, with a margin
+ * either way so it never flickers), and the words roll to the next in time,
+ * not with the scroll, so wherever the reader stops a whole word stands. The
+ * line is a window with room above and below for Å, Ä and Ö; the words out
+ * of it wait clear of that room. Without motion `--sg-step` is unset: the
+ * last word, and nothing rolls.
+ */
+.sequence {
+  background: var(--ink);
+  color: var(--on-ink);
+  padding-bottom: 0;
+}
+.sequence-lead {
+  max-width: 40rem;
+  font-size: 1.15rem;
+  color: var(--on-ink-quiet);
+  margin-bottom: clamp(2.5rem, 6vh, 4rem);
+}
+.sequence [data-sg="sequence"] {
+  margin-inline: calc(var(--gutter) * -1);
+}
+.sequence-lines {
+  position: absolute;
+  inset: auto var(--gutter) calc(clamp(1.5rem, 7vh, 4rem) - 0.25em);
+  box-sizing: content-box;
+  height: 1.1em;
+  padding: 0.25em 0;
+  overflow: hidden;
+  list-style: none;
+  font: 520 clamp(3rem, 8vw, 7.5rem) / 1.1 var(--display);
+  font-stretch: 70%;
+  letter-spacing: -0.015em;
+  color: #fff;
+}
+.sequence-lines li {
+  position: absolute;
+  white-space: nowrap;
+  /* Words before the current one have gone up, those after it wait below. */
+  translate: 0 calc(clamp(-1, var(--i) - var(--sg-step, 2), 1) * 1.6em);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .sequence-lines li {
+    transition: translate 0.6s var(--ease-out);
+  }
+}
+.sequence-count {
+  position: absolute;
+  right: var(--gutter);
+  bottom: clamp(1.5rem, 7vh, 4rem);
+  font: 500 0.8rem/1.3 var(--text);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  font-variant-numeric: tabular-nums;
+  color: var(--on-ink-quiet);
 }

@@ -520,6 +520,35 @@
 }
 
 /*
+ * Image sequence: the picture is the design (its media queries pick the first
+ * frame, or the last without motion or script). With motion a tall track
+ * holds the stage on screen while the engine's canvas runs the frames; the
+ * canvas itself is styled by the engine, so it costs no CSS here.
+ */
+[data-sg="sequence"] [data-sg-stage] {
+  position: relative;
+}
+[data-sg="sequence"] img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .sg-js [data-sg="sequence"]:not([data-sg-state="poster"]) {
+    height: var(--sg-sequence-track, 300svh);
+  }
+  .sg-js [data-sg="sequence"]:not([data-sg-state="poster"]) [data-sg-stage] {
+    position: sticky;
+    top: 0;
+    height: 100svh;
+  }
+  .sg-js [data-sg="sequence"]:not([data-sg-state="poster"]) img {
+    height: 100%;
+    object-fit: cover;
+  }
+}
+
+/*
  * Intro: a curtain with the word mark, once per visit, in CSS alone. A line in
  * the page head adds `sg-intro-on` on the first page of a visit, never with
  * reduced motion. The curtain never blocks the page: clicks go straight
