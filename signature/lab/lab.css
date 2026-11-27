@@ -824,6 +824,18 @@ a {
   font-size: 1.15rem;
   color: var(--ink-quiet);
 }
+/* Four named arrivals in a row, two by two on a phone */
+.reveal-band > .reveal-lead {
+  margin: clamp(3rem, 8vw, 6rem) 0 2rem;
+}
+.reveal-ways {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: clamp(1rem, 2.5vw, 2rem);
+}
+.reveal-ways .reveal-frame {
+  aspect-ratio: 4 / 5;
+}
 @media (min-width: 900px) {
   .reveal-grid {
     grid-template-columns: repeat(12, minmax(0, 1fr));
@@ -841,6 +853,9 @@ a {
   .reveal-lead {
     grid-column: 2 / span 5;
     grid-row: 2;
+  }
+  .reveal-ways {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 }
 

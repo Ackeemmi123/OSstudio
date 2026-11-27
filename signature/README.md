@@ -35,7 +35,7 @@ JavaScript, with reduced motion, and without WebGL. The engine only adds.
 | Smooth scroll | `src/engine/scroll.ts` | Lenis, in step with ScrollTrigger. Native scrolling, keyboard, anchors and touch keep working. |
 | Page transitions | `src/engine/engine.css` | The browser's own cross-document View Transitions: the new page rises like a curtain. A picture with the same `view-transition-name` on two pages flies from one to the other (the showcases' "next" pictures grow into the next page's main picture); a line in each page head marks an arrival by transition, so a picture that flew in needs no second entrance. Off with reduced motion; browsers without them change page as usual. |
 | Shader stage | `src/engine/shader-stage.ts` | A full-screen fragment shader in plain WebGL: compiles in the background, draws only when visible, refuses software renderers, recovers from a lost context. |
-| Drawing off the main thread | `src/engine/offscreen.ts`, `stage-core.ts`, `stage-worker.ts`, `worker-host.ts` | Where the browser can draw WebGL in a worker, the shader stage and the 3D band hand their canvas to one (`transferControlToOffscreen`): the WebGL context, the compile and every frame happen there, so even the first WebGL context in a fresh browser never blocks the page. The size, visibility, uniforms, scroll and pointer go in as messages; a picture goes in as decoded bitmaps. Elsewhere (no OffscreenCanvas, or no WebGL in workers) the same drawing code runs on the main thread, as before. |
+| Drawing off the main thread | `src/engine/offscreen.ts`, `stage-core.ts`, `stage-worker.ts`, `worker-host.ts` | Where the browser can draw WebGL in a worker, the shader stage and the 3D band hand their canvas to one (`transferControlToOffscreen`): the WebGL context, the compile and every frame happen there, so even the first WebGL context in a fresh browser never blocks the page. The size, visibility, uniforms, scroll and pointer go in as messages; a picture goes in as decoded bitmaps. Chrome keeps at most four WebGL contexts alive in one worker and loses the oldest for a fifth, so every four stage canvases get a worker of their own; a page with six pictures keeps all six drawn. Elsewhere (no OffscreenCanvas, or no WebGL in workers) the same drawing code runs on the main thread, as before. |
 | Moving headlines | `src/build/kinetic.ts` | Split into letters **at build time**; CSS animates them. No script, visible from the first paint, the whole sentence as the accessible name. |
 | `data-sg="rise"` | `src/engine/engine.css` | First-view text that arrives with one CSS rise. |
 | `data-sg="lines"` | `src/modules/text.ts` | Text further down that arrives line by line as it scrolls in. |
@@ -44,7 +44,8 @@ JavaScript, with reduced motion, and without WebGL. The engine only adds.
 | `data-sg="story"` | `src/modules/story.ts` | Phase 2. Panels that slide sideways while the section holds still (CSS sticky, so no layout shift when it takes hold or lets go), on wide screens with motion; stacked everywhere else. Tabbing into a hidden panel scrolls it into view. |
 | `data-sg="marquee"` | `src/modules/marquee.ts` | Phase 2. A line that runs without end, faster with scroll speed and backwards when scrolling up. Copies are hidden from screen readers. |
 | `data-sg="object"` | `src/modules/object.ts`, `band-scene.ts`, `band-core.ts` | Phase 2. A Möbius band of brushed satin metal that starts as eight loose pieces and flows together into one band as steps scroll past. Plain WebGL, about 6 KB compressed (it was Three.js, 140 KB, until the same picture was drawn without it): the shape is computed on the graphics card from flowing noise, the studio it reflects is drawn analytically in the shader, and the satin streaks come from blurring that reflection along the band. The scroll drives a spring. Over a rendered picture of it that is the design without WebGL. Quality adapts to the device: it measures the screen's frame rate, then steps down (fewer pixels and a coarser band, then one reflection sample) only if frames are slow; `?quality=0\|1\|2` fixes it for comparison. Drawn in a worker where the browser allows it (`band-worker.ts`). Its `loop`, `zoom` and `tilt` options (stills only) make a film of it that closes exactly: see "Pictures made in code". |
-| `data-sg="reveal"` | `src/modules/reveal.ts` | Part B. A picture that arrives behind a living edge as it scrolls in and swells like a lens under the mouse. Drawn by a shader over the real `<img>`, which stays for screen readers, search, reduced motion and devices without WebGL. Once the shader works, only a picture not yet on screen is held back to arrive; one that has shown never vanishes, and without WebGL the `<img>` is never hidden. |
+| `data-sg="reveal"` | `src/modules/reveal.ts` | Part B. A picture that arrives behind a living edge as it scrolls in and swells like a lens under the mouse. Drawn by a shader over the real `<img>`, which stays for screen readers, search, reduced motion and devices without WebGL. Once the shader works, only a picture not yet on screen is held back to arrive; one that has shown never vanishes, and without WebGL the `<img>` is never hidden. `data-sg-transition="wipe\|dissolve\|warp\|slices"` on the frame chooses another arrival (below); without it, or with a name that does not exist, it arrives as described here. |
+| Picture transitions | `src/engine/transitions.ts` | Four other ways for a `data-sg="reveal"` picture to arrive, adapted from the open-source gl-transitions collection (see Licences) and fitted to the shader stage's uniforms, so they draw in the stage's worker like every other shader: `wipe` (a soft edge from left to right, leaning a little), `dissolve` (fine grain that develops in soft patches, like a print), `warp` (a rising edge that stretches the picture into place) and `slices` (upright slices that widen, the bold one, for statement brands). A gl-transition blends one picture into another; here the first is the empty frame, so each is an arrival, and the lens under the mouse is the image effect's own. Only the shader and its timing change: when a picture is held back, that a shown one never vanishes, reduced motion (no shader at all) and no WebGL (the `<img>`) are the image effect's rules, unchanged. Its own chunk, 1.3 KB compressed, fetched only by a page with a frame that names one, as that frame comes near; counted with the WebGL shaders. On the library, four in a row under section 07. The gallery has no shader cross-transition: it is a native scroller in which pictures move past, several on screen at once, and none ever replaces another in place; a cross-transition would need a gallery of another kind (one picture at a time, changed by script, and two pictures in one stage), and would cost what this one gives without any script. |
 | `data-sg="gallery"` | `src/modules/gallery.ts`, `engine.css` | Part B. A sideways row of pictures: a native scroller with snap points (touch, trackpad, arrow keys, screen readers, no script). The engine adds mouse drag with a throw, buttons, a counter and a progress line; pictures drift in their frames (CSS scroll-driven). |
 | `data-sg="sound"` | `src/modules/sound.ts` | Part B. A quiet ambient chord from the browser's own synthesiser: no file, off until asked for, remembered, never started without a click or key press, paused in hidden tabs. Scrolling opens its filter, so it brightens while the page moves. Hidden without JavaScript. |
 | `data-sg="play"` | `src/modules/play.ts` | Shapes on springs: the pointer pushes them aside, a drag pulls them away and they swing back, a tap nudges them, and those with eyes look at the pointer. About 1 KB compressed, in the motion engine. Decoration only: hidden from screen readers, still where they were drawn without JavaScript or with reduced motion. Rests when nothing moves or the stage is off screen. |
@@ -353,7 +354,7 @@ cancelled, so Lenis cannot smooth it and the page jumps natively (30 px on
 desktop, 79 on a phone).
 
 Both passes are filmed with Chrome's screencast at the rate the page draws,
-then encoded to VP9 WebM in Chrome itself with WebCodecs and `webm-muxer`,
+then encoded to VP9 WebM in Chrome itself with WebCodecs and Mediabunny,
 every frame at its own time, after filming is over, so encoding never costs
 the page frames. Nothing is installed. Headless Chrome on a Mac draws WebGL
 on the real graphics card, so no `?webgl` is needed and the films show what a
@@ -455,7 +456,7 @@ disc. These options apply to stills only; the band on the pages is unchanged.
 The band is kept on the main thread here (`preserve`), never handed to its
 worker, so every frame can be read back. Chrome encodes it itself (WebCodecs:
 AV1, and H.264 through the system's encoder) and two small dev packages pack
-it (`webm-muxer`, `mp4-muxer`), so nothing is installed outside npm. A wide
+it (Mediabunny), so nothing is installed outside npm. A wide
 film (1280 × 720) for screens, a tall one (720 × 1280) for phones, about 480
 KB as AV1 and 555 KB as H.264 each, and a full HD one (1920 × 1080) for
 screens 1280 px wide and up, 912 KB and 1.1 MB: at full screen on 1440 and
@@ -507,13 +508,59 @@ FRAMES=0,60,120 OUT=/tmp/try node scripts/render-sequence.mjs  # a few pictures 
 
 Client sites use the client's own pictures and footage, with written permission.
 
+### Films from any page
+
+`scripts/render-dom-film.mjs` films any animated page, frame by frame, into
+`signature/films/` (not in git: the owner decides what is published). A page
+opts in by setting, once it is ready,
+
+```js
+window.sgFilm = { width, height, fps, duration, seek(t) };
+```
+
+where `seek(t)` puts everything at time t: a paused GSAP timeline through
+`.seek()`, CSS animations through `document.getAnimations()`, WebGL through a
+still drawn at t. Nothing on the page may run on a clock.
+
+```sh
+npm run dev                                   # the lab, port 4316
+npm run film                                  # Axivo's three films (lab/verktyg/reel.html)
+npm run film -- --only story                  # one of them: story (9:16), loop (1:1), wide (16:9)
+npm run film -- --page verktyg/reel.html?film=wide --name prov --web --webm
+npm run film -- --sheet-only                  # twelve frames and the contact sheet, nothing encoded
+npm run film -- --still 3.5,9.75              # those moments as PNG
+npm run film -- --base http://127.0.0.1:4387  # another dev server
+```
+
+For each frame it blanks the page, seeks, waits for the fonts and two
+animation frames, and photographs the page through Chrome
+(`Page.captureScreenshot`) until two photographs in a row are identical. No
+frame is taken on a timer, so the machine's load changes how long a render
+takes and nothing else. That is checked on every run: a spread of frames is
+photographed again, out of order, and must match to the pixel, and the digest
+of all frames is written to `<name>.json`. The page is rasterised on the CPU
+(on the graphics card, type came back a level off in a few pixels from one
+visit to the next); WebGL still draws on the card.
+
+The frames are encoded in Chrome with WebCodecs (`lab/verktyg/encode.ts`) and
+packed with Mediabunny: an H.264 MP4 master for platforms that encode again
+themselves, a smaller `-web.mp4` for a site, and where asked an AV1 WebM.
+Each file is then played back in the browser and must last the whole film,
+show every frame and start in the colours it was given. A contact sheet of
+twelve frames (`<name>-sheet.jpg`) is saved with it.
+
+`lab/verktyg/reel.html` holds Axivo's own films, made of the band, the silk
+pictures, Archivo and the brand colours: `?film=story`, `?film=loop`,
+`?film=wide`; add `&play` to watch one in a browser. Like the other tool
+pages it is not part of the build, so it weighs nothing for a visitor.
+
 ## The gate
 
 | Check | Limit |
 | ----- | ----- |
 | Script for the first view | ≤ 15 KB compressed (now 6.0: the menu's 1.26, the call to action's 1.4 and the 0.15 they share included; the boot's lines for an image sequence, which load its chunk or, with Save-Data, turn it to its last frame, add 0.1) |
-| Motion engine, loaded later | ≤ 60 KB (now 57.2) |
-| WebGL shaders, loaded later | ≤ 10 KB (now 6.8, with the worker; a browser that draws on the main thread gets the same code for it instead, never both) |
+| Motion engine, loaded later | ≤ 60 KB (now 57.6; choosing a picture's transition added 0.2) |
+| WebGL shaders, loaded later | ≤ 10 KB (now 8.1, with the worker and the picture transitions' 1.3, which only a page that names one fetches; a browser that draws on the main thread gets the same code for it instead, never both) |
 | 3D band, only on pages with an object | ≤ 10 KB (now 7.3, counted the same way; was 137 with Three.js) |
 | Sound, after load, only where used | ≤ 3 KB (now 1.1) |
 | Video player, only where there is a film | ≤ 3 KB (now 0.9) |
@@ -525,10 +572,10 @@ Client sites use the client's own pictures and footage, with written permission.
 | Largest single film | ≤ 600 KB (now 555, the wide H.264); fetched only as it comes near, one per screen, never with Save-Data |
 | Largest film in full HD, for screens 1280 px wide and up | ≤ 1.2 MB (now 1.1, the H.264; 912 KB as AV1) |
 | Image sequence frames, all of one set | ≤ 1.2 MB wide, for the AVIF set and again for the WebP set, since a visitor fetches one (now 1.14 MB: 121 AVIF pictures at 1920 × 1080; 1.05 MB: 61 WebP at 1600 × 900), and ≤ 640 KB for phones (now 617: 61 WebP at 720 × 1560, a phone's own shape). The limits are those set for sixty WebP pictures; one set per screen, fetched a screen ahead, never with Save-Data |
-| CSS / HTML / fonts | ≤ 15 / 10 / 140 KB (now 14.5 / 6.6 / 121, fonts all three faces; the stack and the call to action added 0.9 KB of CSS and the image sequence 0.3 (its canvas is styled by its own script, so it costs no CSS), so CSS is the tightest budget now) |
+| CSS / HTML / fonts | ≤ 15 / 10 / 140 KB (now 14.6 / 6.9 / 121, fonts all three faces; the stack and the call to action added 0.9 KB of CSS and the image sequence 0.3 (its canvas is styled by its own script, so it costs no CSS), so CSS is the tightest budget now) |
 | Lighthouse, simulated phone, median of 3 | performance ≥ 95, accessibility 100, best practices ≥ 95, SEO ≥ 90 (the 404 page: SEO without indexability, and it must say noindex) |
 | axe (WCAG 2.2 AA) | no violations, with and without motion |
-| Tests | content without JavaScript, nothing moving with reduced motion, still field without WebGL, no sideways scroll on a phone, no console errors, the menu's keyboard path (focus in, round, Esc, focus back), leaving through the menu and coming Back; films: native controls without JavaScript, no autoplay and a keyboard button with reduced motion, playing only while seen, nothing fetched with Save-Data; the stack and the call to action (`tests/stack-cta.spec.ts`): a plain list and a plain link without JavaScript, cards that stick, overlap and settle back (judged on frames recorded in the page) and a deck that leaves as one, a picture that settles and a number that rises inside each card as it comes up, no scale, shade, glide or slide with reduced motion, the pill out past the first screen, away reading down, back reading up, away at a footer, out to meet its place and gliding into it and back out (judged on frames), no layout shift, keyboard focus never covered by a later card or the pill (tabbing down, and back up into a full deck), axe with and without motion; the image sequence (`tests/sequence.spec.ts`): the last frame as a plain picture at its own size without JavaScript, with reduced motion (also turned off and on again while there) and with Save-Data (no chunk), only that picture fetched; with motion nothing fetched at the top of the page, every fourth frame first and one set for the screen (AVIF on a wide screen, WebP on a phone), the stage held while the drawn frame follows the scroll down and back up, one way each, with no step larger than the scroll between two painted frames (judged on frames recorded in the page), the last frame holding for the final stretch, the first frame drawn identical to the poster, the nearest frame on the way holding, whole, while others are slow, the canvas between two frames showing both mixed by the scroll's share (compared with the two files drawn again) and a slow scroll moving the picture with almost every step, on a wide screen the WebP set running the same movement where AVIF cannot be decoded (61 pictures, one AVIF tried, the counter still to 121), frames fetched and decoded in a worker and by the page where no worker starts, the words (one whole, the other two hidden, on every frame painted at rest inside each part, reading down and back up; rolling only on their 0.6 s transform transition; no flicker either side of a threshold), no layout shift, Page Down through it to the footer and focus never covered, no sideways scroll, axe with and without motion |
+| Tests | content without JavaScript, nothing moving with reduced motion, still field without WebGL, no sideways scroll on a phone, no console errors, the menu's keyboard path (focus in, round, Esc, focus back), leaving through the menu and coming Back; films: native controls without JavaScript, no autoplay and a keyboard button with reduced motion, playing only while seen, nothing fetched with Save-Data; the stack and the call to action (`tests/stack-cta.spec.ts`): a plain list and a plain link without JavaScript, cards that stick, overlap and settle back (judged on frames recorded in the page) and a deck that leaves as one, a picture that settles and a number that rises inside each card as it comes up, no scale, shade, glide or slide with reduced motion, the pill out past the first screen, away reading down, back reading up, away at a footer, out to meet its place and gliding into it and back out (judged on frames), no layout shift, keyboard focus never covered by a later card or the pill (tabbing down, and back up into a full deck), axe with and without motion; the image sequence (`tests/sequence.spec.ts`): the last frame as a plain picture at its own size without JavaScript, with reduced motion (also turned off and on again while there) and with Save-Data (no chunk), only that picture fetched; with motion nothing fetched at the top of the page, every fourth frame first and one set for the screen (AVIF on a wide screen, WebP on a phone), the stage held while the drawn frame follows the scroll down and back up, one way each, with no step larger than the scroll between two painted frames (judged on frames recorded in the page), the last frame holding for the final stretch, the first frame drawn identical to the poster, the nearest frame on the way holding, whole, while others are slow, the canvas between two frames showing both mixed by the scroll's share (compared with the two files drawn again) and a slow scroll moving the picture with almost every step, on a wide screen the WebP set running the same movement where AVIF cannot be decoded (61 pictures, one AVIF tried, the counter still to 121), frames fetched and decoded in a worker and by the page where no worker starts, the words (one whole, the other two hidden, on every frame painted at rest inside each part, reading down and back up; rolling only on their 0.6 s transform transition; no flicker either side of a threshold), no layout shift, Page Down through it to the footer and focus never covered, no sideways scroll, axe with and without motion; picture transitions (`tests/transitions.spec.ts`): each of the four held back under the screen, then arriving and ending whole, judged on what its shader drew (rows read from the canvas after every frame, on the main thread): from nothing through a part of the picture, never back, every pixel opaque at the end, each in its own way (the left first, grain, the bottom first, a handful of slices), and at rest the same picture as the `<img>` alone; in a worker, each ends shown and drawn there with one chunk fetched, none for the first view, and no layout shift, and all six pictures of the page are still drawn by their shaders at the end (more than one worker's four contexts); with reduced motion no shader, no chunk and an untouched `<img>`; without WebGL the `<img>`, never hidden; without JavaScript plain images; a frame that names none fetches nothing, and an unknown name arrives the usual way |
 
 Measured 2026-11-27 with the menu, the reveal list and the worker together,
 median of three runs, each started at a 1-minute load under 3: the library and
@@ -575,11 +622,36 @@ Playwright cannot turn on Chrome's data saver. The 3D band went from 137 KB
 - **sharp** 0.35.5 (with its prebuilt libvips): Apache-2.0. A dev dependency
   for `scripts/render-sequence.mjs` only, to encode AVIF; nothing of it
   reaches a visitor.
-- **mp4-muxer** 5.2.2 and **webm-muxer** 5.1.4 (Vanilagy): MIT. Dev
-  dependencies for `scripts/render-video.mjs` only; nothing of them reaches a
-  visitor. Both are final releases (their author has moved on to Mediabunny,
-  which is MPL-2.0, so these MIT ones were kept).
-- **Simplex noise** (2D and 3D) in the silk field, the image effect, the band and the satin stills: Ashima Arts / Stefan Gustavson, MIT.
+- **Mediabunny** 1.66.5 (Vanilagy and contributors): MPL-2.0. It packs the
+  films that Chrome encodes into MP4 and WebM, and replaces `mp4-muxer` and
+  `webm-muxer`, which their author has deprecated in its favour. A dev
+  dependency for the film tools only (`scripts/render-video.mjs`,
+  `scripts/render-dom-film.mjs`, `scripts/film-review.mjs` and their tool
+  pages under `lab/verktyg/`): used unmodified, straight from npm, and
+  nothing of it is built into `dist/` or the layer, so nothing of it reaches
+  a client's site or a visitor. MPL-2.0 asks that changes to its own files be
+  shared; none are made here. Its licence is in
+  `node_modules/mediabunny/LICENSE`.
+- **gl-transitions** (https://github.com/gl-transitions/gl-transitions): MIT,
+  "Copyright (c) 2017-present gl-transitions contributors"; each transition's
+  author and licence are in its own file's header. Four are adapted in
+  `src/engine/transitions.ts`, where the licence text stands and each header
+  is kept above its code, inside the shader, so it reaches every copy. Each
+  header was read on 2026-11-27 and says MIT:
+  - `wipe`: DirectionalWipe, by gre.
+    https://github.com/gl-transitions/gl-transitions/blob/master/transitions/DirectionalWipe.glsl
+  - `dissolve`: NoiseDissolve, by towrabbit.
+    https://github.com/gl-transitions/gl-transitions/blob/master/transitions/NoiseDissolve.glsl
+  - `warp`: DirectionalWarp, by pschroen.
+    https://github.com/gl-transitions/gl-transitions/blob/master/transitions/DirectionalWarp.glsl
+  - `slices`: WindowSlices, by gre.
+    https://github.com/gl-transitions/gl-transitions/blob/master/transitions/WindowSlices.glsl
+
+  Nothing was taken from the collection's BSD transitions, nor from
+  PerlinDissolve, whose noise comes from Shadertoy; the dissolve's soft patches
+  use the simplex noise below instead. A transition whose header names no
+  licence, or any shader from Shadertoy or LYGIA, is never copied.
+- **Simplex noise** (2D and 3D) in the silk field, the image effect, the dissolve among the picture transitions, the band and the satin stills: Ashima Arts / Stefan Gustavson, MIT.
 - **Fonts** in the lab: Archivo, Instrument Sans and Instrument Serif, SIL
   Open Font License (`lab/fonts/LICENSE-*.txt`). Instrument Serif came from
   the `@fontsource/instrument-serif` 5.3.0 package (Latin, regular); its

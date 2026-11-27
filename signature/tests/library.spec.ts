@@ -237,8 +237,9 @@ test.describe("with motion", () => {
     await expect(canvas).toHaveAttribute("data-quality", /^[012]$/);
     await expect(canvas).toHaveAttribute("data-frame-budget", /^\d+\.\d$/);
     await expect(canvas).toHaveAttribute("data-frame-p75", /^\d+\.\d$/, { timeout: 15_000 });
-    await page.locator(".reveal-band").scrollIntoViewIfNeeded();
+    // The first picture itself: its section is taller than a phone's screen, and a picture off screen is not drawn.
     const frame = page.locator('[data-sg="reveal"]').first();
+    await frame.scrollIntoViewIfNeeded();
     await expect(frame).toHaveClass(/is-live/, { timeout: 15_000 });
     expect(await frame.locator("canvas").evaluate(handedToWorker)).toBe(true);
     expect(await page.evaluate(mainContexts)).toBe(0);
@@ -253,7 +254,7 @@ test.describe("with motion", () => {
     await page.locator(".object").scrollIntoViewIfNeeded();
     await expect(page.locator(".object-stage")).toHaveClass(/is-live/, { timeout: 15_000 });
     await expect(page.locator(".object-stage canvas")).toHaveAttribute("data-quality", /^[012]$/);
-    await page.locator(".reveal-band").scrollIntoViewIfNeeded();
+    await page.locator('[data-sg="reveal"]').first().scrollIntoViewIfNeeded();
     await expect(page.locator('[data-sg="reveal"]').first()).toHaveClass(/is-live/, { timeout: 15_000 });
     expect(await page.evaluate(mainContexts)).toBeGreaterThanOrEqual(2);
     expect(errors).toEqual([]);
@@ -277,9 +278,8 @@ test.describe("with motion", () => {
   test("the image effect draws each picture over the real one, which stays for screen readers", async ({ page }) => {
     const errors = collectErrors(page);
     await page.goto(`${PAGE}?webgl`);
-    const band = page.locator(".reveal-band");
-    await band.scrollIntoViewIfNeeded();
     const frame = page.locator('[data-sg="reveal"]').first();
+    await frame.scrollIntoViewIfNeeded();
     await expect(frame).toHaveAttribute("data-sg-state", "webgl", { timeout: 15_000 });
     await expect(frame).toHaveClass(/is-live/);
     await expect(frame.getByRole("img", { name: "Lila siden i mjuka veck med ljus i vecken" })).toBeAttached();
