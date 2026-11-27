@@ -5,16 +5,28 @@
  * neither the downloads nor the decoding touch the page's main thread in any
  * browser (WebKit decodes `createImageBitmap` on the thread that calls it);
  * where a worker cannot start, the page runs the same code itself.
+ *
+ * It also settles the format. The page offers the same movement as several
+ * sets, the best first (AVIF, then WebP); the first set whose first frame
+ * this browser fetches and decodes is the one loaded. So the choice rests on
+ * what the browser does with the real file, not on its name or version.
  */
 
 /** Frames fetched at once. */
 const PARALLEL = 4;
 
-/** Messages to the loader. A new `load` drops the frames of the last one (the screen crossed to another set). */
-export type ToLoader = { type: "load"; generation: number; urls: string[] } | { type: "decode"; generation: number; index: number } | { type: "stop" };
+/**
+ * Messages to the loader. A new `load` drops the frames of the last one (the screen crossed to another shape).
+ * `decode` may name a size to decode to: the canvas's, where that is smaller than the frame.
+ */
+export type ToLoader =
+  | { type: "load"; generation: number; sets: string[][] }
+  | { type: "decode"; generation: number; index: number; width?: number; height?: number }
+  | { type: "stop" };
 
-/** Messages from it, each with the generation of the `load` it belongs to. */
+/** Messages from it, each with the generation of the `load` it belongs to. `set` comes first: which of the sets it loads. */
 export type FromLoader =
+  | { type: "set"; generation: number; index: number }
   | { type: "loaded"; generation: number; index: number }
   | { type: "frame"; generation: number; index: number; bitmap: ImageBitmap }
   | { type: "failed"; generation: number; index: number };
@@ -34,10 +46,30 @@ export function loader(post: (message: FromLoader, transfer?: Transferable[]) =>
   let files: Array<Blob | undefined> = [];
   let abort = new AbortController();
 
-  const load = (urls: string[]) => {
+  const load = async (sets: string[][]) => {
     const mine = generation;
     const { signal } = abort;
-    const queue = order(urls.length);
+    // The last set is not tried: it is all there is, and its frames stand in for each other as before.
+    let pick = 0;
+    let head: Blob | undefined;
+    for (; pick < sets.length - 1; pick++) {
+      try {
+        head = await (await fetch(sets[pick][0], { signal, priority: "high" })).blob();
+        (await createImageBitmap(head)).close();
+        break;
+      } catch {
+        head = undefined;
+      }
+    }
+    if (signal.aborted) return;
+    const urls = sets[pick];
+    post({ type: "set", generation: mine, index: pick });
+    if (head) {
+      files[0] = head;
+      post({ type: "loaded", generation: mine, index: 0 });
+    }
+    // The frame that settled the format is not fetched again.
+    const queue = order(urls.length).slice(head ? 1 : 0);
     // The first pass (every fourth and the last) goes ahead of anything else the page fetches meanwhile.
     const first = Math.ceil(urls.length / 4) + 1;
     let next = 0;
@@ -67,14 +99,15 @@ export function loader(post: (message: FromLoader, transfer?: Transferable[]) =>
       files = [];
       if (message.type === "stop") return;
       generation = message.generation;
-      load(message.urls);
+      void load(message.sets);
       return;
     }
-    const { index } = message;
+    const { index, width, height } = message;
     const file = message.generation === generation ? files[index] : undefined;
     const mine = generation;
     if (!file) return post({ type: "failed", generation: message.generation, index });
-    createImageBitmap(file).then(
+    // Decoded at the canvas's size where that is smaller: a frame for a 2× screen takes a third of the memory on a 1× one.
+    (width ? createImageBitmap(file, { resizeWidth: width, resizeHeight: height, resizeQuality: "medium" }) : createImageBitmap(file)).then(
       (bitmap) => post({ type: "frame", generation: mine, index, bitmap }, [bitmap]),
       () => {
         // A file the browser cannot decode: its neighbours stand in.

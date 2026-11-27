@@ -28,6 +28,7 @@
     "mp4-muxer": "5.2.2",
     "pixelmatch": "8.0.0",
     "pngjs": "7.0.0",
+    "sharp": "0.35.5",
     "typescript": "5.9.3",
     "vite": "8.4.0",
     "webm-muxer": "5.1.4"

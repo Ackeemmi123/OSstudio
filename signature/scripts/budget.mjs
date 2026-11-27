@@ -22,13 +22,19 @@ const BUDGET = {
   threeD: 10,
   sound: 3,
   video: 3,
-  sequence: 3,
+  // Raised from 3 when the sequence learned to draw between two frames, to choose AVIF or WebP by decoding a frame,
+  // and to decode at the canvas's size: measured 3.1 (it was 2.5). Half a kilobyte of script, loaded a screen ahead
+  // of a sequence and nowhere else, for a movement that no longer steps and frames with twice the pixels.
+  sequence: 3.5,
   largestImage: 100,
   largestFilm: 600,
   largestFullHdFilm: 1200,
-  // An image sequence's frames, all of them, for one screen shape: a visitor fetches one set, never both. The phone's
-  // are in a phone's own shape (720 × 1560, 19.5:9), so the band is never cut at the sides, and their edges fade into
-  // the page: about 3 % over 600 KB at the quality where the satin keeps its brushed streaks (measured 618).
+  // An image sequence's frames, all of them, for one screen shape in one format: a visitor fetches one set, never two.
+  // The phone's are in a phone's own shape (19.5:9), so the band is never cut at the sides, and their edges fade into
+  // the page. The two limits are the ones set when the sequence was sixty WebP pictures (1600 × 900 and 720 × 1560);
+  // they were not raised when it went to 121 pictures at 2400 × 1350 and 1080 × 2340. AVIF pays for that: each limit
+  // now holds for the AVIF set and, separately, for the WebP set that browsers without AVIF fetch instead (61
+  // pictures at the old sizes). What a visitor downloads is unchanged; what the built site stores has doubled.
   sequenceWide: 1200,
   sequencePhone: 640,
 };
@@ -66,7 +72,10 @@ const films = all.filter((f) => /\.(webm|mp4)$/.test(f));
 const fullHd = films.filter((f) => /-1920[-.]/.test(f));
 const smaller = films.filter((f) => !fullHd.includes(f));
 // Image sequences (lab/public/sekvens/): the wide frames and the tall ones for phones.
-const frames = (shape) => images.filter((f) => new RegExp(`/sekvens/${shape}/`).test(f));
+const frames = (shape, format) => images.filter((f) => new RegExp(`/sekvens/${shape}/[^/]*\\.${format}$`).test(f));
+const stored = (list) => kb(sum(list, (f) => statSync(f).size));
+// Every picture of a sequence is in one of the sets counted: none in a format the budget does not know.
+const uncounted = images.filter((f) => /\/sekvens\//.test(f) && !/\/sekvens\/(bred|telefon)\/[^/]*\.(avif|webp)$/.test(f));
 
 // Fonts are already compressed: count their size as stored.
 const sum = (list, measure = gz) => list.reduce((total, f) => total + measure(f), 0);
@@ -87,8 +96,11 @@ const rows = [
   ["Largest single film", kb(Math.max(0, ...smaller.map((f) => statSync(f).size))), BUDGET.largestFilm],
   ["Largest film, full HD", kb(Math.max(0, ...fullHd.map((f) => statSync(f).size))), BUDGET.largestFullHdFilm],
   // Frames, as stored: fetched a screen ahead of the sequence, one set per screen shape, never with Save-Data.
-  ["Sequence frames, wide", kb(sum(frames("bred"), (f) => statSync(f).size)), BUDGET.sequenceWide],
-  ["Sequence frames, phone", kb(sum(frames("telefon"), (f) => statSync(f).size)), BUDGET.sequencePhone],
+  ["Sequence, wide, AVIF", stored(frames("bred", "avif")), BUDGET.sequenceWide],
+  ["Sequence, wide, WebP", stored(frames("bred", "webp")), BUDGET.sequenceWide],
+  ["Sequence, phone, AVIF", stored(frames("telefon", "avif")), BUDGET.sequencePhone],
+  ["Sequence, phone, WebP", stored(frames("telefon", "webp")), BUDGET.sequencePhone],
+  ["Sequence pictures not counted", uncounted.length, 0],
 ];
 
 let over = 0;
