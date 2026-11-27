@@ -14,12 +14,19 @@
  * arrive. Once shown, the <img> stays visible under the shader's copy, so a
  * frame the shader has not drawn yet shows the picture, never an empty frame.
  *
+ * `data-sg-transition="wipe|dissolve|warp|slices"` on the frame chooses
+ * another arrival (src/engine/transitions.ts, a chunk of its own, fetched only
+ * for a frame that names one). Without it, or with a name it does not know,
+ * the picture arrives behind the living edge below. Only the shader and its
+ * timing differ: when a picture is held back and when it shows are the same.
+ *
  * Markup: <div data-sg="reveal"><img src alt width height><canvas data-sg-canvas aria-hidden="true"></canvas></div>
  * The element is the frame: a caption goes outside it. The image must be from
  * the same origin, so the shader may read it.
  */
 import type { Capabilities } from "../engine/capabilities";
 import { createShaderStage, type ShaderStage } from "../engine/shader-stage";
+import type { Transition } from "../engine/transitions";
 import { gsap, ScrollTrigger, whenMotion } from "../engine/motion";
 import { NOISE } from "./noise";
 
@@ -83,6 +90,10 @@ export function mountReveal(frame: HTMLElement, capabilities: Capabilities, allo
     let giveUp = 0;
     const state = { reveal: 0, hover: 0 };
     const pointer = { x: 0.5, y: 0.5 };
+    // The arrival named in markup, if any: fetched now, while the picture is still on its way to the screen.
+    const name = frame.dataset.sgTransition;
+    let chosen: Transition | undefined;
+    const choice = name ? import("../engine/transitions").then(({ transition }) => void (chosen = transition(name)), () => undefined) : null;
 
     // From here the picture stays: no arrival can start over it.
     const show = () => {
@@ -94,7 +105,7 @@ export function mountReveal(frame: HTMLElement, capabilities: Capabilities, allo
     const arrive = () => {
       if (frame.dataset.sgPicture !== "waiting") return;
       frame.dataset.sgPicture = "arriving";
-      gsap.to(state, { reveal: 1, duration: 1.8, ease: "power2.inOut", onComplete: show });
+      gsap.to(state, { reveal: 1, duration: chosen?.duration ?? 1.8, ease: chosen?.ease ?? "power2.inOut", onComplete: show });
     };
     const held = () => frame.dataset.sgPicture === "waiting" || frame.dataset.sgPicture === "arriving";
     // Held back only if it cannot have been seen: never on screen, still below it, not flown in from the previous
@@ -120,9 +131,10 @@ export function mountReveal(frame: HTMLElement, capabilities: Capabilities, allo
     watcher.observe(frame);
 
     const start = async () => {
+      if (choice) await choice;
       if (cancelled) return;
       const started = await createShaderStage(canvas, {
-        fragment: FRAGMENT,
+        fragment: chosen?.fragment ?? FRAGMENT,
         allowSoftware,
         transparent: true,
         image,

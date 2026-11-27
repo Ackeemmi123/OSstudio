@@ -40,8 +40,9 @@ const files = (dir) => readdirSync(dir).flatMap((name) => (statSync(join(dir, na
 const all = files(DIST);
 const html = all.filter((f) => f.endsWith(".html"));
 const scripts = all.filter((f) => f.endsWith(".js"));
-// The shader stage and its noise are shared by the ink field and the image effect: loaded later, with them.
-const webgl = scripts.filter((f) => /ink-field|noise|shader-stage/.test(f));
+// The shader stage and its noise are shared by the ink field and the image effect: loaded later, with them. The
+// picture transitions are a chunk of their own, fetched only by a page that names one.
+const webgl = scripts.filter((f) => /ink-field|noise|shader-stage|transitions/.test(f));
 const sound = scripts.filter((f) => /sound/.test(f));
 const video = scripts.filter((f) => /\/video-[^/]*\.js$/.test(f));
 // An image sequence's frames are fetched and decoded in a worker, or by the same code on the main thread where a worker

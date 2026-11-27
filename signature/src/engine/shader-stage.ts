@@ -106,6 +106,22 @@ async function wholeBitmap(image: HTMLImageElement): Promise<Picture> {
   return { width: bitmap.width, height: bitmap.height, bands: [{ row: 0, bitmap }] };
 }
 
+/**
+ * Chrome keeps at most four WebGL contexts alive in one worker and loses the
+ * oldest when a fifth starts (16 on the main thread), so a page's fifth
+ * picture would turn its first back into a plain image. Every four canvases
+ * therefore share a worker: "stage", then "stage1", and so on. A canvas stays
+ * with its worker, since it can never be handed to another.
+ */
+const PER_WORKER = 4;
+const workers = new WeakMap<HTMLCanvasElement, string>();
+let handed = 0;
+function workerFor(canvas: HTMLCanvasElement): string {
+  let name = workers.get(canvas);
+  if (!name) workers.set(canvas, (name = `stage${Math.floor(handed++ / PER_WORKER) || ""}`));
+  return name;
+}
+
 const same = (a: Uniform | undefined, b: Uniform) => (typeof b === "number" ? a === b : Array.isArray(a) && a.length === b.length && a.every((v, i) => v === b[i]));
 
 /**
@@ -136,7 +152,7 @@ export async function createShaderStage(canvas: HTMLCanvasElement, options: Shad
       options.lost?.();
     },
   };
-  const worker = options.mainThread ? null : { name: "stage", spawn: () => new Worker(new URL("./stage-worker.ts", import.meta.url), { type: "module" }) };
+  const worker = options.mainThread ? null : { name: workerFor(canvas), spawn: () => new Worker(new URL("./stage-worker.ts", import.meta.url), { type: "module" }) };
   // On the main thread the stage calls `frame` itself, before each frame it draws.
   const port: Port<StageCore> | null = await attach(canvas, worker, spec, { ...events, frame: options.frame }, () => import("./stage-core").then(({ startStage }) => startStage));
   if (!port) {
