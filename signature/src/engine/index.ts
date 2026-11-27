@@ -10,6 +10,8 @@
  * once someone scrolls. The ink field's shader loads after the page has loaded
  * and checks the graphics hardware itself. A film's player (under 1 KB) loads
  * as the film comes near, and only then does the film itself start to load.
+ * Stacked cards need no script at all; the call to action's chunk (under
+ * 1 KB) loads after the page has loaded.
  */
 import { onReducedMotionChange, readCapabilities, type Capabilities, type CapabilityOptions } from "./capabilities";
 
@@ -125,6 +127,10 @@ export function boot(options: BootOptions = {}): Capabilities {
       mountMenu(menu, early);
     });
   }
+
+  // The call to action: its own small chunk, after load. Until then, and without a script, it is the link where it stands.
+  const cta = document.querySelector<HTMLElement>('[data-sg="cta"]');
+  if (cta) void afterLoad().then(() => import("../modules/cta")).then(({ mountCta }) => mountCta(cta));
 
   // The sound button: a few kilobytes, after load. It plays nothing until the visitor asks.
   const sound = document.querySelector<HTMLButtonElement>('[data-sg="sound"]');
