@@ -252,19 +252,41 @@ test.describe("the reveal list", () => {
     await expect(float).toBeVisible();
     await expect(float.locator("img.is-active")).toHaveAttribute("src", /siden-lila/);
     // It follows with weight: after a quick move it lags behind and leans; at rest it catches up and straightens.
+    // Judged on every frame the page draws, recorded in the page, so a slow machine cannot skip past the lag.
+    type Sample = { x: number; b: number };
+    const trail = { samples: [] as Sample[], stop: false };
+    await float.evaluate((element, recorder) => {
+      const record = recorder as { samples: Sample[]; stop: boolean };
+      (window as unknown as { sgTrail: typeof record }).sgTrail = record;
+      const sample = () => {
+        const box = element.getBoundingClientRect();
+        record.samples.push({ x: box.left + box.width / 2, b: new DOMMatrix(getComputedStyle(element).transform).b });
+        if (!record.stop) requestAnimationFrame(sample);
+      };
+      requestAnimationFrame(sample);
+    }, trail);
+    const samples = () => page.evaluate(() => (window as unknown as { sgTrail: { samples: Sample[] } }).sgTrail.samples);
     box = await row(2);
     await page.mouse.move(1000, box.y + box.height / 2, { steps: 2 });
-    await page.waitForTimeout(80);
-    const moving = await float.evaluate((element) => {
-      const box = element.getBoundingClientRect();
-      return { x: box.left + box.width / 2, angle: new DOMMatrix(getComputedStyle(element).transform).b };
-    });
-    expect(moving.x).toBeLessThan(990);
-    expect(Math.abs(moving.angle)).toBeGreaterThan(0.02);
     await expect(float.locator("img.is-active")).toHaveAttribute("src", /siden-skog/);
-    await expect.poll(() => float.evaluate((element) => Math.abs(new DOMMatrix(getComputedStyle(element).transform).b)), { timeout: 4000 }).toBeLessThan(0.005);
-    const rest = await float.boundingBox();
-    expect(Math.abs(rest!.x + rest!.width / 2 - 1000)).toBeLessThan(6);
+    await expect
+      .poll(
+        async () => {
+          const last = (await samples()).at(-1)!;
+          return Math.abs(last.x - 1000) < 6 && Math.abs(last.b) < 0.005;
+        },
+        { timeout: 8000 },
+      )
+      .toBe(true);
+    const recorded = await page.evaluate(() => {
+      const record = (window as unknown as { sgTrail: { samples: Sample[]; stop: boolean } }).sgTrail;
+      record.stop = true;
+      return record.samples;
+    });
+    expect(recorded.some((frame) => frame.x <= 1000 - 60 && Math.abs(frame.b) > 0.02)).toBe(true);
+    const rest = recorded.at(-1)!;
+    expect(Math.abs(rest.x - 1000)).toBeLessThan(6);
+    expect(Math.abs(rest.b)).toBeLessThan(0.005);
     // Off the rows, it goes.
     box = await row(5);
     await page.mouse.move(400, box.y + box.height + 30);
