@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import type { SiteSpec } from "@/lib/site-spec/schema";
 import { briefClient, companySpec, completeSpec } from "@/lib/site-spec/test-helpers";
 import { BuildRefused, buildSite, contentTypeOf, pageChecks, type StoredImage } from "./build";
+import { SIGNATURE_PRESETS } from "@/lib/site-spec/catalog";
+import { DIRECTION_PRESETS } from "../../../signature/layer/enhance.mjs";
 
 const now = new Date("2026-11-17T10:00:00Z");
 const studioId = "11111111-1111-4111-8111-111111111111";
@@ -159,6 +161,33 @@ describe("building with the company design", () => {
     await expect(buildSite({ studioId, specVersion: 2, spec: value, production: { formAction: "https://studio.example/f" } }, fontDeps())).rejects.toBeInstanceOf(BuildRefused);
   });
 
+  it("with Axivo Signature motion, adds the layer's files and its head block to every page, and still passes the page checks", async () => {
+    const value = companySpec();
+    value.brand.concept = { ...value.brand.concept, signatureMotion: true };
+    const site = await buildSite({ studioId, specVersion: 2, spec: value, madeBy: "Axivo" }, fontDeps(withImages(value, "approved")));
+    const paths = site.files.map((file) => file.path);
+    expect(paths).toContain("signature/layer.js");
+    expect(paths).toContain("signature/layer.css");
+    expect(paths).toContain("signature/site.js");
+    expect(site.files.find((file) => file.path === "signature/layer.js")?.contentType).toMatch(/javascript/);
+    const pages = site.files.filter((file) => file.path.endsWith(".html")).map((file) => new TextDecoder().decode(file.body));
+    expect(pages.length).toBeGreaterThan(1);
+    for (const page of pages) expect(page).toMatch(/<!-- signature-layer [\w.-]+ -->[\s\S]*signature\/site\.js[\s\S]*<!-- \/signature-layer -->/);
+    expect(site.checks.filter((check) => check.level === "error")).toEqual([]);
+  });
+
+  it("without it, builds pages with no script at all", async () => {
+    const value = companySpec();
+    const site = await buildSite({ studioId, specVersion: 2, spec: value, madeBy: "Axivo" }, fontDeps(withImages(value, "approved")));
+    expect(site.files.some((file) => file.path.startsWith("signature/"))).toBe(false);
+    const pages = site.files.filter((file) => file.path.endsWith(".html")).map((file) => new TextDecoder().decode(file.body));
+    expect(pages.every((page) => !/<script\b/i.test(page))).toBe(true);
+  });
+
+  it("gives each direction the same Signature preset as the layer does", () => {
+    expect(SIGNATURE_PRESETS).toEqual(DIRECTION_PRESETS);
+  });
+
   it("refuses, naming the parts, when the company design cannot draw the spec", async () => {
     const value = companySpec();
     value.pages = value.pages.filter((page) => !page.sections.some((s) => s.kind === "contact"));
@@ -170,6 +199,16 @@ describe("page checks", () => {
   it("finds scripts, images without alternative text and text left in square brackets", () => {
     const checks = pageChecks('<p>[Write the story here]</p><img src="a.jpg" alt=""><script>x</script>', "index.html");
     expect(checks.map((check) => check.level).sort()).toEqual(["error", "error", "warning"]);
+  });
+
+  it("accepts Axivo Signature's own head block once, and no other script", () => {
+    const block = (base: string) =>
+      `<!-- signature-layer 1a2b3c -->\n<link rel="stylesheet" href="${base}signature/layer.css">\n<link rel="modulepreload" href="${base}signature/layer.js">\n<script type="module" src="${base}signature/site.js" blocking="render"></script>\n<!-- /signature-layer -->`;
+    expect(pageChecks(`<head>${block("./")}</head><h1>Hej</h1>`, "index.html")).toEqual([]);
+    expect(pageChecks(`<head>${block("../")}</head><h1>Hej</h1>`, "om/index.html")).toEqual([]);
+    expect(pageChecks(`<head>${block("./")}${block("./")}</head>`, "index.html").map((c) => c.level)).toContain("error");
+    expect(pageChecks(`<head>${block("./")}</head><script>alert(1)</script>`, "index.html").map((c) => c.level)).toContain("error");
+    expect(pageChecks(`<head>${block("https://evil.example/")}</head>`, "index.html").map((c) => c.level)).toContain("error");
   });
 
   it("passes a clean page", () => {
