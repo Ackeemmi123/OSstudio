@@ -1562,3 +1562,419 @@ a {
     color: var(--ink);
   }
 }
+
+/*
+ * ---------- Menu (data-sg="menu") ----------
+ * Without a script: the bar's own row of links, wrapping when it must. With
+ * one: a button that stays at the top right as the page scrolls, and a
+ * full-screen panel of big, condensed links that widen under the pointer.
+ */
+.menu {
+  min-width: 0;
+}
+.menu-list {
+  list-style: none;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  column-gap: 1.5rem;
+}
+.menu-n,
+.menu-note,
+.menu-eyebrow,
+.menu-foot {
+  display: none;
+}
+@media (max-width: 640px) {
+  .menu-list {
+    column-gap: 0.85rem;
+  }
+}
+
+/* The button keeps its place in the bar, so the bar does not move when it starts. */
+.sg-js .menu {
+  flex: none;
+  width: 7.25rem;
+  height: 2.75rem;
+}
+.sg-js .menu-toggle {
+  top: 1.25rem;
+  right: var(--gutter);
+  width: 7.25rem;
+  height: 2.75rem;
+  align-items: center;
+  justify-content: center;
+  gap: 0.7rem;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: var(--ink);
+  color: #fff;
+  /* A light edge, so the button keeps its shape over the page's dark sections. */
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.2);
+  font: 500 0.9rem/1 var(--text);
+  letter-spacing: 0.01em;
+  cursor: pointer;
+  view-transition-name: sg-menu;
+}
+.menu-words {
+  display: grid;
+  overflow: clip;
+  line-height: 1.25;
+}
+.menu-words > * {
+  grid-area: 1 / 1;
+  text-align: center;
+  transition: translate 0.6s var(--ease-roll);
+}
+.menu-words > :last-child {
+  translate: 0 110%;
+}
+.menu.is-open .menu-words > :first-child {
+  translate: 0 -110%;
+}
+.menu.is-open .menu-words > :last-child {
+  translate: none;
+}
+.menu-icon {
+  position: relative;
+  width: 1.05rem;
+  height: 0.5rem;
+}
+.menu-icon i {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 1.5px;
+  background: currentColor;
+  transition:
+    translate 0.5s var(--ease-roll),
+    rotate 0.5s var(--ease-roll);
+}
+.menu-icon i:first-child {
+  top: 0;
+}
+.menu-icon i:last-child {
+  bottom: 0;
+}
+.menu.is-open .menu-icon i:first-child {
+  translate: 0 calc(0.25rem - 0.75px);
+  rotate: 45deg;
+}
+.menu.is-open .menu-icon i:last-child {
+  translate: 0 calc(-0.25rem + 0.75px);
+  rotate: -45deg;
+}
+
+.sg-js .menu-panel {
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  gap: clamp(1.25rem, 3vh, 2rem);
+  padding: clamp(5.5rem, 13vh, 7rem) var(--gutter) clamp(1.25rem, 3vh, 2rem);
+  background: var(--ink);
+  color: #fff;
+}
+.sg-js .menu-eyebrow {
+  display: block;
+  font: 500 0.75rem/1 var(--text);
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--on-ink-quiet);
+}
+.sg-js .menu-list {
+  display: block;
+  align-self: center;
+}
+.sg-js .menu-list li {
+  position: relative;
+  border-top: 1px solid var(--hair-on-ink);
+}
+.sg-js .menu-list a {
+  padding: 0;
+  font-size: 1rem;
+  text-decoration: none;
+  background: none;
+}
+.sg-js .menu-line {
+  display: grid;
+  grid-template-columns: clamp(2.25rem, 7vw, 7.5rem) minmax(0, 1fr) auto;
+  align-items: baseline;
+  padding: 0.35rem 0 0.1rem;
+}
+.sg-js .menu-n {
+  display: block;
+  font: 500 0.78rem/1 var(--text);
+  letter-spacing: 0.14em;
+  color: var(--lilac);
+}
+.sg-js .menu-name {
+  display: block;
+  font: 600 min(13vw, 11vh, 9.5rem) / 1 var(--display);
+  font-stretch: 72%;
+  letter-spacing: -0.03em;
+  white-space: nowrap;
+  transition:
+    font-stretch 0.7s var(--ease-out),
+    opacity 0.45s var(--ease-out);
+}
+.sg-js .menu-note {
+  display: block;
+  font-size: 0.9rem;
+  color: var(--on-ink-quiet);
+  text-align: right;
+}
+.sg-js .menu-list a[aria-current="page"] .menu-name {
+  color: var(--lilac);
+}
+.sg-js .menu-foot {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 0.5rem 2rem;
+  font-size: 0.85rem;
+  color: var(--on-ink-quiet);
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+.menu.is-open .menu-foot {
+  opacity: 1;
+  transition: opacity 0.8s var(--ease-out) 0.75s;
+}
+@media (hover: none) {
+  .menu-hint {
+    display: none;
+  }
+}
+@media (hover: hover) {
+  .sg-js .menu-list a:is(:hover, :focus-visible) .menu-name {
+    font-stretch: 112%;
+  }
+  .sg-js .menu-list:has(a:hover) a:not(:hover) .menu-name {
+    opacity: 0.4;
+  }
+}
+@media (max-width: 640px) {
+  .sg-js .menu-line {
+    grid-template-columns: 2.25rem minmax(0, 1fr);
+  }
+  .sg-js .menu-note {
+    grid-column: 2;
+    margin: 0.15rem 0 0.35rem;
+    text-align: left;
+    font-size: 0.82rem;
+  }
+}
+
+/*
+ * Wide screens: the list on the left, a picture of the hovered or focused
+ * link's page on the right, the foot row under both. Pages with a picture
+ * file show it; the others a mark drawn in their own colours and type.
+ */
+@media (min-width: 900px) {
+  .sg-js .menu-panel {
+    grid-template-columns: minmax(0, 1fr) clamp(15rem, 27vw, 26rem);
+    column-gap: clamp(2.5rem, 6vw, 6rem);
+  }
+  .sg-js :is(.menu-eyebrow, .menu-list) {
+    grid-column: 1;
+  }
+  .sg-js .menu-pictures {
+    grid-column: 2;
+    grid-row: 1 / 3;
+    align-self: center;
+    aspect-ratio: 4 / 5;
+    max-height: calc(100svh - 12rem);
+    background: rgb(255 255 255 / 0.05);
+  }
+  .sg-js .menu-foot {
+    grid-column: 1 / -1;
+  }
+}
+/* Labb 01: its hero's still gradient, the design without WebGL, and its headline. */
+.sg-js .menu-mark-lab,
+.sg-js .menu-mark-scen {
+  display: flex;
+  align-items: flex-end;
+  padding: 1.5rem;
+  font: 620 clamp(1.8rem, 2.6vw, 2.6rem) / 0.9 var(--display);
+  letter-spacing: -0.045em;
+  text-wrap: balance;
+}
+/* The same three lights as the hero's, placed for a tall frame. */
+.menu-mark-lab {
+  background:
+    radial-gradient(90% 50% at 66% 24%, rgb(195 188 242 / 0.5), transparent 70%),
+    radial-gradient(85% 55% at 46% 50%, rgb(74 91 181 / 0.75), transparent 72%),
+    radial-gradient(70% 40% at 84% 70%, rgb(135 157 199 / 0.45), transparent 70%),
+    var(--ink);
+  color: #fff;
+}
+/* Scen två: its page, cloud with an ink headline, rising like the curtain over the last one. */
+.menu-mark-scen {
+  background: linear-gradient(var(--ice) 0 30%, var(--soft) 30% calc(30% + 1px), var(--cloud) 0);
+  color: var(--ink);
+}
+
+/* Hantverk's menu: the espresso of its foot, the serif of its headlines, ochre numbers. */
+.sg-js .page-craft .menu-toggle {
+  background: var(--craft-ink);
+  color: var(--craft-bg);
+  box-shadow: inset 0 0 0 1px rgb(243 236 226 / 0.22);
+}
+.sg-js .page-craft .menu-panel {
+  background: var(--craft-ink);
+  color: var(--craft-bg);
+}
+.sg-js .page-craft :is(.menu-eyebrow, .menu-note, .menu-foot) {
+  color: #cdbba8;
+}
+.sg-js .page-craft :is(.menu-n, .menu-list a[aria-current="page"] .menu-name) {
+  color: var(--craft-ochre);
+}
+.sg-js .page-craft .menu-list li {
+  border-color: var(--hair-on-ink);
+}
+.sg-js .page-craft .menu-name {
+  font: 400 min(13.5vw, 11vh, 9.5rem) / 1 var(--serif);
+  letter-spacing: -0.02em;
+  transition:
+    translate 0.7s var(--ease-out),
+    opacity 0.45s var(--ease-out);
+}
+@media (hover: hover) {
+  .sg-js .page-craft .menu-list a:is(:hover, :focus-visible) .menu-name {
+    font-stretch: normal;
+    translate: 0.25em 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .menu-words > *,
+  .menu-icon i,
+  .sg-js .menu-name,
+  .sg-js .menu-foot {
+    transition: none !important;
+  }
+}
+
+/*
+ * ---------- Reveal list (data-sg="reveal-list") ----------
+ * Rows on the section grid: number, name at display size, what it is, how it
+ * was made. A small picture at the end of each row wherever the picture does
+ * not follow the pointer.
+ */
+.materials-lead {
+  max-width: 40rem;
+  font-size: 1.15rem;
+  color: var(--ink-quiet);
+  margin-bottom: clamp(2rem, 6vh, 3.5rem);
+}
+.materials-list {
+  list-style: none;
+  padding: 0;
+  border-bottom: 1px solid var(--hair);
+}
+.materials-row {
+  display: grid;
+  grid-template-columns: clamp(3rem, 8vw, 7.5rem) minmax(0, 1fr) minmax(0, 22rem) 6rem auto;
+  align-items: center;
+  column-gap: 1rem;
+  padding: 1rem 0;
+  border-top: 1px solid var(--hair);
+}
+.materials-n {
+  align-self: start;
+  padding-top: 0.6rem;
+  font: 600 0.8rem/1.3 var(--display);
+  letter-spacing: 0.04em;
+  color: var(--indigo);
+}
+.materials-name {
+  font: 520 clamp(2.5rem, 6.4vw, 6rem) / 1 var(--display);
+  font-stretch: 70%;
+  letter-spacing: -0.015em;
+  transition:
+    font-stretch 0.7s var(--ease-out),
+    translate 0.7s var(--ease-out),
+    opacity 0.45s var(--ease-out);
+}
+.materials-note {
+  font-size: 0.95rem;
+  line-height: 1.45;
+  color: var(--ink-quiet);
+}
+.materials-kind {
+  justify-self: end;
+  font: 500 0.75rem/1.3 var(--text);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-quiet);
+}
+.materials-thumb {
+  width: 4.5rem;
+  height: 5.625rem;
+  background: var(--ice);
+}
+.materials .sg-reveal-float {
+  width: clamp(14rem, 21vw, 21rem);
+  aspect-ratio: 4 / 5;
+  background: var(--ice);
+}
+@media (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference) {
+  .materials.is-live .materials-row:hover .materials-name {
+    font-stretch: 100%;
+    translate: 0.2em 0;
+  }
+  .materials.is-live .materials-list:has(.materials-row:hover) .materials-row:not(:hover) .materials-name {
+    opacity: 0.5;
+  }
+}
+@media (max-width: 899px) {
+  .materials-row {
+    grid-template-columns: clamp(2.25rem, 8vw, 4rem) minmax(0, 1fr) auto;
+    grid-template-areas:
+      "n name thumb"
+      "n note thumb"
+      "n kind thumb";
+    align-items: start;
+    row-gap: 0.3rem;
+  }
+  .materials-n {
+    grid-area: n;
+    padding-top: 0.45rem;
+  }
+  .materials-name {
+    grid-area: name;
+  }
+  .materials-note {
+    grid-area: note;
+    max-width: 26rem;
+  }
+  .materials-kind {
+    grid-area: kind;
+    justify-self: start;
+  }
+  .materials-thumb {
+    grid-area: thumb;
+    align-self: center;
+    width: clamp(4.5rem, 20vw, 7rem);
+    height: auto;
+    aspect-ratio: 4 / 5;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .materials-name {
+    transition: none;
+  }
+}
+
+/* Focus on the menu's dark panel: a light ring, at least 3:1 against it. */
+.sg-js .menu-panel :focus-visible,
+.sg-menu-open .menu-toggle:focus-visible {
+  outline-color: var(--lilac);
+}
+.sg-js .page-craft .menu-panel :focus-visible,
+.sg-menu-open .page-craft .menu-toggle:focus-visible {
+  outline-color: var(--craft-ochre);
+}
