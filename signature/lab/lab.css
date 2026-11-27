@@ -632,14 +632,14 @@ a {
   background: var(--ink);
   color: var(--on-ink);
 }
-.object .label {
+:is(.object, .sequence) .label {
   color: var(--on-ink-quiet);
   border-color: var(--hair-on-ink);
 }
-.object .label > span:first-child {
+:is(.object, .sequence) .label > span:first-child {
   color: var(--lilac);
 }
-.object .label .label-name {
+:is(.object, .sequence) .label .label-name {
   color: #fff;
 }
 .object-body {
@@ -2168,4 +2168,54 @@ a {
   outline-color: var(--ink);
   outline-offset: 3px;
   box-shadow: 0 0 0 7px var(--cloud);
+}
+
+/*
+ * Sequence: the band gathers frame by frame while the page scrolls, held on
+ * the whole screen. Three words roll through one line over it in step with
+ * the frame shown (`--sg-p`, 0–1): each stands still around its own moment
+ * (`--at`, ±0.15) and, between two, the one leaves upward as the next rises
+ * from below, cut by the line. Without motion `--sg-p` is unset, so the last
+ * word stands under the last frame.
+ */
+.sequence {
+  background: var(--ink);
+  color: var(--on-ink);
+  padding-bottom: 0;
+}
+.sequence-lead {
+  max-width: 40rem;
+  font-size: 1.15rem;
+  color: var(--on-ink-quiet);
+  margin-bottom: clamp(2.5rem, 6vh, 4rem);
+}
+.sequence [data-sg="sequence"] {
+  margin-inline: calc(var(--gutter) * -1);
+}
+.sequence-lines {
+  position: absolute;
+  inset: auto var(--gutter) clamp(1.5rem, 7vh, 4rem);
+  height: 1.1em;
+  overflow: hidden;
+  padding: 0;
+  list-style: none;
+  font: 520 clamp(3rem, 8vw, 7.5rem) / 1.1 var(--display);
+  font-stretch: 70%;
+  letter-spacing: -0.015em;
+  color: #fff;
+}
+.sequence-lines li {
+  position: absolute;
+  white-space: nowrap;
+  translate: 0 calc((clamp(0, (var(--at) - var(--sg-p, 1) - 0.15) * 5, 1) - clamp(0, (var(--sg-p, 1) - var(--at) - 0.15) * 5, 1)) * 100%);
+}
+.sequence-count {
+  position: absolute;
+  right: var(--gutter);
+  bottom: clamp(1.5rem, 7vh, 4rem);
+  font: 500 0.8rem/1.3 var(--text);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  font-variant-numeric: tabular-nums;
+  color: var(--on-ink-quiet);
 }

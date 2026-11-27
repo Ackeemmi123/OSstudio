@@ -9,7 +9,8 @@
  * first scrolls, touches or presses a key: smooth scrolling is only needed
  * once someone scrolls. The ink field's shader loads after the page has loaded
  * and checks the graphics hardware itself. A film's player (under 1 KB) loads
- * as the film comes near, and only then does the film itself start to load.
+ * as the film comes near, and only then does the film itself start to load;
+ * an image sequence's (about 1.5 KB) a screen ahead, and it fetches the frames.
  * Stacked cards need no script at all; the call to action's chunk (1.4 KB)
  * loads after the page has loaded.
  */
@@ -33,15 +34,15 @@ function afterLoad(): Promise<void> {
   return new Promise((resolve) => addEventListener("load", () => void idle().then(resolve), { once: true }));
 }
 
-/** Runs `mount` once, when the element comes within reach of the screen. */
-function whenNear(element: Element, mount: () => void): void {
+/** Runs `mount` once, when the element comes within reach of the screen (`margin`: how far below or above it). */
+function whenNear(element: Element, mount: () => void, margin = "25%"): void {
   const watcher = new IntersectionObserver(
     ([entry]) => {
       if (!entry.isIntersecting) return;
       watcher.disconnect();
       mount();
     },
-    { rootMargin: "25% 0px" },
+    { rootMargin: `${margin} 0px` },
   );
   watcher.observe(element);
 }
@@ -114,6 +115,15 @@ export function boot(options: BootOptions = {}): Capabilities {
       void import("../modules/video").then(({ mountVideo }) => mountVideo(element, capabilities));
       if (element.dataset.sgVariant === "grow") void loadMotion().then(({ mountVideoGrow }) => mountVideoGrow(element));
     });
+  }
+
+  // Image sequences: their own small chunk a screen ahead, which starts fetching the frames. With Save-Data the
+  // picture becomes the last frame, nothing is held on screen and nothing more is fetched.
+  for (const element of document.querySelectorAll<HTMLElement>('[data-sg="sequence"]')) {
+    if (capabilities.saveData) {
+      element.dataset.sgState = "poster";
+      for (const source of element.querySelectorAll<HTMLSourceElement>("source[data-sg-still]")) source.media = source.dataset.sgStill || "all";
+    } else whenNear(element, () => void import("../modules/sequence").then(({ mountSequence }) => mountSequence(element)), "100%");
   }
 
   // The menu: its own small chunk, fetched at once on pages that have one. A press before it arrives still opens it.
