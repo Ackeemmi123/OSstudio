@@ -1,14 +1,13 @@
 /**
  * The encoder for films photographed off a page (scripts/render-dom-film.mjs):
  * it is handed each frame as a PNG, encodes them in the browser with
- * WebCodecs (H.264 into MP4, AV1 into WebM) and packs them with mp4-muxer and
- * webm-muxer, as film.ts does for the band's own films. It also lays a
+ * WebCodecs (H.264 into MP4, AV1 into WebM) and packs them with Mediabunny,
+ * as film.ts does for the band's own films. It also lays a
  * contact sheet as the frames pass, and plays every finished file back
  * before it is saved: the browser must read the whole duration, find every
  * frame, and show the first one in the colours it was given.
  */
-import { ArrayBufferTarget as Mp4Target, Muxer as Mp4Muxer } from "mp4-muxer";
-import { ArrayBufferTarget as WebmTarget, Muxer as WebmMuxer } from "webm-muxer";
+import { BufferTarget, EncodedPacket, EncodedVideoPacketSource, Mp4OutputFormat, Output, WebMOutputFormat } from "mediabunny";
 
 export interface Encoding {
   file: string;
@@ -54,7 +53,31 @@ const toBase64 = (blob: Blob) =>
     reader.readAsDataURL(blob);
   });
 
-/** webm-muxer writes the duration as the last frame's start: set it (EBML id 0x4489, a float in milliseconds) to the whole film. */
+/**
+ * A file being written by Mediabunny: the encoder's chunks go in, in the order they leave it, and the finished
+ * file comes out as one buffer. The encoding itself stays here (WebCodecs, configured below); Mediabunny only packs.
+ */
+function container(webm: boolean, codec: "avc" | "av1" | "vp9", fps: number) {
+  const output = new Output({ format: webm ? new WebMOutputFormat() : new Mp4OutputFormat({ fastStart: "in-memory" }), target: new BufferTarget() });
+  const source = new EncodedVideoPacketSource(codec);
+  output.addVideoTrack(source, { frameRate: fps });
+  let written: Promise<void> = output.start();
+  // A failed write is kept until the file is finished, where it is thrown.
+  let failure: unknown = null;
+  return {
+    add: (chunk: EncodedVideoChunk, meta?: EncodedVideoChunkMetadata) => {
+      written = written.then(() => source.add(EncodedPacket.fromEncodedChunk(chunk), meta)).catch((error) => void (failure ??= error));
+    },
+    finish: async (): Promise<ArrayBuffer> => {
+      await written;
+      if (failure) throw failure;
+      await output.finalize();
+      return output.target.buffer!;
+    },
+  };
+}
+
+/** Makes sure the WebM says it lasts the whole film, last frame included (EBML id 0x4489, a float in milliseconds): a loop must not end as its last frame begins. */
 function setWebmDuration(buffer: ArrayBuffer, milliseconds: number): void {
   const bytes = new Uint8Array(buffer);
   for (let i = 0; i < Math.min(bytes.length - 11, 4096); i++) {
@@ -127,7 +150,7 @@ interface Running {
   job: Job;
   frame: HTMLCanvasElement;
   context: CanvasRenderingContext2D;
-  encoders: { encoding: Encoding; muxer: WebmMuxer<WebmTarget> | Mp4Muxer<Mp4Target>; encoder: VideoEncoder; webm: boolean; failed: () => unknown }[];
+  encoders: { encoding: Encoding; file: ReturnType<typeof container>; encoder: VideoEncoder; webm: boolean; failed: () => unknown }[];
   first: ImageData | null;
   sheet: HTMLCanvasElement;
   next: number;
@@ -149,12 +172,10 @@ function start(job: Job): void {
 
   const encoders = job.encodings.map((encoding) => {
     const webm = encoding.codec.startsWith("av01") || encoding.codec.startsWith("vp09");
-    const muxer = webm
-      ? new WebmMuxer({ target: new WebmTarget(), video: { codec: encoding.codec.startsWith("av01") ? "V_AV1" : "V_VP9", width, height, frameRate: fps }, type: "webm", firstTimestampBehavior: "offset" })
-      : new Mp4Muxer({ target: new Mp4Target(), video: { codec: "avc", width, height, frameRate: fps }, fastStart: "in-memory", firstTimestampBehavior: "offset" });
+    const file = container(webm, !webm ? "avc" : encoding.codec.startsWith("av01") ? "av1" : "vp9", fps);
     let failure: unknown = null;
     const encoder = new VideoEncoder({
-      output: (chunk, meta) => muxer.addVideoChunk(chunk, meta),
+      output: (chunk, meta) => file.add(chunk, meta),
       error: (error) => (failure = error),
     });
     encoder.configure({
@@ -168,7 +189,7 @@ function start(job: Job): void {
       hardwareAcceleration: encoding.hardware,
       ...(webm ? {} : { avc: { format: "avc" as const } }),
     });
-    return { encoding, muxer, encoder, webm, failed: () => failure };
+    return { encoding, file, encoder, webm, failed: () => failure };
   });
 
   const { columns, thumb } = job.sheet;
@@ -235,8 +256,7 @@ async function finish(): Promise<Encoded> {
   for (const each of encoders) {
     await each.encoder.flush();
     if (each.failed()) throw each.failed();
-    each.muxer.finalize();
-    const buffer = each.muxer.target.buffer;
+    const buffer = await each.file.finish();
     if (each.webm) setWebmDuration(buffer, (job.frames * 1000) / job.fps);
     const blob = new Blob([buffer], { type: each.webm ? "video/webm" : "video/mp4" });
     files[each.encoding.file] = await toBase64(blob);

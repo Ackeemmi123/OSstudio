@@ -4,18 +4,21 @@
  * the engine's own 3D band, drawn frame by frame at twice the size and scaled
  * down, with its clock pinned to each frame so the loop closes exactly (one
  * turn, the flow and the sway all come round in the same twelve seconds).
- * Encoded in Chrome itself with WebCodecs and packed with mp4-muxer and
- * webm-muxer, so nothing is installed beyond npm. The posters are the films'
+ * Encoded in Chrome itself with WebCodecs and packed with Mediabunny, so
+ * nothing is installed beyond npm. The posters are the films'
  * first frame. Each film is played back in the page before it is saved: it
  * must last the whole loop and start in its poster's colours.
  *
  * Needs the dev server: `npm run dev`, then `node scripts/render-video.mjs`
  * (or pass its address: `node scripts/render-video.mjs http://127.0.0.1:4348`).
- * `ONLY=telefon` renders just the films whose name contains that. Uses the
+ * `ONLY=telefon` renders just the films whose name contains that; `OUT=/some/folder`
+ * writes there (film/ and bilder/ inside it) instead of over the lab's own files. Uses the
  * installed Chrome, whose WebCodecs can encode H.264 (Playwright's Chromium
  * cannot); the H.264 encoder is the system's where there is one.
  */
 import { mkdirSync, writeFileSync } from "node:fs";
+import { resolve } from "node:path";
+import { pathToFileURL } from "node:url";
 import { chromium } from "@playwright/test";
 
 const BASE = process.argv[2] ?? "http://127.0.0.1:4316";
@@ -74,7 +77,8 @@ const FILMS = [
 ].map((film) => ({ ...film, tilt: TILT }));
 
 const browser = await chromium.launch({ channel: process.env.CI ? undefined : "chrome", args: ["--enable-unsafe-swiftshader"] });
-mkdirSync(new URL("../lab/film/", import.meta.url), { recursive: true });
+const OUT = process.env.OUT ? pathToFileURL(`${resolve(process.env.OUT)}/`) : new URL("../lab/", import.meta.url);
+for (const folder of ["film/", "bilder/"]) mkdirSync(new URL(folder, OUT), { recursive: true });
 
 for (const film of FILMS) {
   if (process.env.ONLY && !film.name.includes(process.env.ONLY)) continue;
@@ -88,7 +92,7 @@ for (const film of FILMS) {
   for (const line of log) console.log(`  ${line}`);
   for (const [file, data] of Object.entries(files)) {
     const bytes = Buffer.from(data, "base64");
-    writeFileSync(new URL(`../lab/${file}`, import.meta.url), bytes);
+    writeFileSync(new URL(file, OUT), bytes);
     console.log(`${file.padEnd(32)} ${Math.round(bytes.length / 1024)} KB`);
   }
   console.log(`${film.name}: ${Math.round((Date.now() - started) / 1000)} s`);
