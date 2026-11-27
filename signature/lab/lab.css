@@ -2015,6 +2015,9 @@ a {
   --sg-stack-top: 5rem;
   --sg-stack-peek: clamp(0.7rem, 1.8vh, 1.1rem);
   --sg-stack-gap: clamp(1.25rem, 3vh, 2rem);
+  /* Cards beneath settle into the brand's indigo, so ice turns a deeper blue and lilac a deeper violet, never grey. */
+  --sg-stack-shade: var(--indigo);
+  --sg-stack-shade-step: 0.16;
 }
 .steps-lead,
 .cta-lead {
@@ -2096,23 +2099,41 @@ a {
 .stack-card:nth-child(n + 3) :focus-visible {
   outline-color: #fff;
 }
-/* The picture never sets the card's height: it fills what the words leave. */
+/* The picture never sets the card's height: it fills what the words leave, and its frame clips it while it settles. */
 .stack-picture {
   flex: 1 1 7rem;
-  width: 100%;
   min-height: 0;
-  object-fit: cover;
   contain: size;
-  aspect-ratio: auto;
+  overflow: clip;
+}
+.stack-picture img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+/* Each card casts a soft shadow up onto the one it covers. */
+.stack-card + .stack-card {
+  box-shadow: 0 -0.75rem 2.5rem -1.25rem rgb(21 25 34 / 0.45);
 }
 @media (min-width: 900px) {
   .stack-card {
     display: grid;
     grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
   }
-  /* The name stays at the top, where it shows longest under the next card; the words settle at the foot. */
-  .stack-text > p {
+  /*
+   * The name and the words stay together at the top, where they show longest
+   * under the next card; the step's number stands large at the foot, cut by
+   * the card's edge, and rises into place as the card comes up.
+   */
+  /* A line height below the digits' own: the box ends at the card's edge while the digits run past it and are cut. */
+  .stack-n {
+    order: 1;
     margin-top: auto;
+    margin-bottom: calc(-1 * clamp(1.5rem, 3.5vw, 3.25rem));
+    font: 560 clamp(8rem, 14vw, 13.5rem) / 0.56 var(--display);
+    font-stretch: 70%;
+    letter-spacing: -0.035em;
   }
   .stack-picture {
     height: 100%;
