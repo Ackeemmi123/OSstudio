@@ -10,6 +10,7 @@ import { siteQuality, type QualityReport } from "@/lib/quality/site-quality";
 import { randomBytes, randomUUID } from "node:crypto";
 import { build as buildAssociation } from "../../../design-systems/association";
 import { build as buildServices, FONT_FILES } from "../../../design-systems/services";
+import { enhanceSite, presetForDirection } from "../../../signature/layer/enhance.mjs";
 import { servicesContent, type ServicesImage } from "@/lib/site-spec/to-services";
 import type { SiteSpec } from "@/lib/site-spec/schema";
 import { parseSiteSpec } from "@/lib/site-spec/validate";
@@ -89,10 +90,18 @@ export function contentTypeOf(path: string): string {
   return TYPES[path.split(".").pop()?.toLowerCase() ?? ""] ?? "application/octet-stream";
 }
 
+/**
+ * Axivo Signature's head block (signature/layer/enhance.mjs): its stylesheet, a preload and
+ * its module script, all from the site's own signature/ folder. Nothing else passes as it.
+ */
+const SIGNATURE_BLOCK =
+  /<!-- signature-layer [\w.-]+ -->\s*<link rel="stylesheet" href="(?:\.\.?\/)*signature\/layer\.css">\s*<link rel="modulepreload" href="(?:\.\.?\/)*signature\/layer\.js">\s*<script type="module" src="(?:\.\.?\/)*signature\/site\.js" blocking="render"><\/script>\s*<!-- \/signature-layer -->/;
+
 /** What a person reading the pages would still see as unfinished. */
 export function pageChecks(html: string, path: string): BuildCheck[] {
   const checks: BuildCheck[] = [];
-  if (/<script\b/i.test(html)) checks.push({ level: "error", message: `${path} contains a script.` });
+  // The one script a built page may hold is Axivo Signature's own head block, exactly as the layer writes it, once.
+  if (/<script\b/i.test(html.replace(SIGNATURE_BLOCK, ""))) checks.push({ level: "error", message: `${path} contains a script.` });
   const text = html.replace(/<style[\s\S]*?<\/style>/gi, " ").replace(/<[^>]+>/g, " ");
   const bracket = text.match(/\[[^\]]{3,120}\]/);
   if (bracket) checks.push({ level: "warning", message: `${path} still has text in square brackets: ${bracket[0].slice(0, 80)}` });
@@ -243,5 +252,11 @@ function servicesFiles(
   if (deps.font) {
     for (const name of FONT_FILES) files.push({ path: `fonts/${name}`, body: deps.font(name), contentType: name.endsWith(".woff2") ? "font/woff2" : "text/plain; charset=utf-8" });
   }
-  return pages;
+  if (!spec.brand.concept?.signatureMotion) return pages;
+  // Axivo Signature: motion that fits the direction, added on top of the same pages; without JavaScript or with reduced motion they are unchanged.
+  const enhanced = enhanceSite(pages, { map: "services", preset: presetForDirection(result.design.direction) });
+  const changed = new Map(enhanced.files.map((file) => [file.path, file.text]));
+  const encoder = new TextEncoder();
+  for (const asset of enhanced.assets) files.push({ path: asset.path, body: encoder.encode(asset.text), contentType: asset.contentType });
+  return pages.map((page) => ({ ...page, text: changed.get(page.path) ?? page.text }));
 }

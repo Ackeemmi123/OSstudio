@@ -277,6 +277,12 @@ export const siteSpecSchema = z.strictObject({
         signature: z.enum(SERVICES_SIGNATURES).optional(),
         feel: z.enum(SERVICES_FEELS).optional(),
         motion: z.enum(SERVICES_MOTIONS).optional(),
+        /**
+         * Axivo Signature motion, the premium layer (signature/layer): motion that fits the
+         * direction, added on top of the built site without changing its design. A person
+         * chooses it; the AI draft never sets it.
+         */
+        signatureMotion: z.boolean().optional(),
       })
       .optional(),
     /** Set when a person chose the brand. Absent: the starting defaults, which cannot be approved. */

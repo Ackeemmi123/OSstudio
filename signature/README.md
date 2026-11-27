@@ -62,6 +62,195 @@ JavaScript, with reduced motion, and without WebGL. The engine only adds.
 | `data-sg="mark"` | `src/build/kinetic.ts`, `engine.css` | Phase 2. A word mark split at build time whose letters rise as it scrolls in, in CSS alone (scroll-driven animations). |
 | Holding the place | `holdPlace()` in `src/engine/motion.ts` | Phase 2. When a section above the visitor changes height as it starts (a pin, a scrubbed list), the page keeps what they are looking at still. |
 
+## The Signature layer
+
+The engine above is for sites written for it. The layer (`src/layer/`,
+`layer/`) is for every other site: it adds Signature motion to a **finished**
+static site, from Website Factory or built by hand, without changing its
+design. Same HTML, same content, same CSS; the site's own elements become
+modules through a map of selectors, and a preset decides how motion feels in
+that industry.
+
+What it promises, and `tests/layer.spec.ts` checks on a hand-built site:
+
+- **Without JavaScript** the enhanced site is the base site, pixel for pixel.
+  Every rule in `layer.css` is behind `html.sgl`, which only the script sets.
+- **With reduced motion** the script returns at once: nothing of the layer
+  exists, and the page is the base site with its own reduced-motion rules.
+- **No layout shift.** Arrivals are opacity, transform and clip-path. Where
+  the layer has to touch the DOM (a headline split into word boxes, a wrapper
+  around the call to action, a counting figure) it measures before and after
+  in the same task, before anything is drawn, and undoes the change if a
+  single box moved. When the motion is over, the headline is the markup that
+  was written.
+- **Content is never hidden without a way back.** It waits only once the
+  script is running and watching it; whatever takes keyboard focus shows at
+  once; print shows everything.
+- **It adds motion, never design.** No colour, type or layout rule. Where a
+  site has motion of its own (Website Factory's CSS entrances), an element
+  the layer takes over loses the site's entrance, so the two never play on
+  top of each other; elements the map does not name keep the site's.
+
+### Enhancing a site
+
+```bash
+# a built site in a folder (changed in place, or copied with --out)
+node scripts/enhance.mjs <builtSiteDir> --map services --preset auto
+node scripts/enhance.mjs <builtSiteDir> --map ./site.map.json --preset editorial --out <dir>
+```
+
+It adds three tags before `</head>` in every HTML file and one folder of
+files (`signature/`). Nothing else changes, and running it again replaces
+what it added:
+
+```html
+<!-- signature-layer <build> -->
+<link rel="stylesheet" href="./signature/layer.css">
+<link rel="modulepreload" href="./signature/layer.js">
+<script type="module" src="./signature/site.js" blocking="render"></script>
+<!-- /signature-layer -->
+```
+
+The addresses use each page's own way to the site's top (`./`, `../`), as
+Website Factory writes its `site.css` link; `--root /` (or `root` below)
+gives absolute ones. `site.js` is one line: the site's map and preset, handed
+to `start()` in `layer.js`.
+
+**Why the mapping happens in the browser, not in the HTML.** The enhancer
+only does plain string operations on the head. Selectors are matched at run
+time, before the first paint: the script tag is render-blocking where the
+browser supports `blocking="render"` (Chrome 105, Safari 18.2), and it is 4
+KB. So there is no HTML parser to ship, no second copy of each page's
+markup to keep in step, and a site's HTML stays the site's. Where the script
+still runs after a paint (Firefox does not block on it), it leaves the whole
+first view exactly as the base site drew it and only prepares what is
+further down, so nothing shown is ever taken away.
+
+**From code** (Studio OS, or any build): `layer/enhance.mjs` is the same
+thing as a pure function. No filesystem, no network, nothing from Node; the
+layer's built files come from `layer-dist/assets.mjs`, an ordinary module.
+
+```ts
+import { enhanceSite, presetForDirection, DIRECTION_PRESETS } from "../signature/layer/enhance.mjs";
+
+const { files, assets } = enhanceSite(built /* { path, text }[] */, {
+  map: "services",                              // or a map object
+  preset: presetForDirection(design.direction), // "calm" | "warm" | "editorial" | "bold", or "auto"
+  root: undefined,                              // default: relative per page; "/" for absolute
+});
+// files:  the HTML files that changed, whole          → replace by path
+// assets: { path, text, contentType }[] to add        → signature/layer.js, layer.css, site.js, chunks
+```
+
+### The kept build (`layer-dist/`)
+
+`npm run build:layer` builds `src/layer/` with Vite and writes
+`layer-dist/assets.mjs` (every built file as text, under a stable name),
+its types and `manifest.json` (sizes, and a hash of everything the build was
+made from). The folder **is committed**, like Website Factory's fonts, so
+that Studio OS never runs Vite. `npm run build:layer -- --check` fails when
+the source has changed since; `tests/layer.spec.ts` runs it, so CI catches a
+stale build. After changing anything in `src/layer/` (or an engine file it
+imports): `npm run build:layer`, commit `layer-dist/`.
+
+### Presets
+
+A preset is tokens (durations, distances, curves) and the list of modules a
+site may use at all (`src/layer/presets.ts`). A map's `tokens` can replace
+single values for one site.
+
+| Preset | For | Headlines | Blocks and rows | Pictures | Also |
+| ------ | --- | --------- | --------------- | -------- | ---- |
+| `calm` | law, clinics, experts | line by line, a fade and a 0.3 em rise, 1 s | 0.6 rem, 0.8 s, 60 ms apart | fade, settling from 4 % larger | nothing else: no smooth scroll, no floating link, nothing that follows the pointer, no counting |
+| `warm` | cafés, restaurants | word by word, each turning 5° into place with a small overshoot | 1.4 rem with overshoot, 70 ms apart | open from below, settling from 14 % larger | call to action, counting, smooth scroll |
+| `editorial` | interior, architecture, studios | lines rising out of masks, 1.5 s, long landing | 1.6 rem, 1.3 s | unveiled from the top, settling from 22 % larger for 2.4 s | hover list, stack, call to action, counting, smooth scroll |
+| `bold` | statement brands | words out of masks, fast (0.75 s, 38 ms apart), a 4° kick | 2.2 rem, 0.6 s | wiped in from the side, 0.8 s | the same as editorial |
+
+Website Factory's directions and their default preset (`DIRECTION_PRESETS`,
+exported by `layer/enhance.mjs`; `--preset auto` reads the direction from
+the page's `d-<direction>` class):
+
+| Direction | Preset |
+| --------- | ------ |
+| `formal` | `calm` |
+| `clinic` | `calm` |
+| `cafe` | `warm` |
+| `atelier` | `editorial` |
+| `editorial` | `editorial` |
+| `statement` | `bold` |
+
+### Modules
+
+| Module | What the site's element becomes | Cost |
+| ------ | ------------------------------- | ---- |
+| `headline` | Text split into word boxes at run time (markup inside it stays), arriving by line or word; put back as written when it is over. A headline with a hyphenated word, or one whose lines would break differently, arrives as one block instead. | in `layer.js` |
+| `rise` | A block that rises into place: paragraphs, rows, cards. Siblings follow each other. | in `layer.js` |
+| `reveal` | A picture's frame opens (or fades, where the site clips the frame itself), and the picture inside settles on `transform`, so it adds to any drift the site gives it. | in `layer.js` |
+| `count` | A figure in the site's text counts up, in a box exactly as wide as the final number. Only an element with one whole number: prices, decimals, "24/7" and hours are left alone. | 0.8 KB, when near |
+| `cta` | The engine's call to action on the page's own link (in a wrapper that is kept only if it moves and restyles nothing). `options.end`: sections where it gives way. | 1.4 KB, after load |
+| `list` | The engine's reveal list: `options.row` and `options.thumb` name the rows and each row's own picture. Mouse and trackpad only; everyone else keeps the small pictures. **Changes layout for mouse users** (the small pictures go), so it is for lists designed with it. | 46.6 KB (GSAP), when near, never on touch |
+| `stack` | The engine's stack on the site's list of cards. **Changes layout** (cards stick and overlap), so it is for opaque cards of one height. | CSS only |
+| smooth scroll | Lenis alone, from the first sign of scrolling. Decided by the preset, not by a rule. | 5.3 KB, on first scroll |
+
+### The map
+
+A map is a plain object (or JSON file): the site's own selectors, in order.
+An element arrives once, by the first rule that matches it, and nothing
+arrives inside something that already arrives.
+
+```json
+{
+  "presets": [{ "when": "body.d-cafe", "preset": "warm" }],
+  "rules": [
+    { "module": "headline", "select": ".hero h1, .section-head h2" },
+    { "module": "reveal", "select": ".hero-image .frame", "options": { "inner": "img" } },
+    { "module": "rise", "select": ".hero-why, .ledger-row, .steps > li" },
+    { "module": "count", "select": ".sig-numbers dd" },
+    { "module": "cta", "select": ".hero-actions > a.button", "unless": "body.has-call-bar", "options": { "end": ".closing" } }
+  ],
+  "tokens": { "warm": { "rise": { "stagger": 90 } } }
+}
+```
+
+Two things to keep out of a map. An element that arrives is moved while it
+waits and arrives, and a moved element is what anything `position: fixed`
+inside it is placed against: never map an element that holds a fixed bar or
+button (the layer's own call to action waits until the element around it has
+arrived, for this reason). And a picture's frame should be the picture's own
+box: in a frame that also holds a caption and does not clip, the picture
+only gets the wipe, not the settling.
+
+`when` and `unless` are selectors tested against the page (a rule for one
+direction, or not where the site already has a bar at the foot of the
+screen). `presets` is what `--preset auto` reads. Rules for modules the
+preset does not allow are skipped, so one map serves every preset.
+
+The shipped map for Website Factory's services system is
+`layer/maps/services.mjs`, covering all six directions. It uses `headline`,
+`reveal`, `rise`, `count` and `cta`. It has no `stack` and no `list`: no
+direction writes steps as cards that could lie on each other (and the
+statement direction already stacks its own in CSS), and no list carries a
+picture per row. Adding either would be a new layout, which the layer never
+makes. A hand-built site's map is in `tests/fixtures/layer-site/`.
+
+### Proof
+
+```bash
+npx vitest run proof/concepts/industry-examples.render.ts   # in the repository's top folder: the invented examples
+npm run layer-proof                                         # in signature/: enhance them and photograph base and enhanced
+npm run layer-proof -- name=<builtSiteDir>[:preset] …       # any other built sites
+```
+
+Each site is opened on desktop (1440 × 900) and a Pixel 7 at six scroll
+points, base and enhanced, each at rest and held at exactly 350 ms into its
+motion (every time-based animation is paused at that time, so the picture is
+the same on a busy machine). One sheet per site and device in
+`review/layer/` (git-ignored). Port 4407.
+
+Films: the layer's test site is part of the built lab, so the film review
+needs no change to film it:
+`FR_PAGES=/layer-fixture/enhanced/,/layer-fixture/calm/ npm run film-review`.
+
 ## Commands
 
 ```bash
@@ -71,6 +260,9 @@ npm run check        # build (type-checked) → weight budget → tests → Ligh
 ```
 
 `npm run check` is the gate. CI runs the same steps (job "Signature engine").
+`npm run build` also puts the layer's test site into `dist/layer-fixture/`
+(base, enhanced, calm), from the kept build in `layer-dist/`. To run tests
+beside another checkout's server on 4317: `SG_PORT=4407 npx playwright test`.
 
 ### Visual review
 
@@ -162,7 +354,7 @@ cancelled, so Lenis cannot smooth it and the page jumps natively (30 px on
 desktop, 79 on a phone).
 
 Both passes are filmed with Chrome's screencast at the rate the page draws,
-then encoded to VP9 WebM in Chrome itself with WebCodecs and `webm-muxer`,
+then encoded to VP9 WebM in Chrome itself with WebCodecs and Mediabunny,
 every frame at its own time, after filming is over, so encoding never costs
 the page frames. Nothing is installed. Headless Chrome on a Mac draws WebGL
 on the real graphics card, so no `?webgl` is needed and the films show what a
@@ -264,7 +456,7 @@ disc. These options apply to stills only; the band on the pages is unchanged.
 The band is kept on the main thread here (`preserve`), never handed to its
 worker, so every frame can be read back. Chrome encodes it itself (WebCodecs:
 AV1, and H.264 through the system's encoder) and two small dev packages pack
-it (`webm-muxer`, `mp4-muxer`), so nothing is installed outside npm. A wide
+it (Mediabunny), so nothing is installed outside npm. A wide
 film (1280 × 720) for screens, a tall one (720 × 1280) for phones, about 480
 KB as AV1 and 555 KB as H.264 each, and a full HD one (1920 × 1080) for
 screens 1280 px wide and up, 912 KB and 1.1 MB: at full screen on 1440 and
@@ -304,6 +496,52 @@ FRAMES=0,30,59 OUT=/tmp/try node scripts/render-sequence.mjs  # a few pictures e
 
 Client sites use the client's own pictures and footage, with written permission.
 
+### Films from any page
+
+`scripts/render-dom-film.mjs` films any animated page, frame by frame, into
+`signature/films/` (not in git: the owner decides what is published). A page
+opts in by setting, once it is ready,
+
+```js
+window.sgFilm = { width, height, fps, duration, seek(t) };
+```
+
+where `seek(t)` puts everything at time t: a paused GSAP timeline through
+`.seek()`, CSS animations through `document.getAnimations()`, WebGL through a
+still drawn at t. Nothing on the page may run on a clock.
+
+```sh
+npm run dev                                   # the lab, port 4316
+npm run film                                  # Axivo's three films (lab/verktyg/reel.html)
+npm run film -- --only story                  # one of them: story (9:16), loop (1:1), wide (16:9)
+npm run film -- --page verktyg/reel.html?film=wide --name prov --web --webm
+npm run film -- --sheet-only                  # twelve frames and the contact sheet, nothing encoded
+npm run film -- --still 3.5,9.75              # those moments as PNG
+npm run film -- --base http://127.0.0.1:4387  # another dev server
+```
+
+For each frame it blanks the page, seeks, waits for the fonts and two
+animation frames, and photographs the page through Chrome
+(`Page.captureScreenshot`) until two photographs in a row are identical. No
+frame is taken on a timer, so the machine's load changes how long a render
+takes and nothing else. That is checked on every run: a spread of frames is
+photographed again, out of order, and must match to the pixel, and the digest
+of all frames is written to `<name>.json`. The page is rasterised on the CPU
+(on the graphics card, type came back a level off in a few pixels from one
+visit to the next); WebGL still draws on the card.
+
+The frames are encoded in Chrome with WebCodecs (`lab/verktyg/encode.ts`) and
+packed with Mediabunny: an H.264 MP4 master for platforms that encode again
+themselves, a smaller `-web.mp4` for a site, and where asked an AV1 WebM.
+Each file is then played back in the browser and must last the whole film,
+show every frame and start in the colours it was given. A contact sheet of
+twelve frames (`<name>-sheet.jpg`) is saved with it.
+
+`lab/verktyg/reel.html` holds Axivo's own films, made of the band, the silk
+pictures, Archivo and the brand colours: `?film=story`, `?film=loop`,
+`?film=wide`; add `&play` to watch one in a browser. Like the other tool
+pages it is not part of the build, so it weighs nothing for a visitor.
+
 ## The gate
 
 | Check | Limit |
@@ -314,6 +552,9 @@ Client sites use the client's own pictures and footage, with written permission.
 | 3D band, only on pages with an object | ≤ 10 KB (now 7.3, counted the same way; was 137 with Three.js) |
 | Sound, after load, only where used | ≤ 3 KB (now 1.1) |
 | Video player, only where there is a film | ≤ 3 KB (now 0.9) |
+| Signature layer, script for the first view of an enhanced site | ≤ 6 KB compressed (now 5.0: `layer.js` 4.3 and Website Factory's map in `site.js` 0.8) |
+| Signature layer, CSS | ≤ 2.5 KB (now 1.5) |
+| Signature layer, later and only where a page's map and preset use it | smooth scroll ≤ 6 KB (5.3), call to action ≤ 2 (1.4), count ≤ 1 (0.8), hover list with GSAP ≤ 50 (46.6, mouse only) |
 | Image sequence, only where there is one | ≤ 3 KB (now 2.5: the module and its worker; where no worker can start, the module and the same loader on the main thread instead, never both) |
 | Largest single picture | ≤ 100 KB (now 72); each comes in two sizes for `srcset` |
 | Largest single film | ≤ 600 KB (now 555, the wide H.264); fetched only as it comes near, one per screen, never with Save-Data |
@@ -366,10 +607,16 @@ Playwright cannot turn on Chrome's data saver. The 3D band went from 137 KB
   build visual animations without code in competition with Webflow, so never
   put GSAP behind a no-code animation builder in Studio OS.
 - **Lenis**: MIT.
-- **mp4-muxer** 5.2.2 and **webm-muxer** 5.1.4 (Vanilagy): MIT. Dev
-  dependencies for `scripts/render-video.mjs` only; nothing of them reaches a
-  visitor. Both are final releases (their author has moved on to Mediabunny,
-  which is MPL-2.0, so these MIT ones were kept).
+- **Mediabunny** 1.66.5 (Vanilagy and contributors): MPL-2.0. It packs the
+  films that Chrome encodes into MP4 and WebM, and replaces `mp4-muxer` and
+  `webm-muxer`, which their author has deprecated in its favour. A dev
+  dependency for the film tools only (`scripts/render-video.mjs`,
+  `scripts/render-dom-film.mjs`, `scripts/film-review.mjs` and their tool
+  pages under `lab/verktyg/`): used unmodified, straight from npm, and
+  nothing of it is built into `dist/` or the layer, so nothing of it reaches
+  a client's site or a visitor. MPL-2.0 asks that changes to its own files be
+  shared; none are made here. Its licence is in
+  `node_modules/mediabunny/LICENSE`.
 - **gl-transitions** (https://github.com/gl-transitions/gl-transitions): MIT,
   "Copyright (c) 2017-present gl-transitions contributors"; each transition's
   author and licence are in its own file's header. Four are adapted in

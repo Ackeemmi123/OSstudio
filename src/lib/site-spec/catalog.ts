@@ -39,6 +39,25 @@ export const SERVICES_SIGNATURE_LABELS: Record<(typeof SERVICES_SIGNATURES)[numb
 };
 export const SERVICES_FEEL_LABELS: Record<(typeof SERVICES_FEELS)[number], string> = { natural: "Natural", warm: "Warm", mono: "Black and white", grain: "Film grain" };
 export const SERVICES_MOTION_LABELS: Record<(typeof SERVICES_MOTIONS)[number], string> = { calm: "Calm", lively: "Lively" };
+/**
+ * Axivo Signature motion (signature/layer): the preset each direction gets. A copy of the
+ * layer's DIRECTION_PRESETS, kept here so the editor never loads the layer's files; a test
+ * keeps the two equal.
+ */
+export const SIGNATURE_PRESETS: Record<(typeof SERVICES_DIRECTIONS)[number], "calm" | "warm" | "editorial" | "bold"> = {
+  editorial: "editorial",
+  formal: "calm",
+  statement: "bold",
+  cafe: "warm",
+  atelier: "editorial",
+  clinic: "calm",
+};
+export const SIGNATURE_PRESET_LABELS: Record<(typeof SIGNATURE_PRESETS)[keyof typeof SIGNATURE_PRESETS], string> = {
+  calm: "calm: lines fade up quietly and pictures fade in",
+  warm: "warm: words settle one by one, and the order button follows",
+  editorial: "editorial: headlines rise out of masks and pictures are unveiled",
+  bold: "bold: quick masked words and pictures wiped in",
+};
 export const SERVICES_DIRECTION_LABELS: Record<(typeof SERVICES_DIRECTIONS)[number], string> = {
   editorial: "Editorial: a story, warm and calm",
   formal: "Formal: established and serious",

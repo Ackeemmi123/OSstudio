@@ -8,7 +8,7 @@
  * short flick back up, a pause, on), which is what shows jank, pins that jump
  * and things that snap. Both passes are filmed at the page's own frame rate
  * with Chrome's screencast and encoded to VP9 WebM in Chrome itself, with
- * WebCodecs and webm-muxer. While it scrolls, the page records every frame
+ * WebCodecs and Mediabunny. While it scrolls, the page records every frame
  * (requestAnimationFrame), long tasks, long animation frames with the scripts
  * in them, and layout shifts with the elements that moved. Each film is read
  * back frame by frame for visual jumps: change from one frame to the next that
@@ -225,7 +225,7 @@ function recorder() {
 
 // ---------- In a page of its own: encoding, visual jumps and sheets ----------
 
-/** Runs in the tool page at https://film.invalid/, with webm-muxer loaded as the global WebMMuxer. */
+/** Runs in the tool page at https://film.invalid/, with Mediabunny loaded as the global of that name. */
 function tools() {
   const frameUrl = (file) => `/f/${file.split("/").map(encodeURIComponent).join("/")}`;
   const load = async (file) => createImageBitmap(await (await fetch(frameUrl(file))).blob());
@@ -239,7 +239,7 @@ function tools() {
       reader.readAsDataURL(new Blob([out.slice(offset, offset + length)]));
     });
 
-  /** webm-muxer writes the duration as the last frame's start; this makes it the whole film (EBML 0x4489, 8-byte float, ms). */
+  /** Makes the WebM last the whole film, its last frame included (EBML 0x4489, 8-byte float, ms). */
   const setDuration = (buffer, milliseconds) => {
     const bytes = new Uint8Array(buffer);
     for (let i = 0; i < Math.min(bytes.length - 11, 4096); i++) {
@@ -315,14 +315,14 @@ function tools() {
     const height = first.height & ~1;
     first.close();
     const codec = (await VideoEncoder.isConfigSupported({ codec: "vp09.00.10.08", width, height, bitrate })).supported ? "vp09.00.10.08" : "vp8";
-    const muxer = new WebMMuxer.Muxer({
-      target: new WebMMuxer.ArrayBufferTarget(),
-      video: { codec: codec === "vp8" ? "V_VP8" : "V_VP9", width, height, frameRate: 60 },
-      type: "webm",
-      firstTimestampBehavior: "offset",
-    });
+    // Mediabunny packs what the encoder gives, each frame at its own time (no frame rate is declared: the times are the page's).
+    const output = new Mediabunny.Output({ format: new Mediabunny.WebMOutputFormat(), target: new Mediabunny.BufferTarget() });
+    const source = new Mediabunny.EncodedVideoPacketSource(codec === "vp8" ? "vp8" : "vp9");
+    output.addVideoTrack(source);
+    let written = output.start();
     let failure = null;
-    const encoder = new VideoEncoder({ output: (chunk, meta) => muxer.addVideoChunk(chunk, meta), error: (error) => (failure = error) });
+    const pack = (chunk, meta) => (written = written.then(() => source.add(Mediabunny.EncodedPacket.fromEncodedChunk(chunk), meta)).catch((error) => void (failure ??= error)));
+    const encoder = new VideoEncoder({ output: pack, error: (error) => (failure = error) });
     encoder.configure({ codec, width, height, bitrate, bitrateMode: "variable", framerate: 60, latencyMode: "realtime" });
     const canvas = document.createElement("canvas");
     canvas.width = width;
@@ -361,9 +361,10 @@ function tools() {
     }
     await encoder.flush();
     encoder.close();
+    await written;
     if (failure) throw failure;
-    muxer.finalize();
-    const buffer = muxer.target.buffer;
+    await output.finalize();
+    const buffer = output.target.buffer;
     setDuration(buffer, (frames.at(-1).t - t0) * 1000 + 1000 / 60);
     out = buffer;
     return { bytes: buffer.byteLength, width, height, codec, changes };
@@ -472,14 +473,14 @@ function tools() {
   };
 }
 
-const TOOL_PAGE = `<!doctype html><meta charset="utf-8"><title>film-review</title><script src="/webm-muxer.js"></script><script>(${tools.toString()})()</script>`;
+const TOOL_PAGE = `<!doctype html><meta charset="utf-8"><title>film-review</title><script src="/mediabunny.js"></script><script>(${tools.toString()})()</script>`;
 
 async function toolPage(browser) {
   const context = await browser.newContext({ viewport: { width: 800, height: 600 } });
   await context.route("https://film.invalid/**", (route) => {
     const path = decodeURIComponent(new URL(route.request().url()).pathname);
     if (path === "/") return route.fulfill({ contentType: "text/html", body: TOOL_PAGE });
-    if (path === "/webm-muxer.js") return route.fulfill({ path: join(HERE, "node_modules/webm-muxer/build/webm-muxer.js") });
+    if (path === "/mediabunny.js") return route.fulfill({ contentType: "text/javascript", path: join(HERE, "node_modules/mediabunny/dist/bundles/mediabunny.min.cjs") });
     if (path.startsWith("/f/")) {
       const body = FRAMES.get(path.slice(3));
       return body ? route.fulfill({ contentType: "image/jpeg", body }) : route.fulfill({ status: 404 });
@@ -489,7 +490,7 @@ async function toolPage(browser) {
   const page = await context.newPage();
   page.on("pageerror", (error) => console.error(`  tool page: ${error.message}`));
   await page.goto("https://film.invalid/");
-  await page.waitForFunction(() => typeof window.encodeFilm === "function" && typeof WebMMuxer === "object");
+  await page.waitForFunction(() => typeof window.encodeFilm === "function" && typeof Mediabunny === "object");
   return { page, close: () => context.close() };
 }
 

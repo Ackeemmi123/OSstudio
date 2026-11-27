@@ -1,0 +1,368 @@
+/*
+ * The films' layout (reel.ts builds the shots). Colours and fonts come from
+ * lab.css. Every length is counted in --u, a hundredth of the film's width,
+ * so one set of rules holds at 1080 and at 1920.
+ */
+.reel-page {
+  margin: 0;
+  background: #000;
+  overflow: hidden;
+}
+.stage {
+  position: relative;
+  overflow: hidden;
+  transform-origin: 0 0;
+  background: var(--ink);
+  color: #fff;
+  font-family: var(--display);
+  /* Film type is drawn once and photographed: no hinting to the pixel grid, no selection, no caret. */
+  text-rendering: geometricPrecision;
+  user-select: none;
+}
+.shot {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+
+/* Display type: the showcase's hand. Narrow Archivo, set tight, very large. */
+.words,
+.say,
+.count {
+  font: 500 calc(var(--u) * 20) / 0.84 var(--display);
+  font-stretch: 68%;
+  letter-spacing: -0.02em;
+}
+/* A line's mask: its letters rise out of it. Padded so Å, Ä, Ö and descenders are never cut. */
+.l {
+  display: block;
+  overflow: hidden;
+  padding: 0.24em 0.08em 0.22em;
+  margin: -0.24em -0.08em -0.22em;
+}
+.l-in {
+  display: inline-block;
+  white-space: nowrap;
+}
+.c {
+  display: inline-block;
+}
+
+.mark-small {
+  position: absolute;
+  z-index: 3;
+  left: calc(var(--u) * 8);
+  top: calc(var(--u) * 26);
+  font: 600 calc(var(--u) * 5) / 1 var(--display);
+  letter-spacing: -0.03em;
+  color: var(--on-ink);
+}
+.mark-small span {
+  margin-left: calc(var(--u) * 1.6);
+  font: 500 calc(var(--u) * 2.2) / 1 var(--text);
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  vertical-align: 0.24em;
+}
+
+/* The band, drawn by band-core. Taller than the frame where the band should sit above the middle. */
+.band-canvas {
+  position: absolute;
+  display: block;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+}
+.caption {
+  position: absolute;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--u) * 3.2);
+}
+.steps {
+  position: relative;
+  height: calc(var(--u) * 3);
+}
+.step {
+  position: absolute;
+  left: 0;
+  top: 0;
+  display: flex;
+  align-items: center;
+  gap: calc(var(--u) * 1.6);
+  white-space: nowrap;
+  font: 500 calc(var(--u) * 2.8) / 1 var(--text);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--on-ink-quiet);
+}
+.step b {
+  font-weight: 600;
+  color: #fff;
+  font-variant-numeric: tabular-nums;
+}
+.step i {
+  width: calc(var(--u) * 7);
+  height: 1px;
+  background: var(--hair-on-ink);
+}
+.words {
+  position: relative;
+  height: 0.84em;
+}
+.word {
+  position: absolute;
+  left: 0;
+  top: 0;
+}
+
+/* Silk: a picture from lab/bilder, drifting closer on the film's clock (a CSS animation, sought by reel.ts). */
+.silk {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  animation: silk-drift var(--length) linear both;
+}
+@keyframes silk-drift {
+  from {
+    transform: scale(1.18) translate(1.5%, 1.2%);
+  }
+  to {
+    transform: scale(1.05);
+  }
+}
+/* A veil of ink, so white type holds on the silk's highlights. */
+.shot-silk::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background: linear-gradient(100deg, rgb(14 17 24 / 0.5), rgb(14 17 24 / 0.12) 70%);
+}
+.say {
+  position: absolute;
+  z-index: 2;
+  left: calc(var(--u) * 8);
+  top: 50%;
+  transform: translateY(-50%);
+}
+.say .row {
+  display: block;
+  white-space: nowrap;
+}
+.say .row .l {
+  display: inline-block;
+  vertical-align: top;
+}
+
+.shot-paper {
+  background: var(--cloud);
+  color: var(--ink);
+}
+/* Paper with satin in it: the silk shows faintly through a wash of cloud, and drifts as it does in the dark shots. */
+.wash {
+  position: absolute;
+  inset: 0;
+  background: rgb(247 249 252 / 0.9);
+}
+.shot-paper .mark-small {
+  color: var(--ink);
+}
+
+/* A hairline drawn across the frame for as long as the shot lasts: the measuring, made visible. */
+.rule {
+  position: absolute;
+  left: calc(var(--u) * 8);
+  right: calc(var(--u) * 8);
+  bottom: calc(var(--u) * 33);
+  height: calc(var(--u) * 0.25);
+  z-index: 2;
+  background: var(--ink);
+  transform-origin: 0 50%;
+  animation: rule-draw var(--length) linear both;
+}
+@keyframes rule-draw {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+.film-wide .rule {
+  left: calc(var(--u) * 6);
+  right: calc(var(--u) * 6);
+  bottom: calc(var(--u) * 7);
+  height: calc(var(--u) * 0.14);
+}
+
+/* Three words, three colours. reel.ts names the colour on screen in the stage's data-tone. */
+.tone {
+  position: absolute;
+  inset: 0;
+}
+/* Each a brand colour, let through just enough for the silk beneath to fold it. */
+.tone-indigo {
+  background: rgb(74 91 181 / 0.8);
+}
+.tone-lilac {
+  background: rgb(195 188 242 / 0.88);
+}
+.tone-ice {
+  background: rgb(233 238 248 / 0.9);
+}
+.shot-count {
+  background: var(--ice);
+}
+.shot-count,
+.shot-count .mark-small {
+  color: var(--ink);
+}
+.stage[data-tone="indigo"] .shot-count,
+.stage[data-tone="indigo"] .shot-count .mark-small {
+  color: var(--cloud);
+}
+.count {
+  position: absolute;
+  z-index: 2;
+  left: calc(var(--u) * 8);
+  top: 50%;
+  transform: translateY(-50%);
+  display: grid;
+  /* Room for the g of one row above the dots of the ä in the next. */
+  gap: calc(var(--u) * 5);
+}
+.count-row {
+  font: inherit;
+  font-stretch: 68%;
+}
+/* Weight is the heavy one. */
+.count-3 {
+  font-weight: 800;
+}
+
+/* Under the caption the frame falls into shadow: pieces of the band that drift behind the type dim, and the type holds. */
+.shot-band::after {
+  content: "";
+  position: absolute;
+  inset: auto 0 0;
+  z-index: 1;
+  height: 58%;
+  background: linear-gradient(to top, rgb(21 25 34 / 0.94) 12%, rgb(21 25 34 / 0.62) 46%, rgb(21 25 34 / 0));
+}
+.film-wide .shot-band::after {
+  inset: 0;
+  height: auto;
+  background: linear-gradient(285deg, rgb(21 25 34 / 0.92) 8%, rgb(21 25 34 / 0.5) 34%, rgb(21 25 34 / 0) 56%);
+}
+
+/* The closing name: the lab's own mark, large. */
+.sign {
+  position: absolute;
+  z-index: 2;
+}
+.sign-name {
+  font: 600 calc(var(--u) * 27) / 0.84 var(--display);
+  font-stretch: 100%;
+  letter-spacing: -0.03em;
+  margin-left: -0.04em;
+}
+.sign-sub {
+  margin-top: calc(var(--u) * 3.6);
+  font: 500 calc(var(--u) * 3.8) / 1 var(--text);
+  letter-spacing: 0.36em;
+  text-transform: uppercase;
+  color: var(--on-ink);
+}
+.sign-line {
+  margin-top: calc(var(--u) * 5);
+  font: 400 calc(var(--u) * 4) / 1.2 var(--text);
+  color: var(--on-ink-quiet);
+}
+
+/* 9:16. Stories cover the top and the bottom of the frame with their own controls: type keeps to the middle. */
+.film-story .band-canvas {
+  top: -16%;
+  height: 116%;
+}
+.film-story .caption,
+.film-story .sign {
+  left: calc(var(--u) * 8);
+  bottom: calc(var(--u) * 33);
+}
+
+/* 1:1. */
+.film-loop .band-canvas {
+  top: -14%;
+  height: 114%;
+}
+.film-loop .mark-small {
+  left: calc(var(--u) * 7);
+  top: calc(var(--u) * 7);
+  font-size: calc(var(--u) * 4.4);
+}
+.film-loop .caption,
+.film-loop .sign {
+  left: calc(var(--u) * 7);
+  bottom: calc(var(--u) * 7);
+}
+.film-loop .sign-name {
+  font-size: calc(var(--u) * 21);
+}
+.film-loop .sign-line {
+  margin-top: calc(var(--u) * 3);
+}
+
+/* 16:9. The band sits left of the middle, as on the site; the type has the right half. */
+.film-wide .mark-small {
+  left: calc(var(--u) * 4.5);
+  top: calc(var(--u) * 4.5);
+  font-size: calc(var(--u) * 2.3);
+}
+.film-wide .mark-small span {
+  margin-left: calc(var(--u) * 0.8);
+  font-size: calc(var(--u) * 1);
+}
+.film-wide .caption {
+  left: calc(var(--u) * 51);
+  bottom: calc(var(--u) * 7);
+  gap: calc(var(--u) * 2);
+}
+.film-wide .steps {
+  height: calc(var(--u) * 1.6);
+}
+.film-wide .step {
+  font-size: calc(var(--u) * 1.5);
+  gap: calc(var(--u) * 0.9);
+}
+.film-wide .step i {
+  width: calc(var(--u) * 4);
+}
+.film-wide .say,
+.film-wide .count {
+  left: calc(var(--u) * 6);
+}
+.film-wide .count {
+  top: 53%;
+  gap: calc(var(--u) * 2.4);
+}
+.film-wide .sign {
+  left: calc(var(--u) * 51);
+  top: 50%;
+  transform: translateY(-50%);
+}
+.film-wide .sign-name {
+  font-size: calc(var(--u) * 17);
+}
+.film-wide .sign-sub {
+  margin-top: calc(var(--u) * 2);
+  font-size: calc(var(--u) * 1.9);
+}
+.film-wide .sign-line {
+  margin-top: calc(var(--u) * 2.6);
+  font-size: calc(var(--u) * 2);
+}

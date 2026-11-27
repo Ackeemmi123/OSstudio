@@ -1,0 +1,33 @@
+/*
+ * Call to action (`data-sg="cta"`, src/modules/cta.ts): while its place is out
+ * of view, the link floats at the bottom centre, below the screen until it
+ * shows. Hidden, it takes no clicks but can still take focus, which shows it.
+ */
+[data-sg="cta"].is-floating > a {
+  position: fixed;
+  inset: auto 0 calc(1rem + env(safe-area-inset-bottom));
+  z-index: 8;
+  width: max-content;
+  max-width: calc(100% - 2rem);
+  margin-inline: auto;
+  translate: 0 calc(100% + 2rem + env(safe-area-inset-bottom));
+  pointer-events: none;
+  transition: translate 0.5s cubic-bezier(0.65, 0, 0.35, 1);
+}
+[data-sg="cta"].is-shown > a {
+  translate: none;
+  pointer-events: auto;
+}
+.sg-menu-open [data-sg="cta"] > a {
+  visibility: hidden;
+}
+@media (prefers-reduced-motion: reduce) {
+  [data-sg="cta"].is-floating > a {
+    translate: none;
+    opacity: 0;
+    transition: opacity 0.2s;
+  }
+  [data-sg="cta"].is-shown > a {
+    opacity: 1;
+  }
+}
