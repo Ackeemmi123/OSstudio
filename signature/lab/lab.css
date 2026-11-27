@@ -601,13 +601,20 @@ a {
   }
 }
 @media (min-width: 900px) {
+  /* The section is the runway (its height comes from story.ts); the hold inside it stays on screen. */
   .story.is-horizontal {
+    padding: 0;
+  }
+  .story.is-horizontal > .story-hold {
+    position: sticky;
+    top: 0;
     min-height: 100vh;
     display: flex;
     flex-direction: column;
     justify-content: center;
-    padding-block: clamp(4rem, 10vh, 6rem);
-    overflow: hidden;
+    padding: clamp(4rem, 10vh, 6rem) var(--gutter);
+    /* Clipped, not hidden: focus never scrolls it sideways, and it is no scroller for anything inside. */
+    overflow: clip;
   }
   .story.is-horizontal .story-track {
     display: flex;

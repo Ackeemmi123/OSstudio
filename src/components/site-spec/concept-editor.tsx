@@ -11,6 +11,8 @@ import {
   SERVICES_MOTIONS,
   SERVICES_SIGNATURE_LABELS,
   SERVICES_SIGNATURES,
+  SIGNATURE_PRESET_LABELS,
+  SIGNATURE_PRESETS,
 } from "@/lib/site-spec/catalog";
 import type { LocalizedText, SiteSpec } from "@/lib/site-spec/schema";
 import { signatureFor } from "@/lib/site-spec/to-services";
@@ -32,6 +34,7 @@ type Concept = NonNullable<SiteSpec["brand"]["concept"]>;
 export function ConceptEditor({ spec, editing, projectId, library }: { spec: SiteSpec; editing: SpecEditing; projectId?: string; library?: ImageLibrary }) {
   const { editable, change, personSource } = editing;
   const concept = spec.brand.concept ?? {};
+  const direction = spec.brand.servicesStyle?.direction;
   const locale = spec.locales.default;
   const say = (value: LocalizedText | undefined) => value?.[locale]?.trim() ?? "";
   const conceptChange = (edit: (c: Concept) => void) =>
@@ -112,6 +115,24 @@ export function ConceptEditor({ spec, editing, projectId, library }: { spec: Sit
           </Select>
         </Field>
       </div>
+      {direction ? (
+        <label className="flex items-start gap-2 text-[13px]">
+          <input
+            type="checkbox"
+            className="mt-[3px]"
+            checked={Boolean(concept.signatureMotion)}
+            disabled={!editable}
+            onChange={(e) => conceptChange((c) => void (e.target.checked ? (c.signatureMotion = true) : delete c.signatureMotion))}
+          />
+          <span>
+            <span className="text-ink">Axivo Signature motion</span>
+            <span className="block text-ink-muted">
+              Premium. Motion that fits the direction is added on top of this design, {SIGNATURE_PRESET_LABELS[SIGNATURE_PRESETS[direction]]}. Without JavaScript or with
+              reduced motion the site looks exactly the same. Shown on the review link, not in this preview.
+            </span>
+          </span>
+        </label>
+      ) : null}
 
       {concept.signature ? (
         <div className="flex flex-col gap-2 text-[13px]">
