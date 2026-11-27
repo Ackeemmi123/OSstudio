@@ -35,6 +35,7 @@ JavaScript, with reduced motion, and without WebGL. The engine only adds.
 | Smooth scroll | `src/engine/scroll.ts` | Lenis, in step with ScrollTrigger. Native scrolling, keyboard, anchors and touch keep working. |
 | Page transitions | `src/engine/engine.css` | The browser's own cross-document View Transitions: the new page rises like a curtain. A picture with the same `view-transition-name` on two pages flies from one to the other (the showcases' "next" pictures grow into the next page's main picture); a line in each page head marks an arrival by transition, so a picture that flew in needs no second entrance. Off with reduced motion; browsers without them change page as usual. |
 | Shader stage | `src/engine/shader-stage.ts` | A full-screen fragment shader in plain WebGL: compiles in the background, draws only when visible, refuses software renderers, recovers from a lost context. |
+| Drawing off the main thread | `src/engine/offscreen.ts`, `stage-core.ts`, `stage-worker.ts`, `worker-host.ts` | Where the browser can draw WebGL in a worker, the shader stage and the 3D band hand their canvas to one (`transferControlToOffscreen`): the WebGL context, the compile and every frame happen there, so even the first WebGL context in a fresh browser never blocks the page. The size, visibility, uniforms, scroll and pointer go in as messages; a picture goes in as decoded bitmaps. Elsewhere (no OffscreenCanvas, or no WebGL in workers) the same drawing code runs on the main thread, as before. |
 | Moving headlines | `src/build/kinetic.ts` | Split into letters **at build time**; CSS animates them. No script, visible from the first paint, the whole sentence as the accessible name. |
 | `data-sg="rise"` | `src/engine/engine.css` | First-view text that arrives with one CSS rise. |
 | `data-sg="lines"` | `src/modules/text.ts` | Text further down that arrives line by line as it scrolls in. |
@@ -42,7 +43,7 @@ JavaScript, with reduced motion, and without WebGL. The engine only adds.
 | `data-sg="ink-field"` | `src/modules/ink-field.ts` | A slow field of silk in the site's colours, lit like satin and stirred by the pointer, over a still gradient that is the design without WebGL. |
 | `data-sg="story"` | `src/modules/story.ts` | Phase 2. Panels that slide sideways while the section holds still, on wide screens with motion; stacked everywhere else. Tabbing into a hidden panel scrolls it into view. |
 | `data-sg="marquee"` | `src/modules/marquee.ts` | Phase 2. A line that runs without end, faster with scroll speed and backwards when scrolling up. Copies are hidden from screen readers. |
-| `data-sg="object"` | `src/modules/object.ts`, `band-scene.ts` | Phase 2. A Möbius band of brushed satin metal that starts as eight loose pieces and flows together into one band as steps scroll past. Plain WebGL, about 5 KB compressed (it was Three.js, 140 KB, until the same picture was drawn without it): the shape is computed on the graphics card from flowing noise, the studio it reflects is drawn analytically in the shader, and the satin streaks come from blurring that reflection along the band. The scroll drives a spring. Over a rendered picture of it that is the design without WebGL. Quality adapts to the device: it measures the screen's frame rate, then steps down (fewer pixels and a coarser band, then one reflection sample) only if frames are slow; `?quality=0\|1\|2` fixes it for comparison. |
+| `data-sg="object"` | `src/modules/object.ts`, `band-scene.ts`, `band-core.ts` | Phase 2. A Möbius band of brushed satin metal that starts as eight loose pieces and flows together into one band as steps scroll past. Plain WebGL, about 5 KB compressed (it was Three.js, 140 KB, until the same picture was drawn without it): the shape is computed on the graphics card from flowing noise, the studio it reflects is drawn analytically in the shader, and the satin streaks come from blurring that reflection along the band. The scroll drives a spring. Over a rendered picture of it that is the design without WebGL. Quality adapts to the device: it measures the screen's frame rate, then steps down (fewer pixels and a coarser band, then one reflection sample) only if frames are slow; `?quality=0\|1\|2` fixes it for comparison. Drawn in a worker where the browser allows it (`band-worker.ts`). |
 | `data-sg="reveal"` | `src/modules/reveal.ts` | Part B. A picture that arrives behind a living edge as it scrolls in and swells like a lens under the mouse. Drawn by a shader over the real `<img>`, which stays for screen readers, search, reduced motion and devices without WebGL. |
 | `data-sg="gallery"` | `src/modules/gallery.ts`, `engine.css` | Part B. A sideways row of pictures: a native scroller with snap points (touch, trackpad, arrow keys, screen readers, no script). The engine adds mouse drag with a throw, buttons, a counter and a progress line; pictures drift in their frames (CSS scroll-driven). |
 | `data-sg="sound"` | `src/modules/sound.ts` | Part B. A quiet ambient chord from the browser's own synthesiser: no file, off until asked for, remembered, never started without a click or key press, paused in hidden tabs. Scrolling opens its filter, so it brightens while the page moves. Hidden without JavaScript. |
@@ -145,9 +146,9 @@ Client sites use the client's own pictures, with written permission.
 | Check | Limit |
 | ----- | ----- |
 | Script for the first view | ≤ 15 KB compressed (now 4.2, the menu's 1.24 included) |
-| Motion engine, loaded later | ≤ 60 KB (now 56.9) |
-| WebGL shaders, loaded later | ≤ 10 KB (now 4.3) |
-| 3D band, only on pages with an object | ≤ 10 KB (was 137 with Three.js) |
+| Motion engine, loaded later | ≤ 60 KB (now 57) |
+| WebGL shaders, loaded later | ≤ 10 KB (now 6.8, with the worker; a browser that draws on the main thread gets the same code for it instead, never both) |
+| 3D band, only on pages with an object | ≤ 10 KB (now 7.1, counted the same way; was 137 with Three.js) |
 | Sound, after load, only where used | ≤ 3 KB (now 1) |
 | Largest single picture | ≤ 100 KB (now 72); each comes in two sizes for `srcset` |
 | CSS / HTML / fonts | ≤ 15 / 10 / 140 KB (fonts now 121, all three faces) |
@@ -155,18 +156,19 @@ Client sites use the client's own pictures, with written permission.
 | axe (WCAG 2.2 AA) | no violations, with and without motion |
 | Tests | content without JavaScript, nothing moving with reduced motion, still field without WebGL, no sideways scroll on a phone, no console errors, the menu's keyboard path (focus in, round, Esc, focus back), leaving through the menu and coming Back |
 
-Measured 2026-11-27, after the menu and the reveal list, median of three
-runs, each started at a 1-minute load under 3 (one at 4.96, after ten
-minutes' wait): the library, scene two, the dark and the playful showcase and
-the 404 page 100, the lab 99, the warm showcase 98 (runs 95, 98, 99);
-accessibility, best practices and SEO 100 everywhere. Largest content after
-0.8–0.9 s, except the warm showcase's hero picture on a phone (1.9–2.4 s);
-layout shift 0 to 0.004. After the menu learnt to step aside on scroll and
-to show each page's picture, the two pages with a menu again (load under 3):
-the library 100 (100, 100, 100), the warm showcase 99 (99, 99, 99, largest
-content 1.9 s). 151 tests pass on desktop and phone (9 are desktop-only or
-run once by design). The 3D band went from 137 KB
-(Three.js) to 5.7 KB compressed, with the same picture.
+Measured 2026-11-27 with the menu, the reveal list and the worker together,
+median of three runs, each started at a 1-minute load under 3: the library and
+the dark showcase 100, the lab and the warm showcase 99; accessibility, best
+practices and SEO 100 everywhere (the 404 page is kept out of search by
+design). The lab's first run in a fresh browser used to be slower (TBT up to
+160 ms). The cause was not the silk shader's compile, which already ran in the
+background, but creating the first WebGL context: 70 to 210 ms of blocked main
+thread under Lighthouse. It now happens in a worker, and the first run scores
+like the rest (TBT 0 in six of six). Largest content within 0.8 s on every page
+but the warm showcase (about 2 s, its hero picture on a phone); layout shift 0
+to 0.003. 163 tests pass on desktop and phone (11 are skipped: desktop-only,
+run once by design, or needing a software renderer, as CI has). The 3D band
+went from 137 KB (Three.js) to 5.7 KB compressed, with the same picture.
 
 ## Licences
 
