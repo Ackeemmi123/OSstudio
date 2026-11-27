@@ -126,7 +126,16 @@ export function mountMenu(root: HTMLElement, openNow = false): void {
     next.classList.add("is-active");
     shown = index;
   };
-  panel.addEventListener("pointerover", follow);
+  // The latest real input wins. A resting pointer also gets `pointerover` when what lies under it changes (a
+  // hovered name widening beneath it, the panel scrolling), which would undo a choice just made with the
+  // keyboard; so the pointer leads only when it really moves.
+  let at = "";
+  panel.addEventListener("pointermove", (event) => {
+    const where = `${event.clientX},${event.clientY}`;
+    if (where === at) return;
+    at = where;
+    follow(event);
+  });
   panel.addEventListener("focusin", follow);
 
   // Out of the way while reading down, back at the first move up. Lenis moves the window's own
