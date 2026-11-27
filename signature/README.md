@@ -161,8 +161,11 @@ minutes' wait): the library, scene two, the dark and the playful showcase and
 the 404 page 100, the lab 99, the warm showcase 98 (runs 95, 98, 99);
 accessibility, best practices and SEO 100 everywhere. Largest content after
 0.8–0.9 s, except the warm showcase's hero picture on a phone (1.9–2.4 s);
-layout shift 0 to 0.004. 141 tests pass on desktop and phone (9 are
-desktop-only or run once by design). The 3D band went from 137 KB
+layout shift 0 to 0.004. After the menu learnt to step aside on scroll and
+to show each page's picture, the two pages with a menu again (load under 3):
+the library 100 (100, 100, 100), the warm showcase 99 (99, 99, 99, largest
+content 1.9 s). 151 tests pass on desktop and phone (9 are desktop-only or
+run once by design). The 3D band went from 137 KB
 (Three.js) to 5.7 KB compressed, with the same picture.
 
 ## Licences
