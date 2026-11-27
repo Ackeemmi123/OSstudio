@@ -26,6 +26,7 @@
  *
  *   npm run film                                  Axivo's three films (lab/verktyg/reel.html)
  *   npm run film -- --only story                  those whose name contains "story"
+ *   npm run film -- --lang fi                     Axivo's films in Finnish (fi, en; Swedish without the flag), named …-fi
  *   npm run film -- --page verktyg/reel.html?film=wide --name prov --web --webm
  *                                                 any page with the contract (a path under the base, or a full address);
  *                                                 --web adds a smaller H.264 file, --webm an AV1 one
@@ -76,9 +77,12 @@ const FILMS = [
   { name: "axivo-signature-wide-1920x1080", page: "verktyg/reel.html?film=wide", encodings: (name) => [mp4(name), web(name, 2_300_000), webm(name, 600_000)] },
 ];
 
+/** Axivo's films exist in Swedish (the lab's own language, no suffix), Finnish and English. */
+const LANG = value("lang", "sv");
+if (!["sv", "fi", "en"].includes(LANG)) throw new Error(`--lang is sv, fi or en, not ${LANG}`);
 const films = value("page")
   ? [{ name: value("name", "film"), page: value("page"), encodings: (name) => [mp4(name), ...(flag("web") ? [web(name, 2_300_000)] : []), ...(flag("webm") ? [webm(name, 600_000)] : [])] }]
-  : FILMS.filter((film) => film.name.includes(value("only", "")));
+  : FILMS.filter((film) => film.name.includes(value("only", ""))).map((film) => (LANG === "sv" ? film : { ...film, name: `${film.name}-${LANG}`, page: `${film.page}&lang=${LANG}` }));
 if (!films.length) throw new Error(`No film matches --only ${value("only")}`);
 
 const address = (page) => (/^https?:/.test(page) ? page : `${BASE}/${page.replace(/^\//, "")}`);
