@@ -309,12 +309,33 @@
         <p class="cta-lead">Förbi första skärmen följer länken här nedan med som en knapp längst ner. Den går undan när du läser nedåt, kommer tillbaka när du scrollar uppåt och viker när sidfoten syns, så det aldrig står två. När du närmar dig den här platsen kommer den fram och glider in på den, och scrollar du tillbaka glider den ut igen. Den täcker aldrig det som har fokus. På en kunds sajt står det Boka tid eller Boka bord; labbet har ingen bokning, så den leder till hantverket. Utan JavaScript är den bara länken.</p>
         <p class="cta-home" data-sg="cta"><a class="pill pill-cta" href="../hantverk/"><span class="roll">Se hantverket</span><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M5 12h14M13 6l6 6-6 6" /></svg></a></p>
       </section>
+
+      <section class="band sequence" aria-labelledby="sequence-title">
+        <h2 class="label" id="sequence-title"><span>13</span> <span class="label-name">Bild för bild</span> <span class="label-note">Bildsekvens</span></h2>
+        <p class="sequence-lead">Sextio bilder av bandet, renderade i kod och spelade av scrollen: sektionen står still medan du rullar, och de åtta delarna samlas till ett band. För en kund med en riktig produkt är det produkten som vänder sig här. Telefonen visar bara bilder, ingen WebGL, och med mindre rörelse eller sparad data visas den sista.</p>
+        <div class="sg-sequence" data-sg="sequence" data-frames="60" data-sg-steps="0.25 0.7">
+          <div data-sg-stage>
+            <picture>
+              <source media="(max-width: 699px) and (prefers-reduced-motion: reduce), (max-width: 699px) and (scripting: none)" srcset="../sekvens/telefon/59.webp" width="720" height="1560" data-sg-still="(max-width: 699px)" />
+              <source media="(prefers-reduced-motion: reduce), (scripting: none)" srcset="../sekvens/bred/59.webp" width="1600" height="900" data-sg-still="" />
+              <source media="(max-width: 699px)" srcset="../sekvens/telefon/00.webp" width="720" height="1560" data-sg-frames="../sekvens/telefon/{n}.webp" />
+              <img src="../sekvens/bred/00.webp" width="1600" height="900" data-sg-frames="../sekvens/bred/{n}.webp" loading="lazy" decoding="async" alt="Bandets åtta delar av borstad metall som samlas till en hel Möbiusslinga, renderat i kod" />
+            </picture>
+            <ol class="sequence-lines">
+              <li style="--i: 0">Åtta delar.</li>
+              <li style="--i: 1">En rörelse.</li>
+              <li style="--i: 2">Ett band.</li>
+            </ol>
+            <p class="sequence-count" aria-hidden="true">Bild <span data-sg-at>60</span> / 60</p>
+          </div>
+        </div>
+      </section>
     </main>
 
     <footer class="signature-foot" aria-labelledby="foot-title">
       <h2 class="visually-hidden" id="foot-title">Sidfot</h2>
       <div class="foot-row">
-        <p><span class="label"><span>13</span> Signaturfot</span>Ordmärket reser sig bokstav för bokstav medan du scrollar hit, med bara CSS.</p>
+        <p><span class="label"><span>14</span> Signaturfot</span>Ordmärket reser sig bokstav för bokstav medan du scrollar hit, med bara CSS.</p>
         <a class="pill" href="../" data-sg-magnetic data-cursor-label="Tillbaka"><span class="roll">Tillbaka till början</span></a>
       </div>
       <p class="foot-word" data-sg="mark">axivo</p>
