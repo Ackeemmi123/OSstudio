@@ -86,7 +86,7 @@ export function boot(options: BootOptions = {}): Capabilities {
   const allowSoftware = options.forceWebGL === true;
 
   // Modules further down mount as they come near; the engine they need loads then.
-  const moving = [...document.querySelectorAll<HTMLElement>('[data-sg="lines"], [data-sg="scene"], [data-sg="story"], [data-sg="marquee"], [data-sg="object"], [data-sg="reveal"], [data-sg="gallery"], [data-sg="count"], [data-sg="play"]')];
+  const moving = [...document.querySelectorAll<HTMLElement>('[data-sg="lines"], [data-sg="scene"], [data-sg="story"], [data-sg="marquee"], [data-sg="object"], [data-sg="reveal"], [data-sg="gallery"], [data-sg="count"], [data-sg="play"], [data-sg="reveal-list"]')];
   for (const element of moving) {
     whenNear(element, () =>
       void loadMotion().then((engine) => {
@@ -100,6 +100,7 @@ export function boot(options: BootOptions = {}): Capabilities {
         else if (kind === "gallery") engine.mountGallery(element);
         else if (kind === "count") engine.mountCount(element);
         else if (kind === "play") engine.mountPlay(element);
+        else if (kind === "reveal-list") engine.mountRevealList(element);
       }),
     );
   }
@@ -109,6 +110,18 @@ export function boot(options: BootOptions = {}): Capabilities {
     whenNear(element, () => {
       void import("../modules/video").then(({ mountVideo }) => mountVideo(element, capabilities));
       if (element.dataset.sgVariant === "grow") void loadMotion().then(({ mountVideoGrow }) => mountVideoGrow(element));
+    });
+  }
+
+  // The menu: its own small chunk, fetched at once on pages that have one. A press before it arrives still opens it.
+  const menu = document.querySelector<HTMLElement>('[data-sg="menu"]');
+  if (menu) {
+    let early = false;
+    const note = (event: Event) => (early ||= Boolean((event.target as Element).closest("[data-sg-menu-toggle]")));
+    menu.addEventListener("click", note);
+    void import("../modules/menu").then(({ mountMenu }) => {
+      menu.removeEventListener("click", note);
+      mountMenu(menu, early);
     });
   }
 
