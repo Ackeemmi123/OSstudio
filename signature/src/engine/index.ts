@@ -10,6 +10,8 @@
  * once someone scrolls. The ink field's shader loads after the page has loaded
  * and checks the graphics hardware itself. A film's player (under 1 KB) loads
  * as the film comes near, and only then does the film itself start to load.
+ * Stacked cards need no script at all; the call to action's chunk (under
+ * 1 KB) loads after the page has loaded.
  */
 import { onReducedMotionChange, readCapabilities, type Capabilities, type CapabilityOptions } from "./capabilities";
 

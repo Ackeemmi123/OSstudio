@@ -20,8 +20,9 @@ test.describe("without JavaScript", () => {
 
   test("every block shows its content: four story panels, the band's picture, one ticker line, the word mark, the pictures", async ({ page }) => {
     await page.goto(PAGE);
+    // The story's own panels (the stack in 11 tells the same steps; tests/stack-cta.spec.ts covers it).
     for (const title of ["Brief och idé", "Innehåll i Studio OS", "Rörelse och hantverk", "Granskning och lansering"]) {
-      await expect(page.getByRole("heading", { level: 3, name: title })).toBeVisible();
+      await expect(page.locator(".story").getByRole("heading", { level: 3, name: title })).toBeVisible();
     }
     await expect(page.getByRole("img", { name: "Ett band av borstad metall i en Möbiusslinga mot en mörkblå bakgrund, renderat i 3D" })).toBeVisible();
     await expect(page.locator("[data-sg-line]")).toHaveCount(1);
