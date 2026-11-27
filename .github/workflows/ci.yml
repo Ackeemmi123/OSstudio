@@ -50,6 +50,67 @@ jobs:
           INQUIRY_HASH_KEY: inquiry-hash-key-ci-canary-must-not-ship-0123
           INQUIRY_STUDIO_ID: 00000000-0000-4000-8000-000000000000
 
+  signature:
+    name: Signature engine (build, weight, tests, Lighthouse)
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    defaults:
+      run:
+        working-directory: signature
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      # Only pull requests and pushes that touch the engine (or this file) run it; for the rest the job passes at once.
+      - name: Did signature/ change?
+        id: changed
+        working-directory: .
+        env:
+          PR_BASE: ${{ github.event.pull_request.base.sha }}
+          PUSH_BEFORE: ${{ github.event.before }}
+        run: |
+          base="${PR_BASE:-$PUSH_BEFORE}"
+          if [ -n "$base" ] && git diff --quiet "$base" HEAD -- signature .github/workflows/ci.yml 2>/dev/null; then
+            echo "run=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          fi
+      - uses: actions/setup-node@v4
+        if: steps.changed.outputs.run == 'true'
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: signature/package-lock.json
+      - if: steps.changed.outputs.run == 'true'
+        run: npm ci
+      - name: Install Playwright browser
+        if: steps.changed.outputs.run == 'true'
+        run: npx playwright install --with-deps chromium
+      - name: Build (type-checked)
+        if: steps.changed.outputs.run == 'true'
+        run: npm run build
+      - name: Weight budget
+        if: steps.changed.outputs.run == 'true'
+        run: npm run budget
+      - name: Tests (no JavaScript, reduced motion, software WebGL, films, accessibility, phone)
+        if: steps.changed.outputs.run == 'true'
+        run: npm test
+      # Shared runners vary too much in speed for a performance gate, so Lighthouse reports here and gates locally on a quiet machine.
+      - name: Lighthouse, median of three (report only)
+        if: steps.changed.outputs.run == 'true'
+        continue-on-error: true
+        run: npm run lighthouse
+      - uses: actions/upload-artifact@v4
+        if: always() && steps.changed.outputs.run == 'true'
+        with:
+          name: signature-reports
+          path: |
+            signature/playwright-report/
+            signature/test-results/
+            signature/lighthouse/
+          if-no-files-found: ignore
+          retention-days: 7
+
   integration:
     name: Database and end-to-end tests (local Supabase)
     runs-on: ubuntu-latest
