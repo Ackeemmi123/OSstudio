@@ -43,6 +43,25 @@ async function scrollUntil(page: Page, element: Locator, where: "middle" | "belo
   throw new Error("Never got there.");
 }
 
+/**
+ * Jumps straight there, without scrolling past the page above: nothing above starts (the 3D band, on the main
+ * thread in these tests), which on a software renderer would take most of the test's time. Measures again after
+ * each jump, since what is near does start and may grow.
+ */
+async function jumpTo(page: Page, element: Locator, where: "middle" | "below") {
+  for (let i = 0; i < 20; i++) {
+    const off = await element.evaluate((target, to) => {
+      const box = target.getBoundingClientRect();
+      const by = to === "middle" ? box.top + box.height / 2 - innerHeight / 2 : box.top - innerHeight - 40;
+      if (Math.abs(by) > 2) window.scrollBy(0, by);
+      return by;
+    }, where);
+    if (Math.abs(off) <= 2) return;
+    await page.waitForTimeout(100);
+  }
+  throw new Error("Never got there.");
+}
+
 interface Seen {
   t: number;
   on: boolean;
@@ -92,19 +111,26 @@ interface Draw {
 }
 
 /**
- * Records what each transition's shader actually drew, frame by frame: right
- * after every draw on a picture's canvas, three rows of it are read back. The
- * stage must draw on the main thread for this (`withoutOffscreenCanvas`).
+ * Records what one transition's shader actually drew: right after a draw on
+ * that picture's canvas, three rows of it are read back (a few hundred pixels
+ * each). The stage must draw on the main thread for this
+ * (`withoutOffscreenCanvas`). Reading back makes a software renderer finish
+ * the frame at once, so it is kept cheap: only the picture under test, every
+ * second frame while it arrives, and three frames once it is shown, then no
+ * more.
  */
-async function watchDraws(page: Page) {
-  await page.addInitScript(() => {
+async function watchDraws(page: Page, name: Name) {
+  await page.addInitScript((wanted) => {
     const draws: Record<string, Draw[]> = {};
     (window as unknown as { sgDraws: typeof draws }).sgDraws = draws;
     const original = WebGLRenderingContext.prototype.drawArrays;
+    let count = 0;
+    let after = 0;
     WebGLRenderingContext.prototype.drawArrays = function (this: WebGLRenderingContext, ...args: Parameters<typeof original>) {
       original.apply(this, args);
-      const frame = this.canvas instanceof HTMLCanvasElement ? this.canvas.closest<HTMLElement>("[data-sg-transition]") : null;
+      const frame = this.canvas instanceof HTMLCanvasElement ? this.canvas.closest<HTMLElement>(`[data-sg-transition="${wanted}"]`) : null;
       if (!frame) return;
+      if (frame.dataset.sgPicture === "shown" ? after++ >= 3 : count++ % 2) return;
       const width = this.drawingBufferWidth;
       const height = this.drawingBufferHeight;
       const pixels = new Uint8Array(width * 4);
@@ -125,8 +151,9 @@ async function watchDraws(page: Page) {
         return { mean: (left + right) / width / 255, left: left / half / 255, right: right / (width - half) / 255, edges, min };
       });
       (draws[frame.dataset.sgTransition!] ??= []).push({ t: performance.now(), rows });
+      if (after >= 3) (window as unknown as { sgDrawsDone: boolean }).sgDrawsDone = true;
     };
-  });
+  }, name);
 }
 
 /** How far two screenshots of the same size are from each other: the mean difference per colour channel, 0–255. */
@@ -161,23 +188,24 @@ async function expectWhole(page: Page, frame: Locator, name: string) {
 
 for (const name of NAMES) {
   test(`${name}: the picture arrives its own way and ends whole, on frames the shader drew`, async ({ page }) => {
-    test.setTimeout(120_000);
+    test.setTimeout(90_000);
     const errors = collectErrors(page);
     await withoutOffscreenCanvas(page);
     await watchPictures(page);
-    await watchDraws(page);
+    await watchDraws(page, name);
     await page.goto(`${PAGE}?webgl`);
     const frame = page.locator(`[data-sg-transition="${name}"]`);
     // Just under the screen: near enough to start its shader, not yet seen, so it is held back to arrive.
-    await scrollUntil(page, frame, "below");
+    await jumpTo(page, frame, "below");
     await expect(frame).toHaveAttribute("data-sg-state", "webgl", { timeout: 30_000 });
     await expect(frame).toHaveAttribute("data-sg-picture", "waiting");
     // The shader compiles in the background meanwhile; a picture on screen is never kept waiting for it.
     await page.waitForTimeout(2000);
-    await scrollUntil(page, frame, "middle");
+    await jumpTo(page, frame, "middle");
     await expect(frame).toHaveAttribute("data-sg-picture", "shown", { timeout: 30_000 });
     await expect(frame).toHaveClass(/is-live/);
-    await page.waitForTimeout(400);
+    // Three more frames are read once it is shown.
+    await expect.poll(() => page.evaluate(() => (window as unknown as { sgDrawsDone?: boolean }).sgDrawsDone === true), { timeout: 15_000 }).toBe(true);
 
     const own = (await seen(page))[name];
     const phases = own.map((f) => f.phase).filter((phase, i, all) => phase !== all[i - 1]);
@@ -187,7 +215,7 @@ for (const name of NAMES) {
     expect(own.at(-1)).toMatchObject({ on: true, opaque: true, live: true, phase: "shown", state: "webgl" });
 
     const draws = (await page.evaluate(() => (window as unknown as { sgDraws: Record<string, Draw[]> }).sgDraws))[name] ?? [];
-    expect(draws.length, `${name} drew ${draws.length} frames`).toBeGreaterThan(5);
+    expect(draws.length, `${name}: ${draws.length} frames were read`).toBeGreaterThanOrEqual(5);
     const cover = draws.map((draw) => draw.rows.reduce((sum, row) => sum + row.mean, 0) / draw.rows.length);
     // It ran: from (nearly) nothing, through a part of the picture, never back.
     expect(Math.min(...cover), `${name} started at ${cover[0]}`).toBeLessThan(0.2);
