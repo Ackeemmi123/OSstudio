@@ -31,7 +31,9 @@
  *         </nav>
  */
 
-const FOCUSABLE = "a[href], button:not([disabled]), input, select, textarea, [tabindex]:not([tabindex='-1'])";
+import { onHeading } from "../engine/heading";
+
+const FOCUSABLE ="a[href], button:not([disabled]), input, select, textarea, [tabindex]:not([tabindex='-1'])";
 
 export function mountMenu(root: HTMLElement, openNow = false): void {
   const toggle = root.querySelector<HTMLButtonElement>("[data-sg-menu-toggle]");
@@ -138,23 +140,11 @@ export function mountMenu(root: HTMLElement, openNow = false): void {
   });
   panel.addEventListener("focusin", follow);
 
-  // Out of the way while reading down, back at the first move up. Lenis moves the window's own
-  // scroll position, so these deltas follow it as well when it runs.
-  let lastY = scrollY;
-  let travel = 0;
-  addEventListener(
-    "scroll",
-    () => {
-      const step = scrollY - lastY;
-      lastY = scrollY;
-      // Distance in one direction, so a trackpad's jitter back and forth never flickers it.
-      travel = step * travel > 0 ? travel + step : step;
-      if (scrollY < 80 || open || reduced.matches || toggle.matches(":focus")) tuck(false);
-      else if (travel > 12) tuck(true);
-      else if (travel < -4) tuck(false);
-    },
-    { passive: true },
-  );
+  // Out of the way while reading down, back at the first move up.
+  onHeading((heading) => {
+    if (scrollY < 80 || open || reduced.matches || toggle.matches(":focus")) tuck(false);
+    else if (heading) tuck(heading === "down");
+  });
   toggle.addEventListener("focus", () => tuck(false));
   reduced.addEventListener("change", () => reduced.matches && tuck(false));
 

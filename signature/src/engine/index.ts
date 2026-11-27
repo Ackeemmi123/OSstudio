@@ -126,6 +126,10 @@ export function boot(options: BootOptions = {}): Capabilities {
     });
   }
 
+  // The call to action: its own small chunk, after load. Until then, and without a script, it is the link where it stands.
+  const cta = document.querySelector<HTMLElement>('[data-sg="cta"]');
+  if (cta) void afterLoad().then(() => import("../modules/cta")).then(({ mountCta }) => mountCta(cta));
+
   // The sound button: a few kilobytes, after load. It plays nothing until the visitor asks.
   const sound = document.querySelector<HTMLButtonElement>('[data-sg="sound"]');
   if (sound) void afterLoad().then(() => import("../modules/sound")).then(({ mountSound }) => mountSound(sound));

@@ -742,3 +742,89 @@ html.sg-menu-open {
   z-index: 2;
   transition: translate 0.7s cubic-bezier(0.16, 1, 0.3, 1);
 }
+
+/*
+ * Stack (`data-sg="stack"`), in CSS alone: the list's items stick near the top
+ * in turn, each next one sliding up over the last. Where the browser has
+ * scroll-driven animations and motion is welcome, the ones beneath settle
+ * back, smaller and darker, the deeper the more; elsewhere they simply stack.
+ * Without a script, and on screens too short for a card to fit, it is the
+ * list it is written as. A card holding keyboard focus comes to the front, so
+ * focus is never hidden under a later card (WCAG 2.4.11). The list sets `--n`
+ * (its items) and each item `--i` (0, 1, …); cards of one height keep the
+ * settling exact. A site may set `--sg-stack-top`, `--sg-stack-peek` (how much
+ * of each card shows above the next) and `--sg-stack-gap`.
+ *
+ * Each card's margins grow and shrink with its place, so every card's margin
+ * box ends at the same line when stacked: the deck then leaves as one, rather
+ * than folding its edges away one by one, and cards still follow each other
+ * at one even distance (a card, a gap and a peek per card).
+ */
+@media (min-height: 40em) {
+  .sg-js [data-sg="stack"] {
+    display: flex;
+    flex-direction: column;
+  }
+  .sg-js [data-sg="stack"] > * {
+    position: sticky;
+    top: calc(var(--sg-stack-top, 5rem) + var(--i) * var(--sg-stack-peek, 1rem));
+    margin: calc(var(--i) * var(--sg-stack-peek, 1rem)) 0 calc((var(--n) - 1 - var(--i)) * var(--sg-stack-peek, 1rem) + var(--sg-stack-gap, 1.5rem));
+  }
+  .sg-js [data-sg="stack"] > :has(:focus-visible) {
+    z-index: 1;
+  }
+}
+@supports (view-timeline-name: --sg) and (animation-range: exit-crossing 0%) {
+  @media (min-height: 40em) and (prefers-reduced-motion: no-preference) {
+    .sg-js [data-sg="stack"] {
+      view-timeline: --sg-stack block;
+    }
+    /* From the moment a card sticks until the last one does: on the list's own scroll, card i sticks at i/n of it. */
+    .sg-js [data-sg="stack"] > :not(:has(:focus-visible)) {
+      transform-origin: 50% 0;
+      animation: sg-stack linear both;
+      animation-timeline: --sg-stack;
+      animation-range: exit-crossing calc(var(--i) / var(--n) * 100% - var(--sg-stack-top, 5rem)) exit-crossing calc((var(--n) - 1) / var(--n) * 100% - var(--sg-stack-top, 5rem));
+    }
+  }
+}
+@keyframes sg-stack {
+  to {
+    scale: calc(1 - (var(--n) - 1 - var(--i)) * 0.04);
+    filter: brightness(calc(1 - (var(--n) - 1 - var(--i)) * 0.1));
+  }
+}
+
+/*
+ * Call to action (`data-sg="cta"`, src/modules/cta.ts): while its place is out
+ * of view, the link floats at the bottom centre, below the screen until it
+ * shows. Hidden, it takes no clicks but can still take focus, which shows it.
+ */
+[data-sg="cta"].is-floating > a {
+  position: fixed;
+  inset: auto 0 calc(1rem + env(safe-area-inset-bottom));
+  z-index: 8;
+  width: max-content;
+  max-width: calc(100% - 2rem);
+  margin-inline: auto;
+  translate: 0 calc(100% + 2rem + env(safe-area-inset-bottom));
+  pointer-events: none;
+  transition: translate 0.5s cubic-bezier(0.65, 0, 0.35, 1);
+}
+[data-sg="cta"].is-shown > a {
+  translate: none;
+  pointer-events: auto;
+}
+.sg-menu-open [data-sg="cta"] > a {
+  visibility: hidden;
+}
+@media (prefers-reduced-motion: reduce) {
+  [data-sg="cta"].is-floating > a {
+    translate: none;
+    opacity: 0;
+    transition: opacity 0.2s;
+  }
+  [data-sg="cta"].is-shown > a {
+    opacity: 1;
+  }
+}

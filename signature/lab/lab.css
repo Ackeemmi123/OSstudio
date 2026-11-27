@@ -2004,3 +2004,147 @@ a {
 .sg-menu-open .page-craft .menu-toggle:focus-visible {
   outline-color: var(--craft-ochre);
 }
+
+/*
+ * ---------- Stack (data-sg="stack") ----------
+ * The four steps as cards in the brand's colours, light to dark, so the deck
+ * reads as one palette. One height for all (the picture takes up the rest),
+ * so the settling stays exact.
+ */
+.steps {
+  --sg-stack-top: 5rem;
+  --sg-stack-peek: clamp(0.7rem, 1.8vh, 1.1rem);
+  --sg-stack-gap: clamp(1.25rem, 3vh, 2rem);
+}
+.steps-lead,
+.cta-lead {
+  max-width: 40rem;
+  font-size: 1.15rem;
+  color: var(--ink-quiet);
+  margin-bottom: clamp(2.5rem, 6vh, 4rem);
+}
+.stack {
+  list-style: none;
+  padding: 0;
+}
+.stack-card {
+  display: flex;
+  flex-direction: column;
+  min-height: min(34rem, 100svh - 9rem - 3 * var(--sg-stack-peek));
+  margin-bottom: clamp(1.25rem, 3vh, 2rem);
+  border-radius: 1.25rem;
+  overflow: clip;
+  background: var(--ice);
+  color: var(--ink);
+}
+.stack-card:nth-child(2) {
+  background: var(--lilac);
+}
+.stack-card:nth-child(3) {
+  background: var(--indigo);
+  color: #fff;
+}
+.stack-card:nth-child(4) {
+  background: var(--ink);
+  color: var(--on-ink);
+}
+.stack-text {
+  display: flex;
+  flex-direction: column;
+  align-items: start;
+  gap: 0.9rem;
+  padding: clamp(1.5rem, 3.5vw, 3.25rem);
+}
+.stack-n {
+  font: 600 0.85rem/1 var(--display);
+  letter-spacing: 0.04em;
+  color: var(--indigo);
+}
+.stack-card:nth-child(2) .stack-n {
+  color: var(--ink);
+}
+.stack-card:nth-child(3) .stack-n {
+  color: #fff;
+}
+.stack-card:nth-child(4) .stack-n {
+  color: var(--lilac);
+}
+.stack-card h3 {
+  font: 520 clamp(2.3rem, 5.2vw, 5rem) / 0.95 var(--display);
+  font-stretch: 70%;
+  letter-spacing: -0.015em;
+}
+.stack-card p {
+  max-width: 30rem;
+  font-size: clamp(1.0625rem, 1.25vw, 1.25rem);
+  color: var(--ink-quiet);
+}
+.stack-card:nth-child(2) p {
+  color: var(--ink);
+}
+.stack-card:nth-child(3) p {
+  color: var(--on-ink);
+}
+.stack-card:nth-child(4) p {
+  color: var(--on-ink-quiet);
+}
+.stack-link {
+  font-weight: 600;
+  text-underline-offset: 0.25em;
+  text-decoration-thickness: 1px;
+}
+.stack-card:nth-child(n + 3) :focus-visible {
+  outline-color: #fff;
+}
+/* The picture never sets the card's height: it fills what the words leave. */
+.stack-picture {
+  flex: 1 1 7rem;
+  width: 100%;
+  min-height: 0;
+  object-fit: cover;
+  contain: size;
+  aspect-ratio: auto;
+}
+@media (min-width: 900px) {
+  .stack-card {
+    display: grid;
+    grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+  }
+  /* The name stays at the top, where it shows longest under the next card; the words settle at the foot. */
+  .stack-text > p {
+    margin-top: auto;
+  }
+  .stack-picture {
+    height: 100%;
+  }
+}
+
+/* The call to action: the brand's indigo, which reads on light and dark bands alike. */
+.cta-home {
+  margin: 0;
+}
+.pill-cta {
+  background: var(--indigo);
+}
+.pill-cta:hover {
+  background: var(--ink);
+}
+.pill-cta svg {
+  width: 1.15rem;
+  height: 1.15rem;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.cta-home.is-floating > a {
+  box-shadow:
+    0 0 0 1px rgb(255 255 255 / 0.2),
+    0 16px 36px -14px rgb(21 25 34 / 0.6);
+}
+.cta-home.is-floating > a:focus-visible {
+  outline-color: var(--ink);
+  outline-offset: 3px;
+  box-shadow: 0 0 0 7px var(--cloud);
+}
