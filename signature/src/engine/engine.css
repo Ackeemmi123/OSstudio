@@ -267,7 +267,10 @@
 /*
  * Image effect: the shader draws the picture over the real image, which stays
  * in the page (for screen readers, search and every visitor without WebGL).
- * Once the shader draws, it takes over: the picture arrives behind its edge.
+ * Once the shader works, a picture that cannot have been seen yet is held
+ * back and arrives behind its edge; one that has shown stays: the image is
+ * hidden only while the picture waits or arrives, and otherwise lies under
+ * the shader's copy of it.
  */
 /* Clipped, not hidden: a hidden frame would be the scroller the drift follows. */
 [data-sg="reveal"] {
@@ -292,7 +295,7 @@
 [data-sg="reveal"].is-live > [data-sg-canvas] {
   opacity: 1;
 }
-[data-sg="reveal"].is-live > img {
+[data-sg="reveal"]:is([data-sg-picture="waiting"], [data-sg-picture="arriving"]) > img {
   opacity: 0;
 }
 /* The picture drifts a little inside its frame as the page scrolls past: depth, at no script cost. */
