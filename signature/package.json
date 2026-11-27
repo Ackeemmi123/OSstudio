@@ -6,13 +6,17 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc --noEmit && vite build",
+    "build": "tsc --noEmit && vite build && node scripts/layer-fixture.mjs",
+    "build:layer": "node scripts/build-layer.mjs",
+    "enhance": "node scripts/enhance.mjs",
+    "layer-proof": "node scripts/layer-proof.mjs",
     "preview": "vite preview --host 127.0.0.1 --port 4317 --strictPort",
     "budget": "node scripts/budget.mjs",
     "test": "playwright test",
     "lighthouse": "node scripts/lighthouse.mjs",
     "review": "node scripts/review.mjs",
     "film": "node scripts/render-dom-film.mjs",
+    "film-review": "node scripts/film-review.mjs",
     "check": "npm run build && npm run budget && npm run test && npm run lighthouse"
   },
   "dependencies": {

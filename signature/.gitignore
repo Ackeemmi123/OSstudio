@@ -6,6 +6,7 @@ lighthouse/
 review/
 # Films rendered by scripts/render-dom-film.mjs: local until the owner decides what is published
 films/
+review-films/
 
 # Scratch scripts used while reviewing
 *.tmp.mjs

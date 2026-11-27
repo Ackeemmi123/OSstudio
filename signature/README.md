@@ -41,10 +41,10 @@ JavaScript, with reduced motion, and without WebGL. The engine only adds.
 | `data-sg="lines"` | `src/modules/text.ts` | Text further down that arrives line by line as it scrolls in. |
 | `data-sg="scene"` | `src/modules/scene.ts` | A pinned visual driven by the scroll, over steps. A plain list without motion. |
 | `data-sg="ink-field"` | `src/modules/ink-field.ts` | A slow field of silk in the site's colours, lit like satin and stirred by the pointer, over a still gradient that is the design without WebGL. |
-| `data-sg="story"` | `src/modules/story.ts` | Phase 2. Panels that slide sideways while the section holds still, on wide screens with motion; stacked everywhere else. Tabbing into a hidden panel scrolls it into view. |
+| `data-sg="story"` | `src/modules/story.ts` | Phase 2. Panels that slide sideways while the section holds still (CSS sticky, so no layout shift when it takes hold or lets go), on wide screens with motion; stacked everywhere else. Tabbing into a hidden panel scrolls it into view. |
 | `data-sg="marquee"` | `src/modules/marquee.ts` | Phase 2. A line that runs without end, faster with scroll speed and backwards when scrolling up. Copies are hidden from screen readers. |
 | `data-sg="object"` | `src/modules/object.ts`, `band-scene.ts`, `band-core.ts` | Phase 2. A Möbius band of brushed satin metal that starts as eight loose pieces and flows together into one band as steps scroll past. Plain WebGL, about 6 KB compressed (it was Three.js, 140 KB, until the same picture was drawn without it): the shape is computed on the graphics card from flowing noise, the studio it reflects is drawn analytically in the shader, and the satin streaks come from blurring that reflection along the band. The scroll drives a spring. Over a rendered picture of it that is the design without WebGL. Quality adapts to the device: it measures the screen's frame rate, then steps down (fewer pixels and a coarser band, then one reflection sample) only if frames are slow; `?quality=0\|1\|2` fixes it for comparison. Drawn in a worker where the browser allows it (`band-worker.ts`). Its `loop`, `zoom` and `tilt` options (stills only) make a film of it that closes exactly: see "Pictures made in code". |
-| `data-sg="reveal"` | `src/modules/reveal.ts` | Part B. A picture that arrives behind a living edge as it scrolls in and swells like a lens under the mouse. Drawn by a shader over the real `<img>`, which stays for screen readers, search, reduced motion and devices without WebGL. |
+| `data-sg="reveal"` | `src/modules/reveal.ts` | Part B. A picture that arrives behind a living edge as it scrolls in and swells like a lens under the mouse. Drawn by a shader over the real `<img>`, which stays for screen readers, search, reduced motion and devices without WebGL. Once the shader works, only a picture not yet on screen is held back to arrive; one that has shown never vanishes, and without WebGL the `<img>` is never hidden. |
 | `data-sg="gallery"` | `src/modules/gallery.ts`, `engine.css` | Part B. A sideways row of pictures: a native scroller with snap points (touch, trackpad, arrow keys, screen readers, no script). The engine adds mouse drag with a throw, buttons, a counter and a progress line; pictures drift in their frames (CSS scroll-driven). |
 | `data-sg="sound"` | `src/modules/sound.ts` | Part B. A quiet ambient chord from the browser's own synthesiser: no file, off until asked for, remembered, never started without a click or key press, paused in hidden tabs. Scrolling opens its filter, so it brightens while the page moves. Hidden without JavaScript. |
 | `data-sg="play"` | `src/modules/play.ts` | Shapes on springs: the pointer pushes them aside, a drag pulls them away and they swing back, a tap nudges them, and those with eyes look at the pointer. About 1 KB compressed, in the motion engine. Decoration only: hidden from screen readers, still where they were drawn without JavaScript or with reduced motion. Rests when nothing moves or the stage is off screen. |
@@ -54,11 +54,201 @@ JavaScript, with reduced motion, and without WebGL. The engine only adds.
 | `data-sg="cta"` | `src/modules/cta.ts`, `engine.css` | The page's own call to action ("Boka tid", "Boka bord"): a real link written where it belongs, never injected. Without JavaScript it is just that link. With it, once the visitor has scrolled past the first screen and while the link's own place is out of view, the same link floats as a pill at the bottom centre; nearing its place it comes out to meet it, even while reading down, and when the place reaches the pill's line it glides into it; reading back up past the place it glides out again. The place keeps its height meanwhile. The link itself changes place while transparent, and a stand-in nobody can reach or focus does the glide and hands over, so no visible box ever jumps and the browser counts no layout shift; with reduced motion the link just shows at its new place. Reading down it slides away and any move up brings it back (the menu's direction logic, `src/engine/heading.ts`); it gives way while the footer, or anything marked `data-sg-cta-end` (the page's own closing call to action), is in view, so there are never two. It never covers the focused element: while it shows, the page keeps room for it (`scroll-padding-bottom`), and it stays away while the focused element is where it would be. Focused itself, it always shows. With reduced motion it fades instead of sliding. Its own chunk, 1.4 KB compressed (and 0.15 shared with the menu), loaded after the page; until then it is the link where it stands. On the library. |
 | `data-sg="count"` | `src/modules/count.ts` | A figure that counts up to its value as it comes into view. The value is in the page from the start, read once from hidden text; without motion it simply shows. |
 | `data-sg="video"` | `src/modules/video.ts`, `video-grow.ts`, `engine.css` | A muted loop (`<video muted loop playsinline preload="none" controls>`, AV1 in WebM, then H.264 in MP4) in a frame of fixed shape, wide on screens and tall on phones, in full HD for screens 1280 px wide and up, over its poster: a real `<picture>` with sizes, the film's own first frame, so nothing shifts or jumps when it starts. Its player is its own chunk, under 1 KB, loaded as the film comes near; only then does the film start to load. It plays only while on screen and while the tab is visible, and the engine's button ("Pausa film" / "Spela film", words from `data-pause` / `data-play`) is always on it (WCAG 2.2.2); paused there, it stays paused. With reduced motion it never starts by itself: the button plays it. With Save-Data only the poster shows and no film is fetched. Without JavaScript the browser's own controls show, over the film's `poster` (the 8 KB one: Chrome paints a film with controls and no poster grey); the engine removes them when its button takes over. Of the sources this screen may use (`media`), it takes the first the device decodes efficiently, in hardware where the browser can tell (`MediaCapabilities`), else the first it can play. `data-sg-variant="grow"`, the showreel: with motion, a tall track holds the frame on screen and it grows from its framed size to the whole screen as it scrolls, tied to the scroll, starting as soon as the framed film is wholly in view; `clip-path` and a scale only, never layout. The track is pulled up so the framed film follows the text before it like any other block, and the frame's top edge rises only once the frame is held, so the film never runs over that text. With reduced motion it is the plain frame. A site sets `--sg-video-bleed` (its gutter) and may set `--sg-video-start` (the framed width). |
+| `data-sg="sequence"` | `src/modules/sequence.ts`, `sequence-loader.ts`, `sequence-worker.ts`, `engine.css` | An image sequence scrubbed by the scroll while its section holds still: the product reveal. Numbered pictures (WebP) drawn on a canvas, one per step of a movement; on the library sixty of them, the band's eight pieces gathering into one as it turns, rendered in code (see "Pictures made in code"). The design is a sized `<picture>` whose own media queries choose the frame: the first with motion, the last with reduced motion or without JavaScript (`scripting: none`), each in two shapes (16:9 for screens, 19.5:9 for phones), so nothing shifts, and nothing jumps as the canvas takes over with that same first frame. With motion a tall track (300svh, `--sg-sequence-track`) holds the stage on screen (sticky): the frames take the first 85 % of the held distance and the last frame holds for the rest. Its chunk loads a screen ahead and starts the frames, every fourth (and the last) first, so the whole movement can be scrubbed coarsely at once, then the rest. They are fetched and decoded in a worker (`createImageBitmap`, which WebKit decodes on the thread that calls it, so the worker keeps it off the page's main thread in every browser); where no worker can start, the page runs the same loader itself. Only the frames near the one shown are kept decoded, more of them ahead in the direction of reading (about 48 MB; a 1600 × 900 frame is 5.8 MB decoded, all sixty would be 350), decoded from half a screen away and let go further off. It draws only when the scroll reaches another frame or a frame it waits for arrives; while one is on its way, the nearest decoded frame on the way to it holds, so the movement never runs past the scroll and back. `--sg-p` (0–1) and the text of `[data-sg-at]` follow the frame shown, for a counter in the site's own CSS; with `data-sg-steps` (thresholds, as parts of the movement) the root also carries the step it is in (`data-sg-step`, `--sg-step`), which changes only once the frame shown is 0.03 past a threshold either way, so it never flickers where a reader stops. On the library three words, one per step, roll to the next on a time-based 0.6 s transition (transform only, the house easing) whenever the step changes, never with the scroll, so wherever the reader stops a whole word stands, in a window with room for Å, Ä and Ö; with reduced motion the last word stands and nothing rolls. With Save-Data the boot turns the picture to the last frame, nothing is held, and neither the chunk nor a frame is fetched. Nothing in it takes focus, and the stage only ever covers its own track, so keyboard scrolling goes on through it and focus is never hidden. On the library. |
 | Intro (`.sg-intro`) | `engine.css`, a line in the page head | Part B. A curtain with the word mark, once per visit, in CSS alone. Never blocks a click, never shown with reduced motion; the first view's motion waits for it. |
 | 404 page | `lab/404.html` | Part B. Says plainly that the page is missing and leads back. `<base href="/">` makes it work at any depth; the host serves it for missing addresses. |
 | `data-sg-cursor`, `data-sg-magnetic` | `src/modules/cursor.ts` | Phase 2. A ring beside the system cursor (mouse and trackpad only) and buttons that lean toward the pointer, at most 14 px. |
 | `data-sg="mark"` | `src/build/kinetic.ts`, `engine.css` | Phase 2. A word mark split at build time whose letters rise as it scrolls in, in CSS alone (scroll-driven animations). |
 | Holding the place | `holdPlace()` in `src/engine/motion.ts` | Phase 2. When a section above the visitor changes height as it starts (a pin, a scrubbed list), the page keeps what they are looking at still. |
+
+## The Signature layer
+
+The engine above is for sites written for it. The layer (`src/layer/`,
+`layer/`) is for every other site: it adds Signature motion to a **finished**
+static site, from Website Factory or built by hand, without changing its
+design. Same HTML, same content, same CSS; the site's own elements become
+modules through a map of selectors, and a preset decides how motion feels in
+that industry.
+
+What it promises, and `tests/layer.spec.ts` checks on a hand-built site:
+
+- **Without JavaScript** the enhanced site is the base site, pixel for pixel.
+  Every rule in `layer.css` is behind `html.sgl`, which only the script sets.
+- **With reduced motion** the script returns at once: nothing of the layer
+  exists, and the page is the base site with its own reduced-motion rules.
+- **No layout shift.** Arrivals are opacity, transform and clip-path. Where
+  the layer has to touch the DOM (a headline split into word boxes, a wrapper
+  around the call to action, a counting figure) it measures before and after
+  in the same task, before anything is drawn, and undoes the change if a
+  single box moved. When the motion is over, the headline is the markup that
+  was written.
+- **Content is never hidden without a way back.** It waits only once the
+  script is running and watching it; whatever takes keyboard focus shows at
+  once; print shows everything.
+- **It adds motion, never design.** No colour, type or layout rule. Where a
+  site has motion of its own (Website Factory's CSS entrances), an element
+  the layer takes over loses the site's entrance, so the two never play on
+  top of each other; elements the map does not name keep the site's.
+
+### Enhancing a site
+
+```bash
+# a built site in a folder (changed in place, or copied with --out)
+node scripts/enhance.mjs <builtSiteDir> --map services --preset auto
+node scripts/enhance.mjs <builtSiteDir> --map ./site.map.json --preset editorial --out <dir>
+```
+
+It adds three tags before `</head>` in every HTML file and one folder of
+files (`signature/`). Nothing else changes, and running it again replaces
+what it added:
+
+```html
+<!-- signature-layer <build> -->
+<link rel="stylesheet" href="./signature/layer.css">
+<link rel="modulepreload" href="./signature/layer.js">
+<script type="module" src="./signature/site.js" blocking="render"></script>
+<!-- /signature-layer -->
+```
+
+The addresses use each page's own way to the site's top (`./`, `../`), as
+Website Factory writes its `site.css` link; `--root /` (or `root` below)
+gives absolute ones. `site.js` is one line: the site's map and preset, handed
+to `start()` in `layer.js`.
+
+**Why the mapping happens in the browser, not in the HTML.** The enhancer
+only does plain string operations on the head. Selectors are matched at run
+time, before the first paint: the script tag is render-blocking where the
+browser supports `blocking="render"` (Chrome 105, Safari 18.2), and it is 4
+KB. So there is no HTML parser to ship, no second copy of each page's
+markup to keep in step, and a site's HTML stays the site's. Where the script
+still runs after a paint (Firefox does not block on it), it leaves the whole
+first view exactly as the base site drew it and only prepares what is
+further down, so nothing shown is ever taken away.
+
+**From code** (Studio OS, or any build): `layer/enhance.mjs` is the same
+thing as a pure function. No filesystem, no network, nothing from Node; the
+layer's built files come from `layer-dist/assets.mjs`, an ordinary module.
+
+```ts
+import { enhanceSite, presetForDirection, DIRECTION_PRESETS } from "../signature/layer/enhance.mjs";
+
+const { files, assets } = enhanceSite(built /* { path, text }[] */, {
+  map: "services",                              // or a map object
+  preset: presetForDirection(design.direction), // "calm" | "warm" | "editorial" | "bold", or "auto"
+  root: undefined,                              // default: relative per page; "/" for absolute
+});
+// files:  the HTML files that changed, whole          → replace by path
+// assets: { path, text, contentType }[] to add        → signature/layer.js, layer.css, site.js, chunks
+```
+
+### The kept build (`layer-dist/`)
+
+`npm run build:layer` builds `src/layer/` with Vite and writes
+`layer-dist/assets.mjs` (every built file as text, under a stable name),
+its types and `manifest.json` (sizes, and a hash of everything the build was
+made from). The folder **is committed**, like Website Factory's fonts, so
+that Studio OS never runs Vite. `npm run build:layer -- --check` fails when
+the source has changed since; `tests/layer.spec.ts` runs it, so CI catches a
+stale build. After changing anything in `src/layer/` (or an engine file it
+imports): `npm run build:layer`, commit `layer-dist/`.
+
+### Presets
+
+A preset is tokens (durations, distances, curves) and the list of modules a
+site may use at all (`src/layer/presets.ts`). A map's `tokens` can replace
+single values for one site.
+
+| Preset | For | Headlines | Blocks and rows | Pictures | Also |
+| ------ | --- | --------- | --------------- | -------- | ---- |
+| `calm` | law, clinics, experts | line by line, a fade and a 0.3 em rise, 1 s | 0.6 rem, 0.8 s, 60 ms apart | fade, settling from 4 % larger | nothing else: no smooth scroll, no floating link, nothing that follows the pointer, no counting |
+| `warm` | cafés, restaurants | word by word, each turning 5° into place with a small overshoot | 1.4 rem with overshoot, 70 ms apart | open from below, settling from 14 % larger | call to action, counting, smooth scroll |
+| `editorial` | interior, architecture, studios | lines rising out of masks, 1.5 s, long landing | 1.6 rem, 1.3 s | unveiled from the top, settling from 22 % larger for 2.4 s | hover list, stack, call to action, counting, smooth scroll |
+| `bold` | statement brands | words out of masks, fast (0.75 s, 38 ms apart), a 4° kick | 2.2 rem, 0.6 s | wiped in from the side, 0.8 s | the same as editorial |
+
+Website Factory's directions and their default preset (`DIRECTION_PRESETS`,
+exported by `layer/enhance.mjs`; `--preset auto` reads the direction from
+the page's `d-<direction>` class):
+
+| Direction | Preset |
+| --------- | ------ |
+| `formal` | `calm` |
+| `clinic` | `calm` |
+| `cafe` | `warm` |
+| `atelier` | `editorial` |
+| `editorial` | `editorial` |
+| `statement` | `bold` |
+
+### Modules
+
+| Module | What the site's element becomes | Cost |
+| ------ | ------------------------------- | ---- |
+| `headline` | Text split into word boxes at run time (markup inside it stays), arriving by line or word; put back as written when it is over. A headline with a hyphenated word, or one whose lines would break differently, arrives as one block instead. | in `layer.js` |
+| `rise` | A block that rises into place: paragraphs, rows, cards. Siblings follow each other. | in `layer.js` |
+| `reveal` | A picture's frame opens (or fades, where the site clips the frame itself), and the picture inside settles on `transform`, so it adds to any drift the site gives it. | in `layer.js` |
+| `count` | A figure in the site's text counts up, in a box exactly as wide as the final number. Only an element with one whole number: prices, decimals, "24/7" and hours are left alone. | 0.8 KB, when near |
+| `cta` | The engine's call to action on the page's own link (in a wrapper that is kept only if it moves and restyles nothing). `options.end`: sections where it gives way. | 1.4 KB, after load |
+| `list` | The engine's reveal list: `options.row` and `options.thumb` name the rows and each row's own picture. Mouse and trackpad only; everyone else keeps the small pictures. **Changes layout for mouse users** (the small pictures go), so it is for lists designed with it. | 46.6 KB (GSAP), when near, never on touch |
+| `stack` | The engine's stack on the site's list of cards. **Changes layout** (cards stick and overlap), so it is for opaque cards of one height. | CSS only |
+| smooth scroll | Lenis alone, from the first sign of scrolling. Decided by the preset, not by a rule. | 5.3 KB, on first scroll |
+
+### The map
+
+A map is a plain object (or JSON file): the site's own selectors, in order.
+An element arrives once, by the first rule that matches it, and nothing
+arrives inside something that already arrives.
+
+```json
+{
+  "presets": [{ "when": "body.d-cafe", "preset": "warm" }],
+  "rules": [
+    { "module": "headline", "select": ".hero h1, .section-head h2" },
+    { "module": "reveal", "select": ".hero-image .frame", "options": { "inner": "img" } },
+    { "module": "rise", "select": ".hero-why, .ledger-row, .steps > li" },
+    { "module": "count", "select": ".sig-numbers dd" },
+    { "module": "cta", "select": ".hero-actions > a.button", "unless": "body.has-call-bar", "options": { "end": ".closing" } }
+  ],
+  "tokens": { "warm": { "rise": { "stagger": 90 } } }
+}
+```
+
+Two things to keep out of a map. An element that arrives is moved while it
+waits and arrives, and a moved element is what anything `position: fixed`
+inside it is placed against: never map an element that holds a fixed bar or
+button (the layer's own call to action waits until the element around it has
+arrived, for this reason). And a picture's frame should be the picture's own
+box: in a frame that also holds a caption and does not clip, the picture
+only gets the wipe, not the settling.
+
+`when` and `unless` are selectors tested against the page (a rule for one
+direction, or not where the site already has a bar at the foot of the
+screen). `presets` is what `--preset auto` reads. Rules for modules the
+preset does not allow are skipped, so one map serves every preset.
+
+The shipped map for Website Factory's services system is
+`layer/maps/services.mjs`, covering all six directions. It uses `headline`,
+`reveal`, `rise`, `count` and `cta`. It has no `stack` and no `list`: no
+direction writes steps as cards that could lie on each other (and the
+statement direction already stacks its own in CSS), and no list carries a
+picture per row. Adding either would be a new layout, which the layer never
+makes. A hand-built site's map is in `tests/fixtures/layer-site/`.
+
+### Proof
+
+```bash
+npx vitest run proof/concepts/industry-examples.render.ts   # in the repository's top folder: the invented examples
+npm run layer-proof                                         # in signature/: enhance them and photograph base and enhanced
+npm run layer-proof -- name=<builtSiteDir>[:preset] …       # any other built sites
+```
+
+Each site is opened on desktop (1440 × 900) and a Pixel 7 at six scroll
+points, base and enhanced, each at rest and held at exactly 350 ms into its
+motion (every time-based animation is paused at that time, so the picture is
+the same on a busy machine). One sheet per site and device in
+`review/layer/` (git-ignored). Port 4407.
+
+Films: the layer's test site is part of the built lab, so the film review
+needs no change to film it:
+`FR_PAGES=/layer-fixture/enhanced/,/layer-fixture/calm/ npm run film-review`.
 
 ## Commands
 
@@ -69,6 +259,9 @@ npm run check        # build (type-checked) → weight budget → tests → Ligh
 ```
 
 `npm run check` is the gate. CI runs the same steps (job "Signature engine").
+`npm run build` also puts the layer's test site into `dist/layer-fixture/`
+(base, enhanced, calm), from the kept build in `layer-dist/`. To run tests
+beside another checkout's server on 4317: `SG_PORT=4407 npx playwright test`.
 
 ### Visual review
 
@@ -131,6 +324,111 @@ starts one. It stops if that server was started in another folder or serves
 files other than this checkout's `dist/`; `REVIEW_PORT=4320 npm run review`
 uses another port.
 
+### Film review
+
+Stills show where motion ends; films show how it gets there. To judge
+animation by films and numbers, after `npm run build`:
+
+```bash
+npm run film-review                          # every page, desktop and phone
+FR_PAGES=/,/bibliotek/ npm run film-review   # some pages
+```
+
+Each page is opened on desktop (1440 × 900) and on a phone (Pixel 7) and
+scrolled from top to bottom twice, each time from a fresh load with the
+intro curtains skipped:
+
+- **steady**: small wheel steps, 30 a second, at one screen a second;
+- **stop and go**: a screen at that speed, a pause of 0.55 s, a quick flick
+  a quarter of a screen back up, a pause of 0.4 s, and on. This is the pass
+  that shows jank, pins that jump and things that snap.
+
+The wheel events are sent as a hand sends them: on a clock, without waiting
+for the page, and added together while three are still on their way, as the
+browser coalesces a queue. (Playwright's `mouse.wheel` waits until the page
+has handled each event, so a busy page got slower input: a scroll meant to
+take 17 s took 48.) Before filming, the hand rests on the page and nudges it
+1 px: in headless Chrome the first wheel event after a load cannot be
+cancelled, so Lenis cannot smooth it and the page jumps natively (30 px on
+desktop, 79 on a phone).
+
+Both passes are filmed with Chrome's screencast at the rate the page draws,
+then encoded to VP9 WebM in Chrome itself with WebCodecs and `webm-muxer`,
+every frame at its own time, after filming is over, so encoding never costs
+the page frames. Nothing is installed. Headless Chrome on a Mac draws WebGL
+on the real graphics card, so no `?webgl` is needed and the films show what a
+visitor on this machine sees; `FR_QUERY=?webgl` forces software WebGL where
+there is no GPU, as in CI.
+
+A run writes `review-films/<date>_<time>_<commit>/` (gitignored):
+
+- `summary.md`: one table of every page, device and pass, written after
+  every page, so a run that is stopped keeps what it has. Start here.
+- `<page>/<device>-steady.webm` and `-stopgo.webm`: the films.
+- `<page>/<device>-sheet.png`: 24 frames of the steady pass at even scroll
+  positions, each labelled with its scroll position and its time in the
+  film, under two graphs of frame times along the page (one per pass). In a
+  graph every frame is a line at its scroll position as tall as it took:
+  blue on time, amber for one dropped frame, red for two or more; red
+  triangles mark visual jumps and numbered ticks mark the 24 frames. A
+  label turns orange when a frame of 35 ms or more came on the way to it.
+- `<page>/<device>-jumps.png`: every visual jump, the frame before and the
+  frame of the jump, with the band that changed most outlined.
+- `<page>/<device>.md`: the frame report.
+- `report.json`: every number, with each frame's time and scroll position.
+
+The frame report is measured in the page while it scrolls: every frame's
+time (`requestAnimationFrame`) and scroll position; frames over 16.7 ms and
+over 33 ms; the longest frames and where on the page they came; long tasks;
+long animation frames, with how their time split between script, style and
+layout, and the rest (paint, raster, the GPU, decoding), and the scripts in
+them; layout shifts, with the elements that moved. Those are the shifts
+Chrome counts in a visitor's CLS while they scroll (wheel and touch scrolling
+are not input that excuses a shift), which Lighthouse never sees, since it
+does not scroll. rAF times are rounded to 0.1 ms and fall on the screen's
+60 Hz beat (16.7, 33.3, 50 ms), so a frame counts as over 16.7 ms from 18 ms
+(one frame dropped) and over 33 ms from 35 ms (two or more). Every time is
+also given as seconds into the film, to find the moment there.
+
+Visual jumps come from the films. Each frame is compared with the one before
+in bands across the screen, both as it was and as moved by the scroll; the
+closer match counts, so content that scrolls, a pinned section and a fixed
+header all count as unchanged. What is left is motion of the page's own, in
+grey levels per 60 Hz frame. A reveal or a WebGL scene changes a little every
+frame; a jump changes at least 4 grey levels and four times more than the
+frames around it. Where the screencast missed frames, the change is shared
+out over the frames it missed, so a gap in the film is not taken for a jump;
+rows that scrolled in at the edge of the screen have nothing to be compared
+with and are left out. A jump can still be a fast move that is meant (a film
+that starts, a card that lands, a marquee that sets off); the jumps sheet
+shows which.
+
+Limits, measured on this checkout's lab:
+
+- The screencast costs a few frames as it starts, so measuring begins 0.6 s
+  after. With that, filming made no measurable difference: on the lab page,
+  1 frame over 16.7 ms in about 360 with filming and 0 to 2 without, three
+  runs each.
+- The screencast keeps up with 50 to 60 frames a second on a quiet machine
+  and fewer under load; the film then skips frames the page drew. The frame
+  numbers come from the page, not from the film.
+- Frame numbers are only as good as the machine is quiet. The 1-minute load
+  average is noted when each page starts and when its filming ends; over 3,
+  the reports, the sheets and the summary warn that the frame numbers are
+  not trustworthy. `FR_WAIT=120` waits up to two
+  minutes before each page for the load to fall under 3.
+- One page, one device and one browser at a time, to keep the load down.
+  A page took under a minute per device and the library, 17 000 px tall,
+  about four, on a machine under some load; a heavily loaded one slows it
+  many times over. The films of a run take about 100 MB.
+
+Options (environment): `FR_PAGES` (paths, as `LH_PAGES`), `FR_DEVICES=phone`,
+`FR_SPEED=1.5` (screens a second), `FR_QUERY=?webgl`, `FR_WAIT`,
+`FR_KEEP_FRAMES=1` (also keeps every JPEG frame in `.frames/`) and `FR_PORT`.
+Like the review, it uses a running preview server or starts one, and stops if
+that server was started in another folder or serves files other than this
+checkout's `dist/`; `FR_PORT=4367 npm run film-review` uses another port.
+
 ## Pictures made in code
 
 The lab's pictures (`lab/bilder/`) are rendered by Axivo in code, so there
@@ -173,25 +471,52 @@ node scripts/render-video.mjs              # every film, both codecs, and their 
 ONLY=telefon node scripts/render-video.mjs # just the phone's
 ```
 
+The image sequence (`lab/public/sekvens/`, copied as it is, so the module can
+number its frames) is the same band again: sixty pictures from the eight loose
+pieces to the whole band, drawn on the same tool page. The band's clock runs
+over the last third of the film's loop (8 to 12 seconds, which is 0 again),
+so it drifts and turns 120° as it gathers and its last picture is the film's
+first. It is drawn at three times the picture's size at the framing where the
+loose pieces fit, and each picture is cut a little tighter than the last (a
+slow push in, eased at both ends) to end at the film's framing; the
+supersample keeps even the tightest cut sharp. The top and bottom edges fade
+into the page's ink in the pictures themselves, so the stage meets the
+section above and the footer below without a line, at no cost on the page.
+Wide: 1600 × 900 at WebP quality 0.8, 1.09 MB for all sixty. Phones:
+720 × 1560, a phone's own shape, so the band is never cut at the sides, at
+0.66 (below that the satin loses its brushed streaks), 618 KB. About forty
+seconds for both:
+
+```bash
+node scripts/render-sequence.mjs               # both sets
+ONLY=telefon node scripts/render-sequence.mjs  # just the phone's
+FRAMES=0,30,59 OUT=/tmp/try node scripts/render-sequence.mjs  # a few pictures elsewhere, for trying settings
+```
+
 Client sites use the client's own pictures and footage, with written permission.
 
 ## The gate
 
 | Check | Limit |
 | ----- | ----- |
-| Script for the first view | ≤ 15 KB compressed (now 5.9: the menu's 1.26, the call to action's 1.4 and the 0.15 they share included) |
+| Script for the first view | ≤ 15 KB compressed (now 6.0: the menu's 1.26, the call to action's 1.4 and the 0.15 they share included; the boot's lines for an image sequence, which load its chunk or, with Save-Data, turn it to its last frame, add 0.1) |
 | Motion engine, loaded later | ≤ 60 KB (now 57.2) |
 | WebGL shaders, loaded later | ≤ 10 KB (now 6.8, with the worker; a browser that draws on the main thread gets the same code for it instead, never both) |
 | 3D band, only on pages with an object | ≤ 10 KB (now 7.3, counted the same way; was 137 with Three.js) |
 | Sound, after load, only where used | ≤ 3 KB (now 1.1) |
 | Video player, only where there is a film | ≤ 3 KB (now 0.9) |
+| Signature layer, script for the first view of an enhanced site | ≤ 6 KB compressed (now 5.0: `layer.js` 4.3 and Website Factory's map in `site.js` 0.8) |
+| Signature layer, CSS | ≤ 2.5 KB (now 1.5) |
+| Signature layer, later and only where a page's map and preset use it | smooth scroll ≤ 6 KB (5.3), call to action ≤ 2 (1.4), count ≤ 1 (0.8), hover list with GSAP ≤ 50 (46.6, mouse only) |
+| Image sequence, only where there is one | ≤ 3 KB (now 2.5: the module and its worker; where no worker can start, the module and the same loader on the main thread instead, never both) |
 | Largest single picture | ≤ 100 KB (now 72); each comes in two sizes for `srcset` |
 | Largest single film | ≤ 600 KB (now 555, the wide H.264); fetched only as it comes near, one per screen, never with Save-Data |
 | Largest film in full HD, for screens 1280 px wide and up | ≤ 1.2 MB (now 1.1, the H.264; 912 KB as AV1) |
-| CSS / HTML / fonts | ≤ 15 / 10 / 140 KB (now 14.2 / 6.2 / 121, fonts all three faces; the stack and the call to action added 0.9 KB of CSS, so CSS is the tightest budget now) |
+| Image sequence frames, all of one set | ≤ 1.2 MB wide (now 1.09: sixty at 1600 × 900) and ≤ 640 KB for phones (now 618: sixty at 720 × 1560, a phone's own shape, so the band is never cut at the sides, with their edges faded into the page; at the WebP quality where the satin keeps its brushed streaks that is 3 % over 600 KB); one set per screen, fetched a screen ahead, never with Save-Data |
+| CSS / HTML / fonts | ≤ 15 / 10 / 140 KB (now 14.5 / 6.6 / 121, fonts all three faces; the stack and the call to action added 0.9 KB of CSS and the image sequence 0.3 (its canvas is styled by its own script, so it costs no CSS), so CSS is the tightest budget now) |
 | Lighthouse, simulated phone, median of 3 | performance ≥ 95, accessibility 100, best practices ≥ 95, SEO ≥ 90 (the 404 page: SEO without indexability, and it must say noindex) |
 | axe (WCAG 2.2 AA) | no violations, with and without motion |
-| Tests | content without JavaScript, nothing moving with reduced motion, still field without WebGL, no sideways scroll on a phone, no console errors, the menu's keyboard path (focus in, round, Esc, focus back), leaving through the menu and coming Back; films: native controls without JavaScript, no autoplay and a keyboard button with reduced motion, playing only while seen, nothing fetched with Save-Data; the stack and the call to action (`tests/stack-cta.spec.ts`): a plain list and a plain link without JavaScript, cards that stick, overlap and settle back (judged on frames recorded in the page) and a deck that leaves as one, a picture that settles and a number that rises inside each card as it comes up, no scale, shade, glide or slide with reduced motion, the pill out past the first screen, away reading down, back reading up, away at a footer, out to meet its place and gliding into it and back out (judged on frames), no layout shift, keyboard focus never covered by a later card or the pill (tabbing down, and back up into a full deck), axe with and without motion |
+| Tests | content without JavaScript, nothing moving with reduced motion, still field without WebGL, no sideways scroll on a phone, no console errors, the menu's keyboard path (focus in, round, Esc, focus back), leaving through the menu and coming Back; films: native controls without JavaScript, no autoplay and a keyboard button with reduced motion, playing only while seen, nothing fetched with Save-Data; the stack and the call to action (`tests/stack-cta.spec.ts`): a plain list and a plain link without JavaScript, cards that stick, overlap and settle back (judged on frames recorded in the page) and a deck that leaves as one, a picture that settles and a number that rises inside each card as it comes up, no scale, shade, glide or slide with reduced motion, the pill out past the first screen, away reading down, back reading up, away at a footer, out to meet its place and gliding into it and back out (judged on frames), no layout shift, keyboard focus never covered by a later card or the pill (tabbing down, and back up into a full deck), axe with and without motion; the image sequence (`tests/sequence.spec.ts`): the last frame as a plain picture at its own size without JavaScript, with reduced motion (also turned off and on again while there) and with Save-Data (no chunk), only that picture fetched; with motion nothing fetched at the top of the page, every fourth frame first and one set for the screen, the stage held while the drawn frame follows the scroll down and back up, one way each, with no step larger than the scroll between two painted frames (judged on frames recorded in the page), the last frame holding for the final stretch, the first frame drawn identical to the poster, the nearest frame on the way holding while others are slow, frames fetched and decoded in a worker and by the page where no worker starts, the words (one whole, the other two hidden, on every frame painted at rest inside each part, reading down and back up; rolling only on their 0.6 s transform transition; no flicker either side of a threshold), no layout shift, Page Down through it to the footer and focus never covered, no sideways scroll, axe with and without motion |
 
 Measured 2026-11-27 with the menu, the reveal list and the worker together,
 median of three runs, each started at a 1-minute load under 3: the library and
@@ -213,13 +538,17 @@ layout shift 0.003) and the lab 99 (99, 99, 99; 0.8 s, 0 ms, 0); the other
 pages were not measured again. With the shaded, moving cards and the gliding
 pill: the library 100 (100, 100, 100; 1.1 s, 0 ms, 0.003; started at a
 1-minute load of 3.6) and the lab 99 (99, 99, 99; 0.8 s, 0 ms, 0; started
-under 3).
+under 3). The library was not measured again with the image sequence: the
+machine's 1-minute load stayed between 30 and 480 the whole day it was built,
+far from the 3 these figures were taken under. Its frames and chunk load only
+a screen ahead of section 13, the last on the page, so the first view is
+unchanged but for 0.1 KB of boot script.
 Largest content within 0.8–1.0 s on every page but the warm showcase (about
-2 s, its hero picture on a phone); layout shift 0 to 0.003. 206 tests pass
+2 s, its hero picture on a phone); layout shift 0 to 0.003. 234 tests pass
 on desktop and phone (12 are skipped: desktop-only, phone-only, run once by
 design, or needing a software renderer, as CI has); the stack and the call
-to action have 23 of them; the film's 18 include Save-Data,
-emulated by sending the `Save-Data` header and setting
+to action have 23 of them, the image sequence 28; the film's 18 include
+Save-Data, and so do the sequence's, emulated by sending the `Save-Data` header and setting
 `navigator.connection.saveData`, which is what the engine reads, since
 Playwright cannot turn on Chrome's data saver. The 3D band went from 137 KB
 (Three.js) to about 6 KB compressed, with the same picture.

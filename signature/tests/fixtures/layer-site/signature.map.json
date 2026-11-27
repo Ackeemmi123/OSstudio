@@ -1,0 +1,13 @@
+{
+  "name": "exempelstudion",
+  "presets": [{ "when": "body", "preset": "editorial" }],
+  "rules": [
+    { "module": "headline", "select": ".lead-title, .head h2, .close h2" },
+    { "module": "reveal", "select": ".lead-picture, .plate", "options": { "inner": "img" } },
+    { "module": "count", "select": ".fact-number" },
+    { "module": "list", "select": ".case-list", "options": { "row": "li", "thumb": ".case-thumb" } },
+    { "module": "stack", "select": ".step-list" },
+    { "module": "rise", "select": ".lead > .kicker, .lead-text, .lead-actions, .head > .kicker, .facts div, .plates-text, .close-text" },
+    { "module": "cta", "select": ".lead-actions > .action", "options": { "end": ".close" } }
+  ]
+}

@@ -8,6 +8,11 @@
  * 3. Ink fields show a still gradient until (and unless) WebGL is drawing.
  */
 
+/* Parts the Signature layer shares (src/layer/layer.css): the reveal list, the stack and the call to action. */
+@import "./parts/reveal-list.css";
+@import "./parts/stack.css";
+@import "./parts/cta.css";
+
 @view-transition {
   navigation: auto;
 }
@@ -267,7 +272,10 @@
 /*
  * Image effect: the shader draws the picture over the real image, which stays
  * in the page (for screen readers, search and every visitor without WebGL).
- * Once the shader draws, it takes over: the picture arrives behind its edge.
+ * Once the shader works, a picture that cannot have been seen yet is held
+ * back and arrives behind its edge; one that has shown stays: the image is
+ * hidden only while the picture waits or arrives, and otherwise lies under
+ * the shader's copy of it.
  */
 /* Clipped, not hidden: a hidden frame would be the scroller the drift follows. */
 [data-sg="reveal"] {
@@ -292,7 +300,7 @@
 [data-sg="reveal"].is-live > [data-sg-canvas] {
   opacity: 1;
 }
-[data-sg="reveal"].is-live > img {
+[data-sg="reveal"]:is([data-sg-picture="waiting"], [data-sg-picture="arriving"]) > img {
   opacity: 0;
 }
 /* The picture drifts a little inside its frame as the page scrolls past: depth, at no script cost. */
@@ -520,6 +528,35 @@
 }
 
 /*
+ * Image sequence: the picture is the design (its media queries pick the first
+ * frame, or the last without motion or script). With motion a tall track
+ * holds the stage on screen while the engine's canvas runs the frames; the
+ * canvas itself is styled by the engine, so it costs no CSS here.
+ */
+[data-sg="sequence"] [data-sg-stage] {
+  position: relative;
+}
+[data-sg="sequence"] img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .sg-js [data-sg="sequence"]:not([data-sg-state="poster"]) {
+    height: var(--sg-sequence-track, 300svh);
+  }
+  .sg-js [data-sg="sequence"]:not([data-sg-state="poster"]) [data-sg-stage] {
+    position: sticky;
+    top: 0;
+    height: 100svh;
+  }
+  .sg-js [data-sg="sequence"]:not([data-sg-state="poster"]) img {
+    height: 100%;
+    object-fit: cover;
+  }
+}
+
+/*
  * Intro: a curtain with the word mark, once per visit, in CSS alone. A line in
  * the page head adds `sg-intro-on` on the first page of a visit, never with
  * reduced motion. The curtain never blocks the page: clicks go straight
@@ -697,187 +734,5 @@ html.sg-menu-open {
   }
   .sg-js [data-sg="menu"].is-tucked [data-sg-menu-toggle] {
     translate: none;
-  }
-}
-
-/*
- * Reveal list (`data-sg="reveal-list"`, src/modules/reveal-list.ts). Each row
- * shows its own small picture, except where the module takes over from the
- * first paint: a mouse or trackpad that can hover, and motion welcome. There
- * the picture follows the pointer instead (a hidden lazy picture is never
- * fetched).
- */
-[data-sg="reveal-list"] [data-sg-thumb] {
-  display: block;
-  object-fit: cover;
-}
-@media (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference) {
-  .sg-js [data-sg="reveal-list"] [data-sg-thumb] {
-    display: none;
-  }
-}
-.sg-reveal-float {
-  position: fixed;
-  left: 0;
-  top: 0;
-  z-index: 5;
-  overflow: clip;
-  pointer-events: none;
-  visibility: hidden;
-}
-.sg-reveal-float > img {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  translate: 0 101%;
-}
-.sg-reveal-float > img.was-active {
-  translate: none;
-  z-index: 1;
-}
-.sg-reveal-float > img.is-active {
-  translate: none;
-  z-index: 2;
-  transition: translate 0.7s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-/*
- * Stack (`data-sg="stack"`), in CSS alone: the list's items stick near the top
- * in turn, each next one sliding up over the last. Where the browser has
- * scroll-driven animations and motion is welcome, the ones beneath settle
- * back, smaller and darker, the deeper the more; elsewhere they simply stack.
- * Without a script, and on screens too short for a card to fit, it is the
- * list it is written as. A card holding keyboard focus comes to the front, so
- * focus is never hidden under a later card (WCAG 2.4.11). The list sets `--n`
- * (its items) and each item `--i` (0, 1, …); cards of one height keep the
- * settling exact. A site may set `--sg-stack-top`, `--sg-stack-peek` (how much
- * of each card shows above the next), `--sg-stack-gap`, `--sg-stack-shade`
- * (the colour the cards beneath settle into, black by default) and
- * `--sg-stack-shade-step` (how much deeper per card, 0.12 by default).
- *
- * Each card's margins grow and shrink with its place, so every card's margin
- * box ends at the same line when stacked: the deck then leaves as one, rather
- * than folding its edges away one by one, and cards still follow each other
- * at one even distance (a card, a gap and a peek per card).
- */
-@media (min-height: 40em) {
-  .sg-js [data-sg="stack"] {
-    display: flex;
-    flex-direction: column;
-  }
-  .sg-js [data-sg="stack"] > * {
-    position: sticky;
-    top: calc(var(--sg-stack-top, 5rem) + var(--i) * var(--sg-stack-peek, 1rem));
-    margin: calc(var(--i) * var(--sg-stack-peek, 1rem)) 0 calc((var(--n) - 1 - var(--i)) * var(--sg-stack-peek, 1rem) + var(--sg-stack-gap, 1.5rem));
-  }
-  .sg-js [data-sg="stack"] > :has(:focus-visible) {
-    z-index: 1;
-  }
-}
-@supports (view-timeline-name: --sg) and (animation-range: exit-crossing 0%) {
-  @media (min-height: 40em) and (prefers-reduced-motion: no-preference) {
-    .sg-js [data-sg="stack"] {
-      view-timeline: --sg-stack block;
-    }
-    .sg-js [data-sg="stack"] > * {
-      view-timeline: --sg-stack-card block;
-    }
-    /* From the moment a card sticks until the last one does: on the list's own scroll, card i sticks at i/n of it. */
-    .sg-js [data-sg="stack"] > :not(:has(:focus-visible)),
-    .sg-js [data-sg="stack"] > :not(:has(:focus-visible))::after {
-      animation: sg-stack linear both;
-      animation-timeline: --sg-stack;
-      animation-range: exit-crossing calc(var(--i) / var(--n) * 100% - var(--sg-stack-top, 5rem)) exit-crossing calc((var(--n) - 1) / var(--n) * 100% - var(--sg-stack-top, 5rem));
-    }
-    .sg-js [data-sg="stack"] > :not(:has(:focus-visible)) {
-      transform-origin: 50% 0;
-    }
-    /*
-     * The shade: a colour multiplied over the card, deeper the further down the
-     * card has settled. With the site's own colour (`--sg-stack-shade`) a light
-     * card settles into a deeper tone of itself instead of turning grey.
-     */
-    .sg-js [data-sg="stack"] > :not(:has(:focus-visible))::after {
-      content: "";
-      position: absolute;
-      inset: 0;
-      z-index: 1;
-      border-radius: inherit;
-      background: var(--sg-stack-shade, #000);
-      mix-blend-mode: multiply;
-      opacity: 0;
-      pointer-events: none;
-      animation-name: sg-stack-shade;
-    }
-    /*
-     * Inside a card, while it rises to where it sticks: a picture marked
-     * `data-sg-stack-zoom` settles from a little near (its frame should clip
-     * it), and anything marked `data-sg-stack-rise` rises into place.
-     */
-    .sg-js [data-sg="stack"] [data-sg-stack-zoom],
-    .sg-js [data-sg="stack"] [data-sg-stack-rise] {
-      animation: sg-stack-zoom linear both;
-      animation-timeline: --sg-stack-card;
-      animation-range: cover 0% cover calc(100svh - var(--sg-stack-top, 5rem) - var(--i) * var(--sg-stack-peek, 1rem));
-    }
-    .sg-js [data-sg="stack"] [data-sg-stack-rise] {
-      animation-name: sg-stack-rise;
-    }
-  }
-}
-@keyframes sg-stack {
-  to {
-    scale: calc(1 - (var(--n) - 1 - var(--i)) * 0.04);
-  }
-}
-@keyframes sg-stack-shade {
-  to {
-    opacity: calc((var(--n) - 1 - var(--i)) * var(--sg-stack-shade-step, 0.12));
-  }
-}
-@keyframes sg-stack-zoom {
-  from {
-    scale: 1.16;
-  }
-}
-@keyframes sg-stack-rise {
-  from {
-    translate: 0 45%;
-  }
-}
-
-/*
- * Call to action (`data-sg="cta"`, src/modules/cta.ts): while its place is out
- * of view, the link floats at the bottom centre, below the screen until it
- * shows. Hidden, it takes no clicks but can still take focus, which shows it.
- */
-[data-sg="cta"].is-floating > a {
-  position: fixed;
-  inset: auto 0 calc(1rem + env(safe-area-inset-bottom));
-  z-index: 8;
-  width: max-content;
-  max-width: calc(100% - 2rem);
-  margin-inline: auto;
-  translate: 0 calc(100% + 2rem + env(safe-area-inset-bottom));
-  pointer-events: none;
-  transition: translate 0.5s cubic-bezier(0.65, 0, 0.35, 1);
-}
-[data-sg="cta"].is-shown > a {
-  translate: none;
-  pointer-events: auto;
-}
-.sg-menu-open [data-sg="cta"] > a {
-  visibility: hidden;
-}
-@media (prefers-reduced-motion: reduce) {
-  [data-sg="cta"].is-floating > a {
-    translate: none;
-    opacity: 0;
-    transition: opacity 0.2s;
-  }
-  [data-sg="cta"].is-shown > a {
-    opacity: 1;
   }
 }

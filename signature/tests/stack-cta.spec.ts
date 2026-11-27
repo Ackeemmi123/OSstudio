@@ -263,6 +263,8 @@ test.describe("the stack", () => {
 
 test.describe("the call to action", () => {
   test("shows past the first screen, steps aside reading down, comes back reading up, gives way to the footer and docks at its place", async ({ page }) => {
+    // It walks the whole page, which the image sequence (13) has made four screens longer: 20–27 s on a busy machine.
+    test.slow();
     const errors = collectErrors(page);
     await open(page);
     const root = page.locator('[data-sg="cta"]');
@@ -302,10 +304,13 @@ test.describe("the call to action", () => {
     const between = frames.filter((f) => f.floating && f.top > box.y + 4 && f.top < height - 4);
     expect(between.length).toBeGreaterThan(1);
 
-    // At its own place it is the link in the page again, once: on the library that place comes just before the footer.
+    // At its own place it is the link in the page again, once, coming back up to it from the footer (on the library
+    // the image sequence, 13, lies between them).
     const bottom = await page.evaluate(() => document.documentElement.scrollHeight - innerHeight);
     await scrollTo(page, bottom, 400);
-    await scrollTo(page, bottom - 60, 10);
+    const place = await page.evaluate(() => document.querySelector('[data-sg="cta"]')!.getBoundingClientRect().top + scrollY);
+    await scrollTo(page, place - height * 0.5, 400);
+    await scrollTo(page, place - height * 0.5 - 60, 10);
     await page.waitForTimeout(400);
     await expect(root).not.toHaveClass(/is-floating/);
     await expect(page.getByRole("link", { name: "Se hantverket" })).toHaveCount(1);
@@ -411,6 +416,8 @@ test.describe("the call to action", () => {
   });
 
   test("nothing shifts while the cards stack and the pill leaves and finds its place", async ({ page }) => {
+    // Its walk now reaches the image sequence, which starts loading its frames: 18–23 s on a busy machine.
+    test.slow();
     await open(page);
     const height = await viewport(page);
     // Past the pinned sections higher up (their own tests cover them), with the pill out.

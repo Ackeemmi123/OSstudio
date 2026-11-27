@@ -4,6 +4,10 @@
  * into the first), then encoded in the browser with WebCodecs and packed into
  * WebM and MP4. Nothing is filmed and nothing is bought: Axivo owns every
  * pixel. scripts/render-video.mjs drives this page and saves what it returns.
+ *
+ * Image sequences come from the same band (`renderSequence`): one picture per
+ * step from the eight loose pieces to the whole band, turning as it gathers,
+ * each saved as WebP for the sequence module (scripts/render-sequence.mjs).
  */
 import { ArrayBufferTarget as Mp4Target, Muxer as Mp4Muxer } from "mp4-muxer";
 import { ArrayBufferTarget as WebmTarget, Muxer as WebmMuxer } from "webm-muxer";
@@ -125,14 +129,14 @@ function scaled(source: CanvasImageSource & { width: number; height: number }, w
   return out;
 }
 
-async function renderFilm(film: Film): Promise<Rendered> {
-  const log: string[] = [];
-  const { width, height, fps, seconds } = film;
-  const frames = Math.round(fps * seconds);
-
-  // The band draws at the page's pixel ratio (the supersample), off screen so its own frame loop never runs.
+/**
+ * The band at full quality, `supersample` times the picture's size, off screen so its own frame loop never runs.
+ * The band draws at most at twice the CSS size, so a larger supersample makes the canvas larger on the page.
+ */
+async function bandStills(width: number, height: number, supersample: number, options: { loop: number; zoom: number; tilt: number; colours: string[] }) {
   const canvas = document.createElement("canvas");
-  canvas.style.cssText = `position: fixed; left: -${width + 100}px; top: 0; width: ${width}px; height: ${height}px`;
+  const scale = supersample / Math.min(2, window.devicePixelRatio);
+  canvas.style.cssText = `position: fixed; left: -${width * scale + 100}px; top: 0; width: ${width * scale}px; height: ${height * scale}px`;
   document.body.append(canvas);
   const scene = await createObjectScene(canvas, {
     allowSoftware: true,
@@ -141,16 +145,21 @@ async function renderFilm(film: Film): Promise<Rendered> {
     // Kept on the main thread (never handed to the band's worker), so every frame can be read back.
     preserve: true,
     centred: true,
-    loop: seconds,
-    zoom: film.zoom,
-    tilt: film.tilt,
-    colours: film.colours,
+    ...options,
     shown: () => undefined,
     lost: () => undefined,
   });
   if (!scene) throw new Error("WebGL is not available");
   await new Promise((resolve) => requestAnimationFrame(resolve));
-  if (canvas.width !== width * film.supersample) throw new Error(`The band drew at ${canvas.width} px, not ${width * film.supersample}: set the page's device scale factor to the supersample.`);
+  if (canvas.width !== width * supersample) throw new Error(`The band drew at ${canvas.width} px, not ${width * supersample}: set the page's device scale factor to the supersample.`);
+  return { canvas, scene };
+}
+
+async function renderFilm(film: Film): Promise<Rendered> {
+  const log: string[] = [];
+  const { width, height, fps, seconds } = film;
+  const frames = Math.round(fps * seconds);
+  const { canvas, scene } = await bandStills(width, height, film.supersample, { loop: seconds, zoom: film.zoom, tilt: film.tilt, colours: film.colours });
 
   // The frame the encoders get, at the film's own size.
   const frame = document.createElement("canvas");
@@ -223,5 +232,91 @@ async function renderFilm(film: Film): Promise<Rendered> {
   return { files, log };
 }
 
+export interface Sequence {
+  /** Where the pictures go, under lab/ (`public/sekvens/bred`); each is named by its index, from 00. */
+  folder: string;
+  width: number;
+  height: number;
+  frames: number;
+  supersample: number;
+  zoom: number;
+  tilt: number;
+  colours: string[];
+  /** The band's clock at the first picture and at the last, in seconds: how far it drifts and turns while it gathers. */
+  from: number;
+  to: number;
+  /** A period over which the band would turn once in its own plane: with `from` and `to`, how far it turns. */
+  loop: number;
+  /**
+   * How much closer the camera is at the last picture than at the first (1 = not at all): the band is drawn at the
+   * first picture's framing, where the loose pieces fit, and the frame is cut ever tighter as they gather, a slow push
+   * in that ends on the whole band at the film's framing. The supersample keeps even the tightest cut sharp.
+   */
+  push: number;
+  /**
+   * How far the top and the bottom edges fade into the ink (the first colour), as parts of the height: the stage then
+   * meets the section above it and the footer below without a line, at no cost on the page (no CSS mask).
+   */
+  fade: [number, number];
+  /** WebP quality, 0–1. */
+  quality: number;
+  /** Only these pictures (indices), for trying settings; all of them when absent. */
+  only?: number[];
+}
+
+/** Fades the top and bottom edges of a picture into one colour, eased so no band shows where the fade ends. */
+function edges(canvas: HTMLCanvasElement, colour: string, [top, bottom]: [number, number]): void {
+  const context = canvas.getContext("2d")!;
+  const [r, g, b] = [1, 3, 5].map((at) => Number.parseInt(colour.slice(at, at + 2), 16));
+  const fade = (from: number, to: number) => {
+    const gradient = context.createLinearGradient(0, from, 0, to);
+    for (let i = 0; i <= 8; i++) {
+      const t = i / 8;
+      gradient.addColorStop(t, `rgb(${r} ${g} ${b} / ${(1 - t * t * (3 - 2 * t)).toFixed(3)})`);
+    }
+    context.fillStyle = gradient;
+    context.fillRect(0, Math.min(from, to), canvas.width, Math.abs(to - from));
+  };
+  fade(0, canvas.height * top);
+  fade(canvas.height, canvas.height * (1 - bottom));
+}
+
+/**
+ * One picture per step, from the eight loose pieces (the first) to the whole
+ * band (the last), with the band's clock moving on as it gathers, so it turns
+ * and drifts like a filmed object rather than morphing in place. Drawn at the
+ * supersample and scaled down in halves, like the films.
+ */
+async function renderSequence(sequence: Sequence): Promise<Rendered> {
+  const log: string[] = [];
+  const { width, height, frames } = sequence;
+  const { canvas, scene } = await bandStills(width, height, sequence.supersample, { loop: sequence.loop, zoom: sequence.zoom, tilt: sequence.tilt, colours: sequence.colours });
+  const files: Record<string, string> = {};
+  const cut = document.createElement("canvas");
+  const started = performance.now();
+  let bytes = 0;
+  for (let i = 0; i < frames; i++) {
+    if (sequence.only && !sequence.only.includes(i)) continue;
+    const t = i / (frames - 1);
+    scene.still(t, sequence.from + (sequence.to - sequence.from) * t);
+    // The push in, eased at both ends: it starts as the pieces start to move and settles as the band does.
+    const push = 1 + (sequence.push - 1) * (t < 0.5 ? 4 * t ** 3 : 1 - (-2 * t + 2) ** 3 / 2);
+    cut.width = Math.round(canvas.width / push);
+    cut.height = Math.round(canvas.height / push);
+    cut.getContext("2d")!.drawImage(canvas, (canvas.width - cut.width) / 2, (canvas.height - cut.height) / 2, cut.width, cut.height, 0, 0, cut.width, cut.height);
+    const picture = scaled(cut, width);
+    edges(picture, sequence.colours[0], sequence.fade);
+    const blob = await new Promise<Blob>((resolve) => picture.toBlob((made) => resolve(made!), "image/webp", sequence.quality));
+    bytes += blob.size;
+    files[`${sequence.folder}/${String(i).padStart(2, "0")}.webp`] = await toBase64(blob);
+  }
+  const count = Object.keys(files).length;
+  log.push(`${sequence.folder}: ${count} pictures, ${Math.round(bytes / 1024)} KB (${(bytes / 1024 / count).toFixed(1)} KB each), ${((performance.now() - started) / count).toFixed(0)} ms a picture`);
+  scene.dispose();
+  canvas.remove();
+  return { files, log };
+}
+
 (window as unknown as { renderFilm: typeof renderFilm }).renderFilm = renderFilm;
+(window as unknown as { renderSequence: typeof renderSequence }).renderSequence = renderSequence;
 (window as unknown as { filmReady: boolean }).filmReady = true;

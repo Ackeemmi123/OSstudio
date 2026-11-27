@@ -7,7 +7,8 @@ import { defineConfig, devices } from "@playwright/test";
  * headless shell, which lacks the back-forward cache.
  */
 const CHANNEL = process.env.CI ? "chromium" : "chrome";
-const PORT = 4317;
+// SG_PORT: another port, for running beside a server that already holds 4317 (another checkout).
+const PORT = Number(process.env.SG_PORT ?? 4317);
 
 export default defineConfig({
   testDir: "tests",

@@ -1,0 +1,42 @@
+/*
+ * Reveal list (`data-sg="reveal-list"`, src/modules/reveal-list.ts). Each row
+ * shows its own small picture, except where the module takes over from the
+ * first paint: a mouse or trackpad that can hover, and motion welcome. There
+ * the picture follows the pointer instead (a hidden lazy picture is never
+ * fetched).
+ */
+[data-sg="reveal-list"] [data-sg-thumb] {
+  display: block;
+  object-fit: cover;
+}
+@media (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference) {
+  .sg-js [data-sg="reveal-list"] [data-sg-thumb] {
+    display: none;
+  }
+}
+.sg-reveal-float {
+  position: fixed;
+  left: 0;
+  top: 0;
+  z-index: 5;
+  overflow: clip;
+  pointer-events: none;
+  visibility: hidden;
+}
+.sg-reveal-float > img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  translate: 0 101%;
+}
+.sg-reveal-float > img.was-active {
+  translate: none;
+  z-index: 1;
+}
+.sg-reveal-float > img.is-active {
+  translate: none;
+  z-index: 2;
+  transition: translate 0.7s cubic-bezier(0.16, 1, 0.3, 1);
+}
