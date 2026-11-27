@@ -3,15 +3,20 @@
  * a few kilobytes. For fields, gradients and image effects; the 3D band
  * (band-scene.ts) draws its own two programs the same way, without a library.
  *
- * It compiles the shader in the background where the browser can
- * (KHR_parallel_shader_compile), so the page never freezes while it does,
- * draws only while the canvas is on screen and the tab is visible, caps the
- * pixel ratio, and gives up cleanly if the graphics context is lost.
+ * Where the browser allows it the stage draws in a worker, on an
+ * OffscreenCanvas (offscreen.ts): the first WebGL context in a fresh browser,
+ * the compile and every frame happen there, and the page never waits for
+ * them. Elsewhere it draws on the main thread, with the same code
+ * (stage-core.ts). Either way it compiles the shader in the background where
+ * the browser can (KHR_parallel_shader_compile), draws only while the canvas
+ * is on screen and the tab is visible, caps the pixel ratio, and gives up
+ * cleanly if the graphics context is lost.
  */
 
-import { SOFTWARE_RENDERER } from "./capabilities";
+import { attach, type Port } from "./offscreen";
+import type { Picture, StageCore, StageSpec, Uniform } from "./stage-core";
 
-export type Uniform = number | readonly [number, number] | readonly [number, number, number];
+export type { Uniform };
 
 export interface ShaderStageOptions {
   fragment: string;
@@ -28,6 +33,8 @@ export interface ShaderStageOptions {
   image?: HTMLImageElement;
   /** A transparent canvas, for effects that reveal what is underneath; the shader writes premultiplied colour. */
   transparent?: boolean;
+  /** Draw on the main thread, so the canvas can be read back (the art tool's stills). */
+  mainThread?: boolean;
   /** Called before each frame with seconds since start and since the last frame. */
   frame?: (time: number, delta: number, set: (name: string, value: Uniform) => void) => void;
   /** Called once, after the first frame is on screen. */
@@ -40,13 +47,6 @@ export interface ShaderStage {
   set: (name: string, value: Uniform) => void;
   dispose: () => void;
 }
-
-const VERTEX = `attribute vec2 position;
-varying vec2 vUv;
-void main() {
-  vUv = position * 0.5 + 0.5;
-  gl_Position = vec4(position, 0.0, 1.0);
-}`;
 
 /** How many horizontal bands a picture is uploaded in, one per frame. */
 const BANDS = 4;
@@ -61,7 +61,7 @@ const BANDS = 4;
  * decoding, since WebGL ignores its own flip for a bitmap, and not
  * premultiplied, as WebGL leaves an <img>.
  */
-async function decodeBands(image: HTMLImageElement): Promise<{ width: number; height: number; bands: { row: number; bitmap: ImageBitmap }[] }> {
+async function decodeBands(image: HTMLImageElement): Promise<Picture> {
   const response = await fetch(image.currentSrc || image.src, { cache: "force-cache" });
   if (!response.ok) throw new Error(String(response.status));
   const blob = await response.blob();
@@ -100,180 +100,118 @@ async function pixelSize(blob: Blob): Promise<{ width: number; height: number }>
   }
 }
 
-function shader(gl: WebGLRenderingContext, type: number, source: string): WebGLShader | null {
-  const object = gl.createShader(type);
-  if (!object) return null;
-  gl.shaderSource(object, source);
-  gl.compileShader(object);
-  return object;
+/** The <img> in one band, for a worker, where the picture could not be decoded from its file. */
+async function wholeBitmap(image: HTMLImageElement): Promise<Picture> {
+  const bitmap = await createImageBitmap(image, { imageOrientation: "flipY", premultiplyAlpha: "none", colorSpaceConversion: "default" });
+  return { width: bitmap.width, height: bitmap.height, bands: [{ row: 0, bitmap }] };
 }
 
-export function createShaderStage(canvas: HTMLCanvasElement, options: ShaderStageOptions): ShaderStage | null {
-  const gl = canvas.getContext("webgl", { antialias: false, alpha: options.transparent === true, premultipliedAlpha: true, depth: false, stencil: false, powerPreference: "default", preserveDrawingBuffer: false, failIfMajorPerformanceCaveat: !options.allowSoftware });
-  if (!gl) return null;
-  const context = gl;
-  // A flowing shader on the CPU makes the whole page stutter; the still version looks better. Not every software renderer admits to being slow, so ask its name.
-  const info = gl.getExtension("WEBGL_debug_renderer_info");
-  if (!options.allowSoftware && info && SOFTWARE_RENDERER.test(String(gl.getParameter(info.UNMASKED_RENDERER_WEBGL)))) {
-    gl.getExtension("WEBGL_lose_context")?.loseContext();
+const same = (a: Uniform | undefined, b: Uniform) => (typeof b === "number" ? a === b : Array.isArray(a) && a.length === b.length && a.every((v, i) => v === b[i]));
+
+/**
+ * Resolves to the stage once it has a WebGL context on a good enough
+ * graphics card, or to null without one; nothing is drawn before `shown`.
+ */
+export async function createShaderStage(canvas: HTMLCanvasElement, options: ShaderStageOptions): Promise<ShaderStage | null> {
+  const image = options.image;
+  const spec: StageSpec = {
+    fragment: options.fragment,
+    allowSoftware: options.allowSoftware === true,
+    uniforms: image ? { ...options.uniforms, uImageSize: [image.naturalWidth, image.naturalHeight] } : options.uniforms,
+    maxPixelRatio: options.maxPixelRatio,
+    fps: options.fps ?? 60,
+    timeOffset: options.timeOffset ?? 0,
+    transparent: options.transparent === true,
+    textured: Boolean(image),
+  };
+  // The picture decodes while the stage starts.
+  const decoded = image ? decodeBands(image) : null;
+  decoded?.catch(() => undefined);
+
+  let teardown = () => {};
+  const events = {
+    shown: () => options.shown?.(),
+    lost: () => {
+      teardown();
+      options.lost?.();
+    },
+  };
+  const worker = options.mainThread ? null : { name: "stage", spawn: () => new Worker(new URL("./stage-worker.ts", import.meta.url), { type: "module" }) };
+  // On the main thread the stage calls `frame` itself, before each frame it draws.
+  const port: Port<StageCore> | null = await attach(canvas, worker, spec, { ...events, frame: options.frame }, () => import("./stage-core").then(({ startStage }) => startStage));
+  if (!port) {
+    void decoded?.then(({ bands }) => bands.forEach(({ bitmap }) => bitmap.close()), () => undefined);
     return null;
   }
+  let disposed = false;
 
-  const vertex = shader(gl, gl.VERTEX_SHADER, VERTEX);
-  const fragment = shader(gl, gl.FRAGMENT_SHADER, `precision highp float;\n${options.fragment}`);
-  const program = gl.createProgram();
-  if (!vertex || !fragment || !program) return null;
-  gl.attachShader(program, vertex);
-  gl.attachShader(program, fragment);
-  gl.linkProgram(program);
-  const parallel = gl.getExtension("KHR_parallel_shader_compile");
-  // Hand the compile to the graphics process now, not at the end of this task.
-  gl.flush();
-
-  // One triangle that covers the screen.
-  const buffer = gl.createBuffer();
-  gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
-  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 3, -1, -1, 3]), gl.STATIC_DRAW);
-
-  // The image, if any, as texture unit 0: decoded off the main thread, then uploaded; nothing is drawn before.
-  let texture: WebGLTexture | null = null;
-  let textured = !options.image;
-  if (options.image) {
-    const image = options.image;
-    texture = gl.createTexture();
-    gl.bindTexture(gl.TEXTURE_2D, texture);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-    const uploadBands = async ({ width, height, bands }: Awaited<ReturnType<typeof decodeBands>>) => {
-      gl.bindTexture(gl.TEXTURE_2D, texture);
-      gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
-      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, width, height, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
-      for (const { row, bitmap } of bands) {
-        await new Promise(requestAnimationFrame);
-        if (!disposed) {
-          gl.bindTexture(gl.TEXTURE_2D, texture);
-          gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, row, gl.RGBA, gl.UNSIGNED_BYTE, bitmap);
-        }
-        bitmap.close();
-      }
-      textured = true;
-    };
-    // Where the browser cannot decode in the background, the picture is uploaded as it always was.
-    const uploadWhole = () => {
+  if (image && decoded) {
+    const give = (picture: Picture) => (disposed ? picture.bands.forEach(({ bitmap }) => bitmap.close()) : port.call("picture", [picture], port.remote ? picture.bands.map(({ bitmap }) => bitmap) : []));
+    // Where the browser cannot decode the file in the background, the picture is uploaded from the <img>, as it always was.
+    decoded.then(give, () => {
       if (disposed) return;
-      gl.bindTexture(gl.TEXTURE_2D, texture);
-      gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
-      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, image);
-      textured = true;
-    };
-    decodeBands(image).then((decoded) => (disposed ? decoded.bands.forEach(({ bitmap }) => bitmap.close()) : uploadBands(decoded)), uploadWhole);
+      if (!port.remote) port.call("picture", [image]);
+      else void wholeBitmap(image).then(give, () => undefined);
+    });
   }
 
-  const values = new Map<string, Uniform>(Object.entries(options.uniforms));
-  if (options.image) values.set("uImageSize", [options.image.naturalWidth, options.image.naturalHeight]);
-  const locations = new Map<string, WebGLUniformLocation | null>();
-  let ready = false;
-  let disposed = false;
-  let shown = false;
-
-  const set = (name: string, value: Uniform) => values.set(name, value);
-  const upload = () => {
-    for (const [name, value] of values) {
-      if (!locations.has(name)) locations.set(name, gl.getUniformLocation(program, name));
-      const location = locations.get(name);
-      if (!location) continue;
-      if (typeof value === "number") gl.uniform1f(location, value);
-      else if (value.length === 2) gl.uniform2f(location, value[0], value[1]);
-      else gl.uniform3f(location, value[0], value[1], value[2]);
+  // In a worker, `frame` runs here, at the stage's own pace, and only what changed is sent.
+  const sent = new Map<string, Uniform>();
+  const pending = new Map<string, Uniform>();
+  let flushing = false;
+  const flush = () => {
+    flushing = false;
+    if (disposed || !pending.size) return;
+    for (const [name, value] of pending) sent.set(name, value);
+    const values = [...pending];
+    pending.clear();
+    for (const [name, value] of values) port.call("set", [name, value]);
+  };
+  const set = (name: string, value: Uniform) => {
+    if (!port.remote) return port.call("set", [name, value]);
+    if (same(sent.get(name), value) && !pending.has(name)) return;
+    pending.set(name, typeof value === "number" ? value : ([...value] as unknown as Uniform));
+    if (!flushing) {
+      flushing = true;
+      queueMicrotask(flush);
     }
   };
-
-  const ratio = () => Math.min(window.devicePixelRatio || 1, options.maxPixelRatio);
-  const fit = () => {
-    const { width, height } = canvas.getBoundingClientRect();
-    if (!width || !height) return;
-    canvas.width = Math.round(width * ratio());
-    canvas.height = Math.round(height * ratio());
-    gl.viewport(0, 0, canvas.width, canvas.height);
-    set("uResolution", [canvas.width, canvas.height]);
-  };
-
-  /**
-   * True once the program is linked and the picture (if any) uploaded. With
-   * the extension it never waits on the compiler; without it, the first few
-   * frames are left to the compiler before asking, which would wait.
-   */
-  let grace = 3;
-  const linked = () => {
-    if (ready) return true;
-    if (!textured) return false;
-    if (parallel && !gl.getProgramParameter(program, parallel.COMPLETION_STATUS_KHR)) return false;
-    if (!parallel && grace-- > 0) return false;
-    if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
-      fail();
-      return false;
-    }
-    gl.useProgram(program);
-    if (texture) {
-      gl.activeTexture(gl.TEXTURE0);
-      gl.bindTexture(gl.TEXTURE_2D, texture);
-      gl.uniform1i(gl.getUniformLocation(program, "uImage"), 0);
-    }
-    const position = gl.getAttribLocation(program, "position");
-    gl.enableVertexAttribArray(position);
-    gl.vertexAttribPointer(position, 2, gl.FLOAT, false, 0, 0);
-    ready = true;
-    return true;
-  };
-
-  let visible = false;
-  let running = false;
-  let frameId = 0;
+  const interval = 1 / spec.fps - 0.002;
+  let driving = false;
+  let driveId = 0;
   let start = 0;
   let last = 0;
-
-  const draw = () => {
-    if (!linked()) return;
-    const now = performance.now() / 1000;
-    if (!start) start = last = now;
-    options.frame?.(now - start, Math.min(now - last, 0.1), set);
-    last = now;
-    set("uTime", now - start + (options.timeOffset ?? 0));
-    upload();
-    if (options.transparent) {
-      gl.clearColor(0, 0, 0, 0);
-      gl.clear(gl.COLOR_BUFFER_BIT);
-    }
-    gl.drawArrays(gl.TRIANGLES, 0, 3);
-    if (!shown) {
-      shown = true;
-      requestAnimationFrame(() => options.shown?.());
-    }
-  };
-  const interval = 1 / (options.fps ?? 60) - 0.002;
   let drawn = 0;
-  const loop = () => {
+  const drive = () => {
     const now = performance.now() / 1000;
     if (now - drawn >= interval) {
       drawn = now;
-      draw();
+      if (!start) start = last = now;
+      options.frame?.(now - start, Math.min(now - last, 0.1), set);
+      last = now;
     }
-    if (running) frameId = requestAnimationFrame(loop);
+    if (driving) driveId = requestAnimationFrame(drive);
   };
+
+  let visible = false;
   const update = () => {
-    const shouldRun = visible && document.visibilityState === "visible" && !disposed;
-    if (shouldRun && !running) {
-      running = true;
+    const on = visible && document.visibilityState === "visible" && !disposed;
+    port.call("run", [on]);
+    if (!port.remote || !options.frame) return;
+    if (on && !driving) {
+      driving = true;
       last = performance.now() / 1000;
-      frameId = requestAnimationFrame(loop);
-    } else if (!shouldRun && running) {
-      running = false;
-      cancelAnimationFrame(frameId);
+      driveId = requestAnimationFrame(drive);
+    } else if (!on && driving) {
+      driving = false;
+      cancelAnimationFrame(driveId);
     }
   };
 
+  const fit = () => {
+    const { width, height } = canvas.getBoundingClientRect();
+    if (!disposed) port.call("resize", [width, height, window.devicePixelRatio || 1]);
+  };
   const resizer = new ResizeObserver(fit);
   resizer.observe(canvas);
   fit();
@@ -284,32 +222,22 @@ export function createShaderStage(canvas: HTMLCanvasElement, options: ShaderStag
   watcher.observe(canvas);
   document.addEventListener("visibilitychange", update);
 
-  const onLost = (event: Event) => {
-    event.preventDefault();
-    fail();
-  };
-  canvas.addEventListener("webglcontextlost", onLost);
-
-  function fail() {
-    dispose();
-    options.lost?.();
-  }
-
-  function dispose() {
+  teardown = () => {
     if (disposed) return;
     disposed = true;
-    running = false;
-    cancelAnimationFrame(frameId);
+    driving = false;
+    cancelAnimationFrame(driveId);
     resizer.disconnect();
     watcher.disconnect();
     document.removeEventListener("visibilitychange", update);
-    canvas.removeEventListener("webglcontextlost", onLost);
-    context.deleteBuffer(buffer);
-    if (texture) context.deleteTexture(texture);
-    context.deleteProgram(program);
-    context.deleteShader(vertex);
-    context.deleteShader(fragment);
-  }
+  };
 
-  return { set, dispose };
+  return {
+    set,
+    dispose: () => {
+      if (disposed) return;
+      teardown();
+      port.call("dispose", []);
+    },
+  };
 }

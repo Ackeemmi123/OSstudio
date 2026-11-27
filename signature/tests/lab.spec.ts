@@ -1,5 +1,6 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Page } from "@playwright/test";
+import { handedToWorker, mainContexts, watchCanvases, withoutOffscreenCanvas, withoutWebGL, withoutWorkerWebGL } from "./webgl";
 
 /**
  * The rules every Signature site must keep, checked on the lab:
@@ -108,21 +109,83 @@ test.describe("with motion", () => {
 
   test("without WebGL the ink field stays the still gradient, and says why", async ({ page }) => {
     const errors = collectErrors(page);
-    // A device without WebGL: the same answer on a laptop's GPU and on a CI runner without one.
-    await page.addInitScript(() => {
-      const original = HTMLCanvasElement.prototype.getContext;
-      HTMLCanvasElement.prototype.getContext = function (this: HTMLCanvasElement, type: string, ...rest: unknown[]) {
-        return /webgl/i.test(type) ? null : (original as (...args: unknown[]) => RenderingContext | null).call(this, type, ...rest);
-      } as typeof original;
-    });
-    await page.goto("/");
+    // A device without WebGL, on the main thread and in the worker: the same answer on a laptop's GPU and on a CI runner without one.
+    await withoutWebGL(page);
+    await watchCanvases(page);
+    await page.goto("/?webgl");
     await expect(page.locator("html")).toHaveAttribute("data-sg-webgl", "off", { timeout: 10_000 });
     const field = page.locator('[data-sg="ink-field"]');
     await expect(field).toHaveAttribute("data-sg-state", "still");
     await expect(field).not.toHaveClass(/is-live/);
     await expect(page.locator('[data-sg-status="webgl"]')).toHaveText("Av: stillbild, enheten saknar snabb grafik");
+    // It was the worker that found no WebGL: the canvas had been handed to it.
+    expect(await field.locator("canvas").evaluate(handedToWorker)).toBe(true);
     expect(errors).toEqual([]);
   });
+
+  test("on a software renderer the ink field stays the still gradient, decided in the worker", async ({ page }) => {
+    const errors = collectErrors(page);
+    // Headless Chrome draws WebGL on the CPU (SwiftShader): without `?webgl` that is refused, as for a visitor.
+    const renderer = await page.evaluate(() => {
+      const gl = document.createElement("canvas").getContext("webgl");
+      const info = gl?.getExtension("WEBGL_debug_renderer_info");
+      return info ? String(gl!.getParameter(info.UNMASKED_RENDERER_WEBGL)) : "";
+    });
+    test.skip(!/swiftshader/i.test(renderer), "Needs a software renderer.");
+    await watchCanvases(page);
+    await page.goto("/");
+    await expect(page.locator("html")).toHaveAttribute("data-sg-webgl", "off", { timeout: 15_000 });
+    const field = page.locator('[data-sg="ink-field"]');
+    await expect(field).toHaveAttribute("data-sg-state", "still");
+    expect(await field.locator("canvas").evaluate(handedToWorker)).toBe(true);
+    expect(errors).toEqual([]);
+  });
+
+  test("the ink field draws in a worker: the page itself never creates a WebGL context", async ({ page }) => {
+    const errors = collectErrors(page);
+    await watchCanvases(page);
+    await page.goto("/?webgl");
+    const field = page.locator('[data-sg="ink-field"]');
+    await expect(field).toHaveClass(/is-live/, { timeout: 15_000 });
+    await expect(field).toHaveAttribute("data-sg-state", "webgl");
+    expect(await field.locator("canvas").evaluate(handedToWorker)).toBe(true);
+    expect(await page.evaluate(mainContexts)).toBe(0);
+    expect(errors).toEqual([]);
+  });
+
+  test("reduced motion switched on and off again: the field stops, then draws again in the same worker", async ({ page }) => {
+    const errors = collectErrors(page);
+    await watchCanvases(page);
+    await page.goto("/?webgl");
+    const field = page.locator('[data-sg="ink-field"]');
+    await expect(field).toHaveClass(/is-live/, { timeout: 15_000 });
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await expect(field).not.toHaveClass(/is-live/);
+    await expect(page.locator("html")).toHaveAttribute("data-sg-webgl", "off");
+    await page.emulateMedia({ reducedMotion: "no-preference" });
+    await expect(field).toHaveClass(/is-live/, { timeout: 15_000 });
+    await expect(page.locator("html")).toHaveAttribute("data-sg-webgl", "on");
+    // The canvas was handed over once and stays in its worker; nothing was drawn here.
+    expect(await page.evaluate(mainContexts)).toBe(0);
+    expect(errors).toEqual([]);
+  });
+
+  for (const [name, setUp] of [
+    ["without OffscreenCanvas", withoutOffscreenCanvas],
+    ["where a worker cannot draw WebGL", withoutWorkerWebGL],
+  ] as const) {
+    test(`${name}, the ink field draws on the main thread, as before`, async ({ page }) => {
+      const errors = collectErrors(page);
+      await setUp(page);
+      await watchCanvases(page);
+      await page.goto("/?webgl");
+      const field = page.locator('[data-sg="ink-field"]');
+      await expect(field).toHaveClass(/is-live/, { timeout: 15_000 });
+      expect(await field.locator("canvas").evaluate(handedToWorker)).toBe(false);
+      expect(await page.evaluate(mainContexts)).toBeGreaterThan(0);
+      expect(errors).toEqual([]);
+    });
+  }
 
   test("with WebGL the ink field draws after the page has loaded", async ({ page }) => {
     const errors = collectErrors(page);
