@@ -1,5 +1,5 @@
 import AxeBuilder from "@axe-core/playwright";
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Locator, type Page } from "@playwright/test";
 import { handedToWorker, mainContexts, watchCanvases, withoutOffscreenCanvas, withoutWebGL } from "./webgl";
 
 /** The library's building blocks keep the same rules as the lab: content first, motion on top. */
@@ -24,6 +24,24 @@ async function scrollTo(page: Page, target: number, step = 40) {
     await page.evaluate((y) => window.scrollTo(0, y), at);
     await page.waitForTimeout(16);
   }
+}
+
+/** Scrolls by hand until an element is in the middle of the screen, measuring again each step, since modules above it grow as they start. */
+async function scrollToMiddle(page: Page, element: Locator, step = 60) {
+  for (let i = 0; i < 1000; i++) {
+    const done = await element.evaluate((target, by) => {
+      const box = target.getBoundingClientRect();
+      const off = box.top + box.height / 2 - innerHeight / 2;
+      if (Math.abs(off) <= 2) return true;
+      const before = scrollY;
+      window.scrollBy(0, Math.sign(off) * Math.min(by, Math.abs(off)));
+      // At the end of the page: as near as it gets.
+      return scrollY === before;
+    }, step);
+    if (done) return;
+    await page.waitForTimeout(16);
+  }
+  throw new Error("Never reached the middle of the screen.");
 }
 
 /** Every layout shift a visitor's CLS would count (none excused by recent input), from the page's start. */
@@ -269,13 +287,19 @@ test.describe("with motion", () => {
     expect(errors).toEqual([]);
   });
 
-  for (const way of ["straight to the pictures", "down through the page"] as const) {
+  const ways = [
+    { way: "straight to the pictures", webgl: true },
+    { way: "down through the page", webgl: true },
+    { way: "down through the page, without WebGL", webgl: false },
+  ] as const;
+  for (const { way, webgl } of ways) {
     test(`a picture that has shown never vanishes before it arrives, nor waits long on screen (${way})`, async ({ page }) => {
       test.setTimeout(90_000);
+      if (!webgl) await withoutWebGL(page);
       await page.addInitScript(() => {
         sessionStorage.setItem("sg-intro", "1");
-        // Every frame, for every picture: on screen, its <img> showing, the shader's copy on, and where it stands.
-        const frames: { t: number; on: boolean; img: boolean; live: boolean; phase: string }[][] = [];
+        // Every frame, for every picture: on screen, its <img> loaded and opaque, the shader's copy on, and its states.
+        const frames: { t: number; on: boolean; loaded: boolean; opaque: boolean; live: boolean; phase: string; state: string }[][] = [];
         (window as unknown as { sgPictures: typeof frames }).sgPictures = frames;
         const record = (t: number) => {
           frames.push(
@@ -285,9 +309,11 @@ test.describe("with motion", () => {
               return {
                 t,
                 on: box.bottom > 0 && box.top < innerHeight,
-                img: img.complete && img.naturalWidth > 0 && getComputedStyle(img).opacity === "1",
+                loaded: img.complete && img.naturalWidth > 0,
+                opaque: getComputedStyle(img).opacity === "1",
                 live: frame.classList.contains("is-live"),
                 phase: frame.dataset.sgPicture ?? "",
+                state: frame.dataset.sgState ?? "",
               };
             }),
           );
@@ -295,40 +321,53 @@ test.describe("with motion", () => {
         };
         requestAnimationFrame(record);
       });
-      await page.goto(`${PAGE}?webgl`);
-      const band = page.locator(".reveal-band");
-      const top = await band.evaluate((element) => element.getBoundingClientRect().top + scrollY);
-      if (way === "straight to the pictures") await page.evaluate((y) => window.scrollTo(0, y), top - 100);
-      else await scrollTo(page, top - 100, 60);
-      await page.waitForTimeout(2500);
-      // On, until the last picture is past the top of the screen.
-      await scrollTo(page, await band.evaluate((element) => element.getBoundingClientRect().bottom + scrollY - 100), 40);
-      await page.waitForTimeout(2500);
-      const frames = await page.evaluate(() => (window as unknown as { sgPictures: { t: number; on: boolean; img: boolean; live: boolean; phase: string }[][] }).sgPictures);
-      const pictures = frames[0].length;
-      expect(pictures).toBeGreaterThan(0);
-      let showed = 0;
-      for (let i = 0; i < pictures; i++) {
+      await page.goto(webgl ? `${PAGE}?webgl` : PAGE);
+      const pictures = page.locator('[data-sg="reveal"]');
+      const count = await pictures.count();
+      expect(count).toBeGreaterThan(0);
+      if (way === "straight to the pictures") {
+        await pictures.first().evaluate((element) => {
+          const box = element.getBoundingClientRect();
+          window.scrollTo(0, box.top + scrollY + box.height / 2 - innerHeight / 2);
+        });
+      }
+      // Each picture in turn, held in the middle of the screen until it is shown (and drawn, where WebGL runs),
+      // so every picture is measured however long its shader takes to start.
+      for (let i = 0; i < count; i++) {
+        await scrollToMiddle(page, pictures.nth(i));
+        await expect(pictures.nth(i)).toHaveAttribute("data-sg-picture", "shown", { timeout: 20_000 });
+        if (webgl) await expect(pictures.nth(i)).toHaveClass(/is-live/, { timeout: 20_000 });
+        await page.waitForTimeout(300);
+      }
+      type Frame = { t: number; on: boolean; loaded: boolean; opaque: boolean; live: boolean; phase: string; state: string };
+      const frames = await page.evaluate(() => (window as unknown as { sgPictures: Frame[][] }).sgPictures);
+      for (let i = 0; i < count; i++) {
         const own = frames.map((frame) => frame[i]);
-        // Once its <img> has shown on screen, it shows in every later frame.
-        const first = own.findIndex((f) => f.on && f.img);
-        if (first >= 0) {
-          showed++;
-          const hidden = own.slice(first).findIndex((f) => !f.img);
-          expect(hidden, `picture ${i + 1} vanished ${hidden} frames after it showed (${JSON.stringify(own[first + hidden])})`).toBe(-1);
+        const name = `picture ${i + 1}`;
+        // It showed on screen as its own <img>, whole: measured, never assumed.
+        const first = own.findIndex((f) => f.on && f.loaded && f.opaque);
+        expect(first, `${name} never showed on screen`).toBeGreaterThanOrEqual(0);
+        // From then on its <img> shows in every frame, under the shader's copy or without it.
+        const hidden = own.slice(first).findIndex((f) => !f.opaque);
+        expect(hidden, `${name} vanished ${hidden} frames after it showed (${JSON.stringify(own[first + hidden])})`).toBe(-1);
+        if (webgl) {
+          // Where WebGL runs, the shader took over this picture.
+          expect(own.some((f) => f.state === "webgl" && f.live), `${name} was never drawn by the shader`).toBe(true);
+        } else {
+          // Without a shader the <img> is simply the picture: never hidden, not for a frame.
+          expect(own.some((f) => f.state === "webgl"), `${name} had a shader without WebGL`).toBe(false);
+          expect(own.findIndex((f) => !f.opaque), `${name} was hidden without a shader`).toBe(-1);
         }
         // Held back to arrive, it never stands empty on screen for long while the shader is not drawing.
         let since = -1;
         for (const f of own) {
-          const empty = f.on && !f.img && !f.live;
+          const empty = f.on && !f.opaque && !f.live;
           if (empty && since < 0) since = f.t;
           if (!empty) since = -1;
-          expect(since < 0 || f.t - since < 1200, `picture ${i + 1} stood empty on screen from ${Math.round(since)} ms`).toBe(true);
+          expect(since < 0 || f.t - since < 1200, `${name} stood empty on screen from ${Math.round(since)} ms`).toBe(true);
         }
-        // It ends shown.
-        expect(own.at(-1)!.phase, `picture ${i + 1} ends ${JSON.stringify(own.at(-1))}`).toBe("shown");
+        expect(own.at(-1)!.phase, `${name} ends ${JSON.stringify(own.at(-1))}`).toBe("shown");
       }
-      expect(showed).toBeGreaterThan(0);
     });
   }
 
