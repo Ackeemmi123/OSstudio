@@ -6,19 +6,20 @@
  * the page scrolls. Nothing is filmed or bought: Axivo owns every pixel.
  *
  * Two steps. The tool page draws every picture once, as a lossless master
- * (Chrome's WebP at quality 1 is lossless), at the largest size any screen
- * gets. Then sharp (libvips, a dev dependency: nothing of it reaches a site)
- * encodes each master here in Node: AVIF, which Chrome's canvas cannot write,
- * at the full size and for every picture, and WebP at two thirds of the size
- * for every second picture, for the browsers that cannot read AVIF. Both end
- * on the same picture, and each set stays within the same weight.
+ * (Chrome's WebP at quality 1 is lossless), larger than any set that is
+ * saved. Then sharp (libvips, a dev dependency: nothing of it reaches a site)
+ * scales and encodes each master here in Node. Wide: AVIF, which Chrome's
+ * canvas cannot write, for every picture, and WebP for every second picture,
+ * for the browsers that cannot read AVIF. Phones: WebP for every second
+ * picture, since AVIF decodes too slowly there. All end on the same picture.
  *
  * Needs the dev server: `npm run dev`, then `node scripts/render-sequence.mjs`
  * (or pass its address). `ONLY=telefon` renders just that shape;
  * `FRAMES=0,60,120` just those pictures, and `OUT=/some/folder` writes them
  * there instead of the lab, for trying settings. The masters are kept in
- * node_modules/.cache/sekvens/ (about 150 MB): `MASTERS=keep` encodes from
- * them again without drawing, to try another quality.
+ * node_modules/.cache/sekvens/ (about 400 MB): `MASTERS=keep` encodes from
+ * them again without drawing, to try another quality (`AVIF_Q`, `WEBP_Q`
+ * for the phone's) or width (`AVIF_W`).
  */
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
@@ -50,8 +51,8 @@ const SHARED = { frames: FRAMES, supersample: SUPERSAMPLE, colours: COLOURS, fro
 
 /**
  * What is saved from each master. `every: 2` keeps every second picture. AVIF: `quality` is libaom's, `effort` how
- * hard it tries (9 is the most, and slow: about a second a picture); 4:4:4 keeps the thin blue rims of the metal,
- * which 4:2:0 smears at these sizes.
+ * hard it tries (more than 4 saved 2 %). The wide AVIF is 1920 × 1080 at 4:2:0 because of how long a browser takes
+ * to decode it, which is what a scroll shows: 13 ms a picture in Chrome here, against 15 at 4:4:4 and 24 at 2400 × 1350.
  */
 const SEQUENCES = [
   {
@@ -62,7 +63,7 @@ const SEQUENCES = [
     zoom: 1.0,
     push: 1.55,
     outputs: [
-      { format: "avif", width: 2400, every: 1, options: { quality: Number(process.env.AVIF_Q ?? 34), effort: 4, chromaSubsampling: "4:4:4" } },
+      { format: "avif", width: Number(process.env.AVIF_W ?? 1920), every: 1, options: { quality: Number(process.env.AVIF_Q ?? 46), effort: 4, chromaSubsampling: "4:2:0" } },
       { format: "webp", width: 1600, every: 2, options: { quality: 80, effort: 6 } },
     ],
   },
@@ -76,8 +77,7 @@ const SEQUENCES = [
     zoom: 0.78,
     push: 0.98 / 0.78,
     outputs: [
-      { format: "avif", width: 1080, every: 1, options: { quality: Number(process.env.AVIF_Q ?? 22), effort: 4, chromaSubsampling: "4:4:4" } },
-      { format: "webp", width: 720, every: 2, options: { quality: 66, effort: 6 } },
+      { format: "webp", width: 720, every: 2, options: { quality: Number(process.env.WEBP_Q ?? 72), effort: 6 } },
     ],
   },
 ].map((sequence) => ({ ...SHARED, ...sequence }));

@@ -37,9 +37,11 @@ const BUDGET = {
   // An image sequence's frames, all of them, for one screen shape in one format: a visitor fetches one set, never two.
   // The phone's are in a phone's own shape (19.5:9), so the band is never cut at the sides, and their edges fade into
   // the page. The two limits are the ones set when the sequence was sixty WebP pictures (1600 × 900 and 720 × 1560);
-  // they were not raised when it went to 121 pictures at 2400 × 1350 and 1080 × 2340. AVIF pays for that: each limit
+  // they were not raised when the wide one went to 121 pictures at 1920 × 1080. AVIF pays for that: the wide limit
   // now holds for the AVIF set and, separately, for the WebP set that browsers without AVIF fetch instead (61
-  // pictures at the old sizes). What a visitor downloads is unchanged; what the built site stores has doubled.
+  // pictures at 1600 × 900). What a visitor downloads is unchanged; the built site stores one more wide set. The
+  // phone's stay WebP (61 at 720 × 1560): an AVIF picture takes two to three times as long to decode and, at the
+  // size a phone's screen would want, twice the memory.
   sequenceWide: 1200,
   sequencePhone: 640,
   // The Signature layer, on an enhanced site.
@@ -110,7 +112,6 @@ const rows = [
   // Frames, as stored: fetched a screen ahead of the sequence, one set per screen shape, never with Save-Data.
   ["Sequence, wide, AVIF", stored(frames("bred", "avif")), BUDGET.sequenceWide],
   ["Sequence, wide, WebP", stored(frames("bred", "webp")), BUDGET.sequenceWide],
-  ["Sequence, phone, AVIF", stored(frames("telefon", "avif")), BUDGET.sequencePhone],
   ["Sequence, phone, WebP", stored(frames("telefon", "webp")), BUDGET.sequencePhone],
   ["Sequence pictures not counted", uncounted.length, 0],
 ];

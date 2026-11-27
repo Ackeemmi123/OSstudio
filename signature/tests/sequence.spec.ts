@@ -2,9 +2,10 @@ import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Page } from "@playwright/test";
 
 /**
- * The image sequence (`data-sg="sequence"`) on the library: 121 pictures of
- * the band (AVIF; 61 in WebP for browsers without it) drawn on a canvas as
- * the page scrolls, each fading into the next, while the stage holds still.
+ * The image sequence (`data-sg="sequence"`) on the library: pictures of the
+ * band drawn on a canvas as the page scrolls, each fading into the next,
+ * while the stage holds still. A wide screen runs 121 in AVIF (61 in WebP
+ * where the browser has no AVIF), a phone 61 in WebP at its own shape.
  * Content first: without JavaScript, with reduced motion and with Save-Data
  * it is the last frame as a plain picture, and only that is fetched. Motion
  * is judged on frames recorded in the page with requestAnimationFrame, never
@@ -12,12 +13,22 @@ import { expect, test, type Page } from "@playwright/test";
  */
 
 const PAGE = "/bibliotek/";
-/** The pictures in the AVIF sets, and in the WebP ones (every second picture). */
-const COUNT = 121;
+/** The pictures in the wide AVIF set, and in the WebP sets (every second picture): the phone's, and the wide fallback. */
+const WIDE = 121;
 const FALLBACK = 61;
-const LAST = COUNT - 1;
-/** Fetched first: every fourth frame (the last is one of them). */
-const KEYS = Array.from({ length: LAST / 4 + 1 }, (_, index) => index * 4);
+/** What this screen runs: how many pictures, the last, those fetched first (every fourth; the last is one), and their files. */
+const sequenceOf = (isMobile: boolean) => {
+  const count = isMobile ? FALLBACK : WIDE;
+  const [shape, format] = isMobile ? ["telefon", "webp"] : ["bred", "avif"];
+  return {
+    count,
+    last: count - 1,
+    keys: Array.from({ length: (count - 1) / 4 + 1 }, (_, index) => index * 4),
+    shape,
+    format,
+    file: (index: number) => `${shape}/${String(index).padStart(String(count - 1).length, "0")}.${format}`,
+  };
+};
 /** A frame of the sequence: its shape (wide or phone), index and format. */
 const FRAME = /sekvens\/(bred|telefon)\/(\d+)\.(avif|webp)/;
 const ALT = "Bandets åtta delar av borstad metall som samlas till en hel Möbiusslinga, renderat i kod";
@@ -164,11 +175,10 @@ async function expectStill(page: Page, isMobile: boolean) {
   const picture = host.getByRole("img", { name: ALT });
   await picture.scrollIntoViewIfNeeded();
   await expect.poll(() => picture.evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth > 0)).toBe(true);
-  expect(await picture.evaluate((img: HTMLImageElement) => img.currentSrc)).toMatch(isMobile ? /telefon\/120\.avif$/ : /bred\/120\.avif$/);
-  // Sharp on the densest screens: as many pixels as a 2× desktop or a 2.6× phone shows.
-  expect(await picture.evaluate((img: HTMLImageElement) => img.naturalWidth)).toBe(isMobile ? 1080 : 2400);
+  expect(await picture.evaluate((img: HTMLImageElement) => img.currentSrc)).toMatch(isMobile ? /telefon\/60\.webp$/ : /bred\/120\.avif$/);
+  expect(await picture.evaluate((img: HTMLImageElement) => img.naturalWidth)).toBe(isMobile ? 720 : 1920);
   const box = (await picture.boundingBox())!;
-  expect(Math.abs(box.width / box.height - (isMobile ? 1080 / 2340 : 2400 / 1350))).toBeLessThan(0.01);
+  expect(Math.abs(box.width / box.height - (isMobile ? 720 / 1560 : 1920 / 1080))).toBeLessThan(0.01);
   // Its word stands whole in its line; the other two are out of it.
   for (const sample of await words(page, 1)) expect(sample).toEqual(only(2));
 }
@@ -183,7 +193,7 @@ test.describe("without JavaScript", () => {
     await expect(root(page).locator("canvas")).toHaveCount(0);
     await expect(root(page).getByText("Ett band.")).toBeAttached();
     await page.waitForTimeout(300);
-    expect(frames).toEqual([isMobile ? "telefon/120.avif" : "bred/120.avif"]);
+    expect(frames).toEqual([isMobile ? "telefon/60.webp" : "bred/120.avif"]);
     expect(await overflow(page)).toBeLessThanOrEqual(0);
   });
 });
@@ -192,6 +202,7 @@ test.describe("with reduced motion", () => {
   test.use({ reducedMotion: "reduce" });
 
   test("the last frame stands still, nothing is held or fetched; turned off, the sequence starts, and on again, it stops", async ({ page, isMobile }) => {
+    const { count: COUNT } = sequenceOf(isMobile);
     // Turned off midway, it loads every frame before it is turned on again.
     test.slow();
     const errors = collectErrors(page);
@@ -201,7 +212,7 @@ test.describe("with reduced motion", () => {
     await expect(root(page)).toHaveAttribute("data-sg-state", "still");
     await expectStill(page, isMobile);
     await page.waitForTimeout(500);
-    expect(frames).toEqual([isMobile ? "telefon/120.avif" : "bred/120.avif"]);
+    expect(frames).toEqual([isMobile ? "telefon/60.webp" : "bred/120.avif"]);
     expect(await page.evaluate(() => document.getAnimations().filter((animation) => animation.playState === "running").length)).toBe(0);
 
     // The visitor turns reduced motion off while here: the stage is held and the frames come.
@@ -240,7 +251,7 @@ test.describe("with Save-Data", () => {
     await expect(root(page)).toHaveAttribute("data-sg-state", "poster");
     await expectStill(page, isMobile);
     await page.waitForTimeout(800);
-    expect(frames).toEqual([isMobile ? "telefon/120.avif" : "bred/120.avif"]);
+    expect(frames).toEqual([isMobile ? "telefon/60.webp" : "bred/120.avif"]);
     expect(chunks).toEqual([]);
     await expect(root(page).locator("canvas")).toHaveCount(0);
     expect(errors).toEqual([]);
@@ -249,6 +260,7 @@ test.describe("with Save-Data", () => {
 
 test.describe("with motion", () => {
   test("loads a screen ahead, every fourth frame first, one set for this screen; the stage holds while the drawn frame follows the scroll down and back up, without a jump", async ({ page, isMobile }) => {
+    const { count: COUNT, last: LAST, keys: KEYS } = sequenceOf(isMobile);
     // Down through the whole track and back, a hand's step at a time: longer than most.
     test.slow();
     const errors = collectErrors(page);
@@ -269,7 +281,7 @@ test.describe("with motion", () => {
     expect(fetched.slice(0, KEYS.length).map((name) => Number.parseInt(name.split("/")[1])).sort((a, b) => a - b)).toEqual(KEYS);
     expect(new Set(fetched).size).toBe(COUNT);
     expect(fetched).toHaveLength(COUNT);
-    expect(fetched.every((name) => name.startsWith(isMobile ? "telefon/" : "bred/") && name.endsWith(".avif"))).toBe(true);
+    expect(fetched.every((name) => name.startsWith(isMobile ? "telefon/" : "bred/") && name.endsWith(isMobile ? ".webp" : ".avif"))).toBe(true);
 
     const height = await page.evaluate(() => innerHeight);
     const track = await root(page).evaluate((element) => element.getBoundingClientRect().height);
@@ -313,7 +325,8 @@ test.describe("with motion", () => {
     expect(errors).toEqual([]);
   });
 
-  test("the words change with the movement: one whole word wherever the reader stops, rolling to the next in time, never flickering at a threshold", async ({ page }) => {
+  test("the words change with the movement: one whole word wherever the reader stops, rolling to the next in time, never flickering at a threshold", async ({ page, isMobile }) => {
+    const { count: COUNT } = sequenceOf(isMobile);
     test.slow();
     const errors = collectErrors(page);
     await open(page);
@@ -362,7 +375,7 @@ test.describe("with motion", () => {
     expect(errors).toEqual([]);
   });
 
-  test("the first frame drawn is the poster's own picture, placed the same, so nothing jumps as the canvas takes over", async ({ page }) => {
+  test("the first frame drawn is the poster's own picture, placed the same, so nothing jumps as the canvas takes over", async ({ page, isMobile }) => {
     await open(page);
     await settledTop(page, 0.6);
     await expect(root(page)).toHaveAttribute("data-sg-state", "live", { timeout: 20_000 });
@@ -383,11 +396,12 @@ test.describe("with motion", () => {
       for (let i = 0; i < a.length; i += 4) total += Math.abs(a[i] - b[i]) + Math.abs(a[i + 1] - b[i + 1]) + Math.abs(a[i + 2] - b[i + 2]);
       return { mean: total / (a.length / 4) / 3, src: img.currentSrc };
     });
-    expect(difference.src).toMatch(/\/000\.avif$/);
+    expect(difference.src).toMatch(isMobile ? /\/00\.webp$/ : /\/000\.avif$/);
     expect(difference.mean).toBeLessThan(1);
   });
 
-  test("while frames are on their way, the nearest one that has come holds, and the one wanted follows", async ({ page }) => {
+  test("while frames are on their way, the nearest one that has come holds, and the one wanted follows", async ({ page, isMobile }) => {
+    const { count: COUNT, last: LAST, keys: KEYS } = sequenceOf(isMobile);
     // Every frame passes through the test's own request handler, which a busy machine makes slow.
     test.slow();
     // Only every fourth frame and the last arrive; the rest wait until released.
@@ -404,18 +418,19 @@ test.describe("with motion", () => {
     await expect.poll(() => root(page).evaluate((element) => Number(element.dataset.sgLoaded ?? 0)), { timeout: 20_000 }).toBe(KEYS.length);
     const run = await runOf(page);
     const stop = await record(page);
-    // Halfway and a little: frame 62 is wanted, 60 is the nearest that came on the way there. Each held frame is
-    // drawn whole: nothing is mixed with a frame that has not come.
-    await scrollTo(page, top + run * (62 / LAST));
+    // Halfway and a little: frame 62 is wanted (31 of a phone's 61), 60 (28) is the nearest that came on the way
+    // there. Each held frame is drawn whole: nothing is mixed with a frame that has not come.
+    const target = LAST / 2 + (isMobile ? 1 : 2);
+    await scrollTo(page, top + run * (target / LAST));
     await page.waitForTimeout(400);
     const waiting = (await stop()).map((sample) => sample.frame).filter((frame) => frame >= 0);
     expect(waiting.every((frame) => KEYS.includes(frame))).toBe(true);
     for (let i = 1; i < waiting.length; i++) expect(waiting[i]).toBeGreaterThanOrEqual(waiting[i - 1]);
-    expect(waiting[waiting.length - 1]).toBe(60);
+    expect(waiting[waiting.length - 1]).toBe(Math.floor(target / 4) * 4);
     // The rest arrive: the wanted frame is drawn without another scroll.
     release();
     await expect(root(page)).toHaveAttribute("data-sg-loaded", String(COUNT), { timeout: 60_000 });
-    await expectFrame(page, 62);
+    await expectFrame(page, target);
   });
 
   test("the frames are fetched and decoded in a worker, never on the page's main thread", async ({ page }) => {
@@ -431,7 +446,8 @@ test.describe("with motion", () => {
     expect(here).toEqual([]);
   });
 
-  test("where no worker can start, the page fetches and decodes them itself, and the sequence runs the same", async ({ page }) => {
+  test("where no worker can start, the page fetches and decodes them itself, and the sequence runs the same", async ({ page, isMobile }) => {
+    const { count: COUNT, last: LAST } = sequenceOf(isMobile);
     await page.addInitScript(() => Object.defineProperty(window, "Worker", { value: undefined }));
     const errors = collectErrors(page);
     const here: string[] = [];
@@ -442,12 +458,13 @@ test.describe("with motion", () => {
     await expect(root(page)).toHaveAttribute("data-sg-state", "live");
     expect(here).toHaveLength(1);
     const run = await runOf(page);
-    await scrollTo(page, top + run * (60 / LAST));
-    await expectFrame(page, 60);
+    await scrollTo(page, top + run * 0.5);
+    await expectFrame(page, LAST / 2);
     expect(errors).toEqual([]);
   });
 
   test("between two frames the canvas shows both, the later as strong as the scroll is far into the step, so a slow scroll moves on every painted frame", async ({ page, isMobile }) => {
+    const { count: COUNT, last: LAST, file } = sequenceOf(isMobile);
     test.slow();
     const errors = collectErrors(page);
     await open(page);
@@ -459,10 +476,10 @@ test.describe("with motion", () => {
     // Held between frames 40 and 41: what the canvas shows is the two pictures mixed by the same share, drawn here again from the files.
     await scrollTo(page, top + perFrame * 40.5);
     await expect.poll(async () => Math.abs((await shown(page)) - 40.5)).toBeLessThan(0.1);
-    const mixed = await root(page).evaluate(async (host, shape) => {
+    const mixed = await root(page).evaluate(async (host, files) => {
       const canvas = host.querySelector("canvas")!;
       const position = Number(canvas.dataset.frame);
-      const [under, over] = await Promise.all([40, 41].map(async (index) => createImageBitmap(await (await fetch(`../sekvens/${shape}/0${index}.avif`)).blob())));
+      const [under, over] = await Promise.all(files.map(async (file) => createImageBitmap(await (await fetch(`../sekvens/${file}`)).blob())));
       const picture = (strengths: number[]) => {
         const own = document.createElement("canvas");
         own.width = canvas.width;
@@ -484,7 +501,7 @@ test.describe("with motion", () => {
       for (let i = 0; i < drawn.length; i += 4) if (apart(under40, over41, i) > 45) moved.push(i);
       const difference = (other: Uint8ClampedArray) => moved.reduce((total, i) => total + apart(drawn, other, i), 0) / moved.length / 3;
       return { position, moved: moved.length, both: difference(picture([1, position - 40])), under: difference(under40), over: difference(over41) };
-    }, isMobile ? "telefon" : "bred");
+    }, [file(40), file(41)]);
     // It is the mix, and neither picture alone.
     expect(mixed.moved).toBeGreaterThan(500);
     expect(mixed.both).toBeLessThan(mixed.under / 3);
@@ -506,7 +523,9 @@ test.describe("with motion", () => {
   });
 
   test("where the browser cannot decode AVIF, the WebP frames run instead: 61 of them, the same movement, counted the same", async ({ page, isMobile }) => {
+    test.skip(isMobile, "A phone's frames are WebP only.");
     test.slow();
+    const COUNT = WIDE;
     const errors = collectErrors(page);
     // What the loader fetches as AVIF is not a picture here, as in a browser that cannot read the format.
     await page.route(/sekvens\/.*\.avif/, (route) => (route.request().resourceType() === "fetch" ? route.fulfill({ status: 200, contentType: "image/avif", body: "not a picture" }) : route.continue()));
@@ -516,7 +535,7 @@ test.describe("with motion", () => {
     await expect(root(page)).toHaveAttribute("data-sg-loaded", String(FALLBACK), { timeout: 30_000 });
     await expect(root(page)).toHaveAttribute("data-sg-state", "live");
     // One AVIF frame was tried, the first; then every WebP frame once, from the set for this screen.
-    const shape = isMobile ? "telefon" : "bred";
+    const shape = "bred";
     expect(fetched[0]).toBe(`${shape}/000.avif`);
     expect(fetched.filter((name) => name.endsWith(".avif"))).toHaveLength(1);
     const webp = fetched.filter((name) => name.endsWith(".webp"));
@@ -524,7 +543,7 @@ test.describe("with motion", () => {
     expect(new Set(webp).size).toBe(FALLBACK);
     expect(webp.every((name) => name.startsWith(`${shape}/`))).toBe(true);
     // The canvas is sized for these frames, never with more pixels than they have.
-    expect(await root(page).locator("canvas").evaluate((canvas: HTMLCanvasElement) => canvas.width)).toBeLessThanOrEqual(isMobile ? 720 : 1600);
+    expect(await root(page).locator("canvas").evaluate((canvas: HTMLCanvasElement) => canvas.width)).toBeLessThanOrEqual(1600);
 
     // Down through it and back: the same movement, one way each, without a jump, to the same last picture.
     const run = await runOf(page);
@@ -571,7 +590,8 @@ test.describe("with motion", () => {
     expect(shifts.reduce((sum, value) => sum + value, 0)).toBeLessThan(0.001);
   });
 
-  test("the held stage never traps the keyboard: Page Down goes on through it to the footer, and focus is never covered", async ({ page }) => {
+  test("the held stage never traps the keyboard: Page Down goes on through it to the footer, and focus is never covered", async ({ page, isMobile }) => {
+    const { last: LAST } = sequenceOf(isMobile);
     await open(page);
     const top = await settledTop(page, 0);
     await expect(root(page)).toHaveAttribute("data-sg-state", "live", { timeout: 20_000 });
