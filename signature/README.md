@@ -61,6 +61,195 @@ JavaScript, with reduced motion, and without WebGL. The engine only adds.
 | `data-sg="mark"` | `src/build/kinetic.ts`, `engine.css` | Phase 2. A word mark split at build time whose letters rise as it scrolls in, in CSS alone (scroll-driven animations). |
 | Holding the place | `holdPlace()` in `src/engine/motion.ts` | Phase 2. When a section above the visitor changes height as it starts (a pin, a scrubbed list), the page keeps what they are looking at still. |
 
+## The Signature layer
+
+The engine above is for sites written for it. The layer (`src/layer/`,
+`layer/`) is for every other site: it adds Signature motion to a **finished**
+static site, from Website Factory or built by hand, without changing its
+design. Same HTML, same content, same CSS; the site's own elements become
+modules through a map of selectors, and a preset decides how motion feels in
+that industry.
+
+What it promises, and `tests/layer.spec.ts` checks on a hand-built site:
+
+- **Without JavaScript** the enhanced site is the base site, pixel for pixel.
+  Every rule in `layer.css` is behind `html.sgl`, which only the script sets.
+- **With reduced motion** the script returns at once: nothing of the layer
+  exists, and the page is the base site with its own reduced-motion rules.
+- **No layout shift.** Arrivals are opacity, transform and clip-path. Where
+  the layer has to touch the DOM (a headline split into word boxes, a wrapper
+  around the call to action, a counting figure) it measures before and after
+  in the same task, before anything is drawn, and undoes the change if a
+  single box moved. When the motion is over, the headline is the markup that
+  was written.
+- **Content is never hidden without a way back.** It waits only once the
+  script is running and watching it; whatever takes keyboard focus shows at
+  once; print shows everything.
+- **It adds motion, never design.** No colour, type or layout rule. Where a
+  site has motion of its own (Website Factory's CSS entrances), an element
+  the layer takes over loses the site's entrance, so the two never play on
+  top of each other; elements the map does not name keep the site's.
+
+### Enhancing a site
+
+```bash
+# a built site in a folder (changed in place, or copied with --out)
+node scripts/enhance.mjs <builtSiteDir> --map services --preset auto
+node scripts/enhance.mjs <builtSiteDir> --map ./site.map.json --preset editorial --out <dir>
+```
+
+It adds three tags before `</head>` in every HTML file and one folder of
+files (`signature/`). Nothing else changes, and running it again replaces
+what it added:
+
+```html
+<!-- signature-layer <build> -->
+<link rel="stylesheet" href="./signature/layer.css">
+<link rel="modulepreload" href="./signature/layer.js">
+<script type="module" src="./signature/site.js" blocking="render"></script>
+<!-- /signature-layer -->
+```
+
+The addresses use each page's own way to the site's top (`./`, `../`), as
+Website Factory writes its `site.css` link; `--root /` (or `root` below)
+gives absolute ones. `site.js` is one line: the site's map and preset, handed
+to `start()` in `layer.js`.
+
+**Why the mapping happens in the browser, not in the HTML.** The enhancer
+only does plain string operations on the head. Selectors are matched at run
+time, before the first paint: the script tag is render-blocking where the
+browser supports `blocking="render"` (Chrome 105, Safari 18.2), and it is 4
+KB. So there is no HTML parser to ship, no second copy of each page's
+markup to keep in step, and a site's HTML stays the site's. Where the script
+still runs after a paint (Firefox does not block on it), it leaves the whole
+first view exactly as the base site drew it and only prepares what is
+further down, so nothing shown is ever taken away.
+
+**From code** (Studio OS, or any build): `layer/enhance.mjs` is the same
+thing as a pure function. No filesystem, no network, nothing from Node; the
+layer's built files come from `layer-dist/assets.mjs`, an ordinary module.
+
+```ts
+import { enhanceSite, presetForDirection, DIRECTION_PRESETS } from "../signature/layer/enhance.mjs";
+
+const { files, assets } = enhanceSite(built /* { path, text }[] */, {
+  map: "services",                              // or a map object
+  preset: presetForDirection(design.direction), // "calm" | "warm" | "editorial" | "bold", or "auto"
+  root: undefined,                              // default: relative per page; "/" for absolute
+});
+// files:  the HTML files that changed, whole          → replace by path
+// assets: { path, text, contentType }[] to add        → signature/layer.js, layer.css, site.js, chunks
+```
+
+### The kept build (`layer-dist/`)
+
+`npm run build:layer` builds `src/layer/` with Vite and writes
+`layer-dist/assets.mjs` (every built file as text, under a stable name),
+its types and `manifest.json` (sizes, and a hash of everything the build was
+made from). The folder **is committed**, like Website Factory's fonts, so
+that Studio OS never runs Vite. `npm run build:layer -- --check` fails when
+the source has changed since; `tests/layer.spec.ts` runs it, so CI catches a
+stale build. After changing anything in `src/layer/` (or an engine file it
+imports): `npm run build:layer`, commit `layer-dist/`.
+
+### Presets
+
+A preset is tokens (durations, distances, curves) and the list of modules a
+site may use at all (`src/layer/presets.ts`). A map's `tokens` can replace
+single values for one site.
+
+| Preset | For | Headlines | Blocks and rows | Pictures | Also |
+| ------ | --- | --------- | --------------- | -------- | ---- |
+| `calm` | law, clinics, experts | line by line, a fade and a 0.3 em rise, 1 s | 0.6 rem, 0.8 s, 60 ms apart | fade, settling from 4 % larger | nothing else: no smooth scroll, no floating link, nothing that follows the pointer, no counting |
+| `warm` | cafés, restaurants | word by word, each turning 5° into place with a small overshoot | 1.4 rem with overshoot, 70 ms apart | open from below, settling from 14 % larger | call to action, counting, smooth scroll |
+| `editorial` | interior, architecture, studios | lines rising out of masks, 1.5 s, long landing | 1.6 rem, 1.3 s | unveiled from the top, settling from 22 % larger for 2.4 s | hover list, stack, call to action, counting, smooth scroll |
+| `bold` | statement brands | words out of masks, fast (0.75 s, 38 ms apart), a 4° kick | 2.2 rem, 0.6 s | wiped in from the side, 0.8 s | the same as editorial |
+
+Website Factory's directions and their default preset (`DIRECTION_PRESETS`,
+exported by `layer/enhance.mjs`; `--preset auto` reads the direction from
+the page's `d-<direction>` class):
+
+| Direction | Preset |
+| --------- | ------ |
+| `formal` | `calm` |
+| `clinic` | `calm` |
+| `cafe` | `warm` |
+| `atelier` | `editorial` |
+| `editorial` | `editorial` |
+| `statement` | `bold` |
+
+### Modules
+
+| Module | What the site's element becomes | Cost |
+| ------ | ------------------------------- | ---- |
+| `headline` | Text split into word boxes at run time (markup inside it stays), arriving by line or word; put back as written when it is over. A headline with a hyphenated word, or one whose lines would break differently, arrives as one block instead. | in `layer.js` |
+| `rise` | A block that rises into place: paragraphs, rows, cards. Siblings follow each other. | in `layer.js` |
+| `reveal` | A picture's frame opens (or fades, where the site clips the frame itself), and the picture inside settles on `transform`, so it adds to any drift the site gives it. | in `layer.js` |
+| `count` | A figure in the site's text counts up, in a box exactly as wide as the final number. Only an element with one whole number: prices, decimals, "24/7" and hours are left alone. | 0.8 KB, when near |
+| `cta` | The engine's call to action on the page's own link (in a wrapper that is kept only if it moves and restyles nothing). `options.end`: sections where it gives way. | 1.4 KB, after load |
+| `list` | The engine's reveal list: `options.row` and `options.thumb` name the rows and each row's own picture. Mouse and trackpad only; everyone else keeps the small pictures. **Changes layout for mouse users** (the small pictures go), so it is for lists designed with it. | 46.6 KB (GSAP), when near, never on touch |
+| `stack` | The engine's stack on the site's list of cards. **Changes layout** (cards stick and overlap), so it is for opaque cards of one height. | CSS only |
+| smooth scroll | Lenis alone, from the first sign of scrolling. Decided by the preset, not by a rule. | 5.3 KB, on first scroll |
+
+### The map
+
+A map is a plain object (or JSON file): the site's own selectors, in order.
+An element arrives once, by the first rule that matches it, and nothing
+arrives inside something that already arrives.
+
+```json
+{
+  "presets": [{ "when": "body.d-cafe", "preset": "warm" }],
+  "rules": [
+    { "module": "headline", "select": ".hero h1, .section-head h2" },
+    { "module": "reveal", "select": ".hero-image .frame", "options": { "inner": "img" } },
+    { "module": "rise", "select": ".hero-why, .ledger-row, .steps > li" },
+    { "module": "count", "select": ".sig-numbers dd" },
+    { "module": "cta", "select": ".hero-actions > a.button", "unless": "body.has-call-bar", "options": { "end": ".closing" } }
+  ],
+  "tokens": { "warm": { "rise": { "stagger": 90 } } }
+}
+```
+
+Two things to keep out of a map. An element that arrives is moved while it
+waits and arrives, and a moved element is what anything `position: fixed`
+inside it is placed against: never map an element that holds a fixed bar or
+button (the layer's own call to action waits until the element around it has
+arrived, for this reason). And a picture's frame should be the picture's own
+box: in a frame that also holds a caption and does not clip, the picture
+only gets the wipe, not the settling.
+
+`when` and `unless` are selectors tested against the page (a rule for one
+direction, or not where the site already has a bar at the foot of the
+screen). `presets` is what `--preset auto` reads. Rules for modules the
+preset does not allow are skipped, so one map serves every preset.
+
+The shipped map for Website Factory's services system is
+`layer/maps/services.mjs`, covering all six directions. It uses `headline`,
+`reveal`, `rise`, `count` and `cta`. It has no `stack` and no `list`: no
+direction writes steps as cards that could lie on each other (and the
+statement direction already stacks its own in CSS), and no list carries a
+picture per row. Adding either would be a new layout, which the layer never
+makes. A hand-built site's map is in `tests/fixtures/layer-site/`.
+
+### Proof
+
+```bash
+npx vitest run proof/concepts/industry-examples.render.ts   # in the repository's top folder: the invented examples
+npm run layer-proof                                         # in signature/: enhance them and photograph base and enhanced
+npm run layer-proof -- name=<builtSiteDir>[:preset] …       # any other built sites
+```
+
+Each site is opened on desktop (1440 × 900) and a Pixel 7 at six scroll
+points, base and enhanced, each at rest and held at exactly 350 ms into its
+motion (every time-based animation is paused at that time, so the picture is
+the same on a busy machine). One sheet per site and device in
+`review/layer/` (git-ignored). Port 4407.
+
+Films: the layer's test site is part of the built lab, so the film review
+needs no change to film it:
+`FR_PAGES=/layer-fixture/enhanced/,/layer-fixture/calm/ npm run film-review`.
+
 ## Commands
 
 ```bash
@@ -70,6 +259,9 @@ npm run check        # build (type-checked) → weight budget → tests → Ligh
 ```
 
 `npm run check` is the gate. CI runs the same steps (job "Signature engine").
+`npm run build` also puts the layer's test site into `dist/layer-fixture/`
+(base, enhanced, calm), from the kept build in `layer-dist/`. To run tests
+beside another checkout's server on 4317: `SG_PORT=4407 npx playwright test`.
 
 ### Visual review
 
@@ -313,6 +505,9 @@ Client sites use the client's own pictures and footage, with written permission.
 | 3D band, only on pages with an object | ≤ 10 KB (now 7.3, counted the same way; was 137 with Three.js) |
 | Sound, after load, only where used | ≤ 3 KB (now 1.1) |
 | Video player, only where there is a film | ≤ 3 KB (now 0.9) |
+| Signature layer, script for the first view of an enhanced site | ≤ 6 KB compressed (now 5.0: `layer.js` 4.3 and Website Factory's map in `site.js` 0.8) |
+| Signature layer, CSS | ≤ 2.5 KB (now 1.5) |
+| Signature layer, later and only where a page's map and preset use it | smooth scroll ≤ 6 KB (5.3), call to action ≤ 2 (1.4), count ≤ 1 (0.8), hover list with GSAP ≤ 50 (46.6, mouse only) |
 | Image sequence, only where there is one | ≤ 3 KB (now 2.5: the module and its worker; where no worker can start, the module and the same loader on the main thread instead, never both) |
 | Largest single picture | ≤ 100 KB (now 72); each comes in two sizes for `srcset` |
 | Largest single film | ≤ 600 KB (now 555, the wide H.264); fetched only as it comes near, one per screen, never with Save-Data |

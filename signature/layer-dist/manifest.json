@@ -1,0 +1,53 @@
+{
+  "version": "bd220ceecf",
+  "source": "318fe3cfc01c5e7a99b19d3b7c2e6c5c7af081e4bf622bc9998e1ad8b783269f",
+  "inputs": [
+    "src/engine/heading.ts",
+    "src/engine/motion.ts",
+    "src/layer/index.ts",
+    "src/layer/modules/count.ts",
+    "src/layer/modules/list.ts",
+    "src/layer/modules/smooth.ts",
+    "src/layer/presets.ts",
+    "src/modules/cta.ts",
+    "src/modules/reveal-list.ts"
+  ],
+  "files": [
+    {
+      "name": "count.js",
+      "bytes": 1482,
+      "gzip": 819,
+      "sha256": "f3129abf68591e3f487d8cc43417fab5549de4ac0c2bb3a43cb8bb7600216741"
+    },
+    {
+      "name": "cta.js",
+      "bytes": 3249,
+      "gzip": 1457,
+      "sha256": "dcf8e0d4cfa439e6d5460b661b286c63a5ef67e415eb983e7adbd9858ee9be20"
+    },
+    {
+      "name": "layer.css",
+      "bytes": 5444,
+      "gzip": 1513,
+      "sha256": "bc593a440ed5529cb68af73622c3c8be883eebf49c233b9eb61d37cec1e17bbb"
+    },
+    {
+      "name": "layer.js",
+      "bytes": 11191,
+      "gzip": 4382,
+      "sha256": "1d6b279e7bb333179eef1460759be231a0413878313bbdcd659e14666484e6c3"
+    },
+    {
+      "name": "list.js",
+      "bytes": 122639,
+      "gzip": 47705,
+      "sha256": "c3f1e66cb03a6b53d7b47a455b2cf0267a44bd0af273e1194ccb28fd9e4350cd"
+    },
+    {
+      "name": "smooth.js",
+      "bytes": 19021,
+      "gzip": 5433,
+      "sha256": "04bcad4c54a31c7d6c19401fced3e420cd182e46017784177d2f279b41464a7b"
+    }
+  ]
+}
