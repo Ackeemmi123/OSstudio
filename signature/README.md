@@ -353,7 +353,7 @@ cancelled, so Lenis cannot smooth it and the page jumps natively (30 px on
 desktop, 79 on a phone).
 
 Both passes are filmed with Chrome's screencast at the rate the page draws,
-then encoded to VP9 WebM in Chrome itself with WebCodecs and `webm-muxer`,
+then encoded to VP9 WebM in Chrome itself with WebCodecs and Mediabunny,
 every frame at its own time, after filming is over, so encoding never costs
 the page frames. Nothing is installed. Headless Chrome on a Mac draws WebGL
 on the real graphics card, so no `?webgl` is needed and the films show what a
@@ -455,7 +455,7 @@ disc. These options apply to stills only; the band on the pages is unchanged.
 The band is kept on the main thread here (`preserve`), never handed to its
 worker, so every frame can be read back. Chrome encodes it itself (WebCodecs:
 AV1, and H.264 through the system's encoder) and two small dev packages pack
-it (`webm-muxer`, `mp4-muxer`), so nothing is installed outside npm. A wide
+it (Mediabunny), so nothing is installed outside npm. A wide
 film (1280 × 720) for screens, a tall one (720 × 1280) for phones, about 480
 KB as AV1 and 555 KB as H.264 each, and a full HD one (1920 × 1080) for
 screens 1280 px wide and up, 912 KB and 1.1 MB: at full screen on 1440 and
@@ -494,6 +494,52 @@ FRAMES=0,30,59 OUT=/tmp/try node scripts/render-sequence.mjs  # a few pictures e
 ```
 
 Client sites use the client's own pictures and footage, with written permission.
+
+### Films from any page
+
+`scripts/render-dom-film.mjs` films any animated page, frame by frame, into
+`signature/films/` (not in git: the owner decides what is published). A page
+opts in by setting, once it is ready,
+
+```js
+window.sgFilm = { width, height, fps, duration, seek(t) };
+```
+
+where `seek(t)` puts everything at time t: a paused GSAP timeline through
+`.seek()`, CSS animations through `document.getAnimations()`, WebGL through a
+still drawn at t. Nothing on the page may run on a clock.
+
+```sh
+npm run dev                                   # the lab, port 4316
+npm run film                                  # Axivo's three films (lab/verktyg/reel.html)
+npm run film -- --only story                  # one of them: story (9:16), loop (1:1), wide (16:9)
+npm run film -- --page verktyg/reel.html?film=wide --name prov --web --webm
+npm run film -- --sheet-only                  # twelve frames and the contact sheet, nothing encoded
+npm run film -- --still 3.5,9.75              # those moments as PNG
+npm run film -- --base http://127.0.0.1:4387  # another dev server
+```
+
+For each frame it blanks the page, seeks, waits for the fonts and two
+animation frames, and photographs the page through Chrome
+(`Page.captureScreenshot`) until two photographs in a row are identical. No
+frame is taken on a timer, so the machine's load changes how long a render
+takes and nothing else. That is checked on every run: a spread of frames is
+photographed again, out of order, and must match to the pixel, and the digest
+of all frames is written to `<name>.json`. The page is rasterised on the CPU
+(on the graphics card, type came back a level off in a few pixels from one
+visit to the next); WebGL still draws on the card.
+
+The frames are encoded in Chrome with WebCodecs (`lab/verktyg/encode.ts`) and
+packed with Mediabunny: an H.264 MP4 master for platforms that encode again
+themselves, a smaller `-web.mp4` for a site, and where asked an AV1 WebM.
+Each file is then played back in the browser and must last the whole film,
+show every frame and start in the colours it was given. A contact sheet of
+twelve frames (`<name>-sheet.jpg`) is saved with it.
+
+`lab/verktyg/reel.html` holds Axivo's own films, made of the band, the silk
+pictures, Archivo and the brand colours: `?film=story`, `?film=loop`,
+`?film=wide`; add `&play` to watch one in a browser. Like the other tool
+pages it is not part of the build, so it weighs nothing for a visitor.
 
 ## The gate
 
@@ -560,10 +606,16 @@ Playwright cannot turn on Chrome's data saver. The 3D band went from 137 KB
   build visual animations without code in competition with Webflow, so never
   put GSAP behind a no-code animation builder in Studio OS.
 - **Lenis**: MIT.
-- **mp4-muxer** 5.2.2 and **webm-muxer** 5.1.4 (Vanilagy): MIT. Dev
-  dependencies for `scripts/render-video.mjs` only; nothing of them reaches a
-  visitor. Both are final releases (their author has moved on to Mediabunny,
-  which is MPL-2.0, so these MIT ones were kept).
+- **Mediabunny** 1.66.5 (Vanilagy and contributors): MPL-2.0. It packs the
+  films that Chrome encodes into MP4 and WebM, and replaces `mp4-muxer` and
+  `webm-muxer`, which their author has deprecated in its favour. A dev
+  dependency for the film tools only (`scripts/render-video.mjs`,
+  `scripts/render-dom-film.mjs`, `scripts/film-review.mjs` and their tool
+  pages under `lab/verktyg/`): used unmodified, straight from npm, and
+  nothing of it is built into `dist/` or the layer, so nothing of it reaches
+  a client's site or a visitor. MPL-2.0 asks that changes to its own files be
+  shared; none are made here. Its licence is in
+  `node_modules/mediabunny/LICENSE`.
 - **Simplex noise** (2D and 3D) in the silk field, the image effect, the band and the satin stills: Ashima Arts / Stefan Gustavson, MIT.
 - **Fonts** in the lab: Archivo, Instrument Sans and Instrument Serif, SIL
   Open Font License (`lab/fonts/LICENSE-*.txt`). Instrument Serif came from
