@@ -219,6 +219,14 @@ for (const path of PAGES) {
       await expect(column.locator(".is-active")).toHaveAttribute("src", /siden-natt/);
       await page.keyboard.press("Tab");
       await expect(column.locator(".is-active")).toHaveClass(/menu-mark-scen/);
+      // The latest real input wins: the hovered name keeps widening under the resting mouse for 0.7 s, and the
+      // browser's pointerover for that must not take the picture back from the keyboard.
+      await page.waitForTimeout(1200);
+      await expect(column.locator(".is-active")).toHaveClass(/menu-mark-scen/);
+      // A real move of the mouse leads again.
+      const hovered = (await page.locator("[data-sg-menu-panel] li > a").nth(3).boundingBox())!;
+      await page.mouse.move(hovered.x + hovered.width / 2 + 8, hovered.y + hovered.height / 2 + 3);
+      await expect(column.locator(".is-active")).toHaveAttribute("src", /siden-natt/);
       await expect(column).toHaveAttribute("aria-hidden", "true");
     });
 
