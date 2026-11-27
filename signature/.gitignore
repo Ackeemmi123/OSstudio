@@ -4,6 +4,7 @@ test-results/
 playwright-report/
 lighthouse/
 review/
+review-films/
 
 # Scratch scripts used while reviewing
 *.tmp.mjs
