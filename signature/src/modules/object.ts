@@ -72,8 +72,8 @@ export function mountObject(section: HTMLElement, capabilities: Capabilities, al
     if (!capabilities.saveData) {
       void Promise.all([import("./band-scene"), cadence()])
         .then(([{ createObjectScene }, interval]) => {
-          if (cancelled) return;
-          scene = createObjectScene(canvas, {
+          if (cancelled) return null;
+          return createObjectScene(canvas, {
             // Step down only when the scene drops clearly below what this screen delivers anyway.
             frameBudget: Math.min(1 / 20, Math.max(1 / 50, interval * 1.45)),
             allowSoftware,
@@ -86,6 +86,10 @@ export function mountObject(section: HTMLElement, capabilities: Capabilities, al
               section.dataset.sgState = "still";
             },
           });
+        })
+        .then((created) => {
+          if (cancelled) return created?.dispose();
+          scene = created;
           section.dataset.sgState = scene ? "webgl" : "still";
           scene?.setProgress(trigger.progress);
         })

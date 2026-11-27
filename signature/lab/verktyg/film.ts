@@ -132,10 +132,11 @@ async function renderFilm(film: Film): Promise<Rendered> {
   const canvas = document.createElement("canvas");
   canvas.style.cssText = `position: fixed; left: -${width + 100}px; top: 0; width: ${width}px; height: ${height}px`;
   document.body.append(canvas);
-  const scene = createObjectScene(canvas, {
+  const scene = await createObjectScene(canvas, {
     allowSoftware: true,
     lowPower: false,
     quality: 2,
+    // Kept on the main thread (never handed to the band's worker), so every frame can be read back.
     preserve: true,
     centred: true,
     loop: seconds,

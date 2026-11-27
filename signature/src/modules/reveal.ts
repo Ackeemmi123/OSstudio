@@ -10,7 +10,7 @@
  * the same origin, so the shader may read it.
  */
 import type { Capabilities } from "../engine/capabilities";
-import { createShaderStage } from "../engine/shader-stage";
+import { createShaderStage, type ShaderStage } from "../engine/shader-stage";
 import { gsap, ScrollTrigger, whenMotion } from "../engine/motion";
 import { NOISE } from "./noise";
 
@@ -66,15 +66,15 @@ export function mountReveal(frame: HTMLElement, capabilities: Capabilities, allo
   if (!image || !canvas || capabilities.saveData) return;
 
   whenMotion(() => {
-    let stage: ReturnType<typeof createShaderStage> = null;
+    let stage: ShaderStage | null = null;
     let trigger: ScrollTrigger | null = null;
     let cancelled = false;
     const state = { reveal: 0, hover: 0 };
     const pointer = { x: 0.5, y: 0.5 };
 
-    const start = () => {
+    const start = async () => {
       if (cancelled) return;
-      stage = createShaderStage(canvas, {
+      const started = await createShaderStage(canvas, {
         fragment: FRAGMENT,
         allowSoftware,
         transparent: true,
@@ -92,6 +92,8 @@ export function mountReveal(frame: HTMLElement, capabilities: Capabilities, allo
           frame.dataset.sgState = "still";
         },
       });
+      if (cancelled) return started?.dispose();
+      stage = started;
       frame.dataset.sgState = stage ? "webgl" : "still";
       if (!stage) return;
       // A picture that just flew in from the previous page (a shared view transition) has already arrived.
@@ -107,8 +109,9 @@ export function mountReveal(frame: HTMLElement, capabilities: Capabilities, allo
         onEnter: () => void gsap.to(state, { reveal: 1, duration: 1.8, ease: "power2.inOut" }),
       });
     };
-    if (image.complete && image.naturalWidth) start();
-    else image.addEventListener("load", start, { once: true });
+    const onLoad = () => void start();
+    if (image.complete && image.naturalWidth) void start();
+    else image.addEventListener("load", onLoad, { once: true });
 
     // The lens follows the mouse with a little weight.
     const toX = gsap.quickTo(pointer, "x", { duration: 0.5, ease: "power3.out" });
@@ -129,7 +132,7 @@ export function mountReveal(frame: HTMLElement, capabilities: Capabilities, allo
 
     return () => {
       cancelled = true;
-      image.removeEventListener("load", start);
+      image.removeEventListener("load", onLoad);
       frame.removeEventListener("pointermove", move);
       frame.removeEventListener("pointerenter", enter);
       frame.removeEventListener("pointerleave", leave);

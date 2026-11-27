@@ -99,7 +99,8 @@ function linear(hex: string): [number, number, number] {
   return [channel((value >> 16) & 255), channel((value >> 8) & 255), channel(value & 255)];
 }
 
-export function mountInkField(root: HTMLElement, capabilities: Capabilities, allowSoftware = false): (() => void) | null {
+/** Resolves to how to stop the field once it draws, or to null where it stays the still gradient. */
+export async function mountInkField(root: HTMLElement, capabilities: Capabilities, allowSoftware = false): Promise<(() => void) | null> {
   const canvas = root.querySelector<HTMLCanvasElement>("[data-sg-canvas]");
   if (!canvas) return null;
   const colours = (root.dataset.colors?.split(/\s+/).filter(Boolean) ?? []).concat(DEFAULT_COLOURS).slice(0, 5).map(linear);
@@ -118,7 +119,7 @@ export function mountInkField(root: HTMLElement, capabilities: Capabilities, all
     target[1] = y;
   };
 
-  const stage = createShaderStage(canvas, {
+  const stage = await createShaderStage(canvas, {
     fragment: FRAGMENT,
     allowSoftware,
     // A soft field: drawn at three quarters of its size (half on weak devices), 30 times a second.

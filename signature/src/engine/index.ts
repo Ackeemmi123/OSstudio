@@ -56,9 +56,10 @@ function mountWebGL(root: HTMLElement, capabilities: Capabilities, allowSoftware
   whenNear(root, () => {
     void afterLoad()
       .then(() => import("../modules/ink-field"))
-      .then(({ mountInkField }) => {
-        if (cancelled) return;
-        dispose = mountInkField(root, capabilities, allowSoftware);
+      .then(({ mountInkField }) => (cancelled ? null : mountInkField(root, capabilities, allowSoftware)))
+      .then((stop) => {
+        if (cancelled) return stop?.();
+        dispose = stop;
         // Without good graphics hardware the field stays the still gradient it was designed to be.
         html.dataset.sgWebgl = dispose ? "on" : "off";
       })

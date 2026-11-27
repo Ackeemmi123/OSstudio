@@ -1,5 +1,6 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Page } from "@playwright/test";
+import { handedToWorker, mainContexts, watchCanvases, withoutOffscreenCanvas, withoutWebGL } from "./webgl";
 
 /** The library's building blocks keep the same rules as the lab: content first, motion on top. */
 
@@ -113,19 +114,56 @@ test.describe("with motion", () => {
   test("without WebGL the band stays a picture", async ({ page }) => {
     const requests: string[] = [];
     page.on("request", (request) => requests.push(request.url()));
-    await page.addInitScript(() => {
-      const original = HTMLCanvasElement.prototype.getContext;
-      HTMLCanvasElement.prototype.getContext = function (this: HTMLCanvasElement, type: string, ...rest: unknown[]) {
-        return /webgl/i.test(type) ? null : (original as (...args: unknown[]) => RenderingContext | null).call(this, type, ...rest);
-      } as typeof original;
-    });
-    await page.goto(PAGE);
+    // No WebGL on the main thread nor in the worker.
+    await withoutWebGL(page);
+    await watchCanvases(page);
+    await page.goto(`${PAGE}?webgl`);
     await page.locator(".object").scrollIntoViewIfNeeded();
-    await page.waitForTimeout(2500);
+    // The band is tried in its worker, which finds no WebGL.
+    await expect.poll(() => page.locator(".object-stage canvas").evaluate(handedToWorker), { timeout: 15_000 }).toBe(true);
+    await page.waitForTimeout(1500);
     await expect(page.locator(".object")).toHaveAttribute("data-sg-state", "still");
     await expect(page.getByRole("img", { name: "Ett band av borstad metall i en Möbiusslinga mot en mörkblå bakgrund, renderat i 3D" })).toBeVisible();
     // The 3D chunk may be fetched to try, but nothing draws; the picture stays the design.
     await expect(page.locator(".object-stage")).not.toHaveClass(/is-live/);
+    expect(requests.some((url) => url.includes("band-worker"))).toBe(true);
+  });
+
+  test("the band and the pictures draw in workers, and the band still reports its quality", async ({ page }) => {
+    // Two WebGL modules and a frame-time window: on a software renderer this takes a while.
+    test.slow();
+    const errors = collectErrors(page);
+    await watchCanvases(page);
+    await page.goto(`${PAGE}?webgl`);
+    const object = page.locator(".object");
+    await object.scrollIntoViewIfNeeded();
+    await expect(page.locator(".object-stage")).toHaveClass(/is-live/, { timeout: 15_000 });
+    const canvas = page.locator(".object-stage canvas");
+    expect(await canvas.evaluate(handedToWorker)).toBe(true);
+    // What the band measures comes back from the worker.
+    await expect(canvas).toHaveAttribute("data-quality", /^[012]$/);
+    await expect(canvas).toHaveAttribute("data-frame-budget", /^\d+\.\d$/);
+    await expect(canvas).toHaveAttribute("data-frame-p75", /^\d+\.\d$/, { timeout: 15_000 });
+    await page.locator(".reveal-band").scrollIntoViewIfNeeded();
+    const frame = page.locator('[data-sg="reveal"]').first();
+    await expect(frame).toHaveClass(/is-live/, { timeout: 15_000 });
+    expect(await frame.locator("canvas").evaluate(handedToWorker)).toBe(true);
+    expect(await page.evaluate(mainContexts)).toBe(0);
+    expect(errors).toEqual([]);
+  });
+
+  test("without OffscreenCanvas, the band and the pictures draw on the main thread, as before", async ({ page }) => {
+    const errors = collectErrors(page);
+    await withoutOffscreenCanvas(page);
+    await watchCanvases(page);
+    await page.goto(`${PAGE}?webgl`);
+    await page.locator(".object").scrollIntoViewIfNeeded();
+    await expect(page.locator(".object-stage")).toHaveClass(/is-live/, { timeout: 15_000 });
+    await expect(page.locator(".object-stage canvas")).toHaveAttribute("data-quality", /^[012]$/);
+    await page.locator(".reveal-band").scrollIntoViewIfNeeded();
+    await expect(page.locator('[data-sg="reveal"]').first()).toHaveClass(/is-live/, { timeout: 15_000 });
+    expect(await page.evaluate(mainContexts)).toBeGreaterThanOrEqual(2);
+    expect(errors).toEqual([]);
   });
 
   test("with a mouse, a ring follows the pointer and the buttons lean toward it, never far", async ({ page, isMobile }) => {

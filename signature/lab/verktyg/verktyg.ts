@@ -99,9 +99,11 @@ for (const frame of frames) {
   if (frame.dataset.kind === "silk") {
     const canvas = frame.querySelector("canvas")!;
     const colours = (frame.dataset.colors ?? "").split(/\s+/).map(linear);
-    createShaderStage(canvas, {
+    void createShaderStage(canvas, {
       fragment: SILK,
       allowSoftware: true,
+      // Read back as a picture, so drawn on the main thread.
+      mainThread: true,
       maxPixelRatio: 2,
       uniforms: {
         uTime: 0,
@@ -119,7 +121,7 @@ for (const frame of frames) {
     });
   } else {
     const canvas = frame.querySelector("canvas")!;
-    const scene = createObjectScene(canvas, {
+    const scene = await createObjectScene(canvas, {
       allowSoftware: true,
       lowPower: false,
       quality: 2,

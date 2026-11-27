@@ -1,7 +1,8 @@
 /**
  * The weight budget, read from the built site: what every visitor downloads
  * for the first view, the motion engine that follows once the page has
- * loaded, and the shader that only WebGL visitors download. Fails the build when
+ * loaded, and the shader that only WebGL visitors download (in a worker or
+ * on the main thread, never both). Fails the build when
  * anything is over. Compressed sizes, as they travel.
  */
 import { readFileSync, readdirSync, statSync } from "node:fs";
@@ -38,7 +39,13 @@ const sound = scripts.filter((f) => /sound/.test(f));
 const video = scripts.filter((f) => /\/video-[^/]*\.js$/.test(f));
 const engine = scripts.filter((f) => /motion-modules/.test(f));
 const threeD = scripts.filter((f) => /band-scene/.test(f));
-const initial = scripts.filter((f) => ![webgl, engine, threeD, sound, video].some((group) => group.includes(f)));
+// A scene that can draw off the main thread comes in two forms, and a visitor downloads one: the worker where the
+// browser can draw WebGL in one, otherwise the same drawing for the main thread. The larger of the two is counted.
+const stageWorker = scripts.filter((f) => /stage-worker/.test(f));
+const stageMain = scripts.filter((f) => /stage-core/.test(f));
+const bandWorker = scripts.filter((f) => /band-worker/.test(f));
+const bandMain = scripts.filter((f) => /band-core/.test(f));
+const initial = scripts.filter((f) => ![webgl, engine, threeD, sound, video, stageWorker, stageMain, bandWorker, bandMain].some((group) => group.includes(f)));
 const css = all.filter((f) => f.endsWith(".css"));
 const fonts = all.filter((f) => f.endsWith(".woff2"));
 const images = all.filter((f) => /\.(webp|avif|jpe?g|png)$/.test(f));
@@ -52,8 +59,8 @@ const rows = [
   ["HTML, largest page", kb(Math.max(...html.map(gz))), BUDGET.html],
   ["Fonts", kb(sum(fonts, (f) => statSync(f).size)), BUDGET.fonts],
   ["Motion engine, loaded later", kb(sum(engine)), BUDGET.motionEngine],
-  ["WebGL chunk, loaded later", kb(sum(webgl)), BUDGET.webglChunk],
-  ["3D band, only where used", kb(sum(threeD)), BUDGET.threeD],
+  ["WebGL chunk, loaded later", kb(sum(webgl) + Math.max(sum(stageWorker), sum(stageMain))), BUDGET.webglChunk],
+  ["3D band, only where used", kb(sum(threeD) + Math.max(sum(bandWorker), sum(bandMain))), BUDGET.threeD],
   ["Sound, after load, if used", kb(sum(sound)), BUDGET.sound],
   ["Video, only where used", kb(sum(video)), BUDGET.video],
   // Images are already compressed; each one is fetched only when it comes near, at the size the screen needs.
