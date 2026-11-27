@@ -952,6 +952,32 @@ a {
   transition: transform 0.2s linear;
 }
 
+/* Film: a loop made in code that grows from its frame to the whole screen */
+.film {
+  --sg-video-bleed: var(--gutter);
+  background: var(--cloud);
+}
+.film-lead {
+  max-width: 36rem;
+  font-size: 1.15rem;
+  color: var(--ink-quiet);
+  margin-bottom: clamp(2rem, 5vh, 3rem);
+}
+.film-note {
+  max-width: 36rem;
+  margin-top: clamp(1.5rem, 4vh, 2.5rem);
+  padding-top: 0.7rem;
+  border-top: 1px solid var(--hair);
+  font-size: 0.85rem;
+  letter-spacing: 0.02em;
+  color: var(--ink-quiet);
+}
+@media (min-width: 900px) {
+  .film {
+    --sg-video-start: 58cqw;
+  }
+}
+
 /* Sound: off until the visitor turns it on */
 .bar-tools {
   display: flex;

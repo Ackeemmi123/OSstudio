@@ -8,7 +8,8 @@
  * loads when a moving section comes near the screen, or when the visitor
  * first scrolls, touches or presses a key: smooth scrolling is only needed
  * once someone scrolls. The ink field's shader loads after the page has loaded
- * and checks the graphics hardware itself.
+ * and checks the graphics hardware itself. A film's player (under 1 KB) loads
+ * as the film comes near, and only then does the film itself start to load.
  */
 import { onReducedMotionChange, readCapabilities, type Capabilities, type CapabilityOptions } from "./capabilities";
 
@@ -101,6 +102,14 @@ export function boot(options: BootOptions = {}): Capabilities {
         else if (kind === "play") engine.mountPlay(element);
       }),
     );
+  }
+
+  // Films: their own small chunk, as they come near, which is also when a film starts loading. The showreel's scroll needs the motion engine.
+  for (const element of document.querySelectorAll<HTMLElement>('[data-sg="video"]')) {
+    whenNear(element, () => {
+      void import("../modules/video").then(({ mountVideo }) => mountVideo(element, capabilities));
+      if (element.dataset.sgVariant === "grow") void loadMotion().then(({ mountVideoGrow }) => mountVideoGrow(element));
+    });
   }
 
   // The sound button: a few kilobytes, after load. It plays nothing until the visitor asks.

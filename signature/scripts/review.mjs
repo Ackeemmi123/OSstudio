@@ -221,7 +221,7 @@ async function settle(page, fixed = SETTLE) {
   return false;
 }
 
-/** The parts that move by themselves (WebGL canvases, marquees, looping CSS), in CSS pixels within the viewport. */
+/** The parts that move by themselves (WebGL canvases, marquees, films, looping CSS), in CSS pixels within the viewport. */
 const movingParts = (page) =>
   page.evaluate(() => {
     const parts = [];
@@ -238,6 +238,7 @@ const movingParts = (page) =>
       add("webgl", canvas, state === "webgl" ? (canvas.closest(".is-live") ? "drawn" : "starting") : state);
     }
     for (const marquee of document.querySelectorAll('[data-sg="marquee"]')) add("marquee", marquee);
+    for (const video of document.querySelectorAll("video")) add("film", video);
     for (const animation of document.getAnimations()) {
       const target = animation.effect?.target;
       if (animation.playState === "running" && target instanceof Element && animation.effect.getComputedTiming().endTime === Infinity) add("loop", target);
@@ -246,7 +247,7 @@ const movingParts = (page) =>
   });
 
 /**
- * Holds still what moves by itself, for a second picture that is the same in every run: canvases hidden
+ * Holds still what moves by itself, for a second picture that is the same in every run: canvases and films hidden
  * (the still design beneath them shows, with the text over them), marquees at their start, loops paused
  * at their first frame. `false` lets them go again.
  */
@@ -255,7 +256,7 @@ const freeze = (page, on) =>
     if (on) {
       const style = document.createElement("style");
       style.id = "review-freeze";
-      style.textContent = 'canvas { visibility: hidden !important; } [data-sg="marquee"] * { transform: none !important; }';
+      style.textContent = 'canvas, video { visibility: hidden !important; } [data-sg="marquee"] * { transform: none !important; }';
       document.head.append(style);
       window.__reviewLoops = document.getAnimations().filter((a) => a.playState === "running" && a.effect?.getComputedTiming().endTime === Infinity);
       for (const loop of window.__reviewLoops) {

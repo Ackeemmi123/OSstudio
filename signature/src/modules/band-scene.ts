@@ -42,6 +42,10 @@ export interface ObjectSceneOptions {
   quality?: 0 | 1 | 2;
   /** The longest frame (75th percentile, seconds) before quality steps down; set from the screen's own cadence. */
   frameBudget?: number;
+  /** Stills only: a period in seconds over which `still()` loops exactly (one turn, flow and sway), for a film. */
+  loop?: number;
+  /** Stills only: how much closer the camera is than usual (1 = as on the page). */
+  zoom?: number;
   shown: () => void;
   lost: () => void;
 }
@@ -58,6 +62,7 @@ const SHAPE = /* glsl */ `
 uniform float uTime;
 uniform float uAmp;
 uniform float uSplit;
+uniform float uLoop;
 vec3 sgMod289(vec3 x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }
 vec4 sgMod289(vec4 x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }
 vec4 sgPermute(vec4 x) { return sgMod289(((x * 34.0) + 10.0) * x); }
@@ -106,19 +111,29 @@ float sgHash(float n) { return fract(sin(n * 91.345) * 47453.123); }
 vec3 sgTurn(vec3 v, vec3 axis, float angle) {
   return v * cos(angle) + cross(axis, v) * sin(angle) + axis * dot(axis, v) * (1.0 - cos(angle));
 }
+// The flowing noise that moves the band: three axes of wander and a twist. Sampled on the circle, so the loop stays closed.
+vec4 sgFlow(vec3 ring, float t) {
+  return vec4(
+    sgNoise(vec3(ring.xy * 0.9, t)),
+    sgNoise(vec3(ring.yx * 0.9 + 7.0, t)),
+    sgNoise(vec3(ring.xy * 0.9 + 13.0, t * 0.8)),
+    sgNoise(vec3(ring.xy * 1.1 + 3.0, t * 1.2))
+  );
+}
 vec3 sgBand(vec2 st, float piece) {
   float u = st.x * 6.28318530718;
   float t = uTime * 0.16;
   vec3 ring = vec3(cos(u), sin(u), 0.0);
-  // The centre line: a circle that wanders in 3D while unformed. Sampled on the circle, so the loop stays closed.
-  vec3 wander = vec3(
-    sgNoise(vec3(ring.xy * 0.9, t)),
-    sgNoise(vec3(ring.yx * 0.9 + 7.0, t)),
-    sgNoise(vec3(ring.xy * 0.9 + 13.0, t * 0.8))
-  );
-  vec3 centre = ring * ${RADIUS.toFixed(3)} + wander * uAmp * vec3(1.4, 1.4, 2.0);
+  vec4 flow = sgFlow(ring, t);
+  // For a film that loops: the flow blends into its own past, so the last frame leads into the first.
+  if (uLoop > 0.0) {
+    float w = t / uLoop;
+    flow = mix(flow, sgFlow(ring, t - uLoop), w) / length(vec2(1.0 - w, w));
+  }
+  // The centre line: a circle that wanders in 3D while unformed.
+  vec3 centre = ring * ${RADIUS.toFixed(3)} + flow.xyz * uAmp * vec3(1.4, 1.4, 2.0);
   // Half a turn around the loop (a Möbius band), and a wandering twist while unformed.
-  float twist = u * 0.5 + sgNoise(vec3(ring.xy * 1.1 + 3.0, t * 1.2)) * uAmp * 3.2;
+  float twist = u * 0.5 + flow.w * uAmp * 3.2;
   vec3 across = cos(twist) * ring + sin(twist) * vec3(0.0, 0.0, 1.0);
   vec3 p = centre + across * (st.y - 0.5) * ${WIDTH.toFixed(3)};
   // While split, each piece drifts away from its place and turns about its own middle.
@@ -363,7 +378,7 @@ export function createObjectScene(canvas: HTMLCanvasElement, options: ObjectScen
       fail();
       return false;
     }
-    u = locate(band, ["uModel", "uViewProjection", "uCamera", "uSplit", "uAmp", "uTime", "uBase", "uGlow", "uSamples", "uExposure"]);
+    u = locate(band, ["uModel", "uViewProjection", "uCamera", "uSplit", "uAmp", "uTime", "uLoop", "uBase", "uGlow", "uSamples", "uExposure"]);
     b = locate(backdrop, ["uResolution", "uCentre", "uInk", "uTint", "uGlow"]);
     aPosition = context.getAttribLocation(backdrop, "aPosition");
     aUv = context.getAttribLocation(band, "aUv");
@@ -419,7 +434,7 @@ export function createObjectScene(canvas: HTMLCanvasElement, options: ObjectScen
     aspect = box.width / box.height;
     // On wide screens the band sits left of the text, like a product beside its caption; on narrow ones, centred and whole.
     offsetX = aspect > 1.25 && !options.centred ? -2.25 * Math.min(1.3, aspect / 1.6) : 0;
-    cameraZ = aspect < 1 ? 14 / Math.max(0.6, aspect) : 14;
+    cameraZ = (aspect < 1 ? 14 / Math.max(0.6, aspect) : 14) / (options.zoom ?? 1);
     centre = 0.5 + offsetX / (2 * cameraZ * Math.tan((28 * Math.PI) / 360) * aspect);
   };
   const resizer = new ResizeObserver(fit);
@@ -438,6 +453,8 @@ export function createObjectScene(canvas: HTMLCanvasElement, options: ObjectScen
   let time = 0;
   let spin = 0;
   let first = true;
+  // A film's loop in radians per second: one turn in its own plane per loop.
+  const cycle = options.loop ? (2 * Math.PI) / options.loop : 0;
 
   const draw = () => {
     context.viewport(0, 0, width, height);
@@ -457,8 +474,9 @@ export function createObjectScene(canvas: HTMLCanvasElement, options: ObjectScen
     context.disableVertexAttribArray(aPosition);
 
     // Turned away while unformed, a three-quarter view once whole; a slow turn in its own plane always.
-    const turnY = 0.55 + (1 - progress) * 0.5 + pointerX * 0.3 + Math.sin(time * 0.3) * 0.08;
-    const turnX = -0.85 + (1 - progress) * 0.5 - pointerY * 0.24 + Math.sin(time * 0.23) * 0.06;
+    // In a film the sway goes round once per loop, so the last frame meets the first.
+    const turnY = 0.55 + (1 - progress) * 0.5 + pointerX * 0.3 + Math.sin(cycle ? time * cycle : time * 0.3) * 0.08;
+    const turnX = -0.85 + (1 - progress) * 0.5 - pointerY * 0.24 + (cycle ? Math.cos(time * cycle) : Math.sin(time * 0.23)) * 0.06;
     const model = multiply(translate(offsetX, 0, 0), multiply(rotateX(turnX), multiply(rotateY(turnY), rotateZ(spin))));
     const viewProjection = multiply(perspective((28 * Math.PI) / 180, aspect, 0.1, 100), translate(0, 0, -cameraZ));
     const join = easeInOut(clamp(progress / 0.62, 0, 1));
@@ -476,6 +494,7 @@ export function createObjectScene(canvas: HTMLCanvasElement, options: ObjectScen
     context.uniform1f(u.uSplit, Math.sqrt(1 - join));
     context.uniform1f(u.uAmp, TURBULENCE + (CALM - TURBULENCE) * easeInOut(progress));
     context.uniform1f(u.uTime, time);
+    context.uniform1f(u.uLoop, cycle ? (options.loop ?? 0) * 0.16 : 0);
     context.uniform3fv(u.uBase, base);
     context.uniform3fv(u.uGlow, glowLinear);
     context.uniform1f(u.uSamples, level === 0 ? 0 : 2);
@@ -600,7 +619,7 @@ export function createObjectScene(canvas: HTMLCanvasElement, options: ObjectScen
       if (!ready(true)) return;
       progress = target = clamp(value, 0, 1);
       time = at;
-      spin = at * 0.05;
+      spin = cycle ? at * cycle : at * 0.05;
       draw();
     },
     dispose,

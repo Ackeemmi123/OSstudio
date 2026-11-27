@@ -20,7 +20,9 @@ const BUDGET = {
   webglChunk: 10,
   threeD: 10,
   sound: 3,
+  video: 3,
   largestImage: 100,
+  largestFilm: 600,
 };
 
 const kb = (bytes) => Math.round((bytes / 1024) * 10) / 10;
@@ -33,12 +35,14 @@ const scripts = all.filter((f) => f.endsWith(".js"));
 // The shader stage and its noise are shared by the ink field and the image effect: loaded later, with them.
 const webgl = scripts.filter((f) => /ink-field|noise|shader-stage/.test(f));
 const sound = scripts.filter((f) => /sound/.test(f));
+const video = scripts.filter((f) => /\/video-[^/]*\.js$/.test(f));
 const engine = scripts.filter((f) => /motion-modules/.test(f));
 const threeD = scripts.filter((f) => /band-scene/.test(f));
-const initial = scripts.filter((f) => ![webgl, engine, threeD, sound].some((group) => group.includes(f)));
+const initial = scripts.filter((f) => ![webgl, engine, threeD, sound, video].some((group) => group.includes(f)));
 const css = all.filter((f) => f.endsWith(".css"));
 const fonts = all.filter((f) => f.endsWith(".woff2"));
 const images = all.filter((f) => /\.(webp|avif|jpe?g|png)$/.test(f));
+const films = all.filter((f) => /\.(webm|mp4)$/.test(f));
 
 // Fonts are already compressed: count their size as stored.
 const sum = (list, measure = gz) => list.reduce((total, f) => total + measure(f), 0);
@@ -51,8 +55,11 @@ const rows = [
   ["WebGL chunk, loaded later", kb(sum(webgl)), BUDGET.webglChunk],
   ["3D band, only where used", kb(sum(threeD)), BUDGET.threeD],
   ["Sound, after load, if used", kb(sum(sound)), BUDGET.sound],
+  ["Video, only where used", kb(sum(video)), BUDGET.video],
   // Images are already compressed; each one is fetched only when it comes near, at the size the screen needs.
   ["Largest single image", kb(Math.max(0, ...images.map((f) => statSync(f).size))), BUDGET.largestImage],
+  // Films, as stored: each is fetched only as it comes near, never with Save-Data, and only the one the screen needs.
+  ["Largest single film", kb(Math.max(0, ...films.map((f) => statSync(f).size))), BUDGET.largestFilm],
 ];
 
 let over = 0;

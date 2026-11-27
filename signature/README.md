@@ -42,12 +42,13 @@ JavaScript, with reduced motion, and without WebGL. The engine only adds.
 | `data-sg="ink-field"` | `src/modules/ink-field.ts` | A slow field of silk in the site's colours, lit like satin and stirred by the pointer, over a still gradient that is the design without WebGL. |
 | `data-sg="story"` | `src/modules/story.ts` | Phase 2. Panels that slide sideways while the section holds still, on wide screens with motion; stacked everywhere else. Tabbing into a hidden panel scrolls it into view. |
 | `data-sg="marquee"` | `src/modules/marquee.ts` | Phase 2. A line that runs without end, faster with scroll speed and backwards when scrolling up. Copies are hidden from screen readers. |
-| `data-sg="object"` | `src/modules/object.ts`, `band-scene.ts` | Phase 2. A Möbius band of brushed satin metal that starts as eight loose pieces and flows together into one band as steps scroll past. Plain WebGL, about 5 KB compressed (it was Three.js, 140 KB, until the same picture was drawn without it): the shape is computed on the graphics card from flowing noise, the studio it reflects is drawn analytically in the shader, and the satin streaks come from blurring that reflection along the band. The scroll drives a spring. Over a rendered picture of it that is the design without WebGL. Quality adapts to the device: it measures the screen's frame rate, then steps down (fewer pixels and a coarser band, then one reflection sample) only if frames are slow; `?quality=0\|1\|2` fixes it for comparison. |
+| `data-sg="object"` | `src/modules/object.ts`, `band-scene.ts` | Phase 2. A Möbius band of brushed satin metal that starts as eight loose pieces and flows together into one band as steps scroll past. Plain WebGL, about 6 KB compressed (it was Three.js, 140 KB, until the same picture was drawn without it): the shape is computed on the graphics card from flowing noise, the studio it reflects is drawn analytically in the shader, and the satin streaks come from blurring that reflection along the band. The scroll drives a spring. Over a rendered picture of it that is the design without WebGL. Quality adapts to the device: it measures the screen's frame rate, then steps down (fewer pixels and a coarser band, then one reflection sample) only if frames are slow; `?quality=0\|1\|2` fixes it for comparison. |
 | `data-sg="reveal"` | `src/modules/reveal.ts` | Part B. A picture that arrives behind a living edge as it scrolls in and swells like a lens under the mouse. Drawn by a shader over the real `<img>`, which stays for screen readers, search, reduced motion and devices without WebGL. |
 | `data-sg="gallery"` | `src/modules/gallery.ts`, `engine.css` | Part B. A sideways row of pictures: a native scroller with snap points (touch, trackpad, arrow keys, screen readers, no script). The engine adds mouse drag with a throw, buttons, a counter and a progress line; pictures drift in their frames (CSS scroll-driven). |
 | `data-sg="sound"` | `src/modules/sound.ts` | Part B. A quiet ambient chord from the browser's own synthesiser: no file, off until asked for, remembered, never started without a click or key press, paused in hidden tabs. Scrolling opens its filter, so it brightens while the page moves. Hidden without JavaScript. |
 | `data-sg="play"` | `src/modules/play.ts` | Shapes on springs: the pointer pushes them aside, a drag pulls them away and they swing back, a tap nudges them, and those with eyes look at the pointer. About 1 KB compressed, in the motion engine. Decoration only: hidden from screen readers, still where they were drawn without JavaScript or with reduced motion. Rests when nothing moves or the stage is off screen. |
 | `data-sg="count"` | `src/modules/count.ts` | A figure that counts up to its value as it comes into view. The value is in the page from the start, read once from hidden text; without motion it simply shows. |
+| `data-sg="video"` | `src/modules/video.ts`, `video-grow.ts`, `engine.css` | A muted loop (`<video muted loop playsinline preload="none" controls>`, AV1 in WebM, then H.264 in MP4) in a frame of fixed shape, wide on screens and tall on phones, over its poster: a real `<picture>` with sizes, the film's own first frame, so nothing shifts or jumps when it starts. Its player is its own chunk, under 1 KB, loaded as the film comes near; only then does the film start to load. It plays only while on screen and while the tab is visible, and the engine's button ("Pausa film" / "Spela film", words from `data-pause` / `data-play`) is always on it (WCAG 2.2.2); paused there, it stays paused. With reduced motion it never starts by itself: the button plays it. With Save-Data only the poster shows and no film is fetched. Without JavaScript the browser's own controls show, over the film's `poster` (the 8 KB one: Chrome paints a film with controls and no poster grey); the engine removes them when its button takes over. Of the sources this screen may use (`media`), it takes the first the device decodes efficiently, in hardware where the browser can tell (`MediaCapabilities`), else the first it can play. `data-sg-variant="grow"`, the showreel: with motion, a tall track holds the frame on screen and it grows from its framed size to the whole screen as it scrolls, tied to the scroll; one number drives a `clip-path` and a scale, never layout. With reduced motion it is the plain frame. A site sets `--sg-video-bleed` (its gutter) and may set `--sg-video-start` (the framed width). |
 | Intro (`.sg-intro`) | `engine.css`, a line in the page head | Part B. A curtain with the word mark, once per visit, in CSS alone. Never blocks a click, never shown with reduced motion; the first view's motion waits for it. |
 | 404 page | `lab/404.html` | Part B. Says plainly that the page is missing and leads back. `<base href="/">` makes it work at any depth; the host serves it for missing addresses. |
 | `data-sg-cursor`, `data-sg-magnetic` | `src/modules/cursor.ts` | Phase 2. A ring beside the system cursor (mouse and trackpad only) and buttons that lean toward the pointer, at most 14 px. |
@@ -88,11 +89,12 @@ screens, for looking at a whole page at once. A run of every page takes
 about two minutes.
 
 Each screen is photographed twice: as the visitor sees it (`NN.png`, on the
-contact sheets) and held still (`NN.still.png`): WebGL canvases hidden, so
-the still design beneath them shows with the text over it, marquees at
-their start and looping CSS at its first frame. The still picture is the
-same in every run, to the pixel, so `--compare` judges it strictly: a screen
-has changed when more than 0.02 % of its still picture differs, when a WebGL
+contact sheets) and held still (`NN.still.png`): WebGL canvases and films
+hidden, so the still design (or the poster) beneath them shows with the text
+over it, marquees at their start and looping CSS at its first frame. The
+still picture is the same in every run, to the pixel, so `--compare` judges
+it strictly: a screen has changed when more than 0.02 % of its still picture
+differs, when a WebGL
 part drew differently (drawn, starting or still) or sits elsewhere, or when
 the screen ended at another scroll position. It prints a table of those
 screens, saves a diff next to each (`NN.diff.png`: changes in red, moving
@@ -136,30 +138,56 @@ node scripts/render-art.mjs              # every picture, full size and 800 px w
 ONLY=siden node scripts/render-art.mjs   # just the ones whose name starts with "siden"
 ```
 
-Client sites use the client's own pictures, with written permission.
+The films (`lab/film/`) are made the same way, never bought or filmed: an
+eight-second loop of the engine's own band, one turn in its own plane, drawn
+frame by frame on `lab/verktyg/film.html` at twice the film's size and scaled
+down, with the clock pinned to each frame. The band's flow and sway are made
+to come round in the same eight seconds (the band scene's `loop` option), so
+the last frame leads into the first with no seam. Chrome encodes it itself
+(WebCodecs: AV1, and H.264 through the system's encoder) and two small dev
+packages pack it (`webm-muxer`, `mp4-muxer`), so nothing is installed outside
+npm. A wide film (1280 × 720) for screens and a tall one (720 × 1280) for
+phones, each about 450 KB as AV1 and 540 KB as H.264, and posters from the
+same first frame (WebP, 1600 and 800 wide, and 720 for phones). Before it
+saves, the script plays each film back in the page: it must last the whole
+loop and start in its poster's colours (a wrong colour tag would make it jump
+as it starts over its poster). About 20 seconds for all four:
+
+```bash
+node scripts/render-video.mjs              # both films, both codecs, and their posters
+ONLY=telefon node scripts/render-video.mjs # just the phone's
+```
+
+Client sites use the client's own pictures and footage, with written permission.
 
 ## The gate
 
 | Check | Limit |
 | ----- | ----- |
-| Script for the first view | ≤ 15 KB compressed (now 2.8) |
-| Motion engine, loaded later | ≤ 60 KB (now 55) |
-| WebGL shaders, loaded later | ≤ 10 KB (now 4.3) |
-| 3D band, only on pages with an object | ≤ 10 KB (was 137 with Three.js) |
-| Sound, after load, only where used | ≤ 3 KB (now 1) |
+| Script for the first view | ≤ 15 KB compressed (now 2.9) |
+| Motion engine, loaded later | ≤ 60 KB (now 56.6) |
+| WebGL shaders, loaded later | ≤ 10 KB (now 4.8) |
+| 3D band, only on pages with an object | ≤ 10 KB (now 6.2; was 137 with Three.js) |
+| Sound, after load, only where used | ≤ 3 KB (now 1.1) |
+| Video player, only where there is a film | ≤ 3 KB (now 0.9) |
 | Largest single picture | ≤ 100 KB (now 72); each comes in two sizes for `srcset` |
-| CSS / HTML / fonts | ≤ 15 / 10 / 140 KB (fonts now 121, all three faces) |
+| Largest single film | ≤ 600 KB (now 541, the wide H.264); fetched only as it comes near, one per screen, never with Save-Data |
+| CSS / HTML / fonts | ≤ 15 / 10 / 140 KB (now 11.5 / 4.4 / 121, fonts all three faces) |
 | Lighthouse, simulated phone, median of 3 | performance ≥ 95, accessibility 100, best practices ≥ 95, SEO ≥ 90 (the 404 page: SEO without indexability, and it must say noindex) |
 | axe (WCAG 2.2 AA) | no violations, with and without motion |
-| Tests | content without JavaScript, nothing moving with reduced motion, still field without WebGL, no sideways scroll on a phone, no console errors |
+| Tests | content without JavaScript, nothing moving with reduced motion, still field without WebGL, no sideways scroll on a phone, no console errors; films: native controls without JavaScript, no autoplay and a keyboard button with reduced motion, playing only while seen, nothing fetched with Save-Data |
 
-Measured 2026-11-26, median of three runs: lab 98 (its first run is slower,
-while the graphics card compiles the silk shader cold), the warm showcase 98,
-the library and the dark showcase 99, scene two and the 404 page 100;
-accessibility, best practices and SEO 100 everywhere. Largest content after
-0.8 s on every page; layout shift 0 to 0.003. 91 tests pass on desktop and
-phone (7 are desktop-only or run once by design). The 3D band went from 137 KB
-(Three.js) to 5.7 KB compressed, with the same picture.
+Measured 2026-11-27 with the film in the library, median of three runs, each
+page started with the machine's one-minute load under 3: the library 100 (runs
+97, 100, 100; largest content after 1.0 s, layout shift 0.003) and the lab 99
+(0.8 s, 0). Measured 2026-11-26 and unchanged since: the warm showcase 98, the
+dark showcase 99, scene two and the 404 page 100. Accessibility, best
+practices and SEO 100 everywhere. 122 tests pass on desktop and phone (8 are
+desktop-only by design); the film's 18 include Save-Data, emulated by sending
+the `Save-Data` header and setting `navigator.connection.saveData`, which is
+what the engine reads, since Playwright cannot turn on Chrome's data saver.
+The 3D band went from 137 KB (Three.js) to 6.2 KB compressed (5.9 before the
+film's `loop` option), with the same picture.
 
 ## Licences
 
@@ -168,6 +196,10 @@ phone (7 are desktop-only or run once by design). The 3D band went from 137 KB
   build visual animations without code in competition with Webflow, so never
   put GSAP behind a no-code animation builder in Studio OS.
 - **Lenis**: MIT.
+- **mp4-muxer** 5.2.2 and **webm-muxer** 5.1.4 (Vanilagy): MIT. Dev
+  dependencies for `scripts/render-video.mjs` only; nothing of them reaches a
+  visitor. Both are final releases (their author has moved on to Mediabunny,
+  which is MPL-2.0, so these MIT ones were kept).
 - **Simplex noise** (2D and 3D) in the silk field, the image effect, the band and the satin stills: Ashima Arts / Stefan Gustavson, MIT.
 - **Fonts** in the lab: Archivo, Instrument Sans and Instrument Serif, SIL
   Open Font License (`lab/fonts/LICENSE-*.txt`). Instrument Serif came from

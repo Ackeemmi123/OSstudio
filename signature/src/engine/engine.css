@@ -382,6 +382,133 @@
 }
 
 /*
+ * Video: a frame of fixed shape (wide; tall on phones, where the film is
+ * tall), so nothing shifts as the film loads. The picture underneath is the
+ * design until the film draws its first frame, the same picture.
+ */
+[data-sg="video"] [data-sg-frame] {
+  position: relative;
+  aspect-ratio: 16 / 9;
+  overflow: clip;
+  background: var(--sg-video-ground, #151922);
+}
+[data-sg="video"] [data-sg-media],
+[data-sg="video"] [data-sg-media] :is(img, video) {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+[data-sg="video"] [data-sg-media] :is(img, video) {
+  display: block;
+  object-fit: cover;
+}
+/* Until the film has a frame, the picture shows; a browser never paints the empty film over it. */
+[data-sg="video"][data-sg-state="ready"] video {
+  opacity: 0;
+}
+[data-sg="video"] video[hidden],
+[data-sg-toggle][hidden] {
+  display: none;
+}
+/* Play and pause, always on the film while it can run (WCAG 2.2.2). */
+[data-sg-toggle] {
+  position: absolute;
+  left: 1rem;
+  bottom: 1rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  min-height: 2.75rem;
+  padding: 0 1.15rem 0 1rem;
+  border: 0;
+  border-radius: 999px;
+  background: rgb(14 17 24 / 0.72);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  color: #fff;
+  font: inherit;
+  font-size: 0.875rem;
+  line-height: 1;
+  cursor: pointer;
+}
+[data-sg-toggle]:hover {
+  background: rgb(14 17 24 / 0.9);
+}
+[data-sg-toggle]:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 3px;
+}
+/* Pause: two bars. Play: a triangle. */
+[data-sg-toggle] > [aria-hidden] {
+  width: 0.7rem;
+  height: 0.8rem;
+  box-sizing: border-box;
+  border-inline: 0.24rem solid currentColor;
+}
+[data-sg-toggle][data-state="paused"] > [aria-hidden] {
+  border: 0;
+  background: currentColor;
+  clip-path: polygon(0 0, 100% 50%, 0 100%);
+}
+@media (max-width: 699px) {
+  [data-sg="video"] [data-sg-frame] {
+    aspect-ratio: 4 / 5;
+  }
+}
+/*
+ * The showreel (`data-sg-variant="grow"`), with motion: a tall track holds the
+ * frame on screen (sticky) and clips it to its framed size; one number,
+ * --sg-grow (0 → 1, tied to the scroll by the engine), opens the clip to the
+ * whole screen while the film grows with it, from the scale at which it just
+ * fills the frame (--sg-k0, measured by the engine) to full size. Clip and
+ * scale only, no layout. A site sets --sg-video-bleed (from its column to the
+ * screen's edge) and may set --sg-video-start (the framed width at the start).
+ * With reduced motion this is the plain frame above.
+ */
+/* Registered, so the engine can read the framed size in pixels. */
+@property --sg-x0 {
+  syntax: "<length>";
+  inherits: true;
+  initial-value: 0px;
+}
+@property --sg-y0 {
+  syntax: "<length>";
+  inherits: true;
+  initial-value: 0px;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .sg-js [data-sg="video"][data-sg-variant="grow"] {
+    container-type: inline-size;
+    height: 210svh;
+  }
+  .sg-js [data-sg-variant="grow"] [data-sg-frame] {
+    --sg-r: calc(16 / 9);
+    --sg-w0: min(100cqw, var(--sg-video-start, 100cqw), 84svh * var(--sg-r));
+    --sg-x0: calc((100cqw - var(--sg-w0)) / 2 + var(--sg-video-bleed, 0px));
+    --sg-y0: calc((100svh - var(--sg-w0) / var(--sg-r)) / 2);
+    --sg-g: var(--sg-grow, 0);
+    position: sticky;
+    top: 0;
+    height: 100svh;
+    aspect-ratio: auto;
+    margin-inline: calc(var(--sg-video-bleed, 0px) * -1);
+    clip-path: inset(calc(var(--sg-y0) * (1 - var(--sg-g))) calc(var(--sg-x0) * (1 - var(--sg-g))));
+  }
+  .sg-js [data-sg-variant="grow"] [data-sg-media] {
+    scale: calc(var(--sg-k0, 1) + (1 - var(--sg-k0, 1)) * var(--sg-g));
+  }
+  .sg-js [data-sg-variant="grow"] [data-sg-toggle] {
+    translate: calc(var(--sg-x0) * (1 - var(--sg-g))) calc(var(--sg-y0) * (var(--sg-g) - 1));
+  }
+}
+@media (prefers-reduced-motion: no-preference) and (max-width: 699px) {
+  .sg-js [data-sg-variant="grow"] [data-sg-frame] {
+    --sg-r: calc(4 / 5);
+  }
+}
+
+/*
  * Intro: a curtain with the word mark, once per visit, in CSS alone. A line in
  * the page head adds `sg-intro-on` on the first page of a visit, never with
  * reduced motion. The curtain never blocks the page: clicks go straight
