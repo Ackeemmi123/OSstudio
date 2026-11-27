@@ -8,6 +8,9 @@
  *   ?film=loop   1:1,  1080 × 1080,  8 s   a feed post that loops without a seam
  *   ?film=wide   16:9, 1920 × 1080, 15 s   a presentation or the website
  *
+ * In three languages: &lang=sv (the default), &lang=fi, &lang=en. The copy is
+ * in one table (COPY); the pictures, the cuts and the beat are the same.
+ *
  * Every cut and every entrance sits on a half-second grid (120 beats a
  * minute). Nothing here runs on a clock: the page exposes `window.sgFilm`,
  * and `seek(t)` puts the GSAP timeline, the CSS animations and the band at
@@ -50,10 +53,74 @@ const SIZES: Record<Name, { width: number; height: number; duration: number }> =
   wide: { width: 1920, height: 1080, duration: 15 },
 };
 
+/**
+ * Every word in the films, per language. Swedish is the lab's own; Finnish (Axivo's first language) and English are
+ * written for themselves, not word for word, and broken into lines for the frame: Finnish words are long, so its
+ * sentences take more, shorter lines. Only statements that are true of the lab itself.
+ */
+type Language = "sv" | "fi" | "en";
+interface Copy {
+  /** What the film is, for the page's accessible name. */
+  label: string;
+  /** Parts, a direction, one thing: one word a bar, over the band as it gathers. */
+  gather: [string, string, string];
+  /** The small label that counts those three. */
+  gatherLabel: string;
+  /** The line on silk. Tall: one line a beat. Wide: two rows of two masks, entering as first, second and third together, fourth. */
+  moveTall: string[];
+  moveWide: [[string, string], [string, string]];
+  /** What is measured, on paper. */
+  measureTall: string[];
+  measureWide: string[];
+  /** Speed, accessibility, weight: the last is set in the heaviest weight. */
+  count: [string, string, string];
+  /** Under the name: the one line that is true of the film itself. */
+  closing: string;
+}
+const COPY: Record<Language, Copy> = {
+  sv: {
+    label: "Axivo Signature, film ritad i kod",
+    gather: ["Delar.", "Riktning.", "En sak."],
+    gatherLabel: "Från delar till en sak",
+    moveTall: ["Rörelse", "som betyder", "något."],
+    moveWide: [["Rörelse", "som"], ["betyder", "något."]],
+    measureTall: ["Varje sida", "mäts innan", "kunden", "ser den."],
+    measureWide: ["Varje sida mäts", "innan kunden ser den."],
+    count: ["Hastighet", "Tillgänglighet", "Vikt"],
+    closing: "Hela filmen är ritad i kod.",
+  },
+  fi: {
+    label: "Axivo Signature, koodilla piirretty filmi",
+    gather: ["Osia.", "Suunta.", "Yksi."],
+    gatherLabel: "Osista yhdeksi",
+    moveTall: ["Liike,", "jolla on", "merkitys."],
+    moveWide: [["Liike,", "jolla"], ["on", "merkitys."]],
+    measureTall: ["Joka sivu", "mitataan,", "ennen kuin", "asiakas", "näkee sen."],
+    measureWide: ["Joka sivu mitataan,", "ennen kuin asiakas", "näkee sen."],
+    count: ["Nopeus", "Saavutettavuus", "Paino"],
+    closing: "Koko filmi on piirretty koodilla.",
+  },
+  en: {
+    label: "Axivo Signature, a film drawn in code",
+    gather: ["Parts.", "Direction.", "One thing."],
+    gatherLabel: "From parts to one thing",
+    moveTall: ["Motion", "that means", "something."],
+    moveWide: [["Motion", "that"], ["means", "something."]],
+    measureTall: ["Every page", "is measured", "before", "the client", "sees it."],
+    measureWide: ["Every page", "is measured before", "the client sees it."],
+    count: ["Speed", "Accessibility", "Weight"],
+    closing: "The whole film is drawn in code.",
+  },
+};
+
 const query = new URLSearchParams(location.search);
+const language: Language = (["sv", "fi", "en"] as const).find((code) => code === query.get("lang")) ?? "sv";
+const copy = COPY[language];
+document.documentElement.lang = language;
 const name: Name = (["story", "loop", "wide"] as const).find((film) => film === query.get("film")) ?? "story";
 const size = SIZES[name];
 const stage = document.getElementById("stage")!;
+stage.setAttribute("aria-label", copy.label);
 stage.classList.add(`film-${name}`);
 stage.style.width = `${size.width}px`;
 stage.style.height = `${size.height}px`;
@@ -91,11 +158,18 @@ function shot(from: number, to: number, className: string, html: string): HTMLEl
   return element;
 }
 
-/** Sets a block's type so that its longest line is exactly `units` wide. */
-function fit(block: HTMLElement, units: number): void {
-  const widest = Math.max(...[...block.querySelectorAll<HTMLElement>(".l-in")].map((inner) => inner.getBoundingClientRect().width));
+/**
+ * Sets a block's type so that its longest line is exactly `units` wide; and, where `tallest` is given, no taller
+ * than that. A language with short lines, or more of them, would otherwise grow into the mark above and the
+ * hairline below. The Swedish films are under every limit, so they are set as they always were.
+ */
+function fit(block: HTMLElement, units: number, tallest = Infinity, selector = ".l-in"): void {
+  const widest = Math.max(...[...block.querySelectorAll<HTMLElement>(selector)].map((inner) => inner.getBoundingClientRect().width));
   const current = Number.parseFloat(getComputedStyle(block).fontSize);
-  block.style.fontSize = `${(current * units * (size.width / 100)) / widest}px`;
+  const wide = (current * units * (size.width / 100)) / widest;
+  block.style.fontSize = `${wide}px`;
+  const height = block.getBoundingClientRect().height / (size.width / 100);
+  if (height > tallest) block.style.fontSize = `${(wide * tallest) / height}px`;
 }
 
 /** The letters of a line rise out of its mask, starting on the beat `at`. */
@@ -169,7 +243,7 @@ function silk(host: HTMLElement, file: string): void {
 
 /** Parts, a direction, one thing: three words over the band as it gathers. Returns the band so the film can move it. */
 function gather(host: HTMLElement, starts: [number, number, number], end: number, spec: BandShot) {
-  const words = ["Delar.", "Riktning.", "En sak."];
+  const words = copy.gather;
   const block = make("div", "words");
   words.forEach((word, index) => {
     const from = starts[index];
@@ -179,7 +253,7 @@ function gather(host: HTMLElement, starts: [number, number, number], end: number
   const steps = make("div", "steps");
   words.forEach((_, index) => {
     const from = index === 0 ? Number(host.dataset.from) : starts[index];
-    steps.append(timed(make("p", "step", `<b>0${index + 1}</b><i></i>Från delar till en sak`), from, starts[index + 1] ?? end));
+    steps.append(timed(make("p", "step", `<b>0${index + 1}</b><i></i>${copy.gatherLabel}`), from, starts[index + 1] ?? end));
   });
   const caption = make("div", "caption");
   caption.append(steps, block);
@@ -188,7 +262,7 @@ function gather(host: HTMLElement, starts: [number, number, number], end: number
 }
 
 /** The closing mark: the lab's own wordmark, large, and the one line that is true of the film itself. */
-const signature = () => `<div class="sign"><p class="sign-name">${line("axivo")}</p><p class="sign-sub">Signature</p><p class="sign-line">Hela filmen är ritad i kod.</p></div>`;
+const signature = () => `<div class="sign"><p class="sign-name">${line("axivo")}</p><p class="sign-sub">Signature</p><p class="sign-line">${copy.closing}</p></div>`;
 
 function story(): void {
   // 0–5: the band gathers, three words on the beat.
@@ -201,15 +275,15 @@ function story(): void {
   timeline.fromTo(drawn.canvas, { scale: 1 }, { scale: 1.1, duration: 5, ease: "none" }, 0);
 
   // 5–7.5: silk, and the line, a word group a beat.
-  const move = shot(5, 7.5, "shot-silk", `${mark()}<div class="say">${line("Rörelse")}${line("som betyder")}${line("något.")}</div>`);
+  const move = shot(5, 7.5, "shot-silk", `${mark()}<div class="say">${copy.moveTall.map((text) => line(text)).join("")}</div>`);
   silk(move, "siden-natt");
   fit(move.querySelector<HTMLElement>(".say")!, 84);
   rise(move.querySelectorAll(".l"), 5, { each: 0.5 });
 
   // 7.5–9.5: paper. What is measured.
-  const measure = shot(7.5, 9.5, "shot-paper", `<div class="wash"></div>${mark()}<div class="say">${line("Varje sida")}${line("mäts innan")}${line("kunden")}${line("ser den.")}</div><i class="rule"></i>`);
+  const measure = shot(7.5, 9.5, "shot-paper", `<div class="wash"></div>${mark()}<div class="say">${copy.measureTall.map((text) => line(text)).join("")}</div><i class="rule"></i>`);
   silk(measure, "siden-natt");
-  fit(measure.querySelector<HTMLElement>(".say")!, 84);
+  fit(measure.querySelector<HTMLElement>(".say")!, 84, 100);
   rise(measure.querySelectorAll(".l"), 7.5, { each: 0.08, duration: 0.6, stagger: 0.012 });
 
   // 9.5–11.5: three words, three colours, a hard cut each beat.
@@ -227,7 +301,7 @@ function story(): void {
 
 /** Speed, accessibility, weight: each cuts in on its own beat, in its own colour, set as wide as the frame. */
 function counted(from: number, to: number): void {
-  const words = ["Hastighet", "Tillgänglighet", "Vikt"];
+  const words = copy.count;
   const host = shot(from, to, "shot-count", `${mark()}<div class="count">${words.map((word, index) => `<p class="count-row count-${index + 1}">${line(word)}</p>`).join("")}</div>`);
   // The whole frame changes colour with each word: indigo, lilac, ice.
   ["indigo", "lilac", "ice"].forEach((tone, index) => {
@@ -238,7 +312,7 @@ function counted(from: number, to: number): void {
   // Under the colour the same silk goes on drifting, straight through the cuts: the cards have the depth of the dark shots.
   silk(host, "siden-natt");
   const rows = [...host.querySelectorAll<HTMLElement>(".count-row")];
-  if (name === "wide") fit(host.querySelector<HTMLElement>(".count")!, 64);
+  if (name === "wide") fit(host.querySelector<HTMLElement>(".count")!, 64, 43.5);
   // The heavy row a little narrower: its V and t overhang their boxes, and it should look as wide as the others.
   else rows.forEach((row, index) => fit(row, index === 2 ? 81.5 : 84));
   const [speed, , weight] = rows.map((row) => row.querySelector<HTMLElement>(".l-in")!);
@@ -266,18 +340,19 @@ function wide(): void {
   timeline.fromTo(drawn.canvas, { scale: 1 }, { scale: 1.08, duration: 5, ease: "none" }, 0);
 
   // 5–8: silk. The line in two rows, three entrances.
-  const move = shot(5, 8, "shot-silk", `${mark()}<div class="say"><span class="row">${line("Rörelse")} ${line("som")}</span><span class="row">${line("betyder")} ${line("något.")}</span></div>`);
+  const move = shot(5, 8, "shot-silk", `${mark()}<div class="say">${copy.moveWide.map((row) => `<span class="row">${line(row[0])} ${line(row[1])}</span>`).join("")}</div>`);
   silk(move, "siden-lila");
-  fit2(move.querySelector<HTMLElement>(".say")!, 88);
+  // For rows made of several masks, the widest row is the measure.
+  fit(move.querySelector<HTMLElement>(".say")!, 88, 34, ".row");
   const [first, second, third, fourth] = [...move.querySelectorAll(".l")];
   rise(first, 5);
   rise([second, third], 5.5, { each: 0.12 });
   rise(fourth, 6);
 
   // 8–10.5: paper.
-  const measure = shot(8, 10.5, "shot-paper", `<div class="wash"></div>${mark()}<div class="say">${line("Varje sida mäts")}${line("innan kunden ser den.")}</div><i class="rule"></i>`);
+  const measure = shot(8, 10.5, "shot-paper", `<div class="wash"></div>${mark()}<div class="say">${copy.measureWide.map((text) => line(text)).join("")}</div><i class="rule"></i>`);
   silk(measure, "siden-natt");
-  fit(measure.querySelector<HTMLElement>(".say")!, 88);
+  fit(measure.querySelector<HTMLElement>(".say")!, 88, 34);
   rise(measure.querySelectorAll(".l"), 8, { each: 0.5, stagger: 0.012 });
 
   // 10.5–12.5: three rows.
@@ -293,12 +368,6 @@ function wide(): void {
   lift(end.querySelector(".sign-line"), 14);
 }
 
-/** As `fit`, for rows made of several masks: the widest row is `units` wide. */
-function fit2(block: HTMLElement, units: number): void {
-  const widest = Math.max(...[...block.querySelectorAll<HTMLElement>(".row")].map((row) => row.getBoundingClientRect().width));
-  const current = Number.parseFloat(getComputedStyle(block).fontSize);
-  block.style.fontSize = `${(current * units * (size.width / 100)) / widest}px`;
-}
 
 function loop(): void {
   // One shot, eight seconds, four bars: the band comes apart, finds a direction, is one thing, and is named.
