@@ -102,16 +102,28 @@ for (const path of PAGES) {
 
     test("the button closes it too, and the links arrive one after the other", async ({ page }) => {
       await open(page, path);
-      const toggle = page.getByRole("button", { name: "Meny" });
-      await toggle.click();
-      const lines = page.locator("[data-sg-menu-panel] li > a > *");
-      // Mid-way, an early link has risen further than a late one.
-      await page.waitForTimeout(450);
-      // How far below its place a line still is, in per cent of its height ("none" once it has arrived).
-      const below = (element: Element) => Number.parseFloat(getComputedStyle(element).translate.split(" ")[1] ?? "0") || 0;
-      const [first, last] = await Promise.all([lines.first().evaluate(below), lines.last().evaluate(below)]);
-      expect(last).toBeGreaterThan(first);
-      await expect.poll(() => lines.last().evaluate((element) => getComputedStyle(element).translate)).toBe("none");
+      await expect(page.locator('[data-sg="menu"]')).toHaveClass(/is-ready/);
+      // On every frame the page draws, from the click until the last link has arrived: how far below its place the
+      // first and the last link's line still are, in per cent of its height ("none" once arrived). Recorded in the
+      // page, so a slow machine cannot skip past the stagger.
+      await page.evaluate(() => {
+        const lines = document.querySelectorAll("[data-sg-menu-panel] li > a > *");
+        const [first, last] = [lines[0], lines[lines.length - 1]];
+        const below = (element: Element) => Number.parseFloat(getComputedStyle(element).translate.split(" ")[1] ?? "0") || 0;
+        const record = { pairs: [] as Array<[number, number]>, done: false };
+        (window as unknown as { sgArrival: typeof record }).sgArrival = record;
+        const sample = () => {
+          record.pairs.push([below(first), below(last)]);
+          record.done = document.querySelector('[data-sg="menu"]')!.classList.contains("is-open") && getComputedStyle(last).translate === "none";
+          if (!record.done) requestAnimationFrame(sample);
+        };
+        requestAnimationFrame(sample);
+      });
+      await page.getByRole("button", { name: "Meny" }).click();
+      const arrival = () => page.evaluate(() => (window as unknown as { sgArrival: { pairs: Array<[number, number]>; done: boolean } }).sgArrival);
+      await expect.poll(async () => (await arrival()).done, { timeout: 8000 }).toBe(true);
+      // Mid-way, an early link had risen further than a late one.
+      expect((await arrival()).pairs.some(([first, last]) => last > first + 5)).toBe(true);
       await page.getByRole("button", { name: "Stäng" }).click();
       await expect(page.getByRole("dialog")).toBeHidden();
       await expect(page.locator("[data-sg-menu-toggle]")).toBeFocused();
