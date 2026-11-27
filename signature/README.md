@@ -48,6 +48,8 @@ JavaScript, with reduced motion, and without WebGL. The engine only adds.
 | `data-sg="gallery"` | `src/modules/gallery.ts`, `engine.css` | Part B. A sideways row of pictures: a native scroller with snap points (touch, trackpad, arrow keys, screen readers, no script). The engine adds mouse drag with a throw, buttons, a counter and a progress line; pictures drift in their frames (CSS scroll-driven). |
 | `data-sg="sound"` | `src/modules/sound.ts` | Part B. A quiet ambient chord from the browser's own synthesiser: no file, off until asked for, remembered, never started without a click or key press, paused in hidden tabs. Scrolling opens its filter, so it brightens while the page moves. Hidden without JavaScript. |
 | `data-sg="play"` | `src/modules/play.ts` | Shapes on springs: the pointer pushes them aside, a drag pulls them away and they swing back, a tap nudges them, and those with eyes look at the pointer. About 1 KB compressed, in the motion engine. Decoration only: hidden from screen readers, still where they were drawn without JavaScript or with reduced motion. Rests when nothing moves or the stage is off screen. |
+| `data-sg="menu"` | `src/modules/menu.ts`, `engine.css` | A full-screen navigation. Without JavaScript it is the plain list of links in the bar. With it, a button (which stays at the top right as the page scrolls) opens it as a dialog: focus moves to the first link and goes round the links and the button, never out; Esc or the button closes it and gives focus back; the page behind is inert and holds still. The panel comes down like the page curtain and the big links rise out of their lines one after the other, in CSS; with reduced motion it opens and closes at once. Reading down, the button slides up out of the way (transform only) and any move up brings it back; it stays near the top of the page, while it has focus, while the menu is open and with reduced motion. On wide screens the open menu shows a picture of the hovered or focused link's page beside the list, sliding up over the last: the page's own picture from `lab/bilder/`, or for a page without one a mark drawn in its own colours and type; fetched only when the menu first opens on a wide screen, never on a phone. Its own chunk, 1.24 KB compressed, fetched at once on pages with a menu; a press before it arrives still opens it. Leaving through it, the next page rises over the open menu, and Back (from the back-forward cache) shows the page with the menu closed. On the library and Hantverk. |
+| `data-sg="reveal-list"` | `src/modules/reveal-list.ts`, `engine.css` | Rows (services, cases, materials) whose picture follows a mouse with weight (GSAP `quickTo`), leans with the speed and straightens as it catches up; the next row's picture slides up over the last. Without a mouse, with reduced motion and without JavaScript each row shows its own small picture instead, decided in CSS from the first paint, so nothing shifts. In the motion engine, about 0.5 KB. |
 | `data-sg="count"` | `src/modules/count.ts` | A figure that counts up to its value as it comes into view. The value is in the page from the start, read once from hidden text; without motion it simply shows. |
 | Intro (`.sg-intro`) | `engine.css`, a line in the page head | Part B. A curtain with the word mark, once per visit, in CSS alone. Never blocks a click, never shown with reduced motion; the first view's motion waits for it. |
 | 404 page | `lab/404.html` | Part B. Says plainly that the page is missing and leads back. `<base href="/">` makes it work at any depth; the host serves it for missing addresses. |
@@ -143,8 +145,8 @@ Client sites use the client's own pictures, with written permission.
 
 | Check | Limit |
 | ----- | ----- |
-| Script for the first view | ≤ 15 KB compressed (now 2.8) |
-| Motion engine, loaded later | ≤ 60 KB (now 55) |
+| Script for the first view | ≤ 15 KB compressed (now 4.2, the menu's 1.24 included) |
+| Motion engine, loaded later | ≤ 60 KB (now 57) |
 | WebGL shaders, loaded later | ≤ 10 KB (now 6.8, with the worker; a browser that draws on the main thread gets the same code for it instead, never both) |
 | 3D band, only on pages with an object | ≤ 10 KB (now 7.1, counted the same way; was 137 with Three.js) |
 | Sound, after load, only where used | ≤ 3 KB (now 1) |
@@ -152,21 +154,21 @@ Client sites use the client's own pictures, with written permission.
 | CSS / HTML / fonts | ≤ 15 / 10 / 140 KB (fonts now 121, all three faces) |
 | Lighthouse, simulated phone, median of 3 | performance ≥ 95, accessibility 100, best practices ≥ 95, SEO ≥ 90 (the 404 page: SEO without indexability, and it must say noindex) |
 | axe (WCAG 2.2 AA) | no violations, with and without motion |
-| Tests | content without JavaScript, nothing moving with reduced motion, still field without WebGL, no sideways scroll on a phone, no console errors |
+| Tests | content without JavaScript, nothing moving with reduced motion, still field without WebGL, no sideways scroll on a phone, no console errors, the menu's keyboard path (focus in, round, Esc, focus back), leaving through the menu and coming Back |
 
-Measured 2026-11-27, median of three runs: the lab and the warm showcase 99,
-scene two, the library, the dark and the playful showcase and the 404 page
-100; accessibility and best practices 100 everywhere, SEO 100 (the 404 page is
-kept out of search by design). The lab's first run in a fresh browser used to
-be slower (TBT up to 160 ms). The cause was not the silk shader's compile, which
-already ran in the background, but creating the first WebGL context: 70 to 210
-ms of blocked main thread under Lighthouse. It now happens in a worker, and the
-first run scores like the rest (TBT 0 in six of six). Largest content within
-0.8 s on every page but the warm showcase (about 1.9 s, its hero picture);
-layout shift 0 to 0.003. 116 tests pass on desktop and phone (10 are skipped:
-desktop-only, run once by design, or needing a software renderer, as CI has).
-The 3D band went from 137 KB (Three.js) to 5.7 KB compressed, with the same
-picture.
+Measured 2026-11-27 with the menu, the reveal list and the worker together,
+median of three runs, each started at a 1-minute load under 3: the library and
+the dark showcase 100, the lab and the warm showcase 99; accessibility, best
+practices and SEO 100 everywhere (the 404 page is kept out of search by
+design). The lab's first run in a fresh browser used to be slower (TBT up to
+160 ms). The cause was not the silk shader's compile, which already ran in the
+background, but creating the first WebGL context: 70 to 210 ms of blocked main
+thread under Lighthouse. It now happens in a worker, and the first run scores
+like the rest (TBT 0 in six of six). Largest content within 0.8 s on every page
+but the warm showcase (about 2 s, its hero picture on a phone); layout shift 0
+to 0.003. 163 tests pass on desktop and phone (11 are skipped: desktop-only,
+run once by design, or needing a software renderer, as CI has). The 3D band
+went from 137 KB (Three.js) to 5.7 KB compressed, with the same picture.
 
 ## Licences
 

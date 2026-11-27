@@ -18,12 +18,30 @@
     <header class="bar">
       <a class="mark" href="../" aria-label="Axivo Signature, labbets startsida">axivo<span>signature</span></a>
       <div class="bar-tools">
-        <nav aria-label="Labbet">
-          <a href="../"><span class="roll">Labb 01</span></a>
-          <a href="./" aria-current="page"><span class="roll">Bibliotek</span></a>
-          <a href="../visning/"><span class="roll">Visning</span></a>
-        </nav>
         <button class="sound" type="button" data-sg="sound" aria-pressed="false" hidden><span class="sound-bars" aria-hidden="true"><i></i><i></i><i></i><i></i></span><span class="sound-label">Ljud</span></button>
+        <nav class="menu" data-sg="menu" aria-label="Labbet" data-lenis-prevent>
+          <button class="menu-toggle" type="button" data-sg-menu-toggle aria-expanded="false" aria-controls="meny"><span class="menu-words"><span data-sg-menu-word>Meny</span> <span data-sg-menu-word aria-hidden="true">Stäng</span></span><span class="menu-icon" aria-hidden="true"><i></i><i></i></span></button>
+          <div class="menu-panel" id="meny" data-sg-menu-panel>
+            <p class="menu-eyebrow">Sidor i labbet</p>
+            <ol class="menu-list">
+              <li><a href="../"><span class="menu-line"><span class="menu-n" aria-hidden="true">01</span> <span class="menu-name">Labb 01</span> <span class="menu-note">Motorn</span></span></a></li>
+              <li><a href="../scen/"><span class="menu-line"><span class="menu-n" aria-hidden="true">02</span> <span class="menu-name">Scen två</span> <span class="menu-note">Sidövergången</span></span></a></li>
+              <li><a href="./" aria-current="page"><span class="menu-line"><span class="menu-n" aria-hidden="true">03</span> <span class="menu-name">Bibliotek</span> <span class="menu-note">Byggstenarna</span></span></a></li>
+              <li><a href="../visning/"><span class="menu-line"><span class="menu-n" aria-hidden="true">04</span> <span class="menu-name">En sida.</span> <span class="menu-note">Visning ett, mörk</span></span></a></li>
+              <li><a href="../hantverk/"><span class="menu-line"><span class="menu-n" aria-hidden="true">05</span> <span class="menu-name">Hantverk</span> <span class="menu-note">Visning två, varm</span></span></a></li>
+              <li><a href="../lekfull/"><span class="menu-line"><span class="menu-n" aria-hidden="true">06</span> <span class="menu-name">Lekfull</span> <span class="menu-note">Visning tre, färg</span></span></a></li>
+            </ol>
+            <div class="menu-pictures" data-sg-menu-pictures aria-hidden="true">
+              <span class="menu-mark menu-mark-lab"><span>Rörelse som betyder något.</span></span>
+              <span class="menu-mark menu-mark-scen"><span>Sidan bytte, känslan höll.</span></span>
+              <img src="../bilder/bandet-delar-800.webp" width="800" height="1000" loading="lazy" decoding="async" alt="" />
+              <img src="../bilder/siden-natt-800.webp" width="800" height="1000" loading="lazy" decoding="async" alt="" />
+              <img src="../bilder/siden-sand-800.webp" width="800" height="1000" loading="lazy" decoding="async" alt="" />
+              <svg class="menu-mark" viewBox="0 0 80 100" preserveAspectRatio="xMidYMid slice" focusable="false"><rect width="80" height="100" fill="#2438e0" /><circle cx="46" cy="38" r="24" fill="#ffcf33" /><path d="M0 100a34 34 0 0 1 68 0Z" fill="#ff5b3a" /><path d="M16 100a18 18 0 0 1 36 0Z" fill="#ff9fd0" /></svg>
+            </div>
+            <p class="menu-foot"><span>Axivo Signature</span> <span class="menu-hint">Esc stänger menyn</span></p>
+          </div>
+        </nav>
       </div>
     </header>
 
@@ -170,12 +188,60 @@
         </ul>
         <div class="gallery-progress" data-sg-progress hidden><span></span></div>
       </section>
+      <section class="band materials" data-sg="reveal-list" aria-labelledby="materials-title">
+        <h2 class="label" id="materials-title"><span>09</span> <span class="label-name">Materialet</span> <span class="label-note">Lista med bilder</span></h2>
+        <p class="materials-lead">En lista med tjänster, arbeten eller material. Med mus eller styrplatta följer radens bild pekaren, med tyngd, och lutar sig efter farten. På pekskärm, med mindre rörelse och utan JavaScript har varje rad sin bild bredvid sig.</p>
+        <ul class="materials-list">
+          <li class="materials-row" data-sg-row>
+            <span class="materials-n" aria-hidden="true">01</span>
+            <h3 class="materials-name">Natt</h3>
+            <p class="materials-note">Mörkblått siden i mjuka veck, med ett smalt ljus längs vecken</p>
+            <p class="materials-kind">Shader</p>
+            <img class="materials-thumb" data-sg-thumb src="../bilder/siden-natt-800.webp" width="800" height="1000" loading="lazy" decoding="async" alt="" />
+          </li>
+          <li class="materials-row" data-sg-row>
+            <span class="materials-n" aria-hidden="true">02</span>
+            <h3 class="materials-name">Lila</h3>
+            <p class="materials-note">Lila siden i mjuka veck med ljus i vecken</p>
+            <p class="materials-kind">Shader</p>
+            <img class="materials-thumb" data-sg-thumb src="../bilder/siden-lila-800.webp" width="800" height="600" loading="lazy" decoding="async" alt="" />
+          </li>
+          <li class="materials-row" data-sg-row>
+            <span class="materials-n" aria-hidden="true">03</span>
+            <h3 class="materials-name">Skog</h3>
+            <p class="materials-note">Skogsgrönt siden i breda veck som fångar ljuset</p>
+            <p class="materials-kind">Shader</p>
+            <img class="materials-thumb" data-sg-thumb src="../bilder/siden-skog-800.webp" width="800" height="600" loading="lazy" decoding="async" alt="" />
+          </li>
+          <li class="materials-row" data-sg-row>
+            <span class="materials-n" aria-hidden="true">04</span>
+            <h3 class="materials-name">Ockra</h3>
+            <p class="materials-note">Ockrafärgat siden i breda, glansiga veck</p>
+            <p class="materials-kind">Shader</p>
+            <img class="materials-thumb" data-sg-thumb src="../bilder/siden-ockra-800.webp" width="800" height="600" loading="lazy" decoding="async" alt="" />
+          </li>
+          <li class="materials-row" data-sg-row>
+            <span class="materials-n" aria-hidden="true">05</span>
+            <h3 class="materials-name">Terrakotta</h3>
+            <p class="materials-note">Terrakottafärgat siden i djupa, glansiga veck</p>
+            <p class="materials-kind">Shader</p>
+            <img class="materials-thumb" data-sg-thumb src="../bilder/siden-terrakotta-800.webp" width="800" height="1000" loading="lazy" decoding="async" alt="" />
+          </li>
+          <li class="materials-row" data-sg-row>
+            <span class="materials-n" aria-hidden="true">06</span>
+            <h3 class="materials-name">Bandet</h3>
+            <p class="materials-note">Borstad metall i en Möbiusslinga, renderad av motorn</p>
+            <p class="materials-kind">3D</p>
+            <img class="materials-thumb" data-sg-thumb src="../bilder/bandet-hel-800.webp" width="800" height="600" loading="lazy" decoding="async" alt="" />
+          </li>
+        </ul>
+      </section>
     </main>
 
     <footer class="signature-foot" aria-labelledby="foot-title">
       <h2 class="visually-hidden" id="foot-title">Sidfot</h2>
       <div class="foot-row">
-        <p><span class="label"><span>09</span> Signaturfot</span>Ordmärket reser sig bokstav för bokstav medan du scrollar hit, med bara CSS.</p>
+        <p><span class="label"><span>10</span> Signaturfot</span>Ordmärket reser sig bokstav för bokstav medan du scrollar hit, med bara CSS.</p>
         <a class="pill" href="../" data-sg-magnetic data-cursor-label="Tillbaka"><span class="roll">Tillbaka till början</span></a>
       </div>
       <p class="foot-word" data-sg="mark">axivo</p>

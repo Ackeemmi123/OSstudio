@@ -17,6 +17,7 @@ export { mountReveal } from "../modules/reveal";
 export { mountGallery } from "../modules/gallery";
 export { mountCount } from "../modules/count";
 export { mountPlay } from "../modules/play";
+export { mountRevealList } from "../modules/reveal-list";
 
 // Fonts change line breaks; measure scroll positions again once they are in.
 void document.fonts?.ready.then(() => ScrollTrigger.refresh());
