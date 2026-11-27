@@ -219,5 +219,7 @@ describe("page checks", () => {
     expect(contentTypeOf("om-oss/index.html")).toMatch(/^text\/html/);
     expect(contentTypeOf("img/a.webp")).toBe("image/webp");
     expect(contentTypeOf("dokument/x.pdf")).toBe("application/pdf");
+    // Axivo Signature's module scripts must be served as JavaScript, or the browser refuses to run them on the review link.
+    expect(contentTypeOf("signature/layer.js")).toMatch(/^text\/javascript/);
   });
 });

@@ -84,7 +84,8 @@ export class BuildRefused extends Error {
 }
 
 const EXTENSIONS: Record<string, string> = { "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp" };
-const TYPES: Record<string, string> = { html: "text/html; charset=utf-8", css: "text/css; charset=utf-8", txt: "text/plain; charset=utf-8", jpg: "image/jpeg", png: "image/png", webp: "image/webp", pdf: "application/pdf", woff2: "font/woff2" };
+// js: Axivo Signature's scripts. A browser runs a module script only when it is served as JavaScript (with nosniff, never as octet-stream).
+const TYPES: Record<string, string> = { html: "text/html; charset=utf-8", css: "text/css; charset=utf-8", js: "text/javascript; charset=utf-8", txt: "text/plain; charset=utf-8", jpg: "image/jpeg", png: "image/png", webp: "image/webp", pdf: "application/pdf", woff2: "font/woff2" };
 
 export function contentTypeOf(path: string): string {
   return TYPES[path.split(".").pop()?.toLowerCase() ?? ""] ?? "application/octet-stream";
