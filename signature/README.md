@@ -238,13 +238,17 @@ layout shift 0.003) and the lab 99 (99, 99, 99; 0.8 s, 0 ms, 0); the other
 pages were not measured again. With the shaded, moving cards and the gliding
 pill: the library 100 (100, 100, 100; 1.1 s, 0 ms, 0.003; started at a
 1-minute load of 3.6) and the lab 99 (99, 99, 99; 0.8 s, 0 ms, 0; started
-under 3).
+under 3). The library was not measured again with the image sequence: the
+machine's 1-minute load stayed between 30 and 480 the whole day it was built,
+far from the 3 these figures were taken under. Its frames and chunk load only
+a screen ahead of section 13, the last on the page, so the first view is
+unchanged but for 0.1 KB of boot script.
 Largest content within 0.8–1.0 s on every page but the warm showcase (about
-2 s, its hero picture on a phone); layout shift 0 to 0.003. 206 tests pass
+2 s, its hero picture on a phone); layout shift 0 to 0.003. 232 tests pass
 on desktop and phone (12 are skipped: desktop-only, phone-only, run once by
 design, or needing a software renderer, as CI has); the stack and the call
-to action have 23 of them; the film's 18 include Save-Data,
-emulated by sending the `Save-Data` header and setting
+to action have 23 of them, the image sequence 26; the film's 18 include
+Save-Data, and so do the sequence's, emulated by sending the `Save-Data` header and setting
 `navigator.connection.saveData`, which is what the engine reads, since
 Playwright cannot turn on Chrome's data saver. The 3D band went from 137 KB
 (Three.js) to about 6 KB compressed, with the same picture.

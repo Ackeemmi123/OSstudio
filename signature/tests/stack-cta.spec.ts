@@ -263,6 +263,8 @@ test.describe("the stack", () => {
 
 test.describe("the call to action", () => {
   test("shows past the first screen, steps aside reading down, comes back reading up, gives way to the footer and docks at its place", async ({ page }) => {
+    // It walks the whole page, which the image sequence (13) has made four screens longer: 20–27 s on a busy machine.
+    test.slow();
     const errors = collectErrors(page);
     await open(page);
     const root = page.locator('[data-sg="cta"]');
@@ -414,6 +416,8 @@ test.describe("the call to action", () => {
   });
 
   test("nothing shifts while the cards stack and the pill leaves and finds its place", async ({ page }) => {
+    // Its walk now reaches the image sequence, which starts loading its frames: 18–23 s on a busy machine.
+    test.slow();
     await open(page);
     const height = await viewport(page);
     // Past the pinned sections higher up (their own tests cover them), with the pill out.
