@@ -11,11 +11,23 @@
  * dialog, in the bar, and must stay reachable. The page is made inert instead,
  * which is the stronger guarantee.
  *
+ * The button steps out of the way while the visitor reads downwards and
+ * comes back at the first move up. It always stays near the top of the page,
+ * while it has focus, while the menu is open, and with reduced motion.
+ *
+ * On wide screens the open menu can show a picture of each page beside the
+ * list (`data-sg-menu-pictures`, one child per link, in the same order): the
+ * hovered or focused link's slides up over the last. Its pictures are fetched
+ * only when the menu first opens on a wide screen.
+ *
  * Markup: <nav data-sg="menu" aria-label="Meny" data-lenis-prevent>
  *           <button type="button" data-sg-menu-toggle aria-expanded="false" aria-controls="meny">
  *             <span data-sg-menu-word>Meny</span><span data-sg-menu-word aria-hidden="true">Stäng</span>
  *           </button>
- *           <div id="meny" data-sg-menu-panel> <ol> <li><a href="…">…</a></li> … </ol> </div>
+ *           <div id="meny" data-sg-menu-panel>
+ *             <ol> <li><a href="…"><span>…</span></a></li> … </ol>
+ *             <div data-sg-menu-pictures aria-hidden="true"> <img src="…" loading="lazy" alt="" /> <svg>…</svg> … </div>
+ *           </div>
  *         </nav>
  */
 
@@ -35,6 +47,8 @@ export function mountMenu(root: HTMLElement, openNow = false): void {
 
   let open = false;
   let quieted: HTMLElement[] = [];
+  const reduced = matchMedia("(prefers-reduced-motion: reduce)");
+  const tuck = (hide: boolean) => root.classList.toggle("is-tucked", hide);
 
   /** Everything outside the menu, up to the body: the page behind, which nobody should reach while it is open. */
   const quiet = () => {
@@ -60,6 +74,10 @@ export function mountMenu(root: HTMLElement, openNow = false): void {
     root.classList.toggle("is-open", open);
     html.classList.toggle("sg-menu-open", open);
     if (open) {
+      tuck(false);
+      if (!opened && wide.matches) pictures.forEach((picture) => picture instanceof HTMLImageElement && (picture.loading = "eager"));
+      opened = true;
+      root.classList.add("has-opened");
       quiet();
       document.addEventListener("keydown", onKey);
       panel.querySelector<HTMLElement>(FOCUSABLE)?.focus();
@@ -90,6 +108,46 @@ export function mountMenu(root: HTMLElement, openNow = false): void {
       first.focus();
     }
   };
+
+  // The picture beside the list follows the link under the pointer or the keyboard.
+  const wide = matchMedia("(min-width: 900px)");
+  const links = [...panel.querySelectorAll<HTMLAnchorElement>("li > a")];
+  const pictures = [...root.querySelectorAll<HTMLElement>("[data-sg-menu-pictures] > *")];
+  let opened = false;
+  let shown = -1;
+  const follow = (event: Event) => {
+    const index = links.indexOf((event.target as Element).closest?.("a") as HTMLAnchorElement);
+    const next = pictures[index];
+    if (!next || index === shown) return;
+    // Everything but the picture on show goes back below; the next one starts there and slides up over it.
+    pictures.forEach((picture, at) => at !== shown && picture.classList.remove("was-active"));
+    void next.offsetWidth;
+    pictures[shown]?.classList.replace("is-active", "was-active");
+    next.classList.add("is-active");
+    shown = index;
+  };
+  panel.addEventListener("pointerover", follow);
+  panel.addEventListener("focusin", follow);
+
+  // Out of the way while reading down, back at the first move up. Lenis moves the window's own
+  // scroll position, so these deltas follow it as well when it runs.
+  let lastY = scrollY;
+  let travel = 0;
+  addEventListener(
+    "scroll",
+    () => {
+      const step = scrollY - lastY;
+      lastY = scrollY;
+      // Distance in one direction, so a trackpad's jitter back and forth never flickers it.
+      travel = step * travel > 0 ? travel + step : step;
+      if (scrollY < 80 || open || reduced.matches || toggle.matches(":focus")) tuck(false);
+      else if (travel > 12) tuck(true);
+      else if (travel < -4) tuck(false);
+    },
+    { passive: true },
+  );
+  toggle.addEventListener("focus", () => tuck(false));
+  reduced.addEventListener("change", () => reduced.matches && tuck(false));
 
   toggle.addEventListener("click", () => set(!open, true));
   // A link to a place on this page closes the menu and lets the browser go there; other links leave the page.

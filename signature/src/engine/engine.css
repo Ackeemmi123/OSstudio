@@ -500,6 +500,46 @@
   translate: none;
   transition: translate 1.1s cubic-bezier(0.16, 1, 0.3, 1) calc(0.3s + var(--i, 0) * 70ms);
 }
+/* Reading down, the button slides up out of the way; any move up brings it back. Transform only. */
+.sg-js [data-sg-menu-toggle] {
+  transition: translate 0.55s cubic-bezier(0.65, 0, 0.35, 1);
+}
+.sg-js [data-sg="menu"].is-tucked [data-sg-menu-toggle] {
+  translate: 0 var(--sg-menu-tuck, calc(-100% - 2.5rem));
+}
+/*
+ * Pictures beside the list, one per link, on wide screens only and only once
+ * the menu has opened (so they cost nothing before). The hovered or focused
+ * link's picture slides up over the last.
+ */
+[data-sg-menu-pictures] {
+  display: none;
+}
+@media (min-width: 900px) {
+  .sg-js [data-sg="menu"].has-opened [data-sg-menu-pictures] {
+    display: block;
+    position: relative;
+    overflow: clip;
+  }
+}
+[data-sg-menu-pictures] > * {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  translate: 0 101%;
+}
+[data-sg-menu-pictures] > .was-active {
+  translate: none;
+  z-index: 1;
+}
+[data-sg-menu-pictures] > .is-active {
+  translate: none;
+  z-index: 2;
+  transition: translate 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+}
 /* The page behind stays where it is; the space of its scroll bar is kept, so nothing shifts. */
 html.sg-menu-open {
   overflow: hidden;
@@ -512,8 +552,13 @@ html.sg-menu-open {
 }
 @media (prefers-reduced-motion: reduce) {
   .sg-js [data-sg-menu-panel],
-  .sg-js [data-sg-menu-panel] li > a > * {
+  .sg-js [data-sg-menu-panel] li > a > *,
+  .sg-js [data-sg-menu-toggle],
+  [data-sg-menu-pictures] > * {
     transition: none !important;
+  }
+  .sg-js [data-sg="menu"].is-tucked [data-sg-menu-toggle] {
+    translate: none;
   }
 }
 

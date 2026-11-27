@@ -143,6 +143,73 @@ for (const path of PAGES) {
       });
     }
 
+    test("the button steps out of the way reading down, comes back on any move up, and stays near the top, with focus and with reduced motion", async ({ page }) => {
+      await open(page, path);
+      await expect(page.locator('[data-sg="menu"]')).toHaveClass(/is-ready/);
+      const toggle = page.locator("[data-sg-menu-toggle]");
+      const shown = () => toggle.evaluate((element) => element.getBoundingClientRect().bottom > 0);
+      const scroll = async (by: number) => {
+        for (let step = 0; step < 4; step++) await page.evaluate((y) => window.scrollBy(0, y), by / 4);
+      };
+      await scroll(40);
+      await page.waitForTimeout(700);
+      expect(await shown()).toBe(true);
+      await scroll(600);
+      await expect.poll(shown).toBe(false);
+      // A trackpad's few pixels back do nothing; a real move up brings it back.
+      await page.evaluate(() => window.scrollBy(0, -3));
+      await page.waitForTimeout(700);
+      expect(await shown()).toBe(false);
+      await scroll(-40);
+      await expect.poll(shown).toBe(true);
+      // With focus it stays.
+      await toggle.focus();
+      await scroll(500);
+      await page.waitForTimeout(700);
+      expect(await shown()).toBe(true);
+      await toggle.blur();
+      // Back near the top it is always there.
+      await scroll(400);
+      await expect.poll(shown).toBe(false);
+      await page.evaluate(() => window.scrollTo(0, 30));
+      await expect.poll(shown).toBe(true);
+      // With reduced motion it never moves.
+      await page.emulateMedia({ reducedMotion: "reduce" });
+      await scroll(800);
+      await page.waitForTimeout(700);
+      expect(await shown()).toBe(true);
+    });
+
+    test("on a wide screen the open menu shows each page's picture beside the list, fetched only once it opens", async ({ page, isMobile }) => {
+      const pictures = /bandet-delar-800|siden-natt-800/;
+      const fetched: string[] = [];
+      page.on("request", (request) => pictures.test(request.url()) && fetched.push(request.url()));
+      await open(page, path);
+      await expect(page.locator('[data-sg="menu"]')).toHaveClass(/is-ready/);
+      await page.waitForTimeout(800);
+      expect(fetched).toEqual([]);
+      await page.getByRole("button", { name: "Meny" }).click();
+      const column = page.locator("[data-sg-menu-pictures]");
+      if (isMobile) {
+        // On a phone the list fills the screen: no pictures, nothing fetched.
+        await page.waitForTimeout(1200);
+        await expect(column).toBeHidden();
+        expect(fetched).toEqual([]);
+        return;
+      }
+      await expect(column).toBeVisible();
+      await expect.poll(() => fetched.length).toBeGreaterThanOrEqual(2);
+      const box = (await column.boundingBox())!;
+      expect(box.x).toBeGreaterThan(page.viewportSize()!.width / 2);
+      // Focus starts on the first link, so its page's mark shows; hover and keyboard both lead the picture.
+      await expect(column.locator(".is-active")).toHaveClass(/menu-mark-lab/);
+      await page.locator("[data-sg-menu-panel] li > a").nth(3).hover();
+      await expect(column.locator(".is-active")).toHaveAttribute("src", /siden-natt/);
+      await page.keyboard.press("Tab");
+      await expect(column.locator(".is-active")).toHaveClass(/menu-mark-scen/);
+      await expect(column).toHaveAttribute("aria-hidden", "true");
+    });
+
     test("does not scroll sideways, open or closed", async ({ page }) => {
       await open(page, path);
       const overflow = () => page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
