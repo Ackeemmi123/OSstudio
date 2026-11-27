@@ -100,6 +100,40 @@ const jumps = (samples: Sample[], perFrame: number) =>
     return Math.abs(sample.frame - before.frame) > Math.abs(sample.y - before.y) / perFrame + 2 ? [`${before.frame} → ${sample.frame} over ${Math.round(sample.y - before.y)} px`] : [];
   });
 
+/**
+ * How each word over the picture looks, on each of `frames` frames the page paints once no word is moving: "whole"
+ * (inside its window with room above and below for Å, Ä and Ö: a fifth of the type size), "hidden" (clear of the
+ * window), or "cut".
+ */
+async function words(page: Page, frames = 12) {
+  // Polled from outside, and the first sample taken at once: without JavaScript the page runs no frame callbacks.
+  await expect.poll(() => page.evaluate(() => [...document.querySelectorAll(".sequence-lines li")].flatMap((line) => line.getAnimations()).length)).toBe(0);
+  return page.evaluate(
+    (frames) =>
+      new Promise<string[][]>((resolve) => {
+        const list = document.querySelector<HTMLElement>(".sequence-lines")!;
+        const samples: string[][] = [];
+        const sample = () => {
+          const box = list.getBoundingClientRect();
+          const room = Number.parseFloat(getComputedStyle(list).fontSize) * 0.2;
+          samples.push(
+            [...list.children].map((line) => {
+              const word = line.getBoundingClientRect();
+              if (word.bottom <= box.top + 0.5 || word.top >= box.bottom - 0.5) return "hidden";
+              return word.top >= box.top + room - 0.5 && word.bottom <= box.bottom - room + 0.5 ? "whole" : "cut";
+            }),
+          );
+          if (samples.length < frames) requestAnimationFrame(sample);
+          else resolve(samples);
+        };
+        sample();
+      }),
+    frames,
+  );
+}
+/** One word whole, the others hidden. */
+const only = (step: number) => [0, 1, 2].map((index) => (index === step ? "whole" : "hidden"));
+
 const overflow = (page: Page) => page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
 
 /** The plain picture: no tall track (the section is as tall as its stage) and nothing held on screen. */
@@ -116,11 +150,8 @@ async function expectStill(page: Page, isMobile: boolean) {
   expect(await picture.evaluate((img: HTMLImageElement) => img.currentSrc)).toMatch(isMobile ? /telefon\/59\.webp$/ : /bred\/59\.webp$/);
   const box = (await picture.boundingBox())!;
   expect(Math.abs(box.width / box.height - (isMobile ? 720 / 1560 : 1600 / 900))).toBeLessThan(0.01);
-  // Its word stands in its line; the other two are out of it.
-  const offsets = await host.locator(".sequence-lines li").evaluateAll((lines) => lines.map((line) => line.getBoundingClientRect().top - line.parentElement!.getBoundingClientRect().top));
-  expect(Math.abs(offsets[2])).toBeLessThan(1);
-  expect(Math.abs(offsets[0])).toBeGreaterThan(20);
-  expect(Math.abs(offsets[1])).toBeGreaterThan(20);
+  // Its word stands whole in its line; the other two are out of it.
+  for (const sample of await words(page, 1)) expect(sample).toEqual(only(2));
 }
 
 test.describe("without JavaScript", () => {
@@ -142,6 +173,8 @@ test.describe("with reduced motion", () => {
   test.use({ reducedMotion: "reduce" });
 
   test("the last frame stands still, nothing is held or fetched; turned off, the sequence starts, and on again, it stops", async ({ page, isMobile }) => {
+    // Turned off midway, it loads all sixty frames before it is turned on again.
+    test.slow();
     const errors = collectErrors(page);
     const frames = watchFrames(page);
     await open(page);
@@ -158,9 +191,11 @@ test.describe("with reduced motion", () => {
     await expect(root(page)).toHaveAttribute("data-sg-loaded", "60", { timeout: 20_000 });
     await settledTop(page, 0.2);
     await expect(root(page)).toHaveAttribute("data-sg-state", "live");
-    // And on again: the canvas goes, the last frame is the picture again.
+    // And on again: the canvas goes, the last frame is the picture again, and its word is there at once, without a roll.
     await page.emulateMedia({ reducedMotion: "reduce" });
     await expect(root(page)).toHaveAttribute("data-sg-state", "still");
+    expect(await page.evaluate(() => [...document.querySelectorAll(".sequence-lines li")].flatMap((line) => line.getAnimations()).length)).toBe(0);
+    await expect(root(page).locator(".sequence-lines li").first()).toHaveCSS("transition-duration", "0s");
     await expect(root(page).locator("canvas")).toHaveCSS("opacity", "0");
     await expectStill(page, isMobile);
     expect(errors).toEqual([]);
@@ -257,6 +292,55 @@ test.describe("with motion", () => {
     expect(errors).toEqual([]);
   });
 
+  test("the words change with the movement: one whole word wherever the reader stops, rolling to the next in time, never flickering at a threshold", async ({ page }) => {
+    test.slow();
+    const errors = collectErrors(page);
+    await open(page);
+    const top = await settledTop(page, 0.6);
+    await expect(root(page)).toHaveAttribute("data-sg-loaded", "60", { timeout: 20_000 });
+    const run = await root(page).evaluate((element) => (element.getBoundingClientRect().height - element.querySelector<HTMLElement>("[data-sg-stage]")!.clientHeight) * 0.85);
+    // Watch every move of the words: which property, how long, how eased.
+    await page.evaluate(() => {
+      const seen = new Set<string>();
+      (window as unknown as { sgRolls: Set<string> }).sgRolls = seen;
+      const look = () => {
+        for (const line of document.querySelectorAll(".sequence-lines li"))
+          for (const animation of line.getAnimations()) {
+            const timing = animation.effect!.getTiming();
+            seen.add(`${(animation as CSSTransition).transitionProperty} ${timing.duration} ${timing.easing}`);
+          }
+        requestAnimationFrame(look);
+      };
+      requestAnimationFrame(look);
+    });
+    // At rest inside each part (thresholds at 0.25 and 0.7 of the movement), reading down and back up.
+    for (const [at, step] of [
+      [0.1, 0],
+      [0.45, 1],
+      [0.9, 2],
+      [0.45, 1],
+      [0.1, 0],
+    ]) {
+      await scrollTo(page, top + run * at, 40);
+      await expect(root(page)).toHaveAttribute("data-sg-step", String(step));
+      for (const sample of await words(page)) expect(sample).toEqual(only(step));
+    }
+    // The words rolled on a timed transition of their own: transform only, 0.6 s, the house easing.
+    expect(await page.evaluate(() => [...(window as unknown as { sgRolls: Set<string> }).sgRolls])).toEqual(["translate 600 cubic-bezier(0.16, 1, 0.3, 1)"]);
+    // Near a threshold the word holds: past 0.25 it changes only at 0.28, and back only at 0.22.
+    await scrollTo(page, top + run * 0.31, 20);
+    await expect(root(page)).toHaveAttribute("data-sg-step", "1");
+    for (const at of [0.24, 0.27, 0.24]) {
+      await scrollTo(page, top + run * at, 20);
+      await page.waitForTimeout(300);
+      await expect(root(page)).toHaveAttribute("data-sg-step", "1");
+    }
+    await scrollTo(page, top + run * 0.19, 20);
+    await expect(root(page)).toHaveAttribute("data-sg-step", "0");
+    for (const sample of await words(page)) expect(sample).toEqual(only(0));
+    expect(errors).toEqual([]);
+  });
+
   test("the first frame drawn is the poster's own picture, placed the same, so nothing jumps as the canvas takes over", async ({ page }) => {
     await open(page);
     await settledTop(page, 0.6);
@@ -283,6 +367,8 @@ test.describe("with motion", () => {
   });
 
   test("while frames are on their way, the nearest one that has come holds, and the one wanted follows", async ({ page }) => {
+    // Every frame passes through the test's own request handler, which a busy machine makes slow.
+    test.slow();
     // Only every fourth frame and the last arrive; the rest wait until released.
     let release = () => {};
     const gate = new Promise<void>((resolve) => (release = resolve));
@@ -305,7 +391,7 @@ test.describe("with motion", () => {
     expect(waiting[waiting.length - 1]).toBe(28);
     // The rest arrive: the wanted frame is drawn without another scroll.
     release();
-    await expect(root(page)).toHaveAttribute("data-sg-loaded", "60", { timeout: 20_000 });
+    await expect(root(page)).toHaveAttribute("data-sg-loaded", "60", { timeout: 45_000 });
     await expect(root(page).locator("canvas")).toHaveAttribute("data-frame", "30");
   });
 

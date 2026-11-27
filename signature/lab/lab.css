@@ -2172,11 +2172,13 @@ a {
 
 /*
  * Sequence: the band gathers frame by frame while the page scrolls, held on
- * the whole screen. Three words roll through one line over it in step with
- * the frame shown (`--sg-p`, 0–1): each stands still around its own moment
- * (`--at`, ±0.15) and, between two, the one leaves upward as the next rises
- * from below, cut by the line. Without motion `--sg-p` is unset, so the last
- * word stands under the last frame.
+ * the whole screen. Three words over it, one for each part of the movement:
+ * the engine names the part (`--sg-step`, from `data-sg-steps`, with a margin
+ * either way so it never flickers), and the words roll to the next in time,
+ * not with the scroll, so wherever the reader stops a whole word stands. The
+ * line is a window with room above and below for Å, Ä and Ö; the words out
+ * of it wait clear of that room. Without motion `--sg-step` is unset: the
+ * last word, and nothing rolls.
  */
 .sequence {
   background: var(--ink);
@@ -2194,10 +2196,11 @@ a {
 }
 .sequence-lines {
   position: absolute;
-  inset: auto var(--gutter) clamp(1.5rem, 7vh, 4rem);
+  inset: auto var(--gutter) calc(clamp(1.5rem, 7vh, 4rem) - 0.25em);
+  box-sizing: content-box;
   height: 1.1em;
+  padding: 0.25em 0;
   overflow: hidden;
-  padding: 0;
   list-style: none;
   font: 520 clamp(3rem, 8vw, 7.5rem) / 1.1 var(--display);
   font-stretch: 70%;
@@ -2207,7 +2210,13 @@ a {
 .sequence-lines li {
   position: absolute;
   white-space: nowrap;
-  translate: 0 calc((clamp(0, (var(--at) - var(--sg-p, 1) - 0.15) * 5, 1) - clamp(0, (var(--sg-p, 1) - var(--at) - 0.15) * 5, 1)) * 100%);
+  /* Words before the current one have gone up, those after it wait below. */
+  translate: 0 calc(clamp(-1, var(--i) - var(--sg-step, 2), 1) * 1.6em);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .sequence-lines li {
+    transition: translate 0.6s var(--ease-out);
+  }
 }
 .sequence-count {
   position: absolute;

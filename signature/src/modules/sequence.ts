@@ -37,6 +37,14 @@
  *           </div></div>
  * `{n}` is the frame's index from 0, two digits. A `data-sg-still` source is
  * the last frame; its value is the media it keeps with Save-Data.
+ *
+ * Steps (words over the picture, say): `data-sg-steps="0.25 0.7"` on the root
+ * names where the movement passes from one to the next (as parts of it). The
+ * root then carries the step it is in, `data-sg-step` and `--sg-step` (0, 1,
+ * 2 …), which changes only once the frame shown is a little past a threshold
+ * either way, so a visitor who stops near one never sees it flicker. The site
+ * shows each step whole and moves between them in time, not with the scroll.
+ * Without motion neither is set: the last step is the one to show.
  */
 import type { FromLoader, ToLoader } from "./sequence-loader";
 
@@ -46,6 +54,8 @@ const RUN = 0.85;
 const DECODING = 3;
 /** Decoded frames kept, in bytes (eight wide frames of 1600 × 900, ten tall ones of 720 × 1560). */
 const KEEP = 48e6;
+/** How far past a step's threshold the frame shown must be, either way, before the step changes (a part of the movement). */
+const HYSTERESIS = 0.03;
 
 type Framed = HTMLSourceElement | HTMLImageElement;
 
@@ -84,6 +94,7 @@ export function mountSequence(root: HTMLElement): void {
   const sets = [...root.querySelectorAll<Framed>("[data-sg-frames]")];
   if (!stage || !picture || !sets.length || !(count > 1) || root.dataset.sgState) return;
   const at = root.querySelector("[data-sg-at]");
+  const thresholds = (root.dataset.sgSteps ?? "").split(/\s+/).filter(Boolean).map(Number);
   const total = at?.textContent ?? "";
   const reduced = matchMedia("(prefers-reduced-motion: reduce)");
   const canvas = document.createElement("canvas");
@@ -147,6 +158,25 @@ export function mountSequence(root: HTMLElement): void {
     context.drawImage(bitmap, (canvas.width - width) / 2, (canvas.height - height) / 2, width, height);
   };
 
+  /** The step the movement is in, from the frame shown: it moves on (or back) only once that is past the threshold by the margin. */
+  let step = -1;
+  const setStep = (next: number | null) => {
+    step = next ?? -1;
+    if (next === null) {
+      delete root.dataset.sgStep;
+      root.style.removeProperty("--sg-step");
+    } else {
+      root.dataset.sgStep = String(next);
+      root.style.setProperty("--sg-step", String(next));
+    }
+  };
+  const follow = (progress: number) => {
+    let next = Math.max(0, step);
+    while (next < thresholds.length && progress >= thresholds[next] + HYSTERESIS) next++;
+    while (next > 0 && progress <= thresholds[next - 1] - HYSTERESIS) next--;
+    if (thresholds.length && next !== step) setStep(next);
+  };
+
   /** The decoded frame nearest the one wanted, between `from` and `to`. */
   const nearest = (from: number, to: number) => {
     let best = -1;
@@ -166,6 +196,7 @@ export function mountSequence(root: HTMLElement): void {
     canvas.dataset.frame = String(best);
     root.style.setProperty("--sg-p", (best / (count - 1)).toFixed(4));
     if (at) at.textContent = String(best + 1).padStart(2, "0");
+    follow(best / (count - 1));
     if (root.dataset.sgState !== "live") {
       canvas.style.opacity = "1";
       root.dataset.sgState = "live";
@@ -274,6 +305,7 @@ export function mountSequence(root: HTMLElement): void {
     send ??= connect(receive);
     root.style.setProperty("--sg-p", "0");
     if (at) at.textContent = "01";
+    if (thresholds.length) setStep(0);
     begin();
     addEventListener("scroll", onScroll, { passive: true });
     watcher.observe(root);
@@ -293,6 +325,7 @@ export function mountSequence(root: HTMLElement): void {
     canvas.style.opacity = "0";
     root.style.removeProperty("--sg-p");
     if (at) at.textContent = total;
+    setStep(null);
     root.dataset.sgState = "still";
   };
 
