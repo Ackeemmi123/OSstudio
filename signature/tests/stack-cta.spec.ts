@@ -256,8 +256,8 @@ test.describe("the stack", () => {
     expect(frames.every((f) => f.scale.every((s) => s === 1) && f.shade.every((d) => d === 0))).toBe(true);
     // Plain sticky stacking still: the first card held its place while the next slid over it.
     expect(frames.some((f) => Math.abs(f.top[0] - f.at[0]) < 2 && f.top[1] > f.at[1] + 40 && f.top[1] < f.top[0] + 300)).toBe(true);
-    const running = await page.evaluate(() => document.getAnimations().filter((animation) => animation.playState === "running").length);
-    expect(running).toBe(0);
+    // Nothing keeps running: the call to action's short fade (it may show as the page scrolls) can finish, a loop never does.
+    await expect.poll(() => page.evaluate(() => document.getAnimations().filter((animation) => animation.playState === "running").length), { timeout: 2000 }).toBe(0);
   });
 });
 
