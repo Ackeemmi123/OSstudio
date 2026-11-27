@@ -131,6 +131,111 @@ starts one. It stops if that server was started in another folder or serves
 files other than this checkout's `dist/`; `REVIEW_PORT=4320 npm run review`
 uses another port.
 
+### Film review
+
+Stills show where motion ends; films show how it gets there. To judge
+animation by films and numbers, after `npm run build`:
+
+```bash
+npm run film-review                          # every page, desktop and phone
+FR_PAGES=/,/bibliotek/ npm run film-review   # some pages
+```
+
+Each page is opened on desktop (1440 × 900) and on a phone (Pixel 7) and
+scrolled from top to bottom twice, each time from a fresh load with the
+intro curtains skipped:
+
+- **steady**: small wheel steps, 30 a second, at one screen a second;
+- **stop and go**: a screen at that speed, a pause of 0.55 s, a quick flick
+  a quarter of a screen back up, a pause of 0.4 s, and on. This is the pass
+  that shows jank, pins that jump and things that snap.
+
+The wheel events are sent as a hand sends them: on a clock, without waiting
+for the page, and added together while three are still on their way, as the
+browser coalesces a queue. (Playwright's `mouse.wheel` waits until the page
+has handled each event, so a busy page got slower input: a scroll meant to
+take 17 s took 48.) Before filming, the hand rests on the page and nudges it
+1 px: in headless Chrome the first wheel event after a load cannot be
+cancelled, so Lenis cannot smooth it and the page jumps natively (30 px on
+desktop, 79 on a phone).
+
+Both passes are filmed with Chrome's screencast at the rate the page draws,
+then encoded to VP9 WebM in Chrome itself with WebCodecs and `webm-muxer`,
+every frame at its own time, after filming is over, so encoding never costs
+the page frames. Nothing is installed. Headless Chrome on a Mac draws WebGL
+on the real graphics card, so no `?webgl` is needed and the films show what a
+visitor on this machine sees; `FR_QUERY=?webgl` forces software WebGL where
+there is no GPU, as in CI.
+
+A run writes `review-films/<date>_<time>_<commit>/` (gitignored):
+
+- `summary.md`: one table of every page, device and pass, written after
+  every page, so a run that is stopped keeps what it has. Start here.
+- `<page>/<device>-steady.webm` and `-stopgo.webm`: the films.
+- `<page>/<device>-sheet.png`: 24 frames of the steady pass at even scroll
+  positions, each labelled with its scroll position and its time in the
+  film, under two graphs of frame times along the page (one per pass). In a
+  graph every frame is a line at its scroll position as tall as it took:
+  blue on time, amber for one dropped frame, red for two or more; red
+  triangles mark visual jumps and numbered ticks mark the 24 frames. A
+  label turns orange when a frame of 35 ms or more came on the way to it.
+- `<page>/<device>-jumps.png`: every visual jump, the frame before and the
+  frame of the jump, with the band that changed most outlined.
+- `<page>/<device>.md`: the frame report.
+- `report.json`: every number, with each frame's time and scroll position.
+
+The frame report is measured in the page while it scrolls: every frame's
+time (`requestAnimationFrame`) and scroll position; frames over 16.7 ms and
+over 33 ms; the longest frames and where on the page they came; long tasks;
+long animation frames, with how their time split between script, style and
+layout, and the rest (paint, raster, the GPU, decoding), and the scripts in
+them; layout shifts, with the elements that moved. Those are the shifts
+Chrome counts in a visitor's CLS while they scroll (wheel and touch scrolling
+are not input that excuses a shift), which Lighthouse never sees, since it
+does not scroll. rAF times are rounded to 0.1 ms and fall on the screen's
+60 Hz beat (16.7, 33.3, 50 ms), so a frame counts as over 16.7 ms from 18 ms
+(one frame dropped) and over 33 ms from 35 ms (two or more). Every time is
+also given as seconds into the film, to find the moment there.
+
+Visual jumps come from the films. Each frame is compared with the one before
+in bands across the screen, both as it was and as moved by the scroll; the
+closer match counts, so content that scrolls, a pinned section and a fixed
+header all count as unchanged. What is left is motion of the page's own, in
+grey levels per 60 Hz frame. A reveal or a WebGL scene changes a little every
+frame; a jump changes at least 4 grey levels and four times more than the
+frames around it. Where the screencast missed frames, the change is shared
+out over the frames it missed, so a gap in the film is not taken for a jump;
+rows that scrolled in at the edge of the screen have nothing to be compared
+with and are left out. A jump can still be a fast move that is meant (a film
+that starts, a card that lands, a marquee that sets off); the jumps sheet
+shows which.
+
+Limits, measured on this checkout's lab:
+
+- The screencast costs a few frames as it starts, so measuring begins 0.6 s
+  after. With that, filming made no measurable difference: on the lab page,
+  1 frame over 16.7 ms in about 360 with filming and 0 to 2 without, three
+  runs each.
+- The screencast keeps up with 50 to 60 frames a second on a quiet machine
+  and fewer under load; the film then skips frames the page drew. The frame
+  numbers come from the page, not from the film.
+- Frame numbers are only as good as the machine is quiet. The 1-minute load
+  average is noted when each page starts and when its filming ends; over 3,
+  the reports, the sheets and the summary warn that the frame numbers are
+  not trustworthy. `FR_WAIT=120` waits up to two
+  minutes before each page for the load to fall under 3.
+- One page, one device and one browser at a time, to keep the load down.
+  A page took under a minute per device and the library, 17 000 px tall,
+  about four, on a machine under some load; a heavily loaded one slows it
+  many times over. The films of a run take about 100 MB.
+
+Options (environment): `FR_PAGES` (paths, as `LH_PAGES`), `FR_DEVICES=phone`,
+`FR_SPEED=1.5` (screens a second), `FR_QUERY=?webgl`, `FR_WAIT`,
+`FR_KEEP_FRAMES=1` (also keeps every JPEG frame in `.frames/`) and `FR_PORT`.
+Like the review, it uses a running preview server or starts one, and stops if
+that server was started in another folder or serves files other than this
+checkout's `dist/`; `FR_PORT=4367 npm run film-review` uses another port.
+
 ## Pictures made in code
 
 The lab's pictures (`lab/bilder/`) are rendered by Axivo in code, so there
