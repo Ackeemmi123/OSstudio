@@ -753,7 +753,9 @@ html.sg-menu-open {
  * focus is never hidden under a later card (WCAG 2.4.11). The list sets `--n`
  * (its items) and each item `--i` (0, 1, …); cards of one height keep the
  * settling exact. A site may set `--sg-stack-top`, `--sg-stack-peek` (how much
- * of each card shows above the next) and `--sg-stack-gap`.
+ * of each card shows above the next), `--sg-stack-gap`, `--sg-stack-shade`
+ * (the colour the cards beneath settle into, black by default) and
+ * `--sg-stack-shade-step` (how much deeper per card, 0.12 by default).
  *
  * Each card's margins grow and shrink with its place, so every card's margin
  * box ends at the same line when stacked: the deck then leaves as one, rather
@@ -779,19 +781,70 @@ html.sg-menu-open {
     .sg-js [data-sg="stack"] {
       view-timeline: --sg-stack block;
     }
+    .sg-js [data-sg="stack"] > * {
+      view-timeline: --sg-stack-card block;
+    }
     /* From the moment a card sticks until the last one does: on the list's own scroll, card i sticks at i/n of it. */
-    .sg-js [data-sg="stack"] > :not(:has(:focus-visible)) {
-      transform-origin: 50% 0;
+    .sg-js [data-sg="stack"] > :not(:has(:focus-visible)),
+    .sg-js [data-sg="stack"] > :not(:has(:focus-visible))::after {
       animation: sg-stack linear both;
       animation-timeline: --sg-stack;
       animation-range: exit-crossing calc(var(--i) / var(--n) * 100% - var(--sg-stack-top, 5rem)) exit-crossing calc((var(--n) - 1) / var(--n) * 100% - var(--sg-stack-top, 5rem));
+    }
+    .sg-js [data-sg="stack"] > :not(:has(:focus-visible)) {
+      transform-origin: 50% 0;
+    }
+    /*
+     * The shade: a colour multiplied over the card, deeper the further down the
+     * card has settled. With the site's own colour (`--sg-stack-shade`) a light
+     * card settles into a deeper tone of itself instead of turning grey.
+     */
+    .sg-js [data-sg="stack"] > :not(:has(:focus-visible))::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      z-index: 1;
+      border-radius: inherit;
+      background: var(--sg-stack-shade, #000);
+      mix-blend-mode: multiply;
+      opacity: 0;
+      pointer-events: none;
+      animation-name: sg-stack-shade;
+    }
+    /*
+     * Inside a card, while it rises to where it sticks: a picture marked
+     * `data-sg-stack-zoom` settles from a little near (its frame should clip
+     * it), and anything marked `data-sg-stack-rise` rises into place.
+     */
+    .sg-js [data-sg="stack"] [data-sg-stack-zoom],
+    .sg-js [data-sg="stack"] [data-sg-stack-rise] {
+      animation: sg-stack-zoom linear both;
+      animation-timeline: --sg-stack-card;
+      animation-range: cover 0% cover calc(100svh - var(--sg-stack-top, 5rem) - var(--i) * var(--sg-stack-peek, 1rem));
+    }
+    .sg-js [data-sg="stack"] [data-sg-stack-rise] {
+      animation-name: sg-stack-rise;
     }
   }
 }
 @keyframes sg-stack {
   to {
     scale: calc(1 - (var(--n) - 1 - var(--i)) * 0.04);
-    filter: brightness(calc(1 - (var(--n) - 1 - var(--i)) * 0.1));
+  }
+}
+@keyframes sg-stack-shade {
+  to {
+    opacity: calc((var(--n) - 1 - var(--i)) * var(--sg-stack-shade-step, 0.12));
+  }
+}
+@keyframes sg-stack-zoom {
+  from {
+    scale: 1.16;
+  }
+}
+@keyframes sg-stack-rise {
+  from {
+    translate: 0 45%;
   }
 }
 

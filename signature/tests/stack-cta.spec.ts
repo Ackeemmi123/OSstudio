@@ -5,7 +5,7 @@ import { expect, test, type Page } from "@playwright/test";
  * The stack (cards that stack as you scroll, CSS alone) and the call to
  * action (the page's own link, floating as a pill once past the first
  * screen), both on the library. Content first: a plain list and a plain link
- * without JavaScript; no scale, dim or slide with reduced motion; keyboard
+ * without JavaScript; no scale, shade, glide or slide with reduced motion; keyboard
  * focus never hidden under a later card or under the pill; no accessibility
  * errors; no sideways scroll; no console errors. Motion is judged on frames
  * recorded in the page, never on one sample after a fixed wait.
@@ -57,9 +57,9 @@ async function scrollPastStack(page: Page, step: number) {
 const stackTop = (page: Page) => page.evaluate(() => document.querySelector(".stack")!.getBoundingClientRect().top + scrollY);
 const viewport = (page: Page) => page.evaluate(() => innerHeight);
 
-type Frame = { top: number[]; at: number[]; scale: number[]; dim: number[] };
+type Frame = { top: number[]; at: number[]; scale: number[]; shade: number[] };
 
-/** Records, on every frame the page draws, where each card is, where it sticks, and how far it has settled back. */
+/** Records, on every frame the page draws, where each card is, where it sticks, and how far it has settled back and into shade. */
 async function recordStack(page: Page) {
   await page.evaluate(() => {
     const cards = [...document.querySelectorAll<HTMLElement>(".stack-card")];
@@ -70,7 +70,11 @@ async function recordStack(page: Page) {
         top: cards.map((card) => card.getBoundingClientRect().top),
         at: cards.map((card) => Number.parseFloat(getComputedStyle(card).top) || 0),
         scale: cards.map((card) => Number.parseFloat(getComputedStyle(card).scale) || 1),
-        dim: cards.map((card) => Number(/brightness\(([\d.]+)\)/.exec(getComputedStyle(card).filter)?.[1] ?? 1)),
+        // The shade over each card (0 where there is none: reduced motion, a focused card).
+        shade: cards.map((card) => {
+          const after = getComputedStyle(card, "::after");
+          return after.content === "none" ? 0 : Number(after.opacity);
+        }),
       });
       if (!record.stop) requestAnimationFrame(sample);
     };
@@ -84,16 +88,18 @@ async function recordStack(page: Page) {
     });
 }
 
-/** Records the pill's top edge on every frame, with whether it shows. */
+/** Records the pill's top edge and the visible pill's left edge on every frame, with whether it floats and shows. */
 async function recordPill(page: Page) {
   await page.evaluate(() => {
     const root = document.querySelector<HTMLElement>('[data-sg="cta"]')!;
     const link = root.querySelector("a")!;
-    const record = { frames: [] as Array<{ top: number; shown: boolean; floating: boolean; opacity: number }>, stop: false };
+    const record = { frames: [] as Array<{ top: number; left: number; shown: boolean; floating: boolean; opacity: number }>, stop: false };
     (window as unknown as { sgPill: typeof record }).sgPill = record;
     const sample = () => {
       record.frames.push({
         top: link.getBoundingClientRect().top,
+        // What the eye follows: the stand-in while it glides, otherwise the link.
+        left: (root.querySelector("span[aria-hidden] > a") ?? link).getBoundingClientRect().left,
         shown: root.classList.contains("is-shown"),
         floating: root.classList.contains("is-floating"),
         opacity: Number(getComputedStyle(link).opacity),
@@ -104,7 +110,7 @@ async function recordPill(page: Page) {
   });
   return async () =>
     page.evaluate(() => {
-      const record = (window as unknown as { sgPill: { frames: Array<{ top: number; shown: boolean; floating: boolean; opacity: number }>; stop: boolean } }).sgPill;
+      const record = (window as unknown as { sgPill: { frames: Array<{ top: number; left: number; shown: boolean; floating: boolean; opacity: number }>; stop: boolean } }).sgPill;
       record.stop = true;
       return record.frames;
     });
@@ -176,8 +182,11 @@ test.describe("the stack", () => {
     expect(full.scale[0]).toBeLessThan(full.scale[1]);
     expect(full.scale[1]).toBeLessThan(full.scale[2]);
     expect(full.scale[2]).toBeLessThan(full.scale[3] - 0.02);
-    expect(full.dim[0]).toBeLessThan(0.8);
-    expect(full.dim[3]).toBeCloseTo(1, 2);
+    // The cards beneath settle into the site's shade, deeper the further down; the top card has none.
+    expect(full.shade[0]).toBeGreaterThan(0.4);
+    expect(full.shade[0]).toBeGreaterThan(full.shade[1]);
+    expect(full.shade[1]).toBeGreaterThan(full.shade[2]);
+    expect(full.shade[3]).toBeCloseTo(0, 2);
     // Settling only ever goes one way while reading down.
     for (let i = 1; i < frames.length; i++) expect(frames[i].scale[0]).toBeLessThanOrEqual(frames[i - 1].scale[0] + 0.002);
     // And it was gradual, not a jump: many frames in between.
@@ -186,7 +195,55 @@ test.describe("the stack", () => {
     expect(errors).toEqual([]);
   });
 
-  test("with reduced motion the cards stack without scaling or dimming, and nothing animates", async ({ page }) => {
+  test("inside each card, as it rises to where it sticks, the picture settles from near and the number rises into place", async ({ page }) => {
+    await open(page);
+    const top = await stackTop(page);
+    const height = await viewport(page);
+    await scrollTo(page, top - height, 400);
+    await page.evaluate(() => {
+      const card = document.querySelectorAll<HTMLElement>(".stack-card")[1];
+      const picture = card.querySelector<HTMLElement>("[data-sg-stack-zoom]")!;
+      const mark = card.querySelector<HTMLElement>("[data-sg-stack-rise]")!;
+      const record = { frames: [] as Array<{ top: number; at: number; zoom: number; rise: number }>, stop: false };
+      (window as unknown as { sgCard: typeof record }).sgCard = record;
+      const sample = () => {
+        record.frames.push({
+          top: card.getBoundingClientRect().top,
+          at: Number.parseFloat(getComputedStyle(card).top),
+          zoom: Number.parseFloat(getComputedStyle(picture).scale) || 1,
+          rise: ((translate) => (translate === "none" ? 0 : Number.parseFloat(translate.split(" ")[1] ?? "0")))(getComputedStyle(mark).translate),
+        });
+        if (!record.stop) requestAnimationFrame(sample);
+      };
+      requestAnimationFrame(sample);
+    });
+    await scrollPastStack(page, 20);
+    const frames = await page.evaluate(() => {
+      const record = (window as unknown as { sgCard: { frames: Array<{ top: number; at: number; zoom: number; rise: number }>; stop: boolean } }).sgCard;
+      record.stop = true;
+      return record.frames;
+    });
+    // While the card comes up from below the screen to where it sticks.
+    const rising = frames.filter((f) => f.top < height && f.top > f.at + 2);
+    expect(rising.length).toBeGreaterThan(10);
+    expect(rising[0].zoom).toBeGreaterThan(1.1);
+    expect(rising[0].rise).toBeGreaterThan(20);
+    // Gradual and one way: many frames in between, never going back while reading down.
+    expect(rising.filter((f) => f.zoom > 1.01 && f.zoom < 1.12).length).toBeGreaterThan(5);
+    for (let i = 1; i < rising.length; i++) {
+      expect(rising[i].zoom).toBeLessThanOrEqual(rising[i - 1].zoom + 0.002);
+      expect(rising[i].rise).toBeLessThanOrEqual(rising[i - 1].rise + 0.5);
+    }
+    // Stuck, both are at rest.
+    const stuck = frames.filter((f) => Math.abs(f.top - f.at) < 1);
+    expect(stuck.length).toBeGreaterThan(0);
+    for (const f of stuck) {
+      expect(f.zoom).toBeCloseTo(1, 2);
+      expect(Math.abs(f.rise)).toBeLessThan(0.5);
+    }
+  });
+
+  test("with reduced motion the cards stack without scaling, shading or moving inside, and nothing animates", async ({ page }) => {
     await page.emulateMedia({ reducedMotion: "reduce" });
     await open(page);
     const top = await stackTop(page);
@@ -196,7 +253,7 @@ test.describe("the stack", () => {
     await scrollPastStack(page, 40);
     const frames = await stop();
     expect(frames.length).toBeGreaterThan(10);
-    expect(frames.every((f) => f.scale.every((s) => s === 1) && f.dim.every((d) => d === 1))).toBe(true);
+    expect(frames.every((f) => f.scale.every((s) => s === 1) && f.shade.every((d) => d === 0))).toBe(true);
     // Plain sticky stacking still: the first card held its place while the next slid over it.
     expect(frames.some((f) => Math.abs(f.top[0] - f.at[0]) < 2 && f.top[1] > f.at[1] + 40 && f.top[1] < f.top[0] + 300)).toBe(true);
     const running = await page.evaluate(() => document.getAnimations().filter((animation) => animation.playState === "running").length);
@@ -272,6 +329,63 @@ test.describe("the call to action", () => {
     expect(await root.locator("a").evaluate((element) => getComputedStyle(element).position)).toBe("static");
     await expect(page.getByRole("link", { name: "Se hantverket" })).toHaveCount(1);
     expect(await overflow(page)).toBeLessThanOrEqual(0);
+    expect(errors).toEqual([]);
+  });
+
+  test("nearing its place it comes out to meet it, even reading down, and glides into it; reading back up it glides out", async ({ page }) => {
+    const errors = collectErrors(page);
+    await open(page);
+    const root = page.locator('[data-sg="cta"]');
+    const height = await viewport(page);
+    const width = page.viewportSize()!.width;
+    // Modules higher up take their full height only once scrolled past (pins), so find the place's settled position first.
+    const placeTop = () => page.evaluate(() => document.querySelector('[data-sg="cta"]')!.getBoundingClientRect().top + scrollY);
+    let home = await placeTop();
+    for (let i = 0; i < 4; i++) {
+      await scrollTo(page, home - height * 2.2, 400);
+      await page.waitForTimeout(200);
+      const settled = await placeTop();
+      if (Math.abs(settled - home) < 1) break;
+      home = settled;
+    }
+    // Well above its place, reading down: out of the way.
+    await scrollTo(page, home - height * 2, 40);
+    await expect(root).toHaveClass(/is-floating/);
+    await expect(root).not.toHaveClass(/is-shown/);
+    const pill = await root.locator("a").evaluate((element) => element.getBoundingClientRect().width);
+    const centre = (width - pill) / 2;
+    const placeLeft = await root.evaluate((element) => element.getBoundingClientRect().left);
+    expect(centre - placeLeft).toBeGreaterThan(40);
+
+    const stop = await recordPill(page);
+    // Down, a hand's step at a time, until its place is well up the screen.
+    await scrollTo(page, home - height * 0.4, 20);
+    await page.waitForTimeout(800);
+    let frames = await stop();
+    // It came out to meet its place while still reading down.
+    expect(frames.some((f) => f.floating && f.shown)).toBe(true);
+    // It glided in: after it docked, frames between the centre and its place.
+    const docked = frames.findIndex((f) => !f.floating);
+    expect(docked).toBeGreaterThan(0);
+    const landing = frames.slice(docked).filter((f) => f.left > placeLeft + 4 && f.left < centre - 4);
+    expect(landing.length).toBeGreaterThan(4);
+    // And it came to rest at its place.
+    const last = frames[frames.length - 1];
+    expect(last.floating).toBe(false);
+    expect(Math.abs(last.left - placeLeft)).toBeLessThan(1);
+
+    // Back up past its place: it leaves its place and glides out to the centre, shown, since reading up.
+    const back = await recordPill(page);
+    await scrollTo(page, home - height * 1.2, 20);
+    await page.waitForTimeout(800);
+    frames = await back();
+    const undocked = frames.findIndex((f) => f.floating);
+    expect(undocked).toBeGreaterThan(0);
+    const leaving = frames.slice(undocked).filter((f) => f.left > placeLeft + 4 && f.left < centre - 4);
+    expect(leaving.length).toBeGreaterThan(4);
+    await expect(root).toHaveClass(/is-shown/);
+    const end = frames[frames.length - 1];
+    expect(Math.abs(end.left - centre)).toBeLessThan(1);
     expect(errors).toEqual([]);
   });
 

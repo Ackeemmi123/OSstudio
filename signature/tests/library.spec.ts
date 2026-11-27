@@ -60,7 +60,8 @@ test.describe("with reduced motion", () => {
     await expect(page.locator(".object")).toHaveAttribute("data-sg-state", "still");
     await expect(page.locator(".sg-cursor")).toHaveCount(0);
     expect(requests.some((url) => url.includes("band-scene"))).toBe(false);
-    expect(await page.evaluate(() => document.getAnimations().filter((a) => a.playState === "running").length)).toBe(0);
+    // Nothing keeps running: a short fade (the call to action showing as the click scrolled up) may finish, anything that loops never does.
+    await expect.poll(() => page.evaluate(() => document.getAnimations().filter((a) => a.playState === "running").length), { timeout: 2000 }).toBe(0);
     expect(errors).toEqual([]);
   });
 });
