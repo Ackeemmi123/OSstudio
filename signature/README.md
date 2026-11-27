@@ -210,12 +210,15 @@ With the stack and the call to action added to the library, the same two
 were measured again, each started at a 1-minute load under 3 (2.93 and
 2.8): the library 100 (100, 100, 100; largest content 1.0 s, blocking 0 ms,
 layout shift 0.003) and the lab 99 (99, 99, 99; 0.8 s, 0 ms, 0); the other
-pages were not measured again.
+pages were not measured again. With the shaded, moving cards and the gliding
+pill: the library 100 (100, 100, 100; 1.1 s, 0 ms, 0.003; started at a
+1-minute load of 3.6) and the lab 99 (99, 99, 99; 0.8 s, 0 ms, 0; started
+under 3).
 Largest content within 0.8–1.0 s on every page but the warm showcase (about
-2 s, its hero picture on a phone); layout shift 0 to 0.003. 202 tests pass
+2 s, its hero picture on a phone); layout shift 0 to 0.003. 206 tests pass
 on desktop and phone (12 are skipped: desktop-only, phone-only, run once by
 design, or needing a software renderer, as CI has); the stack and the call
-to action have 21 of them; the film's 18 include Save-Data,
+to action have 23 of them; the film's 18 include Save-Data,
 emulated by sending the `Save-Data` header and setting
 `navigator.connection.saveData`, which is what the engine reads, since
 Playwright cannot turn on Chrome's data saver. The 3D band went from 137 KB
