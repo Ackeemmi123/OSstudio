@@ -460,13 +460,18 @@
  * The showreel (`data-sg-variant="grow"`), with motion: a tall track holds the
  * frame on screen (sticky) and clips it to its framed size; one number,
  * --sg-grow (0 → 1, tied to the scroll by the engine), opens the clip to the
- * whole screen while the film grows with it, from the scale at which it just
+ * whole screen (its top edge follows --sg-rise, which starts once the frame
+ * is held, so it never runs over the text above) while the film grows with
+ * it, from the scale at which it just
  * fills the frame (--sg-k0, measured by the engine) to full size. Clip and
- * scale only, no layout. A site sets --sg-video-bleed (from its column to the
- * screen's edge) and may set --sg-video-start (the framed width at the start).
+ * scale only, no layout. The track starts as far above its place as the frame
+ * sits inside the held screen, so the framed film follows the text before it
+ * like any other block; the clipped part of the screen is neither painted nor
+ * clickable. A site sets --sg-video-bleed (from its column to the screen's
+ * edge) and may set --sg-video-start (the framed width at the start).
  * With reduced motion this is the plain frame above.
  */
-/* Registered, so the engine can read the framed size in pixels. */
+/* Registered, so they hold pixels: the engine reads them, and the frame and its button inherit them. */
 @property --sg-x0 {
   syntax: "<length>";
   inherits: true;
@@ -477,23 +482,29 @@
   inherits: true;
   initial-value: 0px;
 }
+/* The column's width, for the measures below (container query units). */
+.sg-js :has(> [data-sg="video"][data-sg-variant="grow"]) {
+  container-type: inline-size;
+}
 @media (prefers-reduced-motion: no-preference) {
   .sg-js [data-sg="video"][data-sg-variant="grow"] {
-    container-type: inline-size;
-    height: 210svh;
-  }
-  .sg-js [data-sg-variant="grow"] [data-sg-frame] {
     --sg-r: calc(16 / 9);
     --sg-w0: min(100cqw, var(--sg-video-start, 100cqw), 84svh * var(--sg-r));
     --sg-x0: calc((100cqw - var(--sg-w0)) / 2 + var(--sg-video-bleed, 0px));
     --sg-y0: calc((100svh - var(--sg-w0) / var(--sg-r)) / 2);
+    height: 210svh;
+    margin-top: calc(var(--sg-y0) * -1);
+  }
+  .sg-js [data-sg-variant="grow"] [data-sg-frame] {
     --sg-g: var(--sg-grow, 0);
+    /* The top edge rises only once the frame is held, so it never runs over the text above it. */
+    --sg-gt: var(--sg-rise, var(--sg-g));
     position: sticky;
     top: 0;
     height: 100svh;
     aspect-ratio: auto;
     margin-inline: calc(var(--sg-video-bleed, 0px) * -1);
-    clip-path: inset(calc(var(--sg-y0) * (1 - var(--sg-g))) calc(var(--sg-x0) * (1 - var(--sg-g))));
+    clip-path: inset(calc(var(--sg-y0) * (1 - var(--sg-gt))) calc(var(--sg-x0) * (1 - var(--sg-g))) calc(var(--sg-y0) * (1 - var(--sg-g))));
   }
   .sg-js [data-sg-variant="grow"] [data-sg-media] {
     scale: calc(var(--sg-k0, 1) + (1 - var(--sg-k0, 1)) * var(--sg-g));
@@ -503,7 +514,7 @@
   }
 }
 @media (prefers-reduced-motion: no-preference) and (max-width: 699px) {
-  .sg-js [data-sg-variant="grow"] [data-sg-frame] {
+  .sg-js [data-sg="video"][data-sg-variant="grow"] {
     --sg-r: calc(4 / 5);
   }
 }

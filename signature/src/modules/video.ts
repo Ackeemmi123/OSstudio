@@ -28,14 +28,18 @@
  */
 import type { Capabilities } from "../engine/capabilities";
 
-/** The first source this screen should use: decoded efficiently if the browser can tell, else the first playable. */
+/**
+ * The first source this screen should use: decoded efficiently if the browser
+ * can tell, else the first playable. Asked about full HD, the largest a film
+ * here comes in, so a yes holds for the smaller ones too.
+ */
 async function choose(video: HTMLVideoElement): Promise<string | null> {
   const sources = [...video.querySelectorAll("source")].filter((source) => (!source.media || matchMedia(source.media).matches) && video.canPlayType(source.type));
   if (!navigator.mediaCapabilities) return sources[0]?.src ?? null;
   const answers = await Promise.all(
     sources.map((source) =>
       navigator.mediaCapabilities
-        .decodingInfo({ type: "file", video: { contentType: source.type, width: 1280, height: 720, bitrate: 600_000, framerate: 30 } })
+        .decodingInfo({ type: "file", video: { contentType: source.type, width: 1920, height: 1080, bitrate: 1_000_000, framerate: 30 } })
         .then((info) => info.supported && info.powerEfficient)
         .catch(() => false),
     ),

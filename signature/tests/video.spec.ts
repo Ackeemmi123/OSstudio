@@ -106,10 +106,11 @@ test.describe("with motion", () => {
     expect(await paused(page)).toBe(false);
     // The pause button is on the film the whole time it runs (WCAG 2.2.2).
     await expect(page.getByRole("button", { name: "Pausa film" })).toBeInViewport();
-    // One film, the one this screen needs: tall for phones, wide otherwise.
+    // One film, the one this screen needs: tall for phones, full HD on wide screens (1280 px and up), else 1280 wide.
     const fetched = requests.filter((url) => FILM.test(url));
     expect(fetched.length).toBeGreaterThan(0);
-    expect(fetched.every((url) => (isMobile ? /telefon-720/ : /bandet-1280/).test(url))).toBe(true);
+    const wide = page.viewportSize()!.width >= 1280;
+    expect(fetched.every((url) => (isMobile ? /telefon-720/ : wide ? /bandet-1920/ : /bandet-1280/).test(url))).toBe(true);
 
     // A hidden tab pauses it; back again, it runs on.
     await page.evaluate(() => {

@@ -43,6 +43,8 @@ export interface BandSpec {
   loop?: number;
   /** Stills only: how much closer the camera is than usual (1 = as on the page). */
   zoom?: number;
+  /** Stills only: how much further the band leans back, in radians (0 = as on the page; more shows it nearer edge-on). */
+  tilt?: number;
 }
 
 /** What the band measures, for `data-quality`, `data-frame-p75` and `data-frame-budget` on the canvas. */
@@ -499,7 +501,7 @@ export function startBand(canvas: Surface, options: BandSpec, events: BandEvents
     // Turned away while unformed, a three-quarter view once whole; a slow turn in its own plane always.
     // In a film the sway goes round once per loop, so the last frame meets the first.
     const turnY = 0.55 + (1 - progress) * 0.5 + pointerX * 0.3 + Math.sin(cycle ? time * cycle : time * 0.3) * 0.08;
-    const turnX = -0.85 + (1 - progress) * 0.5 - pointerY * 0.24 + (cycle ? Math.cos(time * cycle) : Math.sin(time * 0.23)) * 0.06;
+    const turnX = -0.85 - (options.tilt ?? 0) + (1 - progress) * 0.5 - pointerY * 0.24 + (cycle ? Math.cos(time * cycle) : Math.sin(time * 0.23)) * 0.06;
     const model = multiply(translate(offsetX, 0, 0), multiply(rotateX(turnX), multiply(rotateY(turnY), rotateZ(spin))));
     const viewProjection = multiply(perspective((28 * Math.PI) / 180, aspect, 0.1, 100), translate(0, 0, -cameraZ));
     const join = easeInOut(clamp(progress / 0.62, 0, 1));

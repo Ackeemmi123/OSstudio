@@ -3,7 +3,7 @@
  * posters to lab/bilder/ (WebP), from the tool page lab/verktyg/film.html:
  * the engine's own 3D band, drawn frame by frame at twice the size and scaled
  * down, with its clock pinned to each frame so the loop closes exactly (one
- * turn, the flow and the sway all come round in the same eight seconds).
+ * turn, the flow and the sway all come round in the same twelve seconds).
  * Encoded in Chrome itself with WebCodecs and packed with mp4-muxer and
  * webm-muxer, so nothing is installed beyond npm. The posters are the films'
  * first frame. Each film is played back in the page before it is saved: it
@@ -19,12 +19,17 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { chromium } from "@playwright/test";
 
 const BASE = process.argv[2] ?? "http://127.0.0.1:4316";
-const FPS = 30;
-const SECONDS = 8;
+// Slow and cinematic: one turn in twelve seconds (30° a second), at 24 frames a second.
+const FPS = 24;
+const SECONDS = 12;
 // Drawn at twice the film's size, then scaled down: finer highlights on the satin than antialiasing alone gives.
 const SUPERSAMPLE = 2;
 // The lab's colours: ink, tint, metal, glow (as on the library's band).
 const COLOURS = ["#151922", "#4a5bb5", "#c9d9f0", "#879dc7"];
+// Leaning further back than on the page, nearer edge-on: the inside of the band shows its satin, and the
+// backdrop seen through the loop stays a sliver, so the band reads as a ribbon all the way round.
+const TILT = 0.3;
+// AV1 main profile, and H.264 high profile, at the levels each size needs (3.1 up to 720p, 4.0 for 1080p).
 const AV1 = "av01.0.05M.08";
 const H264 = "avc1.64001f";
 
@@ -34,10 +39,10 @@ const FILMS = [
     name: "bandet-1280",
     width: 1280,
     height: 720,
-    zoom: 1.4,
+    zoom: 1.55,
     encodings: [
-      { file: "film/bandet-1280.webm", codec: AV1, bitrate: 520_000, hardware: "prefer-software" },
-      { file: "film/bandet-1280.mp4", codec: H264, bitrate: 540_000, hardware: "no-preference" },
+      { file: "film/bandet-1280.webm", codec: AV1, bitrate: 360_000, hardware: "prefer-software" },
+      { file: "film/bandet-1280.mp4", codec: H264, bitrate: 370_000, hardware: "no-preference" },
     ],
     posters: [
       { file: "bilder/bandet-film.webp", width: 1600, quality: 0.86 },
@@ -48,14 +53,25 @@ const FILMS = [
     name: "bandet-telefon-720",
     width: 720,
     height: 1280,
-    zoom: 1.15,
+    zoom: 1.3,
     encodings: [
-      { file: "film/bandet-telefon-720.webm", codec: AV1, bitrate: 520_000, hardware: "prefer-software" },
-      { file: "film/bandet-telefon-720.mp4", codec: H264, bitrate: 540_000, hardware: "no-preference" },
+      { file: "film/bandet-telefon-720.webm", codec: AV1, bitrate: 360_000, hardware: "prefer-software" },
+      { file: "film/bandet-telefon-720.mp4", codec: H264, bitrate: 370_000, hardware: "no-preference" },
     ],
     posters: [{ file: "bilder/bandet-film-telefon.webp", width: 720, quality: 0.86 }],
   },
-];
+  {
+    name: "bandet-1920",
+    width: 1920,
+    height: 1080,
+    zoom: 1.55,
+    encodings: [
+      { file: "film/bandet-1920.webm", codec: "av01.0.08M.08", bitrate: 700_000, hardware: "prefer-software" },
+      { file: "film/bandet-1920.mp4", codec: "avc1.640028", bitrate: 760_000, hardware: "no-preference" },
+    ],
+    posters: [],
+  },
+].map((film) => ({ ...film, tilt: TILT }));
 
 const browser = await chromium.launch({ channel: process.env.CI ? undefined : "chrome", args: ["--enable-unsafe-swiftshader"] });
 mkdirSync(new URL("../lab/film/", import.meta.url), { recursive: true });

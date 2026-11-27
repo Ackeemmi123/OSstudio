@@ -39,6 +39,8 @@ export interface ObjectSceneOptions {
   loop?: number;
   /** Stills only: how much closer the camera is than usual (1 = as on the page). */
   zoom?: number;
+  /** Stills only: how much further the band leans back, in radians (0 = as on the page; more shows it nearer edge-on). */
+  tilt?: number;
   shown: () => void;
   lost: () => void;
 }
@@ -55,6 +57,7 @@ export async function createObjectScene(canvas: HTMLCanvasElement, options: Obje
     frameBudget: options.frameBudget ?? 1 / 42,
     loop: options.loop,
     zoom: options.zoom,
+    tilt: options.tilt,
   };
   let teardown = () => {};
   const events = {

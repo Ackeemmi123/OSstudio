@@ -24,6 +24,7 @@ const BUDGET = {
   video: 3,
   largestImage: 100,
   largestFilm: 600,
+  largestFullHdFilm: 1200,
 };
 
 const kb = (bytes) => Math.round((bytes / 1024) * 10) / 10;
@@ -49,7 +50,10 @@ const initial = scripts.filter((f) => ![webgl, engine, threeD, sound, video, sta
 const css = all.filter((f) => f.endsWith(".css"));
 const fonts = all.filter((f) => f.endsWith(".woff2"));
 const images = all.filter((f) => /\.(webp|avif|jpe?g|png)$/.test(f));
+// Films: full HD ones (for wide screens only) have a budget of their own.
 const films = all.filter((f) => /\.(webm|mp4)$/.test(f));
+const fullHd = films.filter((f) => /-1920[-.]/.test(f));
+const smaller = films.filter((f) => !fullHd.includes(f));
 
 // Fonts are already compressed: count their size as stored.
 const sum = (list, measure = gz) => list.reduce((total, f) => total + measure(f), 0);
@@ -66,7 +70,8 @@ const rows = [
   // Images are already compressed; each one is fetched only when it comes near, at the size the screen needs.
   ["Largest single image", kb(Math.max(0, ...images.map((f) => statSync(f).size))), BUDGET.largestImage],
   // Films, as stored: each is fetched only as it comes near, never with Save-Data, and only the one the screen needs.
-  ["Largest single film", kb(Math.max(0, ...films.map((f) => statSync(f).size))), BUDGET.largestFilm],
+  ["Largest single film", kb(Math.max(0, ...smaller.map((f) => statSync(f).size))), BUDGET.largestFilm],
+  ["Largest film, full HD", kb(Math.max(0, ...fullHd.map((f) => statSync(f).size))), BUDGET.largestFullHdFilm],
 ];
 
 let over = 0;

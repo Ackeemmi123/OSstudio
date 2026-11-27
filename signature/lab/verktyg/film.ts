@@ -26,6 +26,8 @@ export interface Film {
   /** Drawn this many times larger, then scaled down: finer highlights than antialiasing alone gives. */
   supersample: number;
   zoom: number;
+  /** How much further the band leans back than on the page, in radians: nearer edge-on, so it reads as a ribbon. */
+  tilt: number;
   colours: string[];
   encodings: Encoding[];
   posters: { file: string; width: number; quality: number }[];
@@ -141,6 +143,7 @@ async function renderFilm(film: Film): Promise<Rendered> {
     centred: true,
     loop: seconds,
     zoom: film.zoom,
+    tilt: film.tilt,
     colours: film.colours,
     shown: () => undefined,
     lost: () => undefined,
