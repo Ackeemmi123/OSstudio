@@ -191,28 +191,27 @@ Client sites use the client's own pictures and footage, with written permission.
 | axe (WCAG 2.2 AA) | no violations, with and without motion |
 | Tests | content without JavaScript, nothing moving with reduced motion, still field without WebGL, no sideways scroll on a phone, no console errors, the menu's keyboard path (focus in, round, Esc, focus back), leaving through the menu and coming Back; films: native controls without JavaScript, no autoplay and a keyboard button with reduced motion, playing only while seen, nothing fetched with Save-Data |
 
-Measured 2026-11-27, median of three runs. With WebGL in a worker: the lab
-and the warm showcase 99, scene two, the library, the dark and the playful
-showcase and the 404 page 100; accessibility and best practices 100
-everywhere, SEO 100 (the 404 page is kept out of search by design). The lab's
-first run in a fresh browser used to be slower (TBT up to 160 ms). The cause
-was not the silk shader's compile, which already ran in the background, but
-creating the first WebGL context: 70 to 210 ms of blocked main thread under
-Lighthouse. It now happens in a worker, and the first run scores like the
-rest (TBT 0 in six of six). With the menu and the reveal list, each run
-started at a 1-minute load under 3: the library 100 (100, 100, 100), the warm
-showcase 99 (99, 99, 99, largest content 1.9 s, its hero picture). With all
-three together and the film in the library (its twelve-second loop and the
-full HD source), each run started at a 1-minute load under 3: the library 100
+Measured 2026-11-27 with the menu, the reveal list and the worker together,
+median of three runs, each started at a 1-minute load under 3: the library and
+the dark showcase 100, the lab and the warm showcase 99; accessibility, best
+practices and SEO 100 everywhere (the 404 page is kept out of search by
+design). The lab's first run in a fresh browser used to be slower (TBT up to
+160 ms). The cause was not the silk shader's compile, which already ran in the
+background, but creating the first WebGL context: 70 to 210 ms of blocked main
+thread under Lighthouse. It now happens in a worker, and the first run scores
+like the rest (TBT 0 in six of six). With the film added to the library (its
+twelve-second loop and the full HD source), the library and the lab were
+measured again, each run started at a 1-minute load under 3: the library 100
 (99, 100, 100; largest content 1.0 s, layout shift 0.003) and the lab 99 (99,
-99, 99; 0.8 s, 0). Largest content within 0.8–1.0 s on every page but the
-warm showcase; layout shift 0 to 0.004. 181 tests pass on desktop and phone
-(11 are skipped: desktop-only, run once by design, or needing a software
-renderer, as CI has); the film's 18 include Save-Data, emulated by sending the
-`Save-Data` header and setting `navigator.connection.saveData`, which is what
-the engine reads, since Playwright cannot turn on Chrome's data saver. The 3D
-band went from 137 KB (Three.js) to about 6 KB compressed, with the same
-picture.
+99, 99; 0.8 s, 0); the other pages were not measured again with the film.
+Largest content within 0.8–1.0 s on every page but the warm showcase (about
+2 s, its hero picture on a phone); layout shift 0 to 0.003. 181 tests pass
+on desktop and phone (11 are skipped: desktop-only, run once by design,
+or needing a software renderer, as CI has); the film's 18 include Save-Data,
+emulated by sending the `Save-Data` header and setting
+`navigator.connection.saveData`, which is what the engine reads, since
+Playwright cannot turn on Chrome's data saver. The 3D band went from 137 KB
+(Three.js) to about 6 KB compressed, with the same picture.
 
 ## Licences
 
