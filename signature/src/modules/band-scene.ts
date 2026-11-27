@@ -35,6 +35,12 @@ export interface ObjectSceneOptions {
   quality?: 0 | 1 | 2;
   /** The longest frame (75th percentile, seconds) before quality steps down; set from the screen's own cadence. */
   frameBudget?: number;
+  /** Stills only: a period in seconds over which `still()` loops exactly (one turn, flow and sway), for a film. */
+  loop?: number;
+  /** Stills only: how much closer the camera is than usual (1 = as on the page). */
+  zoom?: number;
+  /** Stills only: how much further the band leans back, in radians (0 = as on the page; more shows it nearer edge-on). */
+  tilt?: number;
   shown: () => void;
   lost: () => void;
 }
@@ -49,6 +55,9 @@ export async function createObjectScene(canvas: HTMLCanvasElement, options: Obje
     centred: options.centred === true,
     quality: options.quality,
     frameBudget: options.frameBudget ?? 1 / 42,
+    loop: options.loop,
+    zoom: options.zoom,
+    tilt: options.tilt,
   };
   let teardown = () => {};
   const events = {

@@ -236,12 +236,37 @@
           </li>
         </ul>
       </section>
+
+      <section class="band film" aria-labelledby="film-title">
+        <h2 class="label" id="film-title"><span>10</span> <span class="label-name">Film gjord i kod</span> <span class="label-note">Video</span></h2>
+        <p class="film-lead">En slinga på tolv sekunder, renderad bildruta för bildruta från labbets eget band och spelad som film. Telefonen avkodar den i hårdvara i stället för att rita WebGL. Den laddas först när den kommer nära, spelar bara medan den syns och kan alltid pausas.</p>
+        <div class="sg-video" data-sg="video" data-sg-variant="grow">
+          <div data-sg-frame>
+            <div data-sg-media>
+              <picture>
+                <source media="(max-width: 699px)" srcset="../bilder/bandet-film-telefon.webp" width="720" height="1280" />
+                <img src="../bilder/bandet-film-800.webp" srcset="../bilder/bandet-film-800.webp 800w, ../bilder/bandet-film.webp 1600w" sizes="100vw" width="1600" height="900" loading="lazy" decoding="async" alt="" />
+              </picture>
+              <video muted loop playsinline preload="none" controls poster="../bilder/bandet-film-800.webp" aria-label="Metallbandet vrider sig ett varv, en slinga renderad i kod">
+                <source src="../film/bandet-telefon-720.webm" type='video/webm; codecs="av01.0.05M.08"' media="(max-width: 699px)" />
+                <source src="../film/bandet-telefon-720.mp4" type='video/mp4; codecs="avc1.64001f"' media="(max-width: 699px)" />
+                <source src="../film/bandet-1920.webm" type='video/webm; codecs="av01.0.08M.08"' media="(min-width: 1280px)" />
+                <source src="../film/bandet-1920.mp4" type='video/mp4; codecs="avc1.640028"' media="(min-width: 1280px)" />
+                <source src="../film/bandet-1280.webm" type='video/webm; codecs="av01.0.05M.08"' />
+                <source src="../film/bandet-1280.mp4" type='video/mp4; codecs="avc1.64001f"' />
+              </video>
+            </div>
+            <button type="button" data-sg-toggle data-play="Spela film" data-pause="Pausa film" hidden><span aria-hidden="true"></span><span data-sg-label>Pausa film</span></button>
+          </div>
+        </div>
+        <p class="film-note">Bandet, ett varv. Tolv sekunder i 24 bilder per sekund, AV1 eller H.264: under 600 KB, och omkring 1 MB i full HD för breda skärmar. Med mindre rörelse spelar den först när du ber om det, och med sparad data visas bara stillbilden.</p>
+      </section>
     </main>
 
     <footer class="signature-foot" aria-labelledby="foot-title">
       <h2 class="visually-hidden" id="foot-title">Sidfot</h2>
       <div class="foot-row">
-        <p><span class="label"><span>10</span> Signaturfot</span>Ordmärket reser sig bokstav för bokstav medan du scrollar hit, med bara CSS.</p>
+        <p><span class="label"><span>11</span> Signaturfot</span>Ordmärket reser sig bokstav för bokstav medan du scrollar hit, med bara CSS.</p>
         <a class="pill" href="../" data-sg-magnetic data-cursor-label="Tillbaka"><span class="roll">Tillbaka till början</span></a>
       </div>
       <p class="foot-word" data-sg="mark">axivo</p>
