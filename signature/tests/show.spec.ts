@@ -75,5 +75,16 @@ test("the showcase does not scroll sideways", async ({ page }) => {
   await page.goto(PAGE);
   await page.waitForTimeout(800);
   await scrollThrough(page);
-  expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(0);
+  // On failure, name what sticks out past the right edge, so a run elsewhere (CI's Linux) says where to look.
+  const { overflow, past } = await page.evaluate(() => {
+    const width = document.documentElement.clientWidth;
+    const past = [...document.querySelectorAll("body *")]
+      .map((element) => ({ element, right: element.getBoundingClientRect().right }))
+      .filter(({ right }) => right > width + 0.5)
+      .sort((a, b) => b.right - a.right)
+      .slice(0, 6)
+      .map(({ element, right }) => `${element.tagName.toLowerCase()}.${[...element.classList].join(".")} right ${right.toFixed(1)} of ${width}: "${element.textContent?.trim().slice(0, 30)}"`);
+    return { overflow: document.documentElement.scrollWidth - width, past };
+  });
+  expect(overflow, past.join("\n")).toBeLessThanOrEqual(0);
 });
