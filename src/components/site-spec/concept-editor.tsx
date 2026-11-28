@@ -3,6 +3,7 @@
 import { Field, Select, TextInput } from "@/components/ui/field";
 import { StatusLabel } from "@/components/ui/status";
 import {
+  ASSOCIATION_SIGNATURE_PRESET,
   SERVICES_FEEL_LABELS,
   SERVICES_FEELS,
   SERVICES_HERO_LABELS,
@@ -115,24 +116,7 @@ export function ConceptEditor({ spec, editing, projectId, library }: { spec: Sit
           </Select>
         </Field>
       </div>
-      {direction ? (
-        <label className="flex items-start gap-2 text-[13px]">
-          <input
-            type="checkbox"
-            className="mt-[3px]"
-            checked={Boolean(concept.signatureMotion)}
-            disabled={!editable}
-            onChange={(e) => conceptChange((c) => void (e.target.checked ? (c.signatureMotion = true) : delete c.signatureMotion))}
-          />
-          <span>
-            <span className="text-ink">Axivo Signature motion</span>
-            <span className="block text-ink-muted">
-              Premium. Motion that fits the direction is added on top of this design, {SIGNATURE_PRESET_LABELS[SIGNATURE_PRESETS[direction]]}. Without JavaScript or with
-              reduced motion the site looks exactly the same. Shown on the review link, not in this preview.
-            </span>
-          </span>
-        </label>
-      ) : null}
+      {direction ? <SignatureMotion spec={spec} editing={editing} /> : null}
 
       {concept.signature ? (
         <div className="flex flex-col gap-2 text-[13px]">
@@ -213,6 +197,45 @@ export function ConceptEditor({ spec, editing, projectId, library }: { spec: Sit
       ) : null}
       {projectId ? <LookAlikes brand={spec.brand} projectId={projectId} /> : null}
     </section>
+  );
+}
+
+/**
+ * The tick for Axivo Signature motion, with the preset the site will get: the direction's
+ * for the company design, always calm for the association design (which has no other
+ * concept, so the brand editor shows this alone).
+ */
+export function SignatureMotion({ spec, editing }: { spec: SiteSpec; editing: SpecEditing }) {
+  const { editable, change, personSource } = editing;
+  const association = spec.brand.designSystem === "association@0.1";
+  const direction = spec.brand.servicesStyle?.direction;
+  const preset = association ? ASSOCIATION_SIGNATURE_PRESET : direction ? SIGNATURE_PRESETS[direction] : undefined;
+  if (!preset) return null;
+  return (
+    <label className="flex items-start gap-2 text-[13px]" data-testid="signature-motion">
+      <input
+        type="checkbox"
+        className="mt-[3px]"
+        checked={Boolean(spec.brand.concept?.signatureMotion)}
+        disabled={!editable}
+        onChange={(e) =>
+          change((s) => {
+            const next: Concept = { ...s.brand.concept };
+            if (e.target.checked) next.signatureMotion = true;
+            else delete next.signatureMotion;
+            s.brand.concept = next;
+            s.brand.source = personSource();
+          })
+        }
+      />
+      <span>
+        <span className="text-ink">Axivo Signature motion</span>
+        <span className="block text-ink-muted">
+          Premium. Motion that fits {association ? "an association" : "the direction"} is added on top of this design, {SIGNATURE_PRESET_LABELS[preset]}. Without JavaScript or with reduced
+          motion the site looks exactly the same. Shown on the review link, not in this preview.
+        </span>
+      </span>
+    </label>
   );
 }
 

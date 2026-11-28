@@ -3,8 +3,8 @@ import type { SiteSpec } from "@/lib/site-spec/schema";
 import { briefClient, companySpec, completeSpec } from "@/lib/site-spec/test-helpers";
 import { BuildRefused, buildSite, contentTypeOf, pageChecks, type StoredImage } from "./build";
 import { serveBuild } from "./serve";
-import { SERVICES_DIRECTIONS, SIGNATURE_PRESETS } from "@/lib/site-spec/catalog";
-import { DIRECTION_PRESETS } from "../../../signature/layer/enhance.mjs";
+import { ASSOCIATION_SIGNATURE_PRESET, SERVICES_DIRECTIONS, SIGNATURE_PRESETS } from "@/lib/site-spec/catalog";
+import { ASSOCIATION_PRESET, DIRECTION_PRESETS } from "../../../signature/layer/enhance.mjs";
 
 const now = new Date("2026-11-17T10:00:00Z");
 const studioId = "11111111-1111-4111-8111-111111111111";
@@ -88,6 +88,89 @@ describe("building a site from a spec", () => {
     const images = withImages(value, "rejected");
     if (!images.length) return;
     await expect(buildSite({ studioId, specVersion: 1, spec: value }, deps(images))).rejects.toBeInstanceOf(BuildRefused);
+  });
+
+  it("with Axivo Signature motion, builds with no errors, the layer's head block on every page and every script it loads in the build", async () => {
+    const value = spec();
+    value.brand.concept = { signatureMotion: true };
+    const site = await buildSite({ studioId, specVersion: 2, spec: value }, deps(withImages(value, "approved")));
+    expect(site.designSystem).toBe("association@0.1");
+    expect(site.checks.filter((check) => check.level === "error")).toEqual([]);
+    const pages = site.files.filter((file) => file.path.endsWith(".html"));
+    expect(pages.length).toBeGreaterThan(3);
+    for (const page of pages) {
+      const html = new TextDecoder().decode(page.body);
+      const up = "../".repeat(page.path.split("/").length - 1) || "./";
+      expect(html.match(/<!-- signature-layer [\w.-]+ -->/g), page.path).toHaveLength(1);
+      expect(html, page.path).toContain(`<script type="module" src="${up}signature/site.js" blocking="render"></script>\n<!-- /signature-layer -->\n</head>`);
+    }
+    const paths = new Set(site.files.map((file) => file.path));
+    for (const path of ["signature/layer.js", "signature/layer.css", "signature/site.js"]) expect(paths, path).toContain(path);
+    const scripts = site.files.filter((file) => file.path.startsWith("signature/") && file.path.endsWith(".js"));
+    // The layer loads its modules by relative address (import, import(), new URL); a missing one fails silently in the browser.
+    const loaded = scripts.flatMap((file) => [...new TextDecoder().decode(file.body).matchAll(/["'`]\.\/([\w.-]+\.js)["'`]/g)].map((match) => `signature/${match[1]}`));
+    expect(loaded.length).toBeGreaterThan(0);
+    for (const path of loaded) expect(paths, path).toContain(path);
+    for (const file of scripts) expect(file.contentType, file.path).toMatch(/^text\/javascript/);
+    // The association's own map, and calm whatever else the spec says.
+    const config = new TextDecoder().decode(scripts.find((file) => file.path === "signature/site.js")!.body);
+    expect(config).toContain('start({"preset":"calm","rules":[');
+    expect(config).toContain("main .events > .event");
+    expect(config).not.toContain("form");
+  });
+
+  it("without it, builds pages with no script at all", async () => {
+    const value = spec();
+    const site = await buildSite({ studioId, specVersion: 2, spec: value }, deps(withImages(value, "approved")));
+    expect(site.files.some((file) => file.path.startsWith("signature/") || file.path.endsWith(".js"))).toBe(false);
+    const pages = site.files.filter((file) => file.path.endsWith(".html")).map((file) => new TextDecoder().decode(file.body));
+    expect(pages.every((page) => !/<script\b/i.test(page) && !page.includes("signature"))).toBe(true);
+  });
+
+  it("with it, changes nothing in a page but the head block", async () => {
+    const plain = spec();
+    const moving = spec();
+    moving.brand.concept = { signatureMotion: true };
+    const [a, b] = await Promise.all([plain, moving].map((value) => buildSite({ studioId, specVersion: 2, spec: value }, deps(withImages(value, "approved")))));
+    const strip = (body: Uint8Array) => new TextDecoder().decode(body).replace(/<!-- signature-layer[\s\S]*?<!-- \/signature-layer -->\n/, "");
+    for (const file of a.files) {
+      const other = b.files.find((each) => each.path === file.path)!;
+      expect(file.path.endsWith(".html") ? strip(other.body) : other.body, file.path).toEqual(file.path.endsWith(".html") ? strip(file.body) : file.body);
+    }
+    expect(b.files.filter((file) => !a.files.some((each) => each.path === file.path)).every((file) => file.path.startsWith("signature/"))).toBe(true);
+  });
+
+  it("serves a Signature build on a review link: the page's base before the layer, the review bar after, every script as JavaScript", async () => {
+    const value = spec();
+    value.brand.concept = { signatureMotion: true };
+    const site = await buildSite({ studioId, specVersion: 2, spec: value }, deps(withImages(value, "approved")));
+    const stored = new Map(site.files.map((file) => [`studio-1/build-1/${file.path}`, file.body]));
+    const token = "a".repeat(40);
+    const review = {
+      find: async () => ({ storagePrefix: "studio-1/build-1", expiresAt: "2026-12-17T10:00:00Z", revokedAt: null }),
+      read: async (path: string) => stored.get(path) ?? null,
+      now: () => now,
+      review: async () => ({ name: "TEST Studio", website: null, email: null, color: "#1F2A37", logoUrl: null }),
+    };
+    const pageFolder = site.files.find((file) => /^[^/]+\/index\.html$/.test(file.path) && !/^(sent|not-sent)\//.test(file.path))!.path.split("/")[0];
+    // The home page, a page in a folder, and an address that is not there (the build's own 404 page, from the top).
+    for (const [segments, folder] of [[[], ""], [[pageFolder], `${pageFolder}/`], [["finns", "inte"], ""]] as const) {
+      const html = await (await serveBuild(token, segments, review)).text();
+      const base = html.indexOf(`<base href="/s/${token}/${folder}">`);
+      expect(base, folder).toBeGreaterThan(-1);
+      expect(base).toBeLessThan(html.indexOf("<!-- signature-layer"));
+      expect(html.indexOf("<!-- signature-layer")).toBeGreaterThan(-1);
+      expect(html.indexOf("<!-- /signature-layer -->")).toBeLessThan(html.indexOf("rv-bar"));
+      // The layer's addresses stay relative (the base places them); the site's own root links are moved under the link.
+      expect(html).toContain(`src="${folder ? "../" : "./"}signature/site.js"`);
+      expect(html).toContain(`href="/s/${token}/site.css"`);
+    }
+    for (const file of site.files.filter((each) => each.path.startsWith("signature/") && each.path.endsWith(".js"))) {
+      const response = await serveBuild(token, file.path.split("/"), review);
+      expect(response.status, file.path).toBe(200);
+      expect(response.headers.get("Content-Type"), file.path).toMatch(/^text\/javascript/);
+      expect(new Uint8Array(await response.arrayBuffer())).toEqual(file.body);
+    }
   });
 });
 
@@ -185,8 +268,9 @@ describe("building with the company design", () => {
     expect(pages.every((page) => !/<script\b/i.test(page))).toBe(true);
   });
 
-  it("gives each direction the same Signature preset as the layer does", () => {
+  it("gives each direction, and the association design, the same Signature preset as the layer does", () => {
     expect(SIGNATURE_PRESETS).toEqual(DIRECTION_PRESETS);
+    expect(ASSOCIATION_SIGNATURE_PRESET).toBe(ASSOCIATION_PRESET);
   });
 
   it.each(SERVICES_DIRECTIONS)("with Axivo Signature motion in the %s direction, builds with no errors, and every script the layer loads is in the build", async (direction) => {

@@ -3,7 +3,7 @@ import { fileURLToPath } from "node:url";
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Page } from "@playwright/test";
 import { PNG } from "pngjs";
-import { DIRECTION_PRESETS, enhanceSite, presetForDirection } from "../layer/enhance.mjs";
+import { ASSOCIATION_PRESET, DIRECTION_PRESETS, MAPS, enhanceSite, presetForDirection } from "../layer/enhance.mjs";
 
 /**
  * The Signature layer on a small site built by hand (tests/fixtures/layer-site,
@@ -544,6 +544,22 @@ test.describe("Signature layer, the enhancer", () => {
     expect(DIRECTION_PRESETS).toEqual({ formal: "calm", clinic: "calm", cafe: "warm", atelier: "editorial", editorial: "editorial", statement: "bold" });
     expect(presetForDirection("cafe")).toBe("warm");
     expect(presetForDirection("something-new")).toBe("calm");
+  });
+
+  test("the association map: calm, by name or by itself, with nothing a calm page cannot use and no form", () => {
+    expect(ASSOCIATION_PRESET).toBe("calm");
+    expect(Object.keys(MAPS)).toEqual(["services", "association"]);
+    const fixed = enhanceSite([page("index.html")], { map: "association", preset: ASSOCIATION_PRESET });
+    expect(fixed.files[0].text).toContain('src="./signature/site.js"');
+    expect(fixed.assets.find((asset) => asset.path === "signature/site.js")!.text).toContain('start({"preset":"calm","rules":[{"module":"headline","select":"main h1"}');
+    // "auto" gives the same preset on every page: the system has no directions.
+    const auto = enhanceSite([page("index.html")], { map: "association", preset: "auto" });
+    expect(auto.assets.find((asset) => asset.path === "signature/site.js")!.text).toContain('"presets":[{"when":"body","preset":"calm"}]');
+    const rules = MAPS.association.rules;
+    expect([...new Set(rules.map((rule) => rule.module))].sort()).toEqual(["headline", "reveal", "rise"]);
+    // Everything is inside main (the header and footer stand), and no rule names a form or what holds one.
+    for (const rule of rules) for (const part of rule.select.split(",")) expect(part.trim(), part).toMatch(/^main /);
+    expect(rules.map((rule) => rule.select).join(" ")).not.toMatch(/form|input|label|\.field|\.check|\.pagehead > \.wrap > \.split\b/);
   });
 
   test("the kept build in layer-dist/ is current with its source", () => {
