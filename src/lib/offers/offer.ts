@@ -143,10 +143,10 @@ export const OFFER_WORDS: Record<OfferLanguage, Words> = {
     payment: "50 % sopimuksen allekirjoituksen yhteydessä ja 50 %, kun sivusto on julkaistu. Maksuaika 14 päivää laskun päiväyksestä.",
     contact: "Kysyttävää? Vastaamme yhden arkipäivän sisällä.",
     businessId: "Y-tunnus",
-    lineKinds: { signature: "Axivo Signature: toimialallenne sovitettu liike", "signature-custom": "Axivo Signature, räätälöidyt osat sovitun mukaan" },
+    lineKinds: { signature: "Axivo Signature: toimialallenne suunnitellut animaatiot", "signature-custom": "Axivo Signature – räätälöidyt lisäosat: erikseen sovitun tarjouksen mukaan" },
     includedSignature: "Axivo Signatureen sisältyy",
-    signatureItems: ["Otsikot nousevat esiin", "Kuvat saapuvat paikoilleen", "Sisältö liukuu esiin lukujärjestyksessä", "Luvut laskevat esiin, jos sivustolla on niitä", "Yhteydenottopainike kulkee mukana", "Sama sivu liikkumattomana niille, jotka ovat valinneet vähemmän liikettä"],
-    signatureCustomNote: "Räätälöidyt osat, esimerkiksi pinoutuvat kortit, kuvallinen valikko tai koodilla tehdyt filmit, kuvataan kirjallisesti ennen työn aloittamista.",
+    signatureItems: ["Otsikot tulevat esiin", "Kuvat asettuvat paikoilleen", "Sisältö etenee lukujärjestyksessä", "Luvut laskevat ylöspäin, jos sivustolla on niitä", "Yhteydenottopainike pysyy helposti saatavilla", "Animaatiot mukautuvat vähennetyn liikkeen asetukseen"],
+    signatureCustomNote: "Räätälöidyt osat, kuten päällekkäin pinoutuvat kortit, kuvallinen valikko tai koodilla toteutetut videot ja animaatiot, määritellään kirjallisesti ennen työn aloittamista.",
   },
   sv: {
     title: "Offert",

@@ -51,7 +51,10 @@ describe("an offer", () => {
       ["Axivo Signature, skräddarsydda delar enligt överenskommelse", 2400],
     ]);
     expect(sv.onceTotal).toBe(5200);
-    expect(buildOffer(input({ language: "fi", extras })).lines[1].label).toBe("Axivo Signature: toimialallenne sovitettu liike");
+    expect(buildOffer(input({ language: "fi", extras })).lines[1].label).toBe("Axivo Signature: toimialallenne suunnitellut animaatiot");
+    // In Finnish "liike" also means a business: Signature is "animaatiot", and "liike" only names the device's reduced-motion setting.
+    const fi = [...Object.values(OFFER_WORDS.fi.lineKinds), ...OFFER_WORDS.fi.signatureItems, OFFER_WORDS.fi.signatureCustomNote].join(" ");
+    expect(fi.replace(/vähennetyn liikkeen asetu\w*/g, "")).not.toMatch(/liike|liikkee|liikett/i);
     expect(buildOffer(input({ language: "en", extras })).lines[2].label).toBe("Axivo Signature, made-to-measure parts as agreed");
     // What the tick gives, the same six points in every language, and never what only made-to-measure work gives.
     for (const language of ["fi", "sv", "en"] as const) expect(OFFER_WORDS[language].signatureItems).toHaveLength(6);
