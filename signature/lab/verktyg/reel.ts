@@ -30,8 +30,11 @@ export interface SgFilm {
   fps: number;
   /** Seconds. */
   duration: number;
-  /** Puts every animation on the page at time t (seconds). The same t always gives the same picture. */
-  seek: (t: number) => void;
+  /**
+   * Puts every animation on the page at time t (seconds). The same t always gives the same picture. A page that has
+   * to fetch something for t (sitefilm.ts fetches a photographed frame) returns a promise, and the renderer waits for it.
+   */
+  seek: (t: number) => void | Promise<void>;
 }
 
 declare global {

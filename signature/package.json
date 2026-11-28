@@ -16,6 +16,7 @@
     "lighthouse": "node scripts/lighthouse.mjs",
     "review": "node scripts/review.mjs",
     "film": "node scripts/render-dom-film.mjs",
+    "site-film": "node scripts/render-site-film.mjs",
     "film-review": "node scripts/film-review.mjs",
     "check": "npm run build && npm run budget && npm run test && npm run lighthouse"
   },
