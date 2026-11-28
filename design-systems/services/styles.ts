@@ -344,11 +344,16 @@ h3{font-family:var(--display);font-size:var(--h3);font-weight:var(--h3-weight);l
  html{scroll-behavior:auto}
  .d-editorial .button,.d-editorial .button::before,.d-editorial a,.d-editorial .ledger-row h3,.d-editorial .question-list summary::after{transition:none}
 }
+/* Text that fades in with the scroll, in every direction, follows two rules so that it never rests half-visible.
+   It starts fully transparent and is fully opaque about halfway through its movement, low on the screen; the movement itself runs its whole range.
+   And at the very top of the page nothing is faded: at-rest holds the text opaque there and hands over to the entrance over the first 20vh of scroll,
+   so a section that peeks over the bottom edge of the first screen is readable before anyone has scrolled. */
 @media (prefers-reduced-motion:no-preference){
+ @keyframes at-rest{from{opacity:1}}
  @keyframes editorial-settle{from{opacity:.25;translate:0 .7rem}}
  @keyframes editorial-unveil{from{clip-path:inset(0 0 100% 0)}to{clip-path:inset(0)}}
  @keyframes editorial-note{from{opacity:0;translate:0 1.5rem;rotate:2deg}}
- @keyframes editorial-rise{from{opacity:.05;translate:0 1.8rem}}
+ @keyframes editorial-rise{from{opacity:0;translate:0 1.8rem}55%{opacity:1}}
  @keyframes editorial-drift{from{translate:0 -14%}to{translate:0 0}}
  @keyframes editorial-draw{from{scale:0 1}to{scale:1 1}}
  @keyframes editorial-breathe{from{scale:1.42}to{scale:1.22}}
@@ -357,7 +362,7 @@ h3{font-family:var(--display);font-size:var(--h3);font-weight:var(--h3-weight);l
  .d-editorial .hero-image .frame{animation:editorial-unveil 1.1s .05s cubic-bezier(.65,0,.15,1) backwards}
  .d-editorial .hero-note{animation:editorial-note .5s .45s cubic-bezier(.2,.7,.2,1) backwards}
  @supports (animation-timeline:view()){
-  .d-editorial .reason-list li,.d-editorial .ledger-row,.d-editorial .steps li,.d-editorial .quote blockquote,.d-editorial .section-head,.letter-lead,.letter-story,.signature,.d-editorial .closing-words h2{animation:editorial-rise linear both;animation-timeline:view();animation-range:entry 5% cover 28%}
+  .d-editorial .reason-list li,.d-editorial .ledger-row,.d-editorial .steps li,.d-editorial .quote blockquote,.d-editorial .section-head,.letter-lead,.letter-story,.signature,.d-editorial .closing-words h2{animation:editorial-rise linear both,at-rest linear backwards;animation-timeline:view(),scroll(root);animation-range:entry 5% cover 28%,0 20vh}
   .d-editorial .proof-image img{animation:editorial-drift linear both;animation-timeline:view()}
   .d-editorial .proof-image,.cameo{animation:editorial-unveil linear both;animation-timeline:view();animation-range:entry 0% cover 35%}
   .cameo img{animation:editorial-breathe linear both;animation-timeline:view()}
@@ -501,9 +506,10 @@ h3{font-family:var(--display);font-size:var(--h3);font-weight:var(--h3-weight);l
  @keyframes formal-calm{from{opacity:.25;translate:0 .6rem}}
  @keyframes formal-turn{from{opacity:.2;translate:-1.2rem 0}}
  @keyframes formal-plate{from{clip-path:inset(100% 0 0 0)}to{clip-path:inset(0)}}
- @keyframes formal-lift{from{opacity:.05;translate:0 2rem}}
+ @keyframes formal-lift{from{opacity:0;translate:0 2rem}55%{opacity:1}}
  @keyframes formal-widen{from{scale:.72}to{scale:1.08}}
  @keyframes formal-ripple{from{scale:.7;opacity:.4}to{scale:1;opacity:1}}
+ @keyframes formal-step{from{scale:.7;opacity:0}45%{opacity:1}to{scale:1;opacity:1}}
  @keyframes formal-drift{from{translate:0 -14%}to{translate:0 0}}
  @keyframes formal-year{from{translate:-3% 0}to{translate:2% 0}}
  .d-formal .hero-for,.d-formal .hero h1{animation:formal-calm .8s cubic-bezier(.2,.6,.2,1) backwards}
@@ -514,8 +520,8 @@ h3{font-family:var(--display);font-size:var(--h3);font-weight:var(--h3-weight);l
   .m-courses .hero::before{animation:formal-lay linear both;animation-timeline:scroll(root);animation-range:0 90vh}
   .ringbox::before{animation:formal-widen linear both;animation-timeline:scroll(root);animation-range:0 110vh}
   .d-formal.m-ripple .closing::before{animation:formal-ripple linear both;animation-timeline:view();animation-range:entry 0% cover 60%}
-  .d-formal .reason-list li,.d-formal .section-head,.d-formal .ledger-row,.memory-head,.memory-story,.d-formal .closing-words h2{animation:formal-lift linear both;animation-timeline:view();animation-range:entry 5% cover 28%}
-  .d-formal .steps li{animation:formal-ripple linear both;animation-timeline:view();animation-range:entry 0% cover 35%}
+  .d-formal .reason-list li,.d-formal .section-head,.d-formal .ledger-row,.memory-head,.memory-story,.d-formal .closing-words h2{animation:formal-lift linear both,at-rest linear backwards;animation-timeline:view(),scroll(root);animation-range:entry 5% cover 28%,0 20vh}
+  .d-formal .steps li{animation:formal-step linear both,at-rest linear backwards;animation-timeline:view(),scroll(root);animation-range:entry 0% cover 35%,0 20vh}
   .memory-image img{animation:formal-drift linear both;animation-timeline:view()}
   .memory-year{animation:formal-year linear both;animation-timeline:view()}
  }
@@ -825,7 +831,7 @@ const ROOMS = `
  @keyframes cafe-settle{from{opacity:.2;translate:0 .9rem}}
  @keyframes cafe-door{from{clip-path:inset(100% 0 0 0 round 999px 999px 1.1rem 1.1rem)}to{clip-path:inset(0 0 0 0 round 999px 999px 1.1rem 1.1rem)}}
  @keyframes cafe-pin{0%{opacity:0;translate:0 -1.6rem;rotate:-9deg}55%{opacity:1;translate:0 .15rem;rotate:1.2deg}78%{translate:0 0;rotate:-3.4deg}100%{rotate:-2.2deg}}
- @keyframes cafe-rise{from{opacity:.1;translate:0 1.4rem}}
+ @keyframes cafe-rise{from{opacity:0;translate:0 1.4rem}60%{opacity:1}}
  @keyframes cafe-dots{from{scale:0 1}to{scale:1 1}}
  @keyframes cafe-warm{from{scale:1.12}to{scale:1}}
  .d-cafe .hero-for,.d-cafe .hero h1{animation:cafe-settle .75s cubic-bezier(.2,.7,.2,1) backwards}
@@ -834,7 +840,7 @@ const ROOMS = `
  .d-cafe .hero-image:has(.arch) .pinned{animation:cafe-pin .9s .75s cubic-bezier(.3,.6,.3,1) backwards}
  @supports (animation-timeline:view()){
   .d-cafe .arch img{animation:cafe-warm linear both;animation-timeline:scroll(root);animation-range:0 100vh}
-  .menu-card-head,.menu-lines li,.visit-head,.visit-card,.visit-list > *,.cafe-story > *,.d-cafe .section-head,.d-cafe .closing-words h2{animation:cafe-rise linear both;animation-timeline:view();animation-range:entry 5% cover 25%}
+  .menu-card-head,.menu-lines li,.visit-head,.visit-card,.visit-list > *,.cafe-story > *,.d-cafe .section-head,.d-cafe .closing-words h2{animation:cafe-rise linear both,at-rest linear backwards;animation-timeline:view(),scroll(root);animation-range:entry 5% cover 25%,0 20vh}
   .menu-dots{transform-origin:left;animation:cafe-dots linear both;animation-timeline:view();animation-range:entry 30% cover 40%}
   .menu-card-head img{animation:cafe-warm linear both;animation-timeline:view()}
  }
@@ -848,18 +854,19 @@ const ROOMS = `
 @media (prefers-reduced-motion:no-preference){
  @keyframes atelier-fade{from{opacity:0}}
  @keyframes atelier-lift{from{opacity:0;translate:0 1rem}}
+ @keyframes atelier-arrive{from{opacity:0;translate:0 1rem}50%{opacity:1}}
  @keyframes atelier-curtain{from{clip-path:inset(0 50% 0 50%)}to{clip-path:inset(0)}}
  @keyframes atelier-settle{from{scale:1.14}to{scale:1}}
- @keyframes atelier-reveal{from{clip-path:inset(18% 0 0 0);opacity:.3}to{clip-path:inset(0);opacity:1}}
+ @keyframes atelier-reveal{from{clip-path:inset(18% 0 0 0);opacity:0}45%{opacity:1}to{clip-path:inset(0);opacity:1}}
  @keyframes atelier-rule{from{scale:0 1}to{scale:1 1}}
  .d-atelier .hero-for,.d-atelier .hero h1{animation:atelier-fade 1.4s cubic-bezier(.3,0,.2,1) backwards}
  .d-atelier .hero-body{animation:atelier-lift 1.2s .35s cubic-bezier(.2,.7,.2,1) backwards}
  .d-atelier .hero-image{animation:atelier-curtain 1.8s .2s cubic-bezier(.7,0,.2,1) backwards}
  .d-atelier .hero-image img{animation:atelier-settle 2.4s .2s cubic-bezier(.2,.7,.2,1) backwards}
  @supports (animation-timeline:view()){
-  .work-item{animation:atelier-reveal linear both;animation-timeline:view();animation-range:entry 0% cover 35%}
+  .work-item{animation:atelier-reveal linear both,at-rest linear backwards;animation-timeline:view(),scroll(root);animation-range:entry 0% cover 35%,0 20vh}
   .work-item img{animation:atelier-settle linear both;animation-timeline:view();animation-range:entry 0% exit 20%}
-  .work-head,.approach-lead,.approach-steps li,.d-atelier .ledger-row,.d-atelier .section-head,.d-atelier .closing-words h2{animation:atelier-lift linear both;animation-timeline:view();animation-range:entry 5% cover 30%}
+  .work-head,.approach-lead,.approach-steps li,.d-atelier .ledger-row,.d-atelier .section-head,.d-atelier .closing-words h2{animation:atelier-arrive linear both,at-rest linear backwards;animation-timeline:view(),scroll(root);animation-range:entry 5% cover 30%,0 20vh}
  }
 }
 
@@ -1168,16 +1175,16 @@ const CONCEPT = `
 
 /* Motion: the signature always settles into view; lively adds more movement around it. */
 @media (prefers-reduced-motion:no-preference){
- @keyframes sig-rise{from{opacity:.08;translate:0 1.6rem}}
+ @keyframes sig-rise{from{opacity:0;translate:0 1.6rem}55%{opacity:1}}
  @keyframes sig-draw{from{clip-path:inset(0 0 100% 0)}to{clip-path:inset(0)}}
- @keyframes sig-count{from{opacity:0;translate:0 .4em}}
+ @keyframes sig-count{from{opacity:0;translate:0 .4em}50%{opacity:1}}
  @supports (animation-timeline:view()){
-  .sig .section-head,.sig-body,.sig--owner figure,.sig-days li,.sig-book,.sig-lead,.sig-places li,.sig-numbers div,.sig-card{animation:sig-rise linear both;animation-timeline:view();animation-range:entry 5% cover 28%}
-  .sig-year{animation:sig-count linear both;animation-timeline:view();animation-range:entry 0% cover 30%}
+  .sig .section-head,.sig-body,.sig--owner figure,.sig-days li,.sig-book,.sig-lead,.sig-places li,.sig-numbers div,.sig-card{animation:sig-rise linear both,at-rest linear backwards;animation-timeline:view(),scroll(root);animation-range:entry 5% cover 28%,0 20vh}
+  .sig-year{animation:sig-count linear both,at-rest linear backwards;animation-timeline:view(),scroll(root);animation-range:entry 0% cover 30%,0 20vh}
   .sig-places{animation:sig-draw linear both;animation-timeline:view();animation-range:entry 10% cover 45%}
-  .mo-lively .sig-days li:nth-child(2),.mo-lively .sig-places li:nth-child(2),.mo-lively .sig-numbers div:nth-child(2){animation-range:entry 12% cover 34%}
-  .mo-lively .sig-days li:nth-child(3),.mo-lively .sig-places li:nth-child(3),.mo-lively .sig-numbers div:nth-child(3){animation-range:entry 18% cover 40%}
-  .mo-lively .sig-days li:nth-child(4),.mo-lively .sig-places li:nth-child(4){animation-range:entry 24% cover 46%}
+  .mo-lively .sig-days li:nth-child(2),.mo-lively .sig-places li:nth-child(2),.mo-lively .sig-numbers div:nth-child(2){animation-range:entry 12% cover 34%,0 20vh}
+  .mo-lively .sig-days li:nth-child(3),.mo-lively .sig-places li:nth-child(3),.mo-lively .sig-numbers div:nth-child(3){animation-range:entry 18% cover 40%,0 20vh}
+  .mo-lively .sig-days li:nth-child(4),.mo-lively .sig-places li:nth-child(4){animation-range:entry 24% cover 46%,0 20vh}
   .mo-lively .hero-image img{animation:sig-settle linear both;animation-timeline:scroll(root);animation-range:0 100vh}
   @keyframes sig-settle{from{scale:1.1}to{scale:1}}
  }

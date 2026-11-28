@@ -40,7 +40,7 @@ p{margin:0 0 14px}
 .top{background:var(--bg);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:5}
 .bar{display:flex;align-items:center;justify-content:space-between;gap:20px;min-height:72px}
 .brand{display:flex;align-items:center;gap:12px;color:var(--ink);text-decoration:none;font-weight:700;font-size:15px;line-height:1.15}
-.brand img{width:64px;flex:none}@media (max-width:480px){.brand span{display:none}}
+.brand img{width:64px;flex:none}@media (max-width:480px){.brand>*+span{display:none}}
 .nav{display:flex;align-items:center;gap:4px;font-size:15px}
 .nav a{color:var(--ink);text-decoration:none;padding:8px 10px;border-radius:var(--r)}.nav a:hover{background:var(--line)}
 .nav a[aria-current=page]:not(.btn){text-decoration:underline;text-decoration-color:var(--primary);text-decoration-thickness:2px;text-underline-offset:6px}

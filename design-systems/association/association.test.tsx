@@ -146,4 +146,12 @@ describe("association design system", () => {
     const html = page(build(withLogo, { ...options, smallLogo: undefined }), "index.html");
     expect(html).toMatch(/<a class="brand" href="\/"><img src="\/img\/logo.png"/);
   });
+
+  it("keeps the name in the header on a phone when there is no logo, so the link home is never empty", () => {
+    const files = build(spec(), { ...options, smallLogo: undefined });
+    expect(page(files, "index.html")).toContain('<a class="brand" href="/"><span>Påhittade föreningen</span></a>');
+    const css = page(files, "site.css");
+    expect(css).toContain(".brand>*+span{display:none}");
+    expect(css).not.toContain(".brand span{display:none}");
+  });
 });
