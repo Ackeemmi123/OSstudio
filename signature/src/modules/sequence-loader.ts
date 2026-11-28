@@ -5,22 +5,16 @@
  * neither the downloads nor the decoding touch the page's main thread in any
  * browser (WebKit decodes `createImageBitmap` on the thread that calls it);
  * where a worker cannot start, the page runs the same code itself.
- *
- * It also settles the format. The page offers the same movement as several
- * sets, the best first (AVIF, then WebP); the first set whose first frame
- * this browser fetches and decodes is the one loaded. So the choice rests on
- * what the browser does with the real file, not on its name or version.
  */
 
 /** Frames fetched at once. */
 const PARALLEL = 4;
 
-/** Messages to the loader. A new `load` drops the frames of the last one (the screen crossed to another shape). */
-export type ToLoader = { type: "load"; generation: number; sets: string[][] } | { type: "decode"; generation: number; index: number } | { type: "stop" };
+/** Messages to the loader. A new `load` drops the frames of the last one (the screen crossed to another set). */
+export type ToLoader = { type: "load"; generation: number; urls: string[] } | { type: "decode"; generation: number; index: number } | { type: "stop" };
 
-/** Messages from it, each with the generation of the `load` it belongs to. `set` comes first: which of the sets it loads. */
+/** Messages from it, each with the generation of the `load` it belongs to. */
 export type FromLoader =
-  | { type: "set"; generation: number; index: number }
   | { type: "loaded"; generation: number; index: number }
   | { type: "frame"; generation: number; index: number; bitmap: ImageBitmap }
   | { type: "failed"; generation: number; index: number };
@@ -40,30 +34,10 @@ export function loader(post: (message: FromLoader, transfer?: Transferable[]) =>
   let files: Array<Blob | undefined> = [];
   let abort = new AbortController();
 
-  const load = async (sets: string[][]) => {
+  const load = (urls: string[]) => {
     const mine = generation;
     const { signal } = abort;
-    // The last set is not tried: it is all there is, and its frames stand in for each other as before.
-    let pick = 0;
-    let head: Blob | undefined;
-    for (; pick < sets.length - 1; pick++) {
-      try {
-        head = await (await fetch(sets[pick][0], { signal, priority: "high" })).blob();
-        (await createImageBitmap(head)).close();
-        break;
-      } catch {
-        head = undefined;
-      }
-    }
-    if (signal.aborted) return;
-    const urls = sets[pick];
-    post({ type: "set", generation: mine, index: pick });
-    if (head) {
-      files[0] = head;
-      post({ type: "loaded", generation: mine, index: 0 });
-    }
-    // The frame that settled the format is not fetched again.
-    const queue = order(urls.length).slice(head ? 1 : 0);
+    const queue = order(urls.length);
     // The first pass (every fourth and the last) goes ahead of anything else the page fetches meanwhile.
     const first = Math.ceil(urls.length / 4) + 1;
     let next = 0;
@@ -93,7 +67,7 @@ export function loader(post: (message: FromLoader, transfer?: Transferable[]) =>
       files = [];
       if (message.type === "stop") return;
       generation = message.generation;
-      void load(message.sets);
+      load(message.urls);
       return;
     }
     const { index } = message;

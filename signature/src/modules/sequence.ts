@@ -20,9 +20,9 @@
  * asks for it. Only the frames near the one shown are
  * kept decoded, and those are the ones just ahead of the scroll, the faster
  * it moves the further ahead, so the two frames a position needs are there
- * when the scroll arrives: a 1920 × 1080 frame is 8.3 MB decoded, so all of
- * them would be 1 GB. From half a screen away they are decoded, further off
- * let go.
+ * when the scroll arrives: a 1600 × 900 frame is 5.8 MB decoded, so all
+ * sixty-one would be 350 MB. From half a screen away they are decoded,
+ * further off let go.
  *
  * Drawing: the scroll seldom stops on a frame, so the two frames either side
  * of where it is are drawn over each other, the later one as strong as the
@@ -32,26 +32,22 @@
  * comes is stood in for by its neighbours. It draws only when the scroll
  * moves or a frame it waits for arrives.
  *
- * Markup: <div data-sg="sequence" data-frames="121">
+ * Markup: <div data-sg="sequence" data-frames="61">
  *           <div data-sg-stage>
  *             <picture>
- *               … the last frame, for `(prefers-reduced-motion: reduce), (scripting: none)`, per shape and format, each with `data-sg-still`
- *               <source media="(max-width: 699px)" srcset="…/telefon/00.webp" width="720" height="1560" data-sg-frames="…/telefon/{n}.webp" data-frames="61">
- *               <source type="image/avif" srcset="…/bred/000.avif" width="1920" height="1080" data-sg-frames="…/bred/{n}.avif">
- *               <img src="…/bred/00.webp" width="1600" height="900" data-sg-frames="…/bred/{n}.webp" data-frames="61" alt="…">
+ *               <source media="(max-width: 699px) and (prefers-reduced-motion: reduce), (max-width: 699px) and (scripting: none)" srcset="…/telefon/60.webp" width="720" height="1560" data-sg-still="(max-width: 699px)">
+ *               <source media="(prefers-reduced-motion: reduce), (scripting: none)" srcset="…/bred/60.webp" width="1600" height="900" data-sg-still>
+ *               <source media="(max-width: 699px)" srcset="…/telefon/00.webp" width="720" height="1560" data-sg-frames="…/telefon/{n}.webp">
+ *               <img src="…/bred/00.webp" width="1600" height="900" data-sg-frames="…/bred/{n}.webp" alt="…">
  *             </picture>
  *             … anything shown over it: `--sg-p` (0–1) on the root and the text of `[data-sg-at]` follow the frame shown.
  *           </div></div>
- * `{n}` is the frame's index from 0, with as many digits as the last one has.
- * A `data-sg-still` source is the last frame; its value is the media it keeps
- * with Save-Data.
+ * `{n}` is the frame's index from 0, two digits. A `data-sg-still` source is
+ * the last frame; its value is the media it keeps with Save-Data.
  *
- * Formats: the `[data-sg-frames]` that share a media query are one movement
- * in several formats, the best first, as in any <picture>. The loader takes
- * the first whose first frame this browser decodes (AVIF: Chrome 85, Firefox
- * 93, Safari 16.4), so the canvas and the poster under it agree. A set with
- * fewer pictures says so (`data-frames`); it must start and end on the same
- * two pictures. `[data-sg-at]` counts in the root's `data-frames` either way.
+ * The frames are WebP, not AVIF: measured in Chrome, a 1920 × 1080 AVIF frame
+ * took 13 ms to decode against 5 to 9 for a 1600 × 900 WebP one, and on a busy
+ * machine the picture then stepped several frames at a time behind the scroll.
  *
  * Steps (words over the picture, say): `data-sg-steps="0.25 0.7"` on the root
  * names where the movement passes from one to the next (as parts of it). The
@@ -68,8 +64,8 @@ const RUN = 0.85;
 /** Frames being decoded at once. */
 const DECODING = 2;
 /**
- * Decoded frames kept: at most ten, and at most this many bytes. Seven wide frames of 1920 × 1080 (58 MB), ten of
- * 1600 × 900 (58 MB), ten tall ones of 720 × 1560 (45 MB).
+ * Decoded frames kept: at most ten, and at most this many bytes. Ten wide frames of 1600 × 900 are 58 MB, ten tall
+ * ones of 720 × 1560 are 45 MB.
  */
 const KEEP = 64e6;
 /** How many screen frames ahead of the scroll the decoding aims, and at most how many pictures. */
@@ -113,9 +109,9 @@ function connect(receive: (message: FromLoader) => void): Promise<(message: ToLo
 export function mountSequence(root: HTMLElement): void {
   const stage = root.querySelector<HTMLElement>("[data-sg-stage]");
   const picture = root.querySelector("picture");
-  const nominal = Number(root.dataset.frames);
+  const count = Number(root.dataset.frames);
   const sets = [...root.querySelectorAll<Framed>("[data-sg-frames]")];
-  if (!stage || !picture || !sets.length || !(nominal > 1) || root.dataset.sgState) return;
+  if (!stage || !picture || !sets.length || !(count > 1) || root.dataset.sgState) return;
   const at = root.querySelector("[data-sg-at]");
   const thresholds = (root.dataset.sgSteps ?? "").split(/\s+/).filter(Boolean).map(Number);
   const total = at?.textContent ?? "";
@@ -127,17 +123,11 @@ export function mountSequence(root: HTMLElement): void {
   const context = canvas.getContext("2d", { alpha: false });
   if (!context) return;
 
-  // The frames this screen uses: the sets under the first media query that matches, as the <picture> chose its first frame.
-  const media = (set: Framed) => (set instanceof HTMLSourceElement ? set.media : "");
-  const queries = sets.map((set) => (media(set) ? matchMedia(media(set)) : null));
-  const choose = () => {
-    const first = sets[queries.findIndex((query) => !query || query.matches)] ?? sets[sets.length - 1];
-    return sets.filter((set) => media(set) === media(first));
-  };
-  const frames = (set: Framed) => Number(set.dataset.frames) || nominal;
+  // The frames this screen uses: the first set whose media matches, as the <picture> chose its first frame.
+  const queries = sets.map((set) => (set instanceof HTMLSourceElement && set.media ? matchMedia(set.media) : null));
+  const choose = () => sets[queries.findIndex((query) => !query || query.matches)] ?? sets[sets.length - 1];
 
-  let offered: Framed[] = [];
-  let count = nominal;
+  let set: Framed | null = null;
   let generation = 0;
   const loaded = new Set<number>();
   const bitmaps = new Map<number, ImageBitmap>();
@@ -151,7 +141,7 @@ export function mountSequence(root: HTMLElement): void {
   let lead = 0;
   let tick = 0;
   let stageHeight = 0;
-  let frameWidth = 0;
+  let frameWidth = 1;
   let frameHeight = 1;
 
   const keep = () => Math.max(4, Math.min(10, count, Math.floor(KEEP / (frameWidth * frameHeight * 4))));
@@ -173,7 +163,7 @@ export function mountSequence(root: HTMLElement): void {
   const fit = () => {
     const width = stage.clientWidth;
     stageHeight = stage.clientHeight;
-    if (!width || !stageHeight || !frameWidth) return;
+    if (!width || !stageHeight) return;
     const ratio = Math.min(window.devicePixelRatio || 1, 1 / Math.max(width / frameWidth, stageHeight / frameHeight));
     canvas.width = Math.round(width * ratio);
     canvas.height = Math.round(stageHeight * ratio);
@@ -235,7 +225,7 @@ export function mountSequence(root: HTMLElement): void {
     const progress = next / (count - 1);
     canvas.dataset.frame = String(Math.round(next * 100) / 100);
     root.style.setProperty("--sg-p", progress.toFixed(4));
-    if (at) at.textContent = String(Math.round(progress * (nominal - 1)) + 1).padStart(total.length, "0");
+    if (at) at.textContent = String(Math.round(next) + 1).padStart(total.length, "0");
     follow(progress);
     if (root.dataset.sgState !== "live") {
       canvas.style.opacity = "1";
@@ -250,7 +240,7 @@ export function mountSequence(root: HTMLElement): void {
   const cost = (index: number) => (Math.abs(index - wanted) < 1 ? 0 : Math.abs(index - wanted - lead));
   /** Keeps decoded the frames nearest the one wanted, asks for the next of them, and lets the others go. */
   const decode = () => {
-    if (!running || !seen || !frameWidth) return;
+    if (!running || !seen) return;
     const near = [...loaded].sort((a, b) => cost(a) - cost(b)).slice(0, keep());
     for (const [index, bitmap] of bitmaps) {
       if (near.includes(index)) continue;
@@ -271,15 +261,7 @@ export function mountSequence(root: HTMLElement): void {
       return;
     }
     const { index } = message;
-    if (message.type === "set") {
-      // The format is settled: its frames' size and number.
-      const set = offered[index];
-      count = frames(set);
-      frameWidth = Number(set.getAttribute("width")) || 1;
-      frameHeight = Number(set.getAttribute("height")) || 1;
-      fit();
-      wanted = measure();
-    } else if (message.type === "loaded") {
+    if (message.type === "loaded") {
       loaded.add(index);
       root.dataset.sgLoaded = String(loaded.size);
     } else if (message.type === "frame") {
@@ -301,7 +283,7 @@ export function mountSequence(root: HTMLElement): void {
 
   const update = () => {
     tick = 0;
-    if (!running || !frameWidth) return;
+    if (!running) return;
     const next = measure();
     if (next !== wanted) {
       lead = Math.max(-FURTHEST, Math.min(FURTHEST, (next - wanted) * LEAD));
@@ -317,24 +299,21 @@ export function mountSequence(root: HTMLElement): void {
   /** Starts on the frames this screen needs; called again when the screen crosses to another shape. */
   const begin = () => {
     const next = choose();
-    if (next[0] === offered[0]) return;
-    offered = next;
+    if (next === set) return;
+    set = next;
     generation++;
     release();
     decoding.clear();
     loaded.clear();
-    frameWidth = 0;
+    frameWidth = Number(set.getAttribute("width")) || 1;
+    frameHeight = Number(set.getAttribute("height")) || 1;
     canvas.style.opacity = "0";
     root.dataset.sgState = "ready";
+    fit();
     // Absolute addresses: a worker would read relative ones against its own script.
-    tell({
-      type: "load",
-      generation,
-      sets: offered.map((set) => {
-        const digits = String(frames(set) - 1).length;
-        return Array.from({ length: frames(set) }, (_, index) => new URL(set.dataset.sgFrames!.replace("{n}", String(index).padStart(digits, "0")), document.baseURI).href);
-      }),
-    });
+    const pattern = set.dataset.sgFrames!;
+    const urls = Array.from({ length: count }, (_, index) => new URL(pattern.replace("{n}", String(index).padStart(2, "0")), document.baseURI).href);
+    tell({ type: "load", generation, urls });
   };
 
   const onScroll = () => schedule();
@@ -369,7 +348,7 @@ export function mountSequence(root: HTMLElement): void {
     seen = false;
     // Whatever is still on its way is dropped; a later start fetches again (from the browser's cache).
     generation++;
-    offered = [];
+    set = null;
     tell({ type: "stop" });
     removeEventListener("scroll", onScroll);
     watcher.disconnect();

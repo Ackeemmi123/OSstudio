@@ -8,18 +8,19 @@
  * Two steps. The tool page draws every picture once, as a lossless master
  * (Chrome's WebP at quality 1 is lossless), larger than any set that is
  * saved. Then sharp (libvips, a dev dependency: nothing of it reaches a site)
- * scales and encodes each master here in Node. Wide: AVIF, which Chrome's
- * canvas cannot write, for every picture, and WebP for every second picture,
- * for the browsers that cannot read AVIF. Phones: WebP for every second
- * picture, since AVIF decodes too slowly there. All end on the same picture.
+ * scales and encodes each master here in Node, as WebP: libwebp at its
+ * greatest effort, from a lossless picture, makes the same quality about 5 %
+ * smaller than Chrome's canvas did, which the phone's set spends on a higher
+ * quality (72, where the canvas had room for 66). AVIF was tried and left:
+ * a browser takes two to three times as long to decode it, and the picture
+ * then fell behind the scroll on a busy machine.
  *
  * Needs the dev server: `npm run dev`, then `node scripts/render-sequence.mjs`
  * (or pass its address). `ONLY=telefon` renders just that shape;
- * `FRAMES=0,60,120` just those pictures, and `OUT=/some/folder` writes them
+ * `FRAMES=0,30,60` just those pictures, and `OUT=/some/folder` writes them
  * there instead of the lab, for trying settings. The masters are kept in
  * node_modules/.cache/sekvens/ (about 400 MB): `MASTERS=keep` encodes from
- * them again without drawing, to try another quality (`AVIF_Q`, `WEBP_Q`
- * for the phone's) or width (`AVIF_W`).
+ * them again without drawing, to try another quality.
  */
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
@@ -35,8 +36,7 @@ const MASTERS = fileURLToPath(new URL("../node_modules/.cache/sekvens/", import.
 const SUPERSAMPLE = 2;
 // The library's colours: ink, tint, metal, glow (as on its band and its film).
 const COLOURS = ["#151922", "#4a5bb5", "#c9d9f0", "#879dc7"];
-// One more than a multiple of two, so every second picture is a set that starts and ends where the full one does.
-const FRAMES = 121;
+const FRAMES = 61;
 const ONLY_FRAMES = process.env.FRAMES?.split(",").map(Number);
 /** Masters drawn per visit to the tool page: they come back as one message, and a lossless picture is a megabyte or two. */
 const BATCH = 6;
@@ -49,11 +49,7 @@ const BATCH = 6;
  */
 const SHARED = { frames: FRAMES, supersample: SUPERSAMPLE, colours: COLOURS, from: 8, to: 12, loop: 12, tilt: 0.3, fade: [0.14, 0.08], quality: 1 };
 
-/**
- * What is saved from each master. `every: 2` keeps every second picture. AVIF: `quality` is libaom's, `effort` how
- * hard it tries (more than 4 saved 2 %). The wide AVIF is 1920 × 1080 at 4:2:0 because of how long a browser takes
- * to decode it, which is what a scroll shows: 13 ms a picture in Chrome here, against 15 at 4:4:4 and 24 at 2400 × 1350.
- */
+/** What is saved from each master: its width, and libwebp's quality and effort (6 is the most). */
 const SEQUENCES = [
   {
     name: "bred",
@@ -63,8 +59,7 @@ const SEQUENCES = [
     zoom: 1.0,
     push: 1.55,
     outputs: [
-      { format: "avif", width: Number(process.env.AVIF_W ?? 1920), every: 1, options: { quality: Number(process.env.AVIF_Q ?? 46), effort: 4, chromaSubsampling: "4:2:0" } },
-      { format: "webp", width: 1600, every: 2, options: { quality: 80, effort: 6 } },
+      { format: "webp", width: 1600, every: 1, options: { quality: 80, effort: 6 } },
     ],
   },
   // Tall for phones, in a phone's own shape (19.5:9), so the band is never cut at the sides; the extra height is
@@ -77,7 +72,7 @@ const SEQUENCES = [
     zoom: 0.78,
     push: 0.98 / 0.78,
     outputs: [
-      { format: "webp", width: 720, every: 2, options: { quality: Number(process.env.WEBP_Q ?? 72), effort: 6 } },
+      { format: "webp", width: 720, every: 1, options: { quality: 72, effort: 6 } },
     ],
   },
 ].map((sequence) => ({ ...SHARED, ...sequence }));
