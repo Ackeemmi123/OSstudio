@@ -115,6 +115,7 @@ async function encode(sequence, output) {
   const digits = String(count - 1).length;
   const folder = join(OUT, sequence.folder);
   mkdirSync(folder, { recursive: true });
+  const height = Math.round((output.width / sequence.width) * sequence.height);
   let bytes = 0;
   let next = 0;
   const work = async () => {
@@ -122,16 +123,16 @@ async function encode(sequence, output) {
       const index = indexes[next++];
       const from = master(sequence, index);
       if (!existsSync(from)) throw new Error(`No master ${from}: run without MASTERS=keep`);
-      const picture = sharp(readFileSync(from));
-      const { width } = await picture.metadata();
-      if (width !== output.width) picture.resize({ width: output.width, kernel: "lanczos3" });
+      // Every picture at exactly the set's size. The push in cuts each master with rounded sides, so a master can be
+      // a pixel shorter or taller than the next; scaled by width alone the set would then change shape by a pixel
+      // from frame to frame, and the canvas, which covers the stage with each picture, would twitch with it.
+      const picture = sharp(readFileSync(from)).resize({ width: output.width, height, fit: "fill", kernel: "lanczos3" });
       const data = await picture[output.format](output.options).toBuffer();
       bytes += data.length;
       writeFileSync(join(folder, `${String(index / output.every).padStart(digits, "0")}.${output.format}`), data);
     }
   };
   await Promise.all(Array.from({ length: 4 }, work));
-  const height = Math.round((output.width / sequence.width) * sequence.height);
   console.log(
     `${sequence.folder}: ${indexes.length} of ${count} ${output.format} at ${output.width} × ${height}, ${Math.round(bytes / 1024)} KB (${(bytes / 1024 / indexes.length).toFixed(1)} KB each), ${Math.round((Date.now() - started) / 1000)} s`,
   );
