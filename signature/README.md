@@ -259,7 +259,7 @@ makes. A hand-built site's map is in `tests/fixtures/layer-site/`.
 ### Proof
 
 ```bash
-npx vitest run proof/concepts/industry-examples.render.ts   # in the repository's top folder: the invented examples
+npx vitest run -c vitest.proof.config.mts proof/concepts/industry-examples.render.ts   # in the repository's top folder: the invented examples
 npm run layer-proof                                         # in signature/: enhance them and photograph base and enhanced
 npm run layer-proof -- name=<builtSiteDir>[:preset] …       # any other built sites
 ```
