@@ -12,7 +12,16 @@ export interface OfferLine {
   /** Euros without VAT. */
   price: number;
   unit: "once" | "month" | "year";
+  /**
+   * Axivo Signature, the motion add-on: the line is written in the offer's language (so it follows a change of
+   * language), and the offer lists what it includes. Its price is the person's to set on each offer.
+   */
+  kind?: OfferLineKind;
 }
+
+/** Axivo Signature's two levels: the motion that comes with the tick in Studio OS, and parts made to measure. */
+export const OFFER_LINE_KINDS = ["signature", "signature-custom"] as const;
+export type OfferLineKind = (typeof OFFER_LINE_KINDS)[number];
 
 export interface OfferInput {
   language: OfferLanguage;
@@ -79,6 +88,13 @@ interface Words {
   paymentTitle: string;
   contact: string;
   businessId: string;
+  /** The line for each level of Axivo Signature. */
+  lineKinds: Record<OfferLineKind, string>;
+  includedSignature: string;
+  /** What the Signature tick gives a site (as signature/layer/maps applies it). */
+  signatureItems: readonly string[];
+  /** Under the made-to-measure line: what it can be, and that it is described before work starts. */
+  signatureCustomNote: string;
 }
 
 export const OFFER_WORDS: Record<OfferLanguage, Words> = {
@@ -127,6 +143,10 @@ export const OFFER_WORDS: Record<OfferLanguage, Words> = {
     payment: "50 % sopimuksen allekirjoituksen yhteydessä ja 50 %, kun sivusto on julkaistu. Maksuaika 14 päivää laskun päiväyksestä.",
     contact: "Kysyttävää? Vastaamme yhden arkipäivän sisällä.",
     businessId: "Y-tunnus",
+    lineKinds: { signature: "Axivo Signature: toimialallenne sovitettu liike", "signature-custom": "Axivo Signature, räätälöidyt osat sovitun mukaan" },
+    includedSignature: "Axivo Signatureen sisältyy",
+    signatureItems: ["Otsikot nousevat esiin", "Kuvat saapuvat paikoilleen", "Sisältö liukuu esiin lukujärjestyksessä", "Luvut laskevat esiin, jos sivustolla on niitä", "Yhteydenottopainike kulkee mukana", "Sama sivu liikkumattomana niille, jotka ovat valinneet vähemmän liikettä"],
+    signatureCustomNote: "Räätälöidyt osat, esimerkiksi pinoutuvat kortit, kuvallinen valikko tai koodilla tehdyt filmit, kuvataan kirjallisesti ennen työn aloittamista.",
   },
   sv: {
     title: "Offert",
@@ -173,6 +193,10 @@ export const OFFER_WORDS: Record<OfferLanguage, Words> = {
     payment: "50 % när avtalet undertecknas och 50 % när webbplatsen har publicerats. Betalningstid 14 dagar från fakturadatum.",
     contact: "Frågor? Vi svarar inom en arbetsdag.",
     businessId: "FO-nummer",
+    lineKinds: { signature: "Axivo Signature: rörelse anpassad till er bransch", "signature-custom": "Axivo Signature, skräddarsydda delar enligt överenskommelse" },
+    includedSignature: "Axivo Signature innehåller",
+    signatureItems: ["Rubriker som stiger fram", "Bilder som kommer på plats", "Innehåll som glider in i läsordning", "Siffror som räknas upp, där sajten har sådana", "En kontaktknapp som följer med", "Samma sida, bara stilla, för den som valt mindre rörelse"],
+    signatureCustomNote: "De skräddarsydda delarna, till exempel staplade kort, en meny med bilder eller filmer gjorda i kod, beskrivs skriftligt innan arbetet börjar.",
   },
   en: {
     title: "Offer",
@@ -219,6 +243,10 @@ export const OFFER_WORDS: Record<OfferLanguage, Words> = {
     payment: "50% when the agreement is signed and 50% when the website is live. Payment within 14 days of the invoice date.",
     contact: "Questions? We answer within one working day.",
     businessId: "Business ID",
+    lineKinds: { signature: "Axivo Signature: motion fitted to your industry", "signature-custom": "Axivo Signature, made-to-measure parts as agreed" },
+    includedSignature: "Axivo Signature includes",
+    signatureItems: ["Headlines that rise into place", "Pictures that arrive", "Content that slides in, in reading order", "Numbers that count up, where the site has them", "A contact button that stays close", "The same page, still, for visitors who choose less motion"],
+    signatureCustomNote: "The made-to-measure parts, for example stacked cards, a menu with pictures or films made in code, are described in writing before the work starts.",
   },
 };
 
@@ -253,7 +281,9 @@ const addDays = (iso: string, days: number) => new Date(Date.parse(`${iso}T12:00
 /** The offer with its lines and totals worked out. */
 export function buildOffer(input: OfferInput): Offer {
   const w = OFFER_WORDS[input.language];
-  const extras = input.extras.filter((line) => line.label.trim()).map((line) => ({ ...line, label: line.label.trim(), price: Math.max(0, line.price) }));
+  const extras = input.extras
+    .filter((line) => line.kind || line.label.trim())
+    .map((line) => ({ ...line, label: line.kind ? w.lineKinds[line.kind] : line.label.trim(), price: Math.max(0, line.price) }));
   const lines: OfferLine[] = [{ label: w.website, price: Math.max(0, input.website), unit: "once" }, ...extras];
   const onceTotal = lines.filter((line) => line.unit === "once").reduce((sum, line) => sum + line.price, 0);
   const onceVat = Math.round(onceTotal * input.vatPercent) / 100;
@@ -264,6 +294,11 @@ export function buildOffer(input: OfferInput): Offer {
         ? { label: w.upkeepYear, price: input.upkeep.yearly, unit: "year" }
         : null;
   return { ...input, extras, validUntil: addDays(input.date, input.validDays), lines, onceTotal, onceVat, recurring };
+}
+
+/** Axivo Signature lines still without a price: the offer is not ready to print or send while there are any. */
+export function unpricedLines(offer: Offer): OfferLine[] {
+  return offer.lines.filter((line) => line.kind && !(line.price > 0));
 }
 
 /** The opening paragraph, in the offer's language, until the person writes their own. */

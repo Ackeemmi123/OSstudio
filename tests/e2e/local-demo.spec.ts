@@ -202,3 +202,32 @@ test("makes a written offer from the published prices, in the client's language"
   expect(mail).toContain("subject=Offer: ");
   expect(mail).toContain("One-off €1,500 (VAT 0%) and maintenance €49/month (VAT 0%).");
 });
+
+test("offers Axivo Signature at two levels, priced by the person, in the offer's language", async ({ page }) => {
+  await page.goto("/clients/demo-nordvik/offer");
+  const offer = page.getByTestId("offer-document");
+  await expect(offer).toContainText("Tarjous");
+
+  await page.getByRole("button", { name: "Axivo Signature", exact: true }).click();
+  await page.getByRole("button", { name: "Signature, made to measure" }).click();
+  // Each level is added once; its price is the person's to set, and until then nothing can be printed or sent.
+  await expect(page.getByRole("button", { name: "Axivo Signature", exact: true })).toHaveCount(0);
+  await expect(page.getByTestId("offer-unpriced")).toContainText("Set the price of Axivo Signature and Axivo Signature, made to measure");
+  await expect(page.getByRole("button", { name: "Print or save as PDF" })).toBeDisabled();
+
+  await page.getByLabel("Price of Axivo Signature").fill("1800");
+  await page.getByLabel("Price of Signature, made to measure").fill("2400");
+  await expect(page.getByTestId("offer-unpriced")).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Print or save as PDF" })).toBeEnabled();
+  await expect(offer).toContainText("Axivo Signature: toimialallenne sovitettu liike");
+  await expect(offer).toContainText("Axivo Signatureen sisältyy");
+  await expect(offer).toContainText("5 200 €");
+
+  // The lines follow the offer's language; the prices stay.
+  await page.getByLabel("Language", { exact: true }).selectOption("sv");
+  await expect(offer).toContainText("Axivo Signature: rörelse anpassad till er bransch");
+  await expect(offer).toContainText("Axivo Signature, skräddarsydda delar enligt överenskommelse");
+  await expect(offer).toContainText("De skräddarsydda delarna");
+  const mail = decodeURIComponent((await page.getByTestId("offer-email").getAttribute("href")) ?? "");
+  expect(mail).toContain("Engångsavgift 5 200 € (moms 0 %)");
+});
