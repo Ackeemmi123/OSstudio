@@ -218,6 +218,20 @@ function Preview({
           <StatusLabel tone={STATUS_TONES[record.status]}>{record.status === "approved" ? "Approved" : `${SITE_SPEC_STATUS_LABELS[record.status]} · not published`}</StatusLabel>
           <span>Internal preview. Fonts use system fallbacks; images load through links that expire after 15 minutes; links don&apos;t navigate, so choose pages here.</span>
         </div>
+        {parsed.ok && parsed.spec.brand.concept?.signatureMotion ? (
+          // The preview frame runs no scripts (it shows content from drafts and clients), so Signature's motion can't play here.
+          <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[13px] text-ink-subtle" data-testid="preview-signature-note">
+            <StatusLabel tone="accent">Axivo Signature motion on</StatusLabel>
+            <span>The motion shows on a review link, not in this preview.</span>
+            {record.status === "approved" ? (
+              <Link href={`${specHref}#site-builds`} className="text-ink underline underline-offset-2">
+                Build or open a review link
+              </Link>
+            ) : (
+              <span>Approve this version to build a review link.</span>
+            )}
+          </p>
+        ) : null}
       </div>
 
       {!rendered ? (
