@@ -181,7 +181,7 @@ function Preview({
     if (design === "association") {
       try {
         const files = Object.fromEntries(parsed.spec.assets.flatMap((asset) => (asset.fileId && imageFiles[asset.fileId] ? [[asset.id, imageFiles[asset.fileId].url]] : [])));
-        return { model, html: associationPreview(parsed.spec, { files, today: new Date() }, model.page.id).html, designError: null };
+        return { model, html: associationPreview(parsed.spec, { files, today: new Date() }, model.page.id, model.lang).html, designError: null };
       } catch (error) {
         return { model, html: renderPreviewDocument(parsed.spec, model), designError: error instanceof Error ? error.message : String(error) };
       }

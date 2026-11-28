@@ -219,6 +219,18 @@ describe("association design system", () => {
       expect(page(files, "kontakt/index.html")).not.toContain('name="back"');
     });
 
+    it("previews one language at a time: the main one even before the translation is done", () => {
+      const fi = previewPage(twoLanguages(), { files: {}, today: options.today }, "events", "fi");
+      expect(fi.html).toContain('<html lang="fi">');
+      expect(fi.html).toContain("Syyskokous");
+      const source = twoLanguages();
+      (source.pages[1].title as Record<string, string>).fi = "";
+      expect(previewPage(source, { files: {}, today: options.today }, "events", "sv").html).toContain('<html lang="sv">');
+      expect(() => previewPage(source, { files: {}, today: options.today }, "events", "fi")).toThrow(/no fi version yet \(pages\.1\.title\)/);
+      // A language the site does not have: its main one.
+      expect(previewPage(twoLanguages(), { files: {}, today: options.today }, "events", "de").html).toContain('<html lang="sv">');
+    });
+
     it("refuses to build while a text is missing in the second language, and says which", () => {
       const source = twoLanguages();
       (source.pages[1].title as Record<string, string>).fi = "";

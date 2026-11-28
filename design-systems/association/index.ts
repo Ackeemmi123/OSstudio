@@ -44,6 +44,8 @@ export interface AssociationOptions {
   madeBy?: string;
   /** A preview draws an image without a file as a labelled box; a build refuses it. */
   missingImages?: "refuse" | "box";
+  /** Only this one of the site's languages (Studio OS's preview draws one at a time). A build makes them all. */
+  language?: Locale;
 }
 
 export interface BuiltFile {
@@ -476,10 +478,12 @@ export function build(input: unknown, options: AssociationOptions): BuiltFile[] 
   const spec = siteSpecSchema.parse(input);
   const main = spec.locales.default;
   // The main language first; then the others, each complete.
-  const languages = [main, ...spec.locales.available.filter((locale) => locale !== main)];
-  for (const locale of languages.slice(1)) {
+  const all = [main, ...spec.locales.available.filter((locale) => locale !== main)];
+  if (options.language && !all.includes(options.language)) throw new Error(`The site has no ${options.language} version.`);
+  const languages = options.language ? [options.language] : all;
+  for (const locale of languages.filter((locale) => locale !== main)) {
     const missing = missingTranslations(spec, locale);
-    if (missing.length) throw new Error(`The site is in ${languages.join(" and ")}, but ${missing.length} ${missing.length === 1 ? "text has" : "texts have"} no ${locale} version yet (${missing.slice(0, 3).join(", ")}${missing.length > 3 ? ", …" : ""}). Write them, or take ${locale} off the site's languages.`);
+    if (missing.length) throw new Error(`The site is in ${all.join(" and ")}, but ${missing.length} ${missing.length === 1 ? "text has" : "texts have"} no ${locale} version yet (${missing.slice(0, 3).join(", ")}${missing.length > 3 ? ", …" : ""}). Write them, or take ${locale} off the site's languages.`);
   }
   const siteFor = (locale: Locale): Site => ({ spec, options, locale, root: rootOf(spec, locale), chrome: CHROME[locale], pagesById: new Map(spec.pages.map((page) => [page.id, page])), ctaPageId: spec.strategy.primaryCta?.targetPageId });
   const first = siteFor(main);
@@ -500,12 +504,15 @@ export function build(input: unknown, options: AssociationOptions): BuiltFile[] 
  * One page as a single document for Studio OS's sandboxed preview frame: the
  * stylesheet inline, images through the given links, missing images as boxes.
  */
-export function previewPage(input: unknown, options: Omit<AssociationOptions, "status" | "missingImages">, pageId?: string): { html: string; pageId: string } {
+export function previewPage(input: unknown, options: Omit<AssociationOptions, "status" | "missingImages" | "language">, pageId?: string, locale?: string): { html: string; pageId: string } {
   const spec = siteSpecSchema.parse(input);
   const page = spec.pages.find((entry) => entry.id === pageId) ?? spec.pages[0];
-  const files = build(spec, { ...options, documents: undefined, status: "prototype", missingImages: "box" });
-  const slug = page.slug[spec.locales.default] ?? "";
-  const html = files.find((file) => file.path === (slug ? `${slug}/index.html` : "index.html"))!.text;
+  // The language chosen in the preview, if the site has it; otherwise its main one.
+  const language = spec.locales.available.find((entry) => entry === locale) ?? spec.locales.default;
+  const files = build(spec, { ...options, documents: undefined, status: "prototype", missingImages: "box", language });
+  const slug = page.slug[language] ?? "";
+  const path = `${rootOf(spec, language).slice(1)}${slug ? `${slug}/` : ""}index.html`;
+  const html = files.find((file) => file.path === path)!.text;
   const css = files.find((file) => file.path === "site.css")!.text;
   return { pageId: page.id, html: html.replace('<link rel="stylesheet" href="/site.css">', `<style>${css}</style>`) };
 }
