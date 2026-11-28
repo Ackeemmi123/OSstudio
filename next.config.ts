@@ -6,10 +6,14 @@ const nextConfig: NextConfig = {
   cacheComponents: true,
   partialPrefetching: true,
   poweredByHeader: false,
-  // The company design's fonts are copied into every site it builds.
+  // The company design's fonts are copied into every site it builds. sharp makes each site's pictures
+  // (src/server/site-builds/images.ts): Next.js never bundles it (it is on its own list of server
+  // packages loaded from node_modules), and its native binary and libvips (node_modules/@img, chosen
+  // per platform when it is installed) are named here, so the two routes that build never depend on
+  // the tracer following its optional packages.
   outputFileTracingIncludes: {
-    "/api/site-builds": ["./design-systems/services/fonts/**"],
-    "/api/site-publish": ["./design-systems/services/fonts/**"],
+    "/api/site-builds": ["./design-systems/services/fonts/**", "./node_modules/sharp/**", "./node_modules/@img/**"],
+    "/api/site-publish": ["./design-systems/services/fonts/**", "./node_modules/sharp/**", "./node_modules/@img/**"],
   },
   // Baseline protections for every page and API route. Studio OS is never
   // embedded in another site and uses no camera, microphone or location.

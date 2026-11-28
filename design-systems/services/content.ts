@@ -25,6 +25,8 @@ const asset = z.strictObject({
   licence: words(120),
   /** Whether a person is recognisable, so consent can be asked for. */
   showsPerson: z.boolean(),
+  /** The same picture at several widths, narrowest first: files in the site's folder, for the browser to choose from. */
+  variants: z.array(z.strictObject({ src: words(300), width: z.number().int().positive() })).min(1).max(8).optional(),
 });
 
 const seo = z.strictObject({ title: words(70), description: words(170) });

@@ -49,16 +49,86 @@ function imageUrl(asset: Asset, width: number, ratio?: number): string {
   return `${asset.src}?w=${width}&q=72&auto=format${crop}`;
 }
 
-export function Picture({ asset, ratio, sizes, widths, first, className }: { asset: Asset; ratio: number; sizes: string; widths: number[]; first?: boolean; className?: string }) {
+/** The files a browser may choose from: stock pictures by address, a built site's own pictures as the build wrote them. */
+function sourceSet(asset: Asset, widths: number[], ratio: number): string | undefined {
+  if (asset.src.startsWith(STOCK_HOST)) return widths.map((width) => `${imageUrl(asset, width, ratio)} ${width}w`).join(", ");
+  return asset.variants?.map((variant) => `${variant.src} ${variant.width}w`).join(", ");
+}
+
+/**
+ * `sizes` with its widths multiplied: by one number, or by one for each entry. A picture is cropped to
+ * fill its place, so one that is wider in shape than the place (a landscape photo in a portrait
+ * frame) is drawn wider than the frame is.
+ */
+export function widerSizes(sizes: string, by: number | number[]): string {
+  const entries: string[] = [];
+  let depth = 0;
+  let entry = "";
+  for (const char of sizes) {
+    if (char === "(") depth += 1;
+    if (char === ")") depth -= 1;
+    if (char === "," && depth === 0) {
+      entries.push(entry);
+      entry = "";
+    } else entry += char;
+  }
+  entries.push(entry);
+  return entries
+    .map((text, n) => {
+      const trimmed = text.trim();
+      const factor = Array.isArray(by) ? (by[n] ?? by[by.length - 1]) : by;
+      if (!(factor > 1.02)) return trimmed;
+      // The width is what follows the last space outside brackets; before it, the condition.
+      let at = -1;
+      depth = 0;
+      for (let i = 0; i < trimmed.length; i += 1) {
+        if (trimmed[i] === "(") depth += 1;
+        if (trimmed[i] === ")") depth -= 1;
+        if (trimmed[i] === " " && depth === 0) at = i;
+      }
+      return `${trimmed.slice(0, at + 1)}calc(${trimmed.slice(at + 1)} * ${Math.round(factor * 100) / 100})`;
+    })
+    .join(", ");
+}
+
+/**
+ * A hero's photo behind the words fills the whole section: as wide as the screen, and about twice
+ * as tall as wide on a phone, where the words stack.
+ */
+const FULL_HERO: Place = { sizes: "(max-width: 520px) 100vw, (max-width: 820px) 100vw, 100vw", frame: [0.5, 0.9, 1.5] };
+
+interface Place {
+  sizes: string;
+  frame?: number | number[];
+}
+
+/** Where a direction's hero photo is drawn: its own place beside the words, or (`full`) behind them. */
+export function heroPlace(design: SiteDesign, sizes: string, frame?: number | number[], full: Place = FULL_HERO): Place {
+  return design.hero === "full" ? full : { sizes, frame };
+}
+
+/**
+ * `sizes` is how wide the picture's place is (read from the stylesheet), so the browser fetches the
+ * narrowest file that fills it. `frame` is the place's shape, width over height, when the stylesheet
+ * gives it another than `ratio`: one number, or one for each entry of `sizes`; "own" when the picture
+ * keeps its own shape and is never cropped. `width` and `height` only hold its shape before it loads.
+ */
+export function Picture({ asset, ratio, sizes, frame, widths, first, className }: { asset: Asset; ratio: number; sizes: string; frame?: number | number[] | "own"; widths: number[]; first?: boolean; className?: string }) {
   const largest = widths[widths.length - 1];
+  const shape = asset.width / asset.height;
+  const frames = frame ?? ratio;
+  // Only a built site's own pictures: a stock picture is cropped to the ratio where it is served.
+  const drawn = asset.variants && frames !== "own" ? widerSizes(sizes, Array.isArray(frames) ? frames.map((one) => shape / one) : shape / frames) : sizes;
   return (
     // Static HTML for a published site, with no framework behind it.
     // eslint-disable-next-line @next/next/no-img-element
     <img
       className={className}
       src={imageUrl(asset, largest, ratio)}
-      srcSet={asset.src.startsWith(STOCK_HOST) ? widths.map((width) => `${imageUrl(asset, width, ratio)} ${width}w`).join(", ") : undefined}
-      sizes={sizes}
+      srcSet={sourceSet(asset, widths, ratio)}
+      sizes={drawn}
+      // A picture that keeps its own shape keeps the upload's exactly, whichever width is fetched (a narrower file's height is rounded to a whole pixel).
+      style={asset.variants && frames === "own" ? { aspectRatio: `${asset.width} / ${asset.height}` } : undefined}
       alt={asset.alt}
       width={largest}
       height={Math.round(largest / ratio)}
@@ -343,7 +413,7 @@ export function AboutPage({ context }: { context: PageContext }) {
       </section>
       {image ? (
         <figure className="wide-image">
-          <Picture asset={image} ratio={2} sizes="100vw" widths={[800, 1400, 2000]} first />
+          <Picture asset={image} ratio={2} sizes="(max-width: 820px) 100vw, 100vw" frame={[4 / 3, 2]} widths={[800, 1400, 2000]} first />
         </figure>
       ) : null}
       <section className="story" aria-label={about.label}>
@@ -362,7 +432,7 @@ export function AboutPage({ context }: { context: PageContext }) {
               const photo = find(content, person.imageId);
               return (
                 <li key={person.name} className={photo ? "person" : "person person--no-photo"}>
-                  {photo ? <Picture asset={photo} ratio={4 / 5} sizes="(max-width: 820px) 100vw, 40vw" widths={[480, 800]} /> : null}
+                  {photo ? <Picture asset={photo} ratio={4 / 5} sizes="(max-width: 560px) calc(100vw - 40px), (max-width: 820px) 46vw, 40vw" widths={[480, 800]} /> : null}
                   <h3>{person.name}</h3>
                   <p>{person.role.text}</p>
                 </li>
@@ -577,7 +647,7 @@ export function ProjectPage({ context }: { context: PageContext }) {
       </section>
       {first ? (
         <figure className="wide-image project-lead-image">
-          <Picture asset={first} ratio={16 / 9} sizes="100vw" widths={[800, 1400, 2000]} first />
+          <Picture asset={first} ratio={16 / 9} sizes="(max-width: 820px) 100vw, 100vw" frame={[4 / 3, 2]} widths={[800, 1400, 2000]} first />
         </figure>
       ) : null}
       {project.text.length ? (
@@ -591,7 +661,7 @@ export function ProjectPage({ context }: { context: PageContext }) {
         <div className="project-pictures" data-count={rest.length}>
           {rest.map((asset, i) => (
             <figure key={asset.id} className={`project-picture project-picture--${(i % 3) + 1}`}>
-              <Picture asset={asset} ratio={[4 / 5, 4 / 3, 3 / 2][i % 3]} sizes="(max-width: 820px) 100vw, 50vw" widths={[480, 800, 1200]} />
+              <Picture asset={asset} ratio={[4 / 5, 4 / 3, 3 / 2][i % 3]} sizes={`(max-width: 820px) calc(100vw - 40px), ${rest.length === 1 ? "62vw" : ["47vw", "38vw", "62vw"][i % 3]}`} widths={[480, 800, 1200]} />
             </figure>
           ))}
         </div>

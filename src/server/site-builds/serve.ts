@@ -40,9 +40,11 @@ export function filePath(segments: readonly string[]): string | null {
   return /\.[a-z0-9]{2,5}$/i.test(joined) ? joined : `${joined}/index.html`;
 }
 
-/** Root links and sources ("/x/", "/img/a.jpg") moved under the link's prefix. */
+/** Root links and sources ("/x/", "/img/a.jpg", each file in a srcset) moved under the link's prefix. */
 export function underPrefix(html: string, prefix: string): string {
-  return html.replace(/\b(href|src)="\/(?!\/)/g, `$1="${prefix}/`);
+  return html
+    .replace(/\b(href|src)="\/(?!\/)/g, `$1="${prefix}/`)
+    .replace(/\bsrcset="([^"]*)"/g, (_match, list: string) => `srcset="${list.replace(/(^|,\s*)\/(?!\/)/g, `$1${prefix}/`)}"`);
 }
 
 function text(status: number, message: string) {

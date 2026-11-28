@@ -5,7 +5,7 @@
  * note. Everything comes from the content; nothing is drawn when it is missing.
  */
 import type { SiteContent } from "./content";
-import { Action, CHROME, Closing, Frame, Headline, OpeningHours, Picture, Proof, Questions, displayTier, find, type PageContext } from "./pages";
+import { Action, CHROME, Closing, Frame, Headline, OpeningHours, Picture, Proof, Questions, displayTier, find, heroPlace, type PageContext } from "./pages";
 import { Signature } from "./signature";
 
 /** The first priced item is what the note on the photo shows; without one, the reassurance line, or nothing. */
@@ -51,7 +51,7 @@ function Hero({ context }: { context: PageContext }) {
         <figure className="hero-image">
           {image ? (
             <div className="arch">
-              <Picture asset={image} ratio={4 / 5} sizes="(max-width: 820px) 90vw, 44vw" widths={[480, 800, 1200]} first />
+              <Picture asset={image} ratio={4 / 5} {...heroPlace(design, "(max-width: 820px) calc(100vw - 40px), 38vw")} widths={[480, 800, 1200]} first />
             </div>
           ) : null}
           {note ? (
@@ -78,7 +78,7 @@ function MenuCard({ context }: { context: PageContext }) {
         <h2 id="services">{services.heading.text}</h2>
         {image ? (
           <figure>
-            <Picture asset={image} ratio={3 / 2} sizes="(max-width: 820px) 100vw, 45vw" widths={[480, 800, 1200]} />
+            <Picture asset={image} ratio={3 / 2} sizes="(max-width: 820px) calc(100vw - 40px), 38vw" widths={[480, 800, 1200]} />
           </figure>
         ) : null}
       </div>

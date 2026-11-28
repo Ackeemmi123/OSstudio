@@ -65,6 +65,13 @@ describe("serving a build behind its link", () => {
     expect(filePath([".."])).toBeNull();
     expect(underPrefix('<a href="//cdn.example">', "/s/x")).toBe('<a href="//cdn.example">');
   });
+
+  it("moves every file of a srcset under the link, and leaves full addresses alone", () => {
+    expect(underPrefix('<img src="/img/a-960.webp" srcset="/img/a-320.webp 320w, /img/a-960.webp 960w" sizes="(max-width: 820px) 100vw, 50vw">', "/s/x")).toBe(
+      '<img src="/s/x/img/a-960.webp" srcset="/s/x/img/a-320.webp 320w, /s/x/img/a-960.webp 960w" sizes="(max-width: 820px) 100vw, 50vw">',
+    );
+    expect(underPrefix('<img srcset="https://images.example/a.jpg?w=480 480w, //cdn.example/a.jpg 800w, ./a.webp 2x">', "/s/x")).toBe('<img srcset="https://images.example/a.jpg?w=480 480w, //cdn.example/a.jpg 800w, ./a.webp 2x">');
+  });
 });
 
 describe("closed links in the agency's brand", () => {

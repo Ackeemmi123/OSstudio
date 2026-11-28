@@ -4,7 +4,7 @@
  * becomes part of the composition, if the firm has said it.
  */
 import type { SiteContent } from "./content";
-import { Action, Closing, FirstSteps, Frame, Headline, Picture, Proof, Questions, Reasons, Services, displayTier, find, type PageContext } from "./pages";
+import { Action, Closing, FirstSteps, Frame, Headline, Picture, Proof, Questions, Reasons, Services, displayTier, find, heroPlace, type PageContext } from "./pages";
 import { Signature } from "./signature";
 
 /** The year a firm's own words say it began, if they do. */
@@ -30,7 +30,7 @@ function Hero({ context }: { context: PageContext }) {
       {image ? (
         <figure className="hero-image">
           <div className="frame">
-            <Picture asset={image} ratio={3 / 4.3} sizes="(max-width: 900px) 70vw, 32vw" widths={[480, 800, 1000]} first />
+            <Picture asset={image} ratio={3 / 4.3} {...heroPlace(design, "(max-width: 900px) 66vw, 31vw")} widths={[480, 800, 1000]} first />
           </div>
         </figure>
       ) : null}
@@ -47,7 +47,7 @@ function Memory({ content }: { content: SiteContent }) {
       {year ? <p className="memory-year" aria-hidden="true">{year}</p> : null}
       {image ? (
         <figure className="memory-image">
-          <Picture asset={image} ratio={16 / 10} sizes="(max-width: 820px) 90vw, 50vw" widths={[800, 1200, 1500]} />
+          <Picture asset={image} ratio={16 / 10} sizes="(max-width: 820px) 86vw, 46vw" frame={1.38} widths={[800, 1200, 1500]} />
         </figure>
       ) : null}
       <div className="memory-head">

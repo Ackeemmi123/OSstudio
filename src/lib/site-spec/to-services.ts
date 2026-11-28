@@ -23,6 +23,8 @@ export interface ServicesImage {
   source: string;
   licence: string;
   showsPerson: boolean;
+  /** The same picture at several widths, narrowest first, when a build made them. */
+  variants?: { src: string; width: number }[];
 }
 
 export type ServicesMode = { prototype: { madeBy: string } } | { client: { approvedBy: string; approvedOn: string } };
@@ -213,7 +215,7 @@ export function servicesContent(spec: SiteSpec, images: Record<string, ServicesI
   const assets: SiteContent["assets"] = spec.assets.flatMap((asset) => {
     const file = asset.fileId ? images[asset.fileId] : undefined;
     if (!file) return [];
-    return [{ id: asset.id.slice(0, 40), src: file.src, width: file.width, height: file.height, alt: (t(asset.alt, locale) || asset.description || asset.id).slice(0, 200), source: file.source.slice(0, 120), licence: file.licence.slice(0, 120), showsPerson: file.showsPerson }];
+    return [{ id: asset.id.slice(0, 40), src: file.src, width: file.width, height: file.height, alt: (t(asset.alt, locale) || asset.description || asset.id).slice(0, 200), source: file.source.slice(0, 120), licence: file.licence.slice(0, 120), showsPerson: file.showsPerson, ...(file.variants?.length ? { variants: file.variants } : {}) }];
   });
   const imageId = (id: string | undefined) => (id && assets.some((a) => a.id === id) ? id : undefined);
 

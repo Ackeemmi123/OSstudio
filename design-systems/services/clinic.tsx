@@ -6,7 +6,7 @@
  * comes from the content; nothing is drawn when it is missing.
  */
 import type { SiteContent } from "./content";
-import { Action, CHROME, Closing, Frame, Headline, OpeningHours, Picture, Proof, Questions, displayTier, find, type PageContext } from "./pages";
+import { Action, CHROME, Closing, Frame, Headline, OpeningHours, Picture, Proof, Questions, displayTier, find, heroPlace, type PageContext } from "./pages";
 import { Signature } from "./signature";
 
 function Desk({ context }: { context: PageContext }) {
@@ -50,7 +50,7 @@ function Hero({ context }: { context: PageContext }) {
       </div>
       {image ? (
         <figure className="hero-image">
-          <Picture asset={image} ratio={4 / 5} sizes="(max-width: 820px) 100vw, 42vw" widths={[480, 800, 1200]} first />
+          <Picture asset={image} ratio={4 / 5} {...heroPlace(design, "(max-width: 820px) calc(100vw - 40px), 38vw", undefined, CLINIC_FULL)} widths={[480, 800, 1200]} first />
         </figure>
       ) : null}
       <Desk context={context} />
@@ -111,6 +111,9 @@ function Visit({ content }: { content: SiteContent }) {
     </section>
   );
 }
+
+/** This direction keeps a full hero's photo in its column on a wide screen, as tall as the words beside it: about square. */
+const CLINIC_FULL = { sizes: "(max-width: 520px) 100vw, (max-width: 820px) 100vw, 38vw", frame: [0.5, 0.9, 1.1] };
 
 export function ClinicHome({ context }: { context: PageContext }) {
   const { content } = context;
