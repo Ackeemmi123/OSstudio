@@ -528,6 +528,7 @@ still drawn at t. Nothing on the page may run on a clock.
 npm run dev                                   # the lab, port 4316
 npm run film                                  # Axivo's three films (lab/verktyg/reel.html)
 npm run film -- --only story                  # one of them: story (9:16), loop (1:1), wide (16:9)
+npm run film -- --lang fi                     # the same films in Finnish (fi, en; Swedish without the flag)
 npm run film -- --page verktyg/reel.html?film=wide --name prov --web --webm
 npm run film -- --sheet-only                  # twelve frames and the contact sheet, nothing encoded
 npm run film -- --still 3.5,9.75              # those moments as PNG
@@ -553,7 +554,12 @@ twelve frames (`<name>-sheet.jpg`) is saved with it.
 
 `lab/verktyg/reel.html` holds Axivo's own films, made of the band, the silk
 pictures, Archivo and the brand colours: `?film=story`, `?film=loop`,
-`?film=wide`; add `&play` to watch one in a browser. Like the other tool
+`?film=wide`; add `&play` to watch one in a browser. They exist in Swedish,
+Finnish and English (`&lang=sv|fi|en`, Swedish by default): all the copy is
+in one table in `reel.ts`, written for each language rather than translated
+word for word, and type that would outgrow its frame in a language with
+longer lines is set smaller. The Finnish and English files carry the
+language in their name (`…-fi.mp4`, `…-en-web.mp4`). Like the other tool
 pages it is not part of the build, so it weighs nothing for a visitor.
 
 ## The gate
