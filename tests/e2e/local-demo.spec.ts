@@ -222,7 +222,7 @@ test("offers Axivo Signature at two levels, priced by the person, in the offer's
   await page.getByLabel("Price of Axivo Signature").fill("1800");
   await expect(page.getByTestId("offer-unpriced")).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Print or save as PDF" })).toBeEnabled();
-  await expect(offer).toContainText("Axivo Signature: toimialallenne sovitettu liike");
+  await expect(offer).toContainText("Axivo Signature: toimialallenne suunnitellut animaatiot");
   await expect(offer).toContainText("Axivo Signatureen sisältyy");
   await expect(offer).toContainText("5 000 €");
 
