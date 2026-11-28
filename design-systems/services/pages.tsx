@@ -49,6 +49,15 @@ function imageUrl(asset: Asset, width: number, ratio?: number): string {
   return `${asset.src}?w=${width}&q=72&auto=format${crop}`;
 }
 
+/**
+ * A site's own picture that is taller than it is wide: a portrait. A stock picture is cropped to its place where
+ * it is served, around the faces in it; a site's own picture is cropped by the browser, from the middle, and in a
+ * wide place a portrait of a person then loses the head. The places that are wide by design give it an upright one.
+ */
+export function isTall(asset: Asset): boolean {
+  return !asset.src.startsWith(STOCK_HOST) && asset.height > asset.width * 1.1;
+}
+
 /** The files a browser may choose from: stock pictures by address, a built site's own pictures as the build wrote them. */
 function sourceSet(asset: Asset, widths: number[], ratio: number): string | undefined {
   if (asset.src.startsWith(STOCK_HOST)) return widths.map((width) => `${imageUrl(asset, width, ratio)} ${width}w`).join(", ");
@@ -412,9 +421,15 @@ export function AboutPage({ context }: { context: PageContext }) {
         <p className="page-lead">{about.lead.text}</p>
       </section>
       {image ? (
-        <figure className="wide-image">
-          <Picture asset={image} ratio={2} sizes="(max-width: 820px) 100vw, 100vw" frame={[4 / 3, 2]} widths={[800, 1400, 2000]} first />
-        </figure>
+        isTall(image) ? (
+          <figure className="wide-image wide-image--tall">
+            <Picture asset={image} ratio={4 / 5} sizes="(max-width: 820px) calc(100vw - 40px), 38vw" widths={[480, 800, 1200]} first />
+          </figure>
+        ) : (
+          <figure className="wide-image">
+            <Picture asset={image} ratio={2} sizes="(max-width: 820px) 100vw, 100vw" frame={[4 / 3, 2]} widths={[800, 1400, 2000]} first />
+          </figure>
+        )
       ) : null}
       <section className="story" aria-label={about.label}>
         {about.story.map((paragraph) => (

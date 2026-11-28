@@ -361,7 +361,24 @@ describe("a built site's own pictures", () => {
     expect(wide.some((sizes) => / \* 1\.88\)/.test(sizes))).toBe(true);
     // A picture taller in shape than every frame keeps the frames' own widths.
     const tall = imgs(own(true, 600, 1000)).map((tag) => attr(tag, "sizes")!);
-    expect(tall).toEqual(imgs(own(false)).map((tag) => attr(tag, "sizes")!));
+    expect(tall).toEqual(imgs(own(false, 600, 1000)).map((tag) => attr(tag, "sizes")!));
+  });
+
+  it("gives a portrait of the site's own an upright place where the design's place is wide, so no head is cut off", () => {
+    const about = (site: Site) => htmlOf(site).find((file) => file.path.startsWith(`${site.content.about.slug}/`))!.text;
+    // A landscape picture, and any stock picture, keeps the band across the page.
+    expect(about(own(true))).toContain('<figure class="wide-image">');
+    expect(about(lindqvist)).toContain('<figure class="wide-image">');
+    const tall = about(own(true, 720, 1082));
+    expect(tall).toContain('<figure class="wide-image wide-image--tall">');
+    expect(tall).not.toContain('<figure class="wide-image">');
+    expect(attr(tall.match(/<figure class="wide-image wide-image--tall"><img\b[^>]*>/)![0], "height")).toBe("1500");
+    expect(STYLES).toContain(".wide-image.wide-image--tall img{grid-column:1/6;aspect-ratio:4/5;object-position:50% 12%}");
+    // The formal home page's picture beside the firm's story: upright too, and still, since drifting hides its top.
+    const home = (site: Site) => htmlOf({ ...site, design: { ...site.design, direction: "formal" } }).find((file) => file.path === "index.html")!.text;
+    expect(home(own(true))).toContain('<figure class="memory-image">');
+    expect(home(own(true, 720, 1082))).toContain('<figure class="memory-image memory-image--tall">');
+    expect(STYLES).toContain(".memory-image.memory-image--tall img{height:100%;object-position:50% 12%;animation:none}");
   });
 
   it("multiplies every width in a sizes list, whatever its condition", () => {
