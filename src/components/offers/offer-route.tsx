@@ -20,6 +20,7 @@ import {
   offerMailto,
   percent,
   projectTitle,
+  SIGNATURE_PRICES,
   STANDARD_PRICES,
   STANDARD_VAT_PERCENT,
   unpricedLines,
@@ -268,13 +269,13 @@ function OfferEditor({ client, project, snapshot }: { client: Client; project: P
                   Add a line
                 </Button>
                 {SIGNATURE_BUTTONS.filter((button) => !extras.some((line) => line.kind === button.kind)).map((button) => (
-                  <Button key={button.kind} size="sm" variant="secondary" onClick={() => setExtras([...extras, { label: "", price: 0, unit: "once", kind: button.kind }])}>
+                  <Button key={button.kind} size="sm" variant="secondary" onClick={() => setExtras([...extras, { label: "", price: SIGNATURE_PRICES[button.kind], unit: "once", kind: button.kind }])}>
                     <Plus aria-hidden />
                     {button.label}
                   </Button>
                 ))}
               </div>
-              {extras.some((line) => line.kind) ? <p className="text-[12.5px] text-ink-subtle">You set the Signature price on each offer. The client sees the line in the offer&apos;s language.</p> : null}
+              {extras.some((line) => line.kind) ? <p className="text-[12.5px] text-ink-subtle">Signature starts from €1,200, made-to-measure parts from €2,200 (VAT 0%). Change the price to fit the work. The client sees the line in the offer&apos;s language.</p> : null}
             </fieldset>
             <fieldset className="flex flex-col gap-2">
               <legend className="mb-1 text-[13px] font-medium text-ink">Maintenance</legend>

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildOffer, defaultIntro, unpricedLines, defaultScope, euros, OFFER_WORDS, offerDate, offerEmail, offerMailto, percent, projectTitle, STANDARD_PRICES, STANDARD_VAT_PERCENT, type OfferInput } from "./offer";
+import { buildOffer, defaultIntro, SIGNATURE_PRICES, unpricedLines, defaultScope, euros, OFFER_WORDS, offerDate, offerEmail, offerMailto, percent, projectTitle, STANDARD_PRICES, STANDARD_VAT_PERCENT, type OfferInput } from "./offer";
 
 const input = (over: Partial<OfferInput> = {}): OfferInput => ({
   language: "fi",
@@ -57,6 +57,12 @@ describe("an offer", () => {
     for (const language of ["fi", "sv", "en"] as const) expect(OFFER_WORDS[language].signatureItems).toHaveLength(6);
     expect(OFFER_WORDS.sv.signatureItems.join(" ")).not.toMatch(/staplade|meny|film/i);
     expect(unpricedLines(sv)).toEqual([]);
+  });
+
+  it("starts Axivo Signature below the local competition: from €1,200, made to measure from €2,200", () => {
+    expect(SIGNATURE_PRICES).toEqual({ signature: 1200, "signature-custom": 2200 });
+    // With the website, both levels together still come in under the cheapest local animation tier (€4,500).
+    expect(STANDARD_PRICES.website + SIGNATURE_PRICES.signature + SIGNATURE_PRICES["signature-custom"]).toBeLessThan(4500);
   });
 
   it("is not ready while an Axivo Signature line has no price: the price is the person's to set", () => {

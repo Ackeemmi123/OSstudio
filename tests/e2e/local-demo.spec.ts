@@ -210,18 +210,21 @@ test("offers Axivo Signature at two levels, priced by the person, in the offer's
 
   await page.getByRole("button", { name: "Axivo Signature", exact: true }).click();
   await page.getByRole("button", { name: "Signature, made to measure" }).click();
-  // Each level is added once; its price is the person's to set, and until then nothing can be printed or sent.
+  // Each level is added once, at the owner's starting prices (€1,200 and €2,200).
   await expect(page.getByRole("button", { name: "Axivo Signature", exact: true })).toHaveCount(0);
-  await expect(page.getByTestId("offer-unpriced")).toContainText("Set the price of Axivo Signature and Axivo Signature, made to measure");
+  await expect(page.getByLabel("Price of Axivo Signature")).toHaveValue("1200");
+  await expect(page.getByLabel("Price of Signature, made to measure")).toHaveValue("2200");
+  // A Signature line without a price can be neither printed nor sent.
+  await page.getByLabel("Price of Axivo Signature").fill("");
+  await expect(page.getByTestId("offer-unpriced")).toContainText("Set the price of Axivo Signature");
   await expect(page.getByRole("button", { name: "Print or save as PDF" })).toBeDisabled();
 
   await page.getByLabel("Price of Axivo Signature").fill("1800");
-  await page.getByLabel("Price of Signature, made to measure").fill("2400");
   await expect(page.getByTestId("offer-unpriced")).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Print or save as PDF" })).toBeEnabled();
   await expect(offer).toContainText("Axivo Signature: toimialallenne sovitettu liike");
   await expect(offer).toContainText("Axivo Signatureen sisältyy");
-  await expect(offer).toContainText("5 200 €");
+  await expect(offer).toContainText("5 000 €");
 
   // The lines follow the offer's language; the prices stay.
   await page.getByLabel("Language", { exact: true }).selectOption("sv");
@@ -229,5 +232,5 @@ test("offers Axivo Signature at two levels, priced by the person, in the offer's
   await expect(offer).toContainText("Axivo Signature, skräddarsydda delar enligt överenskommelse");
   await expect(offer).toContainText("De skräddarsydda delarna");
   const mail = decodeURIComponent((await page.getByTestId("offer-email").getAttribute("href")) ?? "");
-  expect(mail).toContain("Engångsavgift 5 200 € (moms 0 %)");
+  expect(mail).toContain("Engångsavgift 5 000 € (moms 0 %)");
 });
