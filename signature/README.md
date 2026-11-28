@@ -96,6 +96,7 @@ What it promises, and `tests/layer.spec.ts` checks on a hand-built site:
 ```bash
 # a built site in a folder (changed in place, or copied with --out)
 node scripts/enhance.mjs <builtSiteDir> --map services --preset auto
+node scripts/enhance.mjs <builtSiteDir> --map association --preset auto
 node scripts/enhance.mjs <builtSiteDir> --map ./site.map.json --preset editorial --out <dir>
 ```
 
@@ -131,11 +132,11 @@ thing as a pure function. No filesystem, no network, nothing from Node; the
 layer's built files come from `layer-dist/assets.mjs`, an ordinary module.
 
 ```ts
-import { enhanceSite, presetForDirection, DIRECTION_PRESETS } from "../signature/layer/enhance.mjs";
+import { enhanceSite, presetForDirection, ASSOCIATION_PRESET, DIRECTION_PRESETS } from "../signature/layer/enhance.mjs";
 
 const { files, assets } = enhanceSite(built /* { path, text }[] */, {
-  map: "services",                              // or a map object
-  preset: presetForDirection(design.direction), // "calm" | "warm" | "editorial" | "bold", or "auto"
+  map: "services",                              // "services", "association", or a map object
+  preset: presetForDirection(design.direction), // "calm" | "warm" | "editorial" | "bold", or "auto"; an association site: ASSOCIATION_PRESET
   root: undefined,                              // default: relative per page; "/" for absolute
 });
 // files:  the HTML files that changed, whole          → replace by path
@@ -178,6 +179,28 @@ the page's `d-<direction>` class):
 | `atelier` | `editorial` |
 | `editorial` | `editorial` |
 | `statement` | `bold` |
+
+Website Factory's association system has no directions and one preset,
+`calm` (`ASSOCIATION_PRESET`): trust before effect, for boards and members
+rather than a showroom. `--preset auto` gives it on every page.
+
+### The shipped maps
+
+Two maps ship with the layer (`MAPS` in `layer/enhance.mjs`), one per design
+system Studio OS builds with. Each file's header says what is mapped and
+what is left out on purpose.
+
+| Map | For | Arrives | Left out, and why |
+| --- | --- | ------- | ----------------- |
+| `services` (`layer/maps/services.mjs`) | `design-systems/services`, all six directions | headlines, the pictures' frames, the first view's words, section labels and leads, rows, steps and cards; figures count and the main action floats where the preset allows | `stack` and `list` (no markup that fits them without a new layout), the café's note and each picture's own drift (the site's motion stays), forms |
+| `association` (`layer/maps/association.mjs`) | `design-systems/association` | each page's h1 and each section's h2, the pictures that stand alone (first view, beside a text, gallery), leads and texts, and the rows of every list: events, points, documents, board members (card and portrait as one), questions, quotes, contact details, the closing band | `cta` (the sticky menu already carries the main action on every screen), `count` (no figures), `list` (no row has a picture), `stack` (nothing is written as cards that could lie on each other), forms and what holds them, the header, menu and footer; an event's tilted date block keeps its tilt |
+
+Studio OS runs the layer from its site build (`src/server/site-builds/build.ts`)
+when a spec's `brand.concept.signatureMotion` is set: the `services` map with
+the direction's preset for a company site, the `association` map with `calm`
+for an association site. The editor names the preset from its own copies
+(`SIGNATURE_PRESETS`, `ASSOCIATION_SIGNATURE_PRESET` in
+`src/lib/site-spec/catalog.ts`), which a test keeps equal to the layer's.
 
 ### Modules
 

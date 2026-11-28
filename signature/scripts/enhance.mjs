@@ -5,8 +5,8 @@
  *   node scripts/enhance.mjs <builtSiteDir> --map services --preset auto
  *   node scripts/enhance.mjs <builtSiteDir> --map ./my-site.map.json --preset editorial --out <otherDir>
  *
- *   --map     a shipped map (services) or a JSON file with a map of the site's own selectors
- *   --preset  calm, warm, editorial, bold, or auto (the map decides per page; for services, by direction)
+ *   --map     a shipped map (services, association) or a JSON file with a map of the site's own selectors
+ *   --preset  calm, warm, editorial, bold, or auto (the map decides per page; for services, by direction; for association, calm)
  *   --out     write the enhanced site to another folder (a copy) instead of changing it in place
  *   --root    prefix for the injected addresses, for example "/"; default: relative to each page
  *   --dir     the folder the layer's files go in; default "signature"
