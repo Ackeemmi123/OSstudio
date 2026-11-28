@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildOffer, defaultIntro, defaultScope, euros, OFFER_WORDS, offerDate, offerEmail, offerMailto, percent, projectTitle, STANDARD_PRICES, STANDARD_VAT_PERCENT, type OfferInput } from "./offer";
+import { buildOffer, defaultIntro, unpricedLines, defaultScope, euros, OFFER_WORDS, offerDate, offerEmail, offerMailto, percent, projectTitle, STANDARD_PRICES, STANDARD_VAT_PERCENT, type OfferInput } from "./offer";
 
 const input = (over: Partial<OfferInput> = {}): OfferInput => ({
   language: "fi",
@@ -37,6 +37,31 @@ describe("an offer", () => {
     expect(percent(25.5, "en")).toBe("25.5");
     expect(offerDate("2026-12-10", "fi")).toBe("10. joulukuuta 2026");
     expect(offerDate("2026-12-10", "en")).toBe("10 December 2026");
+  });
+
+  it("adds Axivo Signature's two levels as lines in the offer's language, which follow a change of language", () => {
+    const extras = [
+      { label: "", price: 1800, unit: "once" as const, kind: "signature" as const },
+      { label: "anything typed is replaced", price: 2400, unit: "once" as const, kind: "signature-custom" as const },
+    ];
+    const sv = buildOffer(input({ language: "sv", extras }));
+    expect(sv.lines.map((l) => [l.label, l.price])).toEqual([
+      ["Webbplats", 1000],
+      ["Axivo Signature: rörelse anpassad till er bransch", 1800],
+      ["Axivo Signature, skräddarsydda delar enligt överenskommelse", 2400],
+    ]);
+    expect(sv.onceTotal).toBe(5200);
+    expect(buildOffer(input({ language: "fi", extras })).lines[1].label).toBe("Axivo Signature: toimialallenne sovitettu liike");
+    expect(buildOffer(input({ language: "en", extras })).lines[2].label).toBe("Axivo Signature, made-to-measure parts as agreed");
+    // What the tick gives, the same six points in every language, and never what only made-to-measure work gives.
+    for (const language of ["fi", "sv", "en"] as const) expect(OFFER_WORDS[language].signatureItems).toHaveLength(6);
+    expect(OFFER_WORDS.sv.signatureItems.join(" ")).not.toMatch(/staplade|meny|film/i);
+    expect(unpricedLines(sv)).toEqual([]);
+  });
+
+  it("is not ready while an Axivo Signature line has no price: the price is the person's to set", () => {
+    const offer = buildOffer(input({ extras: [{ label: "", price: 0, unit: "once", kind: "signature" }, { label: "Toinen kieli", price: 0, unit: "once" }] }));
+    expect(unpricedLines(offer).map((line) => line.kind)).toEqual(["signature"]);
   });
 
   it("speaks to the client by first name, in their language", () => {

@@ -22,10 +22,18 @@ import {
   projectTitle,
   STANDARD_PRICES,
   STANDARD_VAT_PERCENT,
+  unpricedLines,
   type Offer,
   type OfferLanguage,
   type OfferLine,
+  type OfferLineKind,
 } from "@/lib/offers/offer";
+
+/** Axivo Signature's two levels, as the offer form names them. Their price is set on each offer. */
+const SIGNATURE_BUTTONS: { kind: OfferLineKind; label: string }[] = [
+  { kind: "signature", label: "Axivo Signature" },
+  { kind: "signature-custom", label: "Signature, made to measure" },
+];
 
 /** What a person types once and Studio OS does not hold: the company's legal details for the footer. */
 const SENDER_KEY = "studio-os:offer-sender";
@@ -157,6 +165,7 @@ function OfferEditor({ client, project, snapshot }: { client: Client; project: P
     [language, validDays, client, title, scope, website, upkeep, extras, vat, intro, shown.name, shown.website, sender, me?.displayName, fallbackEmail],
   );
 
+  const unpriced = unpricedLines(offer);
   const back = `/clients/${encodeURIComponent(client.id)}`;
   return (
     <div className="offer-page">
@@ -171,15 +180,27 @@ function OfferEditor({ client, project, snapshot }: { client: Client; project: P
           <p className="mt-1 text-[13.5px] text-ink-muted">Starts from the published prices and what they include. Adjust it, save it as a PDF, then write the e-mail and attach the PDF. Nothing is stored or sent from here.</p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <a href={offerMailto(offerEmail(offer))} className={buttonClasses("secondary", "md")} data-testid="offer-email" title={client.email ? `Opens your e-mail app with a message to ${client.email}` : "Opens your e-mail app; no address is recorded for this client"}>
-            <Mail aria-hidden />
-            Write the e-mail
-          </a>
-          <Button variant="primary" onClick={() => window.print()}>
+          {unpriced.length ? (
+            <Button variant="secondary" disabled data-testid="offer-email">
+              <Mail aria-hidden />
+              Write the e-mail
+            </Button>
+          ) : (
+            <a href={offerMailto(offerEmail(offer))} className={buttonClasses("secondary", "md")} data-testid="offer-email" title={client.email ? `Opens your e-mail app with a message to ${client.email}` : "Opens your e-mail app; no address is recorded for this client"}>
+              <Mail aria-hidden />
+              Write the e-mail
+            </a>
+          )}
+          <Button variant="primary" disabled={unpriced.length > 0} onClick={() => window.print()}>
             <Printer aria-hidden />
             Print or save as PDF
           </Button>
         </div>
+        {unpriced.length ? (
+          <p className="w-full text-right text-[13px] text-caution" role="status" data-testid="offer-unpriced">
+            Set the price of {unpriced.map((line) => line.label.split(/[:,]/)[0] + (line.kind === "signature-custom" ? ", made to measure" : "")).join(" and ")} before you print or write the e-mail.
+          </p>
+        ) : null}
       </div>
 
       <div className="grid items-start gap-8 xl:grid-cols-[340px_minmax(0,1fr)]">
@@ -218,18 +239,42 @@ function OfferEditor({ client, project, snapshot }: { client: Client; project: P
             <fieldset className="flex flex-col gap-2">
               <legend className="mb-1 text-[13px] font-medium text-ink">Other one-off lines</legend>
               {extras.map((line, i) => (
-                <div key={i} className="grid grid-cols-[minmax(0,1fr)_90px_auto] gap-2">
-                  <TextInput aria-label={`Line ${i + 1}`} value={line.label} placeholder="e.g. A second language" onChange={(event) => setExtras(extras.map((l, j) => (j === i ? { ...l, label: event.target.value } : l)))} />
-                  <TextInput aria-label={`Price of line ${i + 1}`} type="number" min={0} value={line.price} onChange={(event) => setExtras(extras.map((l, j) => (j === i ? { ...l, price: Number(event.target.value) || 0 } : l)))} />
+                <div key={i} className="grid grid-cols-[minmax(0,1fr)_90px_auto] items-center gap-2">
+                  {line.kind ? (
+                    <span className="text-[13px] leading-snug text-ink" data-testid="offer-signature-line">
+                      {OFFER_WORDS[language].lineKinds[line.kind]}
+                    </span>
+                  ) : (
+                    <TextInput aria-label={`Line ${i + 1}`} value={line.label} placeholder="e.g. A second language" onChange={(event) => setExtras(extras.map((l, j) => (j === i ? { ...l, label: event.target.value } : l)))} />
+                  )}
+                  <TextInput
+                    aria-label={line.kind ? `Price of ${SIGNATURE_BUTTONS.find((b) => b.kind === line.kind)?.label}` : `Price of line ${i + 1}`}
+                    aria-invalid={line.kind && !(line.price > 0) ? true : undefined}
+                    type="number"
+                    min={0}
+                    step={50}
+                    placeholder={line.kind ? "Price" : undefined}
+                    value={line.kind && !line.price ? "" : line.price}
+                    onChange={(event) => setExtras(extras.map((l, j) => (j === i ? { ...l, price: Number(event.target.value) || 0 } : l)))}
+                  />
                   <Button size="sm" variant="ghost" aria-label={`Remove line ${i + 1}`} onClick={() => setExtras(extras.filter((_, j) => j !== i))}>
                     <Trash2 aria-hidden />
                   </Button>
                 </div>
               ))}
-              <Button size="sm" variant="secondary" className="self-start" onClick={() => setExtras([...extras, { label: "", price: 0, unit: "once" }])}>
-                <Plus aria-hidden />
-                Add a line
-              </Button>
+              <div className="flex flex-wrap gap-2">
+                <Button size="sm" variant="secondary" onClick={() => setExtras([...extras, { label: "", price: 0, unit: "once" }])}>
+                  <Plus aria-hidden />
+                  Add a line
+                </Button>
+                {SIGNATURE_BUTTONS.filter((button) => !extras.some((line) => line.kind === button.kind)).map((button) => (
+                  <Button key={button.kind} size="sm" variant="secondary" onClick={() => setExtras([...extras, { label: "", price: 0, unit: "once", kind: button.kind }])}>
+                    <Plus aria-hidden />
+                    {button.label}
+                  </Button>
+                ))}
+              </div>
+              {extras.some((line) => line.kind) ? <p className="text-[12.5px] text-ink-subtle">You set the Signature price on each offer. The client sees the line in the offer&apos;s language.</p> : null}
             </fieldset>
             <fieldset className="flex flex-col gap-2">
               <legend className="mb-1 text-[13px] font-medium text-ink">Maintenance</legend>
@@ -384,6 +429,13 @@ export function OfferDocument({ offer, color, logoUrl }: { offer: Offer; color: 
           </tbody>
         </table>
       </section>
+
+      {offer.lines.some((line) => line.kind) ? (
+        <section className="offer-keep mt-10" data-testid="offer-signature">
+          {offer.lines.some((line) => line.kind === "signature") ? <List title={w.includedSignature} items={w.signatureItems} color={color} /> : null}
+          {offer.lines.some((line) => line.kind === "signature-custom") ? <p className="mt-3 text-[12px] leading-relaxed text-[#5d6472]">{w.signatureCustomNote}</p> : null}
+        </section>
+      ) : null}
 
       <section className="mt-10 grid gap-8 sm:grid-cols-2">
         <List title={w.includedSite} items={w.site} color={color} />
