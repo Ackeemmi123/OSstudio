@@ -210,6 +210,9 @@ test("offers Axivo Signature at two levels, priced by the person, in the offer's
 
   await page.getByRole("button", { name: "Axivo Signature", exact: true }).click();
   await page.getByRole("button", { name: "Signature, made to measure" }).click();
+  // Selling it is not switching it on: the offer says where to tick it for the client's website.
+  await expect(page.getByTestId("offer-signature-site")).toContainText("Not switched on yet for this client's website.");
+  await expect(page.getByTestId("offer-signature-site").getByRole("link", { name: "Open the website" })).toHaveAttribute("href", /\/projects\/.+\/site$/);
   // Each level is added once, at the owner's starting prices (€1,200 and €2,200).
   await expect(page.getByRole("button", { name: "Axivo Signature", exact: true })).toHaveCount(0);
   await expect(page.getByLabel("Price of Axivo Signature")).toHaveValue("1200");

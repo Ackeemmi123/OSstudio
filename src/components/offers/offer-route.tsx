@@ -1,11 +1,13 @@
 "use client";
 
 import { ArrowLeft, Mail, Plus, Printer, SearchX, Trash2 } from "lucide-react";
+import Link from "next/link";
 import { useEffect, useId, useMemo, useState } from "react";
 import { LoadError } from "@/components/load-error";
 import { useStudio, useStudioStore } from "@/components/providers/studio-provider";
 import { Button, ButtonLink, buttonClasses } from "@/components/ui/button";
 import { Field, Select, TextArea, TextInput } from "@/components/ui/field";
+import { StatusLabel } from "@/components/ui/status";
 import { EmptyState, Skeleton, Surface } from "@/components/ui/surface";
 import { brandLogoUrl, shownBrand, type AgencyBrand } from "@/lib/domain/agency-brand";
 import type { Client, Project, StudioSnapshot } from "@/lib/domain/types";
@@ -115,6 +117,22 @@ function OfferEditor({ client, project, snapshot }: { client: Client; project: P
   const [vat, setVat] = useState<number>(STANDARD_VAT_PERCENT);
   const [validDays, setValidDays] = useState(14);
   const [sender, setSender] = useState<SenderDetails>(readSender);
+
+  // Selling Signature is not the same as switching it on: once the offer has it, show whether the client's
+  // website has Axivo Signature motion ticked, so it is not sold and then forgotten.
+  const sellsSignature = extras.some((line) => line.kind);
+  const [signatureOn, setSignatureOn] = useState<boolean | null>(null);
+  useEffect(() => {
+    if (!sellsSignature || !project) return;
+    let active = true;
+    store.read((r) => (r.listStudioDesigns ? r.listStudioDesigns() : Promise.resolve([]))).then(
+      (designs) => active && setSignatureOn(Boolean(designs.find((design) => design.projectId === project.id)?.brand.concept?.signatureMotion)),
+      () => active && setSignatureOn(null),
+    );
+    return () => {
+      active = false;
+    };
+  }, [sellsSignature, project, store]);
 
   function changeLanguage(next: OfferLanguage) {
     setLanguage(next);
@@ -275,7 +293,26 @@ function OfferEditor({ client, project, snapshot }: { client: Client; project: P
                   </Button>
                 ))}
               </div>
-              {extras.some((line) => line.kind) ? <p className="text-[12.5px] text-ink-subtle">Signature starts from €1,200, made-to-measure parts from €2,200 (VAT 0%). Change the price to fit the work. The client sees the line in the offer&apos;s language.</p> : null}
+              {sellsSignature ? <p className="text-[12.5px] text-ink-subtle">Signature starts from €1,200, made-to-measure parts from €2,200 (VAT 0%). Change the price to fit the work. The client sees the line in the offer&apos;s language.</p> : null}
+              {sellsSignature ? (
+                <div className="flex flex-col gap-1 text-[12.5px]" data-testid="offer-signature-site">
+                  {signatureOn ? (
+                    <StatusLabel tone="positive" className="whitespace-normal">Axivo Signature motion is on for this client&apos;s website.</StatusLabel>
+                  ) : project ? (
+                    <>
+                      <StatusLabel tone="caution" className="whitespace-normal">Not switched on yet for this client&apos;s website.</StatusLabel>
+                      <p className="text-ink-subtle">
+                        Tick &quot;Axivo Signature motion&quot; under Brand, or the client won&apos;t get it.{" "}
+                        <Link href={`/clients/${encodeURIComponent(client.id)}/projects/${encodeURIComponent(project.id)}/site`} className="text-ink underline underline-offset-2">
+                          Open the website
+                        </Link>
+                      </p>
+                    </>
+                  ) : (
+                    <p className="text-ink-subtle">When the website is started, tick &quot;Axivo Signature motion&quot; under Brand, or the client won&apos;t get it.</p>
+                  )}
+                </div>
+              ) : null}
             </fieldset>
             <fieldset className="flex flex-col gap-2">
               <legend className="mb-1 text-[13px] font-medium text-ink">Maintenance</legend>
