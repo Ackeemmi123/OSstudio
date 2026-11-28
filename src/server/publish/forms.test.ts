@@ -61,6 +61,16 @@ describe("site forms", () => {
     }
   });
 
+  it("sends a visitor on another language's pages back to that language's page, and nowhere else", async () => {
+    const fi = deps();
+    expect((await handleForm(KEY, form({ back: "fi", lang: "sv", name: "Anna", message: "Hei" }), fi.d)).headers.get("location")).toBe("https://forening.example/fi/sent/");
+    expect((await handleForm(KEY, form({ back: "fi", website: "http://spam", message: "x" }), deps().d)).headers.get("location")).toBe("https://forening.example/fi/sent/");
+    expect((await handleForm(KEY, form({ back: "fi", message: "Hei" }), deps({ ...TARGET, limited: true }).d)).headers.get("location")).toBe("https://forening.example/fi/not-sent/");
+    for (const back of ["https://evil.example", "//evil.example", "../x", "de", "constructor"]) {
+      expect((await handleForm(KEY, form({ back, name: "Anna", message: "Hej" }), deps().d)).headers.get("location")).toBe("https://forening.example/sent/");
+    }
+  });
+
   it("sends through Resend with a reply-to", async () => {
     let body: unknown;
     const fetchImpl = (async (_url: string, init: RequestInit) => ((body = JSON.parse(String(init.body))), new Response("{}", { status: 200 }))) as unknown as typeof fetch;

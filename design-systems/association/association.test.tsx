@@ -161,6 +161,71 @@ describe("association design system", () => {
     expect(page(files, "sent/index.html")).toContain(sent);
   });
 
+  describe("a site in two languages", () => {
+    // The invented association in Swedish (its main language) and Finnish.
+    const FI: Record<string, string> = {
+      "": "", evenemang: "tapahtumat", dokument: "asiakirjat", "bli-medlem": "liity", kontakt: "yhteystiedot",
+      "Vecka 51, december 2026 · Höstmöte": "Viikko 51, joulukuu 2026 · Syyskokous", "15.10.2026 · Spelkväll": "15.10.2026 · Peli-ilta",
+    };
+    const both = (value: unknown): unknown => {
+      if (Array.isArray(value)) return value.map(both);
+      if (value && typeof value === "object") {
+        const entries = Object.entries(value);
+        if (entries.length === 1 && entries[0][0] === "sv" && typeof entries[0][1] === "string") {
+          const sv = entries[0][1];
+          return { sv, fi: sv in FI ? FI[sv] : sv ? `FI ${sv}` : "" };
+        }
+        return Object.fromEntries(entries.map(([key, inner]) => [key, both(inner)]));
+      }
+      return value;
+    };
+    const twoLanguages = () => {
+      const source = both(spec()) as ReturnType<typeof spec>;
+      source.locales = { available: ["sv", "fi"], default: "sv" } as unknown as typeof source.locales;
+      return source;
+    };
+
+    it("builds every page in both, the main language at / and Finnish under /fi/, with its own words", () => {
+      const files = build(twoLanguages(), options);
+      const paths = files.map((file) => file.path);
+      for (const path of ["index.html", "evenemang/index.html", "kontakt/index.html", "sent/index.html", "fi/index.html", "fi/tapahtumat/index.html", "fi/yhteystiedot/index.html", "fi/sent/index.html", "fi/not-sent/index.html"]) expect(paths).toContain(path);
+      expect(paths.filter((path) => path.endsWith("404.html"))).toEqual(["404.html"]);
+
+      const fiHome = page(files, "fi/index.html");
+      expect(fiHome).toContain('<html lang="fi">');
+      expect(fiHome).toContain('<a class="brand" href="/fi/">');
+      expect(fiHome).toContain("Tulevat tapahtumat");
+      expect(fiHome).toContain('href="/fi/tapahtumat/"');
+      expect(fiHome).not.toMatch(/href="\/(evenemang|kontakt|dokument|bli-medlem)\/"/);
+      expect(page(files, "index.html")).toContain('<html lang="sv">');
+      expect(page(files, "fi/tapahtumat/index.html")).toMatch(/class="event"><div class="date"[^>]*><b>vk 51/);
+      expect(page(files, "fi/sent/index.html")).toContain('Kiitos! Viestisi on lähetetty.</h1><p><a href="/fi/">Etusivulle</a>');
+    });
+
+    it("links each page to the same page in the other language, named in that language", () => {
+      const files = build(twoLanguages(), options);
+      expect(page(files, "evenemang/index.html")).toContain('<nav class="langs" aria-label="Språk"><a href="/fi/tapahtumat/" hreflang="fi" lang="fi">Suomeksi</a></nav>');
+      expect(page(files, "fi/tapahtumat/index.html")).toContain('<nav class="langs" aria-label="Kieli"><a href="/evenemang/" hreflang="sv" lang="sv">På svenska</a></nav>');
+      expect(page(files, "fi/index.html")).toContain('<a href="/" hreflang="sv" lang="sv">På svenska</a>');
+      // A site in one language has no such links.
+      expect(build(spec(), options).some((file) => file.text.includes('class="langs"'))).toBe(false);
+    });
+
+    it("sends a Finnish visitor back to the Finnish sent page, and the mail to the association in its main language", () => {
+      const published = { ...options, status: "approved" as const, formAction: "https://studio.example/api/site-forms/abc" };
+      const files = build(twoLanguages(), published);
+      const fiForm = page(files, "fi/yhteystiedot/index.html");
+      expect(fiForm).toContain('<input type="hidden" name="lang" value="sv"><input type="hidden" name="back" value="fi">');
+      expect(page(files, "kontakt/index.html")).not.toContain('name="back"');
+    });
+
+    it("refuses to build while a text is missing in the second language, and says which", () => {
+      const source = twoLanguages();
+      (source.pages[1].title as Record<string, string>).fi = "";
+      expect(() => build(source, options)).toThrow(/1 text has no fi version yet \(pages\.1\.title\)/);
+    });
+  });
+
   it("offers attached documents for download and refuses a document for an unknown item", () => {
     expect(page(build(spec(), options), "dokument/index.html")).toContain('<a class="dl" href="/dokument/mote-1.pdf">');
     expect(() => build(spec(), { ...options, documents: { nope: "x.pdf" } })).toThrow(/not a list item/);
