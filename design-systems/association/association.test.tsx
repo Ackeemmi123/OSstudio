@@ -112,6 +112,51 @@ describe("association design system", () => {
     expect(home).not.toContain("Spelkväll");
   });
 
+  it.each([
+    {
+      lang: "fi" as const,
+      events: ["Viikko 51, joulukuu 2026 · Syyskokous", "15.10.2026 · Pelti-ilta"],
+      words: ["Siirry sisältöön", "Päävalikko", "Tulevat tapahtumat", "Kaikki tapahtumat", "Lataa", "Lähetä", "Lomake ei ole käytössä prototyypissä.", "Prototyyppi: Axivo. Ei julkinen."],
+      week: "vk 51", month: "joulukuu 2026", notFound: "Sivua ei löytynyt", sent: "Kiitos! Viestisi on lähetetty.",
+    },
+    {
+      lang: "en" as const,
+      events: ["Week 51, december 2026 · Autumn meeting", "15.10.2026 · Games night"],
+      words: ["Skip to content", "Coming up", "All events", "Download", "Send", "The form is switched off in the prototype.", "Prototype by Axivo. Not public."],
+      week: "Wk 51", month: "Dec 2026", notFound: "Page not found", sent: "Thank you. Your message was sent.",
+    },
+  ])("builds a whole site in $lang, with its own words and dates and none of the Swedish ones", ({ lang, events, words, week, month, notFound, sent }) => {
+    // The same invented association, written in another language.
+    const relabel = (value: unknown): unknown => {
+      if (Array.isArray(value)) return value.map(relabel);
+      if (value && typeof value === "object") {
+        const entries = Object.entries(value);
+        if (entries.length === 1 && entries[0][0] === "sv" && typeof entries[0][1] === "string") return { [lang]: entries[0][1] };
+        return Object.fromEntries(entries.map(([key, inner]) => [key, relabel(inner)]));
+      }
+      return value;
+    };
+    const source = relabel(spec()) as ReturnType<typeof spec>;
+    source.locales = { available: [lang], default: lang } as unknown as typeof source.locales;
+    const list = (source.pages[1].sections[1] as { items: { title: Record<string, string> }[] }).items;
+    list[0].title = { [lang]: events[0] };
+    list[1].title = { [lang]: events[1] };
+
+    const files = build(source, options);
+    const all = files.filter((file) => file.path.endsWith(".html")).map((file) => file.text).join("\n");
+    expect(all).toContain(`<html lang="${lang}">`);
+    expect(all).not.toContain('<html lang="sv">');
+    for (const word of words) expect(all).toContain(word);
+    for (const swedish of ["Hoppa till innehållet", "Kommande evenemang", "Alla evenemang", "Ladda ner", ">Skicka<", "Prototyp av", "Sidan hittades inte", "Till startsidan"]) expect(all).not.toContain(swedish);
+
+    const eventsPage = page(files, "evenemang/index.html");
+    expect(eventsPage).toMatch(new RegExp(`class="event"><div class="date"[^>]*><b>${week}</b><span>${month}</span>`));
+    expect(eventsPage).toMatch(/class="event is-past"><div class="date"[^>]*><b>15/);
+    expect(page(files, "index.html")).toContain(events[0].split(" · ")[1]);
+    expect(page(files, "404.html")).toContain(notFound);
+    expect(page(files, "sent/index.html")).toContain(sent);
+  });
+
   it("offers attached documents for download and refuses a document for an unknown item", () => {
     expect(page(build(spec(), options), "dokument/index.html")).toContain('<a class="dl" href="/dokument/mote-1.pdf">');
     expect(() => build(spec(), { ...options, documents: { nope: "x.pdf" } })).toThrow(/not a list item/);

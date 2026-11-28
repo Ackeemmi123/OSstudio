@@ -53,7 +53,25 @@ export interface BuiltFile {
 type Locale = SiteSpec["locales"]["default"];
 type Text = Partial<Record<Locale, string>>;
 
-const CHROME = {
+interface Chrome {
+  skip: string; menu: string; mainNav: string; pages: string; contact: string;
+  upcoming: string; allEvents: string; past: string; download: string;
+  send: string; formOff: string;
+  /** Says "Axivo"; the build puts the studio's own name in its place. */
+  prototype: string;
+  notFound: string; backHome: string; sent: string; notSent: string; trap: string;
+  fields: { name: string; email: string; phone: string; company: string; date: string; message: string };
+  /** Month under the day in an event's date block. */
+  months: readonly string[];
+  /** Month names as written in "<week word> 51, <month> 2026", lower case. */
+  monthNames: readonly string[];
+  /** The word that starts an event date by week, and the short label in the date block. */
+  weekWord: string;
+  week: string;
+}
+
+/** Words of the design itself in each language a site can have. Finnish follows the company design's wording. */
+const CHROME: Record<Locale, Chrome> = {
   sv: {
     skip: "Hoppa till innehållet", menu: "Meny", mainNav: "Huvudmeny", pages: "Sidor", contact: "Kontakt",
     upcoming: "Kommande evenemang", allEvents: "Alla evenemang", past: "Tidigare", download: "Ladda ner",
@@ -64,11 +82,36 @@ const CHROME = {
     fields: { name: "Namn", email: "E-postadress", phone: "Telefonnummer", company: "Organisation", date: "Datum", message: "Meddelande" },
     months: ["jan", "feb", "mar", "apr", "maj", "jun", "jul", "aug", "sep", "okt", "nov", "dec"],
     monthNames: ["januari", "februari", "mars", "april", "maj", "juni", "juli", "augusti", "september", "oktober", "november", "december"],
+    weekWord: "vecka",
     week: "v.",
   },
-} as const;
-
-type Chrome = (typeof CHROME)["sv"];
+  fi: {
+    skip: "Siirry sisältöön", menu: "Valikko", mainNav: "Päävalikko", pages: "Sivut", contact: "Yhteystiedot",
+    upcoming: "Tulevat tapahtumat", allEvents: "Kaikki tapahtumat", past: "Menneet", download: "Lataa",
+    send: "Lähetä", formOff: "Lomake ei ole käytössä prototyypissä.", prototype: "Prototyyppi: Axivo. Ei julkinen.",
+    notFound: "Sivua ei löytynyt", backHome: "Etusivulle",
+    sent: "Kiitos! Viestisi on lähetetty.", notSent: "Viestiä ei voitu lähettää. Lähetä meille mieluummin sähköpostia.",
+    trap: "Jätä tyhjäksi",
+    fields: { name: "Nimi", email: "Sähköpostiosoite", phone: "Puhelinnumero", company: "Organisaatio", date: "Päivämäärä", message: "Viesti" },
+    months: ["tammikuu", "helmikuu", "maaliskuu", "huhtikuu", "toukokuu", "kesäkuu", "heinäkuu", "elokuu", "syyskuu", "lokakuu", "marraskuu", "joulukuu"],
+    monthNames: ["tammikuu", "helmikuu", "maaliskuu", "huhtikuu", "toukokuu", "kesäkuu", "heinäkuu", "elokuu", "syyskuu", "lokakuu", "marraskuu", "joulukuu"],
+    weekWord: "viikko",
+    week: "vk",
+  },
+  en: {
+    skip: "Skip to content", menu: "Menu", mainNav: "Main", pages: "Pages", contact: "Contact",
+    upcoming: "Coming up", allEvents: "All events", past: "Past", download: "Download",
+    send: "Send", formOff: "The form is switched off in the prototype.", prototype: "Prototype by Axivo. Not public.",
+    notFound: "Page not found", backHome: "Back to the front page",
+    sent: "Thank you. Your message was sent.", notSent: "Your message could not be sent. Please email us instead.",
+    trap: "Leave this empty",
+    fields: { name: "Name", email: "Email address", phone: "Phone number", company: "Organisation", date: "Date", message: "Message" },
+    months: ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"],
+    monthNames: ["january", "february", "march", "april", "may", "june", "july", "august", "september", "october", "november", "december"],
+    weekWord: "week",
+    week: "Wk",
+  },
+};
 
 export function escapeHtml(value: string): string {
   return value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
@@ -106,14 +149,14 @@ export interface EventDate {
   latest: Date | null;
 }
 
-/** "3.11.2026" or "Vecka 51, december 2026", as a date block and a date to sort by. */
+/** "3.11.2026" or "Vecka 51, december 2026" (in Finnish "Viikko 51, joulukuu 2026"), as a date block and a date to sort by. */
 export function parseWhen(when: string, chrome: Chrome = CHROME.sv): EventDate {
   const exact = when.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/);
   if (exact) {
     const [, d, m, y] = exact.map(Number);
     return { day: String(d), month: `${chrome.months[m - 1]} ${y}`, latest: new Date(Date.UTC(y, m - 1, d, 23, 59)) };
   }
-  const week = when.match(/^vecka (\d{1,2}),? (\p{L}+) (\d{4})$/iu);
+  const week = when.match(new RegExp(`^${chrome.weekWord} (\\d{1,2}),? (\\p{L}+) (\\d{4})$`, "iu"));
   if (week) {
     const [, w, monthName, year] = week;
     const m = chrome.monthNames.findIndex((name) => name === monthName.toLowerCase());
@@ -141,7 +184,7 @@ function isEventList(section: SiteSpecSection, locale: Locale): boolean {
   return section.kind === "features" && section.variant === "list" && section.items.length > 0 && section.items.every((item) => {
     const title = text(item.title, locale);
     const match = title.match(WHEN);
-    return !!match && parseWhen(match[1]).latest !== null;
+    return !!match && parseWhen(match[1], CHROME[locale]).latest !== null;
   });
 }
 
@@ -155,7 +198,7 @@ export function eventsOf(spec: SiteSpec, locale: Locale): { page: SiteSpecPage; 
     if (!lists.length) continue;
     const events = lists.flatMap((section) => section.kind === "features" ? section.items.map((item) => {
       const [, when, title] = text(item.title, locale).match(WHEN)!;
-      return { id: item.id, when, title, body: text(item.body, locale), date: parseWhen(when) };
+      return { id: item.id, when, title, body: text(item.body, locale), date: parseWhen(when, CHROME[locale]) };
     }) : []);
     return { page, events };
   }
@@ -365,7 +408,6 @@ function document(site: Site, page: SiteSpecPage | null, title: string, descript
 export function build(input: unknown, options: AssociationOptions): BuiltFile[] {
   const spec = siteSpecSchema.parse(input);
   const locale = spec.locales.default;
-  if (locale !== "sv") throw new Error(`The association design system has words for Swedish only so far, not ${locale}.`);
   const chrome = CHROME[locale];
   const site: Site = { spec, options, locale, chrome, pagesById: new Map(spec.pages.map((page) => [page.id, page])), ctaPageId: spec.strategy.primaryCta?.targetPageId };
   if (site.ctaPageId) href(site, site.ctaPageId);
