@@ -80,6 +80,10 @@ describe("association design system", () => {
     expect(contactPage(build(withNote, { ...options, status: "approved" }))).toContain("Ditt meddelande skickas till direktionen (test).");
   });
 
+  it("tells the form server the site's language, so the mail to the association is in it", () => {
+    expect(page(build(spec(), options), "kontakt/index.html")).toContain('<input type="hidden" name="lang" value="sv">');
+  });
+
   it("sends a published site's forms to the given server, and nowhere else", () => {
     const live = page(build(spec(), { ...options, status: "approved", formAction: "https://studio.example/api/site-forms/abc" }), "kontakt/index.html");
     expect(live).toContain('action="https://studio.example/api/site-forms/abc"');

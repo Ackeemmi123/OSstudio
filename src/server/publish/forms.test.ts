@@ -36,6 +36,31 @@ describe("site forms", () => {
     expect((await handleForm(KEY, form({ message: "Hej" }), deps(null).d)).status).toBe(404);
   });
 
+  it("writes the mail to the client in the site's language, and in Swedish for a form from before", async () => {
+    const fi = deps();
+    await handleForm(KEY, form({ form: "kontakt", lang: "fi", name: "Anna", email: "anna@example.test", message: "Hei!", consent: "on" }), fi.d);
+    expect(fi.mails[0].subject).toBe("Uusi viesti: Testsällskapet");
+    expect(fi.mails[0].text).toContain("Uusi viesti verkkosivustolta Testsällskapet.");
+    expect(fi.mails[0].text).toContain("Nimi: Anna");
+    expect(fi.mails[0].text).toContain("Viesti: \nHei!");
+    expect(fi.mails[0].text).toContain("Lähettäjä hyväksyi suostumustekstin.");
+    expect(fi.mails[0].text).not.toMatch(/Namn|Meddelande|Personen/);
+
+    const en = deps();
+    await handleForm(KEY, form({ lang: "en", name: "Ann", email: "ann@example.test", message: "Hi" }), en.d);
+    expect(en.mails[0].subject).toBe("New message from Testsällskapet");
+    expect(en.mails[0].text).toContain("Name: Ann");
+    expect(en.mails[0].text).toContain("Reply to this email to answer the sender directly.");
+
+    // No field (a site built before) or anything unexpected: Swedish, as always.
+    for (const lang of [undefined, "de", "constructor", "__proto__"]) {
+      const sv = deps();
+      await handleForm(KEY, form({ ...(lang ? { lang } : {}), name: "Anna", message: "Hej" }), sv.d);
+      expect(sv.mails[0].subject).toBe("Nytt meddelande från Testsällskapet");
+      expect(sv.mails[0].text).toContain("Namn: Anna");
+    }
+  });
+
   it("sends through Resend with a reply-to", async () => {
     let body: unknown;
     const fetchImpl = (async (_url: string, init: RequestInit) => ((body = JSON.parse(String(init.body))), new Response("{}", { status: 200 }))) as unknown as typeof fetch;

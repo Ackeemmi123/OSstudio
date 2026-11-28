@@ -267,6 +267,8 @@ describe("the built site", () => {
     const contact = build(site).find((file) => file.path === `${rest.contact.slug}/index.html`)!.text;
     expect(contact).toContain('action="https://studio.example/api/site-forms/abc"');
     expect(contact).toContain('name="form" value="contact"');
+    // The mail to the client is written in the site's language.
+    expect(contact).toContain(`<input type="hidden" name="lang" value="${rest.language}"/>`);
     expect(build({ ...site, formAction: 'javascript:x"' }).find((file) => file.path === "index.html")!.text).toContain('action="/api/contact"');
   });
 

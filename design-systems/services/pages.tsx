@@ -257,6 +257,8 @@ function ContactForm({ content, formId, formAction }: { content: SiteContent; fo
   return (
     <form className="form" method="post" action={action}>
       <input type="hidden" name="form" value={formId} />
+      {/* The mail to the client is written in the site's language. */}
+      <input type="hidden" name="lang" value={content.language} />
       <div className="field">
         <label htmlFor={`${formId}-name`}>{form.nameLabel}</label>
         <input id={`${formId}-name`} name="name" autoComplete="name" required />

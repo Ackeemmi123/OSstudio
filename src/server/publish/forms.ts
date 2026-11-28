@@ -5,7 +5,40 @@
  * "sent" or "not sent" page.
  */
 const FIELDS = ["name", "email", "phone", "company", "date", "message"] as const;
-const LABELS: Record<(typeof FIELDS)[number], string> = { name: "Namn", email: "E-post", phone: "Telefon", company: "Organisation", date: "Datum", message: "Meddelande" };
+type Field = (typeof FIELDS)[number];
+
+/**
+ * The mail to the client, in the site's language. The form says which (a hidden
+ * "lang" field); a form without it, from a site built before, is Swedish as it
+ * always was.
+ */
+const MAIL = {
+  sv: {
+    labels: { name: "Namn", email: "E-post", phone: "Telefon", company: "Organisation", date: "Datum", message: "Meddelande" },
+    intro: (site: string) => `Ett nytt meddelande från webbplatsen ${site}.`,
+    consent: "Personen godkände samtyckestexten.",
+    reply: "Svara direkt på det här mejlet för att svara personen.",
+    subject: (site: string) => `Nytt meddelande från ${site}`,
+    theSite: "webbplatsen",
+  },
+  fi: {
+    labels: { name: "Nimi", email: "Sähköposti", phone: "Puhelin", company: "Organisaatio", date: "Päivämäärä", message: "Viesti" },
+    intro: (site: string) => `Uusi viesti verkkosivustolta ${site}.`,
+    consent: "Lähettäjä hyväksyi suostumustekstin.",
+    reply: "Voit vastata lähettäjälle suoraan vastaamalla tähän sähköpostiin.",
+    subject: (site: string) => `Uusi viesti: ${site}`,
+    theSite: "verkkosivusto",
+  },
+  en: {
+    labels: { name: "Name", email: "Email", phone: "Phone", company: "Organisation", date: "Date", message: "Message" },
+    intro: (site: string) => `A new message from the website ${site}.`,
+    consent: "The sender accepted the consent text.",
+    reply: "Reply to this email to answer the sender directly.",
+    subject: (site: string) => `New message from ${site}`,
+    theSite: "the website",
+  },
+} satisfies Record<string, { labels: Record<Field, string>; intro: (site: string) => string; consent: string; reply: string; subject: (site: string) => string; theSite: string }>;
+type MailLanguage = keyof typeof MAIL;
 const KEY = /^[A-Za-z0-9_-]{24,64}$/;
 
 export interface FormTarget {
@@ -35,21 +68,23 @@ export async function handleForm(key: string, form: FormData | null, deps: FormD
   if (value("website")) return back(siteUrl, "sent");
   if (target.limited || !target.recipient) return back(siteUrl, "not-sent");
 
+  const lang = value("lang");
+  const words = MAIL[Object.hasOwn(MAIL, lang) ? (lang as MailLanguage) : "sv"];
   const entries = FIELDS.map((field) => [field, value(field).slice(0, field === "message" ? 5000 : 300)] as const).filter(([, v]) => v);
   if (!entries.length || entries.every(([field]) => field === "name")) return back(siteUrl, "not-sent");
   const email = entries.find(([field]) => field === "email")?.[1];
   const replyTo = email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) && email.length <= 200 ? email : undefined;
   const text = [
-    `Ett nytt meddelande från webbplatsen ${target.siteName ?? ""}.`,
+    words.intro(target.siteName ?? ""),
     "",
-    ...entries.map(([field, v]) => `${LABELS[field]}: ${field === "message" ? `\n${v}` : v}`),
+    ...entries.map(([field, v]) => `${words.labels[field]}: ${field === "message" ? `\n${v}` : v}`),
     "",
-    value("consent") ? "Personen godkände samtyckestexten." : "",
-    replyTo ? "Svara direkt på det här mejlet för att svara personen." : "",
+    value("consent") ? words.consent : "",
+    replyTo ? words.reply : "",
   ]
     .filter((line, i, all) => line || all[i - 1])
     .join("\n");
-  const sent = await deps.send({ to: target.recipient, replyTo, subject: `Nytt meddelande från ${target.siteName ?? "webbplatsen"}`.slice(0, 150), text }).catch(() => false);
+  const sent = await deps.send({ to: target.recipient, replyTo, subject: words.subject(target.siteName ?? words.theSite).slice(0, 150), text }).catch(() => false);
   return back(siteUrl, sent ? "sent" : "not-sent");
 }
 
