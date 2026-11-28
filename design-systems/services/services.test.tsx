@@ -321,6 +321,20 @@ describe("the built site", () => {
   });
 });
 
+describe("web fonts", () => {
+  it("give every web font a metric-matched stand-in, right after it in every stack, so text keeps its place when the font arrives", () => {
+    const families = [...new Set([...STYLES.matchAll(/@font-face\{font-family:"([^"]+)";src:url\(/g)].map((match) => match[1]))];
+    expect(families.length).toBeGreaterThanOrEqual(10);
+    for (const family of families) {
+      // A local font scaled to the web font's width, with its line metrics.
+      expect(STYLES).toMatch(new RegExp(`@font-face\\{font-family:"${family} Fallback";src:local\\("[^"]+"\\)[^}]*size-adjust:[\\d.]+%;ascent-override:[\\d.]+%;descent-override:[\\d.]+%;line-gap-override:[\\d.]+%\\}`));
+      const inStacks = STYLES.split(`"${family}",`).length - 1;
+      expect(inStacks, family).toBeGreaterThan(0);
+      expect(STYLES.split(`"${family}","${family} Fallback",`).length - 1, family).toBe(inStacks);
+    }
+  });
+});
+
 describe("a built site's own pictures", () => {
   // The sample firm with its pictures as a build stores them: files in the site's folder.
   const own = (variants: boolean, width = 1600, height = 1000): Site => ({
