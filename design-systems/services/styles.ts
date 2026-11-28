@@ -157,6 +157,12 @@ h3{font-family:var(--display);font-size:var(--h3);font-weight:var(--h3-weight);l
 .page-lead{font-size:clamp(1.15rem,1.7vw,1.4rem);line-height:1.42}
 .page-intro .page-lead{grid-column:4/10;margin-top:2.25rem}
 .wide-image img{aspect-ratio:2/1}
+/* A portrait of the site's own: upright beside the margin with the story beside it, never a band across the page that would cut the head off. */
+.portrait-story{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));column-gap:24px;align-items:start;padding:clamp(2.5rem,5vw,5rem) var(--gut) 0}
+.portrait-story .wide-image--tall{grid-column:1/6}
+.wide-image.wide-image--tall img{aspect-ratio:4/5;object-position:50% 12%}
+.portrait-story .story.story--beside{grid-column:7/13;display:block;padding:clamp(.5rem,2vw,2rem) 0 0}
+.portrait-story .story--beside p + p{margin-top:1.5rem}
 .story{padding:clamp(3.5rem,7vw,7rem) var(--gut) 0;display:grid;grid-template-columns:repeat(12,minmax(0,1fr));column-gap:24px;row-gap:1.5rem}
 .page-intro + .story{padding-top:0}
 .story p{grid-column:4/10;font-size:clamp(1.05rem,1.3vw,1.18rem);line-height:1.6}
@@ -205,6 +211,8 @@ h3{font-family:var(--display);font-size:var(--h3);font-weight:var(--h3-weight);l
  .closing .form{margin-top:2.5rem}
  .page-intro h1,.page-intro .page-lead,.story p{grid-column:1/-1}
  .wide-image img{aspect-ratio:4/3}
+ .portrait-story .wide-image--tall,.portrait-story .story.story--beside{grid-column:1/-1}
+ .portrait-story .story.story--beside{padding-top:clamp(2.5rem,8vw,3.5rem)}
  .person,.person--no-photo{grid-column:1/-1}
  .contact-words,.contact-page .form{grid-column:1/-1}
  .contact-page .form{margin-top:3rem}
@@ -419,7 +427,7 @@ h3{font-family:var(--display);font-size:var(--h3);font-weight:var(--h3-weight);l
 .d-formal .ledger{border-top:1px solid var(--ink)}
 .d-formal .ledger-row{position:relative;isolation:isolate;padding:clamp(1.4rem,2.6vw,2.6rem) var(--gut);border-bottom:1px solid var(--ink);transition:color .45s}
 .d-formal .ledger-row::before{content:"";position:absolute;inset:0;background:var(--deep);transform:scaleY(0);transform-origin:bottom;transition:transform .55s cubic-bezier(.3,.7,.1,1);z-index:-1}
-.d-formal .ledger-row h3{grid-column:1/9;line-height:1}
+.d-formal .ledger-row h3{grid-column:1/9;line-height:1;text-wrap:balance}
 .d-formal .ledger-row p{grid-column:9/13;color:var(--mute);transition:color .45s}
 .d-formal .ledger-row .price{grid-column:9/13;text-align:left;margin-top:.4rem;color:var(--ink)}
 @media (hover:hover){
@@ -431,6 +439,9 @@ h3{font-family:var(--display);font-size:var(--h3);font-weight:var(--h3-weight);l
 .memory-year{grid-column:1/-1;font:400 clamp(6.5rem,29vw,34rem)/.76 var(--display);color:var(--accent);letter-spacing:-.04em;margin-left:-.04em}
 .memory-image{grid-column:7/13;overflow:hidden;aspect-ratio:16/10;margin-top:clamp(-4rem,-3.5vw,-1rem);position:relative;z-index:2}
 .memory-image img{height:116%;aspect-ratio:auto}
+/* A portrait of the site's own keeps an upright place and stays still: drifting would hide the top of the head. */
+.memory-image--tall{grid-column:9/13;aspect-ratio:4/5}
+.memory-image.memory-image--tall img{height:100%;object-position:50% 12%;animation:none}
 .memory-head{grid-column:1/7;grid-row:2;padding-right:1.5rem;margin-top:clamp(1.5rem,3vw,3rem)}
 .memory--no-year .memory-head{grid-row:1}
 .memory h2{font-size:clamp(2.2rem,3.9vw,4.2rem)}
@@ -492,6 +503,7 @@ h3{font-family:var(--display);font-size:var(--h3);font-weight:var(--h3-weight);l
  .d-formal .ledger-row h3,.d-formal .ledger-row p,.d-formal .ledger-row .price{grid-column:1/-1}
  .d-formal .ledger-row p{margin-top:.8rem}
  .memory-image{grid-column:1/-1;margin:.5rem calc(var(--gut) * -1) 0 12%}
+ .memory-image--tall{margin-left:36%}
  .memory-head{grid-column:1/-1;grid-row:auto;margin-top:2rem;padding:0}
  .memory-story{grid-column:1/-1}
  .d-formal .questions .section-head,.d-formal .question-list{grid-column:1/-1}

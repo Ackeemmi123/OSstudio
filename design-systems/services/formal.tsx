@@ -4,7 +4,7 @@
  * becomes part of the composition, if the firm has said it.
  */
 import type { SiteContent } from "./content";
-import { Action, Closing, FirstSteps, Frame, Headline, Picture, Proof, Questions, Reasons, Services, displayTier, find, heroPlace, type PageContext } from "./pages";
+import { Action, Closing, FirstSteps, Frame, Headline, Picture, Proof, Questions, Reasons, Services, displayTier, find, heroPlace, isTall, type PageContext } from "./pages";
 import { Signature } from "./signature";
 
 /** The year a firm's own words say it began, if they do. */
@@ -46,9 +46,15 @@ function Memory({ content }: { content: SiteContent }) {
     <section className={year ? "memory" : "memory memory--no-year"} aria-labelledby="memory">
       {year ? <p className="memory-year" aria-hidden="true">{year}</p> : null}
       {image ? (
-        <figure className="memory-image">
-          <Picture asset={image} ratio={16 / 10} sizes="(max-width: 820px) 86vw, 46vw" frame={1.38} widths={[800, 1200, 1500]} />
-        </figure>
+        isTall(image) ? (
+          <figure className="memory-image memory-image--tall">
+            <Picture asset={image} ratio={4 / 5} sizes="(max-width: 820px) 64vw, 31vw" widths={[480, 800, 1000]} />
+          </figure>
+        ) : (
+          <figure className="memory-image">
+            <Picture asset={image} ratio={16 / 10} sizes="(max-width: 820px) 86vw, 46vw" frame={1.38} widths={[800, 1200, 1500]} />
+          </figure>
+        )
       ) : null}
       <div className="memory-head">
         <h2 id="memory">{about.heading.text}</h2>
