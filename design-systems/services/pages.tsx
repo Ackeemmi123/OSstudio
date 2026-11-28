@@ -420,22 +420,32 @@ export function AboutPage({ context }: { context: PageContext }) {
         <h1>{about.heading.text}</h1>
         <p className="page-lead">{about.lead.text}</p>
       </section>
-      {image ? (
-        isTall(image) ? (
+      {image && isTall(image) ? (
+        // A portrait: upright, with the story beside it rather than below an empty half of the page.
+        <div className="portrait-story">
           <figure className="wide-image wide-image--tall">
             <Picture asset={image} ratio={4 / 5} sizes="(max-width: 820px) calc(100vw - 40px), 38vw" widths={[480, 800, 1200]} first />
           </figure>
-        ) : (
-          <figure className="wide-image">
-            <Picture asset={image} ratio={2} sizes="(max-width: 820px) 100vw, 100vw" frame={[4 / 3, 2]} widths={[800, 1400, 2000]} first />
-          </figure>
-        )
-      ) : null}
-      <section className="story" aria-label={about.label}>
-        {about.story.map((paragraph) => (
-          <p key={paragraph.text}>{paragraph.text}</p>
-        ))}
-      </section>
+          <section className="story story--beside" aria-label={about.label}>
+            {about.story.map((paragraph) => (
+              <p key={paragraph.text}>{paragraph.text}</p>
+            ))}
+          </section>
+        </div>
+      ) : (
+        <>
+          {image ? (
+            <figure className="wide-image">
+              <Picture asset={image} ratio={2} sizes="(max-width: 820px) 100vw, 100vw" frame={[4 / 3, 2]} widths={[800, 1400, 2000]} first />
+            </figure>
+          ) : null}
+          <section className="story" aria-label={about.label}>
+            {about.story.map((paragraph) => (
+              <p key={paragraph.text}>{paragraph.text}</p>
+            ))}
+          </section>
+        </>
+      )}
       {about.people.filter((person) => person.profile).map((person, i) => (
         <Profile key={person.name} context={context} person={person} index={i} />
       ))}

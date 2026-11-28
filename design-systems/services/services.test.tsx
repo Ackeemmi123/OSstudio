@@ -370,10 +370,17 @@ describe("a built site's own pictures", () => {
     expect(about(own(true))).toContain('<figure class="wide-image">');
     expect(about(lindqvist)).toContain('<figure class="wide-image">');
     const tall = about(own(true, 720, 1082));
-    expect(tall).toContain('<figure class="wide-image wide-image--tall">');
+    expect(tall).toContain('<div class="portrait-story"><figure class="wide-image wide-image--tall">');
     expect(tall).not.toContain('<figure class="wide-image">');
     expect(attr(tall.match(/<figure class="wide-image wide-image--tall"><img\b[^>]*>/)![0], "height")).toBe("1500");
-    expect(STYLES).toContain(".wide-image.wide-image--tall img{grid-column:1/6;aspect-ratio:4/5;object-position:50% 12%}");
+    expect(STYLES).toContain(".wide-image.wide-image--tall img{aspect-ratio:4/5;object-position:50% 12%}");
+    // The story stands beside the portrait, so no half of the page is left empty; on a phone it follows below.
+    expect(tall).toMatch(/<\/figure><section class="story story--beside" aria-label="[^"]*"><p>/);
+    expect(STYLES).toContain(".portrait-story .story.story--beside{grid-column:7/13;");
+    expect(STYLES).toMatch(/@media[^{]*\{[^@]*\.portrait-story \.wide-image--tall,\.portrait-story \.story\.story--beside\{grid-column:1\/-1\}/);
+    // Every paragraph of the story is still there, once.
+    const site = own(true, 720, 1082);
+    for (const paragraph of site.content.about.story) expect(tall.split(`<p>${paragraph.text}</p>`).length).toBe(2);
     // The formal home page's picture beside the firm's story: upright too, and still, since drifting hides its top.
     const home = (site: Site) => htmlOf({ ...site, design: { ...site.design, direction: "formal" } }).find((file) => file.path === "index.html")!.text;
     expect(home(own(true))).toContain('<figure class="memory-image">');

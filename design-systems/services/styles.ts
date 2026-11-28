@@ -157,9 +157,12 @@ h3{font-family:var(--display);font-size:var(--h3);font-weight:var(--h3-weight);l
 .page-lead{font-size:clamp(1.15rem,1.7vw,1.4rem);line-height:1.42}
 .page-intro .page-lead{grid-column:4/10;margin-top:2.25rem}
 .wide-image img{aspect-ratio:2/1}
-/* A portrait of the site's own: upright beside the margin, never a band across the page that would cut the head off. */
-.wide-image--tall{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));column-gap:24px;padding:clamp(2.5rem,5vw,5rem) var(--gut) 0}
-.wide-image.wide-image--tall img{grid-column:1/6;aspect-ratio:4/5;object-position:50% 12%}
+/* A portrait of the site's own: upright beside the margin with the story beside it, never a band across the page that would cut the head off. */
+.portrait-story{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));column-gap:24px;align-items:start;padding:clamp(2.5rem,5vw,5rem) var(--gut) 0}
+.portrait-story .wide-image--tall{grid-column:1/6}
+.wide-image.wide-image--tall img{aspect-ratio:4/5;object-position:50% 12%}
+.portrait-story .story.story--beside{grid-column:7/13;display:block;padding:clamp(.5rem,2vw,2rem) 0 0}
+.portrait-story .story--beside p + p{margin-top:1.5rem}
 .story{padding:clamp(3.5rem,7vw,7rem) var(--gut) 0;display:grid;grid-template-columns:repeat(12,minmax(0,1fr));column-gap:24px;row-gap:1.5rem}
 .page-intro + .story{padding-top:0}
 .story p{grid-column:4/10;font-size:clamp(1.05rem,1.3vw,1.18rem);line-height:1.6}
@@ -208,7 +211,8 @@ h3{font-family:var(--display);font-size:var(--h3);font-weight:var(--h3-weight);l
  .closing .form{margin-top:2.5rem}
  .page-intro h1,.page-intro .page-lead,.story p{grid-column:1/-1}
  .wide-image img{aspect-ratio:4/3}
- .wide-image.wide-image--tall img{grid-column:1/-1}
+ .portrait-story .wide-image--tall,.portrait-story .story.story--beside{grid-column:1/-1}
+ .portrait-story .story.story--beside{padding-top:clamp(2.5rem,8vw,3.5rem)}
  .person,.person--no-photo{grid-column:1/-1}
  .contact-words,.contact-page .form{grid-column:1/-1}
  .contact-page .form{margin-top:3rem}
