@@ -6,6 +6,11 @@
  * compiled), and `seek(t)` puts every animation at time t: a paused GSAP
  * timeline through `.seek()`, CSS animations through `document.getAnimations()`,
  * WebGL through a still drawn at t. Nothing on the page may run on a clock.
+ * `seek` may return a promise; the renderer waits for it.
+ *
+ * A site that has no such contract (a client's site, any address) is filmed
+ * by scripts/render-site-film.mjs, which steps the site itself one frame at
+ * a time and hands the frames to this script through lab/verktyg/sitefilm.html.
  *
  * For each frame this script calls seek, waits for the fonts and two
  * animation frames, and photographs the page through Chrome's own
@@ -141,7 +146,8 @@ for (const film of films) {
       // kept a few pixels of its last step), and a frame would depend on the frames photographed before it.
       document.documentElement.style.visibility = "hidden";
       await painted();
-      window.sgFilm.seek(t);
+      // A seek may return a promise (a page that fetches a picture for t): the frame is taken once it has settled.
+      await window.sgFilm.seek(t);
       document.documentElement.style.visibility = "";
       await document.fonts.ready;
       await painted();

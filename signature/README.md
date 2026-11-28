@@ -585,6 +585,98 @@ longer lines is set smaller. The Finnish and English files carry the
 language in their name (`…-fi.mp4`, `…-en-web.mp4`). Like the other tool
 pages it is not part of the build, so it weighs nothing for a visitor.
 
+### Films of a site, without and with Signature
+
+`scripts/render-site-film.mjs` films **any site**, with no `sgFilm` in it: a
+phone film (390 px wide, photographed at the scale that gives 1080 × 1920), a
+desktop film (1440 px wide → 1920 × 1080) and, given the same site without
+Signature, a before/after film with the two phone views side by side (16:9
+and 1:1), each half quietly labelled in Finnish, Swedish or English. Films
+are 12 to 20 seconds and go to `films/sites/<name>/` with their contact
+sheets (not in git).
+
+```sh
+npm run site-film -- --site <address> --name <name>                     # phone and desktop
+npm run site-film -- --site <address> --plain <address> --name <name>   # and before/after
+npm run site-film -- --site … --stops ".hero-image @0.2 1.5; .closing @0.1 1.8"
+npm run site-film -- --examples                    # the four invented example firms, fi
+npm run site-film -- --examples --only kahvila --lang fi,sv,en
+npm run site-film -- --examples --yield            # on a shared machine: measurements go first
+npm run site-film -- --examples --sheet-only --keep-frames   # photograph, and only the contact sheets
+npm run site-film -- --examples --reuse-frames --lang fi,sv,en --square-lang fi   # films from those frames
+```
+
+`--examples` takes the invented firms built by
+`proof/concepts/industry-examples.render.ts` (see "Proof" above), enhances a
+copy of each with `enhanceSite` and its direction's preset, serves both
+(port 4610; the lab's dev server for the layout page is started on 4611) and
+makes every film. Each of those films says "Esimerkki" ("Exempel",
+"Example") and that the firm is invented: `--example` does the same for any
+other invented site, and a real client's film is made without it.
+
+**Time.** A script that runs before the site's own replaces the page's
+clocks: `performance.now`, `Date`, `requestAnimationFrame`, timers and idle
+callbacks read one counter that only the renderer moves, a thirtieth of a
+second per frame. CSS animations, transitions and Web Animations are taken
+off the wall clock as they appear (held, moved by the same counter, ended
+through `finish()` so their events fire). GSAP, Lenis and the layer's own
+motion therefore all advance exactly one frame per frame, however busy the
+machine is. Intersection observers are still worked out by the browser, but
+their reports are handed to the page at one fixed point of each frame, so an
+arrival belongs to the frame whose scroll caused it; they start when fonts
+and the first screen's pictures are in, which is frame 0. Every pass is a
+first visit in a fresh browser context; what the site fetches from other
+hosts (pictures from a CDN) is fetched once and given again byte for byte,
+since an image service may encode the same picture a shade differently from
+one request to the next. Chrome's own virtual time (`Emulation.setVirtualTimePolicy`) was
+tried first and is not used: in the installed Chrome a page never finished
+loading while time was paused, and animation frames kept wall-clock
+timestamps, so Lenis ran on real time.
+
+**Scroll.** A scripted path: a rest on the first screen, then eased moves
+(off quickly, a long landing) and rests where a headline or a picture
+arrives and on the call to action. `--stops` names them (`selector @part
+hold`: that element's top at that part of the screen's height, for that many
+seconds); without it the script finds the page's headlines, pictures and
+form. On the desktop the path is sent as wheel events, one per frame, as a
+trackpad sends them: Lenis takes them and moves the page as it does for a
+visitor, and a site that does not take them is scrolled by the same amount.
+On the phone the page follows the path directly, as under a finger (Lenis
+leaves touch to the browser). Before and after use one path.
+
+**Nothing is added to the site.** A frame is the page as Chrome drew it.
+The labels, Axivo's mark and the example mark are set beside it by
+`lab/verktyg/sitefilm.html` (the lab's own type: narrow Archivo and
+Instrument Sans), which lays the photographed frames out and is then filmed
+by `render-dom-film.mjs`: its encoder, its play-back checks and its contact
+sheet, unchanged.
+
+**What the checks prove.** A frame of a scrolled site depends on every frame
+before it, so it cannot be sought out of order. Instead each site is loaded a
+second time, in a fresh browser context, and stepped through the whole film
+again: twelve frames spread over it are photographed and must match the first
+pass to the pixel, and the scroll position must be the same on every frame.
+That proves the film depends on the site and the path alone, not on the
+machine's load, the network's timing or the run (`--verify-all` photographs
+every frame again; a frame that differs is kept beside the first, and no
+film is made from a site that fails). Before any frame is taken the renderer
+waits for what the step set off (observers, lazy pictures fetched and
+decoded, chunks the site imports), empties the screen for a painted frame
+and brings it back so Chrome draws the page afresh (as `render-dom-film.mjs`
+does; a site with a transition on `visibility` or on `all` would start one
+there, and the renderer says so), and photographs until two photographs are
+identical, so no picture is ever half loaded. Chrome draws and composites on the CPU here, with animations on the
+main thread: on the graphics card, and with compositor-run scroll
+animations, type came back a shade different from one run to the next. The composed
+film then gets `render-dom-film.mjs`'s own check: frames sought again out of
+order, identical to the pixel. The result of both is in
+`films/sites/<name>/<name>-site-films.json` and each film's own `.json`.
+
+Not driven by the counter: `<video>`, GIFs, workers and frames within the
+page (they stay on the wall clock, and the renderer stops with "never comes
+to rest" if one of them moves), and timers with a delay do not fire while the
+page loads.
+
 ## The gate
 
 | Check | Limit |

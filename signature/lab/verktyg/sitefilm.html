@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="fi">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex" />
+    <link rel="icon" href="data:," />
+    <title>Verktyg: sajtfilm · Signature</title>
+    <!-- The lab's own palette and fonts: the labels are set in the same hand as Axivo's films. -->
+    <link rel="stylesheet" href="../lab.css" />
+    <link rel="stylesheet" href="./sitefilm.css" />
+    <script type="module" src="./sitefilm.ts"></script>
+  </head>
+  <body class="sitefilm-page">
+    <!--
+      scripts/render-site-film.mjs photographs a site frame by frame and hands the frames to this page, which lays
+      them out (one view, or the same site without and with Signature side by side) and labels them.
+      scripts/render-dom-film.mjs then films this page. See sitefilm.ts for the address parameters.
+    -->
+    <main class="stage" id="stage"></main>
+  </body>
+</html>
