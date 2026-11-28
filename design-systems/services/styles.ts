@@ -17,6 +17,17 @@ const FONTS = `
 @font-face{font-family:"Cormorant Garamond";src:url(fonts/cormorant-garamond-latin-wght-normal.woff2) format("woff2");font-weight:300 700;font-style:normal;font-display:swap}
 @font-face{font-family:"Cormorant Garamond";src:url(fonts/cormorant-garamond-latin-wght-italic.woff2) format("woff2");font-weight:300 700;font-style:italic;font-display:swap}
 @font-face{font-family:"Work Sans";src:url(fonts/work-sans-latin-wght-normal.woff2) format("woff2");font-weight:100 900;font-style:normal;font-display:swap}
+/* Each web font's stand-in while it loads: a local font scaled to the same width and line metrics, so text keeps its place when the web font arrives. Computed from the font files by scripts/font-fallbacks.py. */
+@font-face{font-family:"Fraunces Fallback";src:local("Times New Roman"),local("Times"),local("Liberation Serif"),local("Tinos");size-adjust:89.75%;ascent-override:108.97%;descent-override:28.41%;line-gap-override:0.00%}
+@font-face{font-family:"Instrument Sans Fallback";src:local("Arial"),local("Helvetica"),local("Liberation Sans"),local("Arimo");size-adjust:101.87%;ascent-override:95.22%;descent-override:24.54%;line-gap-override:0.00%}
+@font-face{font-family:"Bodoni Moda Fallback";src:local("Times New Roman"),local("Times"),local("Liberation Serif"),local("Tinos");size-adjust:114.44%;ascent-override:98.31%;descent-override:34.95%;line-gap-override:0.00%}
+@font-face{font-family:"Hanken Grotesk Fallback";src:local("Arial"),local("Helvetica"),local("Liberation Sans"),local("Arimo");size-adjust:100.69%;ascent-override:99.31%;descent-override:30.09%;line-gap-override:0.00%}
+@font-face{font-family:"Big Shoulders Display Fallback";src:local("Arial"),local("Helvetica"),local("Liberation Sans"),local("Arimo");size-adjust:89.71%;ascent-override:109.69%;descent-override:23.74%;line-gap-override:0.00%}
+@font-face{font-family:"Archivo Fallback";src:local("Arial"),local("Helvetica"),local("Liberation Sans"),local("Arimo");size-adjust:98.73%;ascent-override:88.93%;descent-override:21.27%;line-gap-override:0.00%}
+@font-face{font-family:"Young Serif Fallback";src:local("Times New Roman"),local("Times"),local("Liberation Serif"),local("Tinos");size-adjust:125.93%;ascent-override:83.06%;descent-override:29.06%;line-gap-override:0.00%}
+@font-face{font-family:"Figtree Fallback";src:local("Arial"),local("Helvetica"),local("Liberation Sans"),local("Arimo");size-adjust:98.16%;ascent-override:96.78%;descent-override:25.47%;line-gap-override:0.00%}
+@font-face{font-family:"Cormorant Garamond Fallback";src:local("Times New Roman"),local("Times"),local("Liberation Serif"),local("Tinos");size-adjust:95.85%;ascent-override:96.40%;descent-override:29.94%;line-gap-override:0.00%}
+@font-face{font-family:"Work Sans Fallback";src:local("Arial"),local("Helvetica"),local("Liberation Sans"),local("Arimo");size-adjust:111.41%;ascent-override:83.47%;descent-override:21.81%;line-gap-override:0.00%}
 `;
 
 const PALETTES = `
@@ -47,12 +58,12 @@ const PALETTES = `
 `;
 
 const DIRECTIONS = `
-.d-editorial{--gut:clamp(1.25rem,4vw,4rem);--body:"Instrument Sans",system-ui,sans-serif;--display:"Fraunces",Georgia,serif;--display-weight:300;--display-track:-.018em;--display-lead:1.02;--h1-1:clamp(3.1rem,7.1vw,8rem);--h1-2:clamp(2.7rem,5.6vw,6.4rem);--h1-3:clamp(2.2rem,4.4vw,5rem);--h2:clamp(2.3rem,4.6vw,5rem);--h3:clamp(1.9rem,3.6vw,3.8rem);--h3-weight:300;--radius:999px}
-.d-formal{--gut:clamp(1.25rem,4vw,4rem);--body:"Hanken Grotesk",system-ui,sans-serif;--display:"Bodoni Moda",Didot,serif;--display-weight:400;--display-track:-.012em;--display-lead:1.03;--h1-1:clamp(2.7rem,5.6vw,7rem);--h1-2:clamp(2.35rem,4.5vw,5.6rem);--h1-3:clamp(2rem,3.6vw,4.4rem);--h2:clamp(2.1rem,4.4vw,4.8rem);--h3:clamp(1.95rem,5.5vw,6.6rem);--h3-weight:400;--radius:0}
-.d-statement{--gut:clamp(16px,3vw,48px);--display:"Big Shoulders Display",Impact,sans-serif;--display-weight:900;--display-track:-.005em;--display-lead:.98;--h1-1:clamp(3.2rem,11vw,13rem);--h1-2:clamp(2.8rem,8vw,9.5rem);--h1-3:clamp(2.1rem,5.6vw,6.5rem);--h2:clamp(3rem,8.6vw,10.5rem);--h3:clamp(2.3rem,4.2vw,5rem);--h3-weight:900;--radius:0;--body:"Archivo",system-ui,sans-serif}
-.d-cafe{--gut:clamp(1.25rem,4vw,4rem);--body:"Figtree",system-ui,sans-serif;--display:"Young Serif",Georgia,serif;--display-weight:400;--display-track:-.015em;--display-lead:1.06;--h1-1:clamp(2.6rem,5.2vw,4.9rem);--h1-2:clamp(2.3rem,4.4vw,4.1rem);--h1-3:clamp(2rem,3.6vw,3.4rem);--h2:clamp(2rem,3.6vw,3.3rem);--h3:clamp(1.3rem,2vw,1.6rem);--h3-weight:400;--radius:999px}
-.d-clinic{--gut:clamp(1.25rem,4.5vw,4.5rem);--body:"Figtree",system-ui,sans-serif;--display:"Hanken Grotesk",system-ui,sans-serif;--display-weight:300;--display-track:-.035em;--display-lead:1.02;--h1-1:clamp(2.8rem,6.2vw,6rem);--h1-2:clamp(2.4rem,5vw,4.9rem);--h1-3:clamp(2rem,4vw,3.9rem);--h2:clamp(2.1rem,3.8vw,3.6rem);--h3:clamp(1.2rem,1.6vw,1.4rem);--h3-weight:500;--radius:999px}
-.d-atelier{--gut:clamp(1.25rem,4.5vw,4.5rem);--body:"Work Sans",system-ui,sans-serif;--display:"Cormorant Garamond",Garamond,serif;--display-weight:300;--display-track:-.02em;--display-lead:1.0;--h1-1:clamp(3rem,7vw,6.6rem);--h1-2:clamp(2.6rem,5.6vw,5.4rem);--h1-3:clamp(2.2rem,4.4vw,4.4rem);--h2:clamp(2.2rem,4vw,3.6rem);--h3:clamp(1.15rem,1.6vw,1.3rem);--h3-weight:400;--radius:0}
+.d-editorial{--gut:clamp(1.25rem,4vw,4rem);--body:"Instrument Sans","Instrument Sans Fallback",system-ui,sans-serif;--display:"Fraunces","Fraunces Fallback",Georgia,serif;--display-weight:300;--display-track:-.018em;--display-lead:1.02;--h1-1:clamp(3.1rem,7.1vw,8rem);--h1-2:clamp(2.7rem,5.6vw,6.4rem);--h1-3:clamp(2.2rem,4.4vw,5rem);--h2:clamp(2.3rem,4.6vw,5rem);--h3:clamp(1.9rem,3.6vw,3.8rem);--h3-weight:300;--radius:999px}
+.d-formal{--gut:clamp(1.25rem,4vw,4rem);--body:"Hanken Grotesk","Hanken Grotesk Fallback",system-ui,sans-serif;--display:"Bodoni Moda","Bodoni Moda Fallback",Didot,serif;--display-weight:400;--display-track:-.012em;--display-lead:1.03;--h1-1:clamp(2.7rem,5.6vw,7rem);--h1-2:clamp(2.35rem,4.5vw,5.6rem);--h1-3:clamp(2rem,3.6vw,4.4rem);--h2:clamp(2.1rem,4.4vw,4.8rem);--h3:clamp(1.95rem,5.5vw,6.6rem);--h3-weight:400;--radius:0}
+.d-statement{--gut:clamp(16px,3vw,48px);--display:"Big Shoulders Display","Big Shoulders Display Fallback",Impact,sans-serif;--display-weight:900;--display-track:-.005em;--display-lead:.98;--h1-1:clamp(3.2rem,11vw,13rem);--h1-2:clamp(2.8rem,8vw,9.5rem);--h1-3:clamp(2.1rem,5.6vw,6.5rem);--h2:clamp(3rem,8.6vw,10.5rem);--h3:clamp(2.3rem,4.2vw,5rem);--h3-weight:900;--radius:0;--body:"Archivo","Archivo Fallback",system-ui,sans-serif}
+.d-cafe{--gut:clamp(1.25rem,4vw,4rem);--body:"Figtree","Figtree Fallback",system-ui,sans-serif;--display:"Young Serif","Young Serif Fallback",Georgia,serif;--display-weight:400;--display-track:-.015em;--display-lead:1.06;--h1-1:clamp(2.6rem,5.2vw,4.9rem);--h1-2:clamp(2.3rem,4.4vw,4.1rem);--h1-3:clamp(2rem,3.6vw,3.4rem);--h2:clamp(2rem,3.6vw,3.3rem);--h3:clamp(1.3rem,2vw,1.6rem);--h3-weight:400;--radius:999px}
+.d-clinic{--gut:clamp(1.25rem,4.5vw,4.5rem);--body:"Figtree","Figtree Fallback",system-ui,sans-serif;--display:"Hanken Grotesk","Hanken Grotesk Fallback",system-ui,sans-serif;--display-weight:300;--display-track:-.035em;--display-lead:1.02;--h1-1:clamp(2.8rem,6.2vw,6rem);--h1-2:clamp(2.4rem,5vw,4.9rem);--h1-3:clamp(2rem,4vw,3.9rem);--h2:clamp(2.1rem,3.8vw,3.6rem);--h3:clamp(1.2rem,1.6vw,1.4rem);--h3-weight:500;--radius:999px}
+.d-atelier{--gut:clamp(1.25rem,4.5vw,4.5rem);--body:"Work Sans","Work Sans Fallback",system-ui,sans-serif;--display:"Cormorant Garamond","Cormorant Garamond Fallback",Garamond,serif;--display-weight:300;--display-track:-.02em;--display-lead:1.0;--h1-1:clamp(3rem,7vw,6.6rem);--h1-2:clamp(2.6rem,5.6vw,5.4rem);--h1-3:clamp(2.2rem,4.4vw,4.4rem);--h2:clamp(2.2rem,4vw,3.6rem);--h3:clamp(1.15rem,1.6vw,1.3rem);--h3-weight:400;--radius:0}
 `;
 
 const BASE = `
@@ -541,7 +552,7 @@ h3{font-family:var(--display);font-size:var(--h3);font-weight:var(--h3-weight);l
 
 /* Statement: the side of a van. Type-led and direct, for a firm whose visitor needs one thing now. */
 .d-statement h1,.d-statement h2,.d-statement h3,.d-statement .button,.d-statement .call-bar,.d-statement .footer-mark{text-transform:uppercase}
-.d-statement .label{font:600 .8rem/1.3 "Archivo",sans-serif;font-stretch:115%;letter-spacing:.05em;text-transform:uppercase}
+.d-statement .label{font:600 .8rem/1.3 "Archivo","Archivo Fallback",sans-serif;font-stretch:115%;letter-spacing:.05em;text-transform:uppercase}
 .d-statement .mark{font:900 1.7rem/1 var(--display);text-transform:uppercase}
 .d-statement .site-header{background:var(--deep);color:var(--on-deep);padding:.7rem var(--gut);border-bottom:2px solid var(--deep-2)}
 .d-statement .site-header .menu-narrow nav{color:var(--ink)}
@@ -607,7 +618,7 @@ h3{font-family:var(--display);font-size:var(--h3);font-weight:var(--h3-weight);l
 .d-statement .steps{background:transparent;margin:0;padding:0}
 .d-statement .steps li:nth-child(n){margin-top:0}
 .d-statement .steps li::before{font:900 clamp(3.5rem,7vw,7rem)/.9 var(--display);color:var(--signal);margin-bottom:.6rem}
-.d-statement .steps h3{font:700 1.3rem/1.2 "Archivo",sans-serif;text-transform:none;letter-spacing:0}
+.d-statement .steps h3{font:700 1.3rem/1.2 "Archivo","Archivo Fallback",sans-serif;text-transform:none;letter-spacing:0}
 .stack{background:var(--deep);color:var(--on-deep)}
 .d-statement .stack-label{padding:clamp(2rem,4vw,4rem) var(--gut) 1rem;color:var(--on-deep-mute);hyphens:none}
 .stack li{position:sticky;top:0;min-height:min(72vh,44rem);display:flex;flex-direction:column;justify-content:flex-end;padding:clamp(1.5rem,3vw,3rem) var(--gut);overflow:clip;background:var(--deep-2);color:var(--on-deep);border-top:3px solid var(--deep)}
@@ -615,7 +626,7 @@ h3{font-family:var(--display);font-size:var(--h3);font-weight:var(--h3-weight);l
 .stack li:last-child{background:var(--paper);color:var(--ink);border-top-color:var(--ink);min-height:min(60vh,38rem)}
 .stack-word{font:900 min(calc((100vw - 2 * var(--gut)) / (var(--n) * var(--cw,.54))),34vh)/.9 var(--display);text-transform:uppercase;white-space:nowrap}
 .stack li:nth-child(even) .stack-word{color:var(--signal)}
-.stack h3{font:700 1.35rem/1.2 "Archivo",sans-serif;text-transform:none;letter-spacing:0;margin-top:1rem}
+.stack h3{font:700 1.35rem/1.2 "Archivo","Archivo Fallback",sans-serif;text-transform:none;letter-spacing:0;margin-top:1rem}
 .stack li p:last-child{margin-top:.25rem;max-width:34rem;color:var(--on-deep-mute)}
 .stack li:last-child p:last-child{color:var(--mute)}
 
@@ -629,7 +640,7 @@ h3{font-family:var(--display);font-size:var(--h3);font-weight:var(--h3-weight);l
 .d-statement .question-list{margin-left:auto;max-width:52rem}
 .d-statement .question-list details{border-top:2px solid var(--ink)}
 .d-statement .question-list details:last-child{border-bottom:2px solid var(--ink)}
-.d-statement .question-list summary{font:650 1.25rem/1.25 "Archivo",sans-serif}
+.d-statement .question-list summary{font:650 1.25rem/1.25 "Archivo","Archivo Fallback",sans-serif}
 .d-statement .question-list summary::after{color:var(--ink);font:900 1.9rem/.8 var(--display)}
 .d-statement .question-list details[open] summary::after{content:"\\00d7"}
 
@@ -679,10 +690,10 @@ h3{font-family:var(--display);font-size:var(--h3);font-weight:var(--h3-weight);l
 @media (max-height:560px){.stack li,.stack li:last-child{position:static;min-height:0}}
 
 /* Other voices for this direction, so two firms in one trade do not look alike. */
-.t-grotesk{--display:"Hanken Grotesk",system-ui,sans-serif;--cw:.6;--display-weight:800;--display-track:-.035em;--display-lead:1.02;--h1-1:clamp(2.8rem,8.4vw,10rem);--h1-2:clamp(2.5rem,6.4vw,8rem);--h1-3:clamp(2rem,4.6vw,5.5rem);--h2:clamp(2.4rem,6vw,7rem);--h3:clamp(1.8rem,3vw,3.4rem);--h3-weight:800;--mega:clamp(2.6rem,8vw,9.5rem);--mega-weight:800}
+.t-grotesk{--display:"Hanken Grotesk","Hanken Grotesk Fallback",system-ui,sans-serif;--cw:.6;--display-weight:800;--display-track:-.035em;--display-lead:1.02;--h1-1:clamp(2.8rem,8.4vw,10rem);--h1-2:clamp(2.5rem,6.4vw,8rem);--h1-3:clamp(2rem,4.6vw,5.5rem);--h2:clamp(2.4rem,6vw,7rem);--h3:clamp(1.8rem,3vw,3.4rem);--h3-weight:800;--mega:clamp(2.6rem,8vw,9.5rem);--mega-weight:800}
 .t-grotesk h1,.t-grotesk h2,.t-grotesk h3,.t-grotesk .button,.t-grotesk .call-bar,.t-grotesk .footer-mark,.t-grotesk .mark,.t-grotesk .stack-word,.t-grotesk .reason-list strong,.t-grotesk .ledger-row .price{text-transform:none}
 .t-grotesk .button,.t-grotesk .call-bar{letter-spacing:-.02em;font-weight:800}
-.t-wide{--display:"Archivo",system-ui,sans-serif;--cw:.92;--display-weight:800;--display-track:-.02em;--display-lead:1.02;--h1-1:clamp(2.4rem,6.6vw,8rem);--h1-2:clamp(2.1rem,5vw,6rem);--h1-3:clamp(1.8rem,3.6vw,4.4rem);--h2:clamp(2rem,4.6vw,5.4rem);--h3:clamp(1.5rem,2.3vw,2.7rem);--h3-weight:800;--mega:clamp(1.8rem,5.5vw,6.6rem);--mega-weight:800}
+.t-wide{--display:"Archivo","Archivo Fallback",system-ui,sans-serif;--cw:.92;--display-weight:800;--display-track:-.02em;--display-lead:1.02;--h1-1:clamp(2.4rem,6.6vw,8rem);--h1-2:clamp(2.1rem,5vw,6rem);--h1-3:clamp(1.8rem,3.6vw,4.4rem);--h2:clamp(2rem,4.6vw,5.4rem);--h3:clamp(1.5rem,2.3vw,2.7rem);--h3-weight:800;--mega:clamp(1.8rem,5.5vw,6.6rem);--mega-weight:800}
 .t-wide h1,.t-wide h2,.t-wide h3,.t-wide .poster,.t-wide .stack-word,.t-wide .reason-list strong,.t-wide .footer-mark,.t-wide .mark,.t-wide .button,.t-wide .call-bar,.t-wide .ledger-row .price{font-stretch:125%}
 .t-wide .button,.t-wide .call-bar{font-weight:800;font-size:1.2rem}
 .t-wide .hero .button{font-size:clamp(1.15rem,3vw,3.6rem)}
