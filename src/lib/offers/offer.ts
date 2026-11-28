@@ -253,6 +253,13 @@ export const OFFER_WORDS: Record<OfferLanguage, Words> = {
 /** Axivo's published prices (axivo.fi/hinnat), as a starting point for each offer. */
 export const STANDARD_PRICES = { website: 1000, monthly: 49, yearly: 490 } as const;
 
+/**
+ * Axivo Signature's starting prices, set by the owner on 28.11.2026 to sit below the local competition (Visio
+ * Design's animation tier from €4,800, Kesto Digital's Kulta €4,500): the add-on from €1,200, made-to-measure parts
+ * from €2,200, VAT 0%, so a website with both still comes in under €4,500. A starting point on each offer, which the person changes as the work asks.
+ */
+export const SIGNATURE_PRICES: Record<OfferLineKind, number> = { signature: 1200, "signature-custom": 2200 };
+
 /** Finland's general VAT rate, which the person can change on the offer. */
 export const STANDARD_VAT_PERCENT = 25.5;
 
