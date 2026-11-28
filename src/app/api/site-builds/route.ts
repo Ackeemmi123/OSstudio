@@ -5,8 +5,9 @@ import { serverSupabase } from "@/server/config";
 import { BUILD_BUCKET, BuildRefused, buildSite } from "@/server/site-builds/build";
 import { buildDeps } from "@/server/site-builds/deps";
 
-// Fetches the images, builds, checks and stores a site: a minute is plenty for a few dozen images.
-export const maxDuration = 60;
+// Fetches the images, makes each into WebP at a few widths (about a second for a full-size photo),
+// builds, checks and stores a site. The build itself stops making pictures smaller after 40 seconds.
+export const maxDuration = 120;
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -57,9 +58,14 @@ export async function POST(request: Request) {
       buildDeps(asUser, asServer, studioId, record.client_id),
     );
 
-    for (const file of site.files) {
-      const { error: storeError } = await asServer.storage.from(BUILD_BUCKET).upload(`${site.storagePrefix}/${file.path}`, file.body, { contentType: file.contentType, upsert: false });
-      if (storeError) throw storeError;
+    // A few at a time: each picture is now several small files, and one by one they would add up.
+    for (let i = 0; i < site.files.length; i += 6) {
+      await Promise.all(
+        site.files.slice(i, i + 6).map(async (file) => {
+          const { error: storeError } = await asServer.storage.from(BUILD_BUCKET).upload(`${site.storagePrefix}/${file.path}`, file.body, { contentType: file.contentType, upsert: false });
+          if (storeError) throw storeError;
+        }),
+      );
     }
     const { error: insertError } = await asServer.rpc("record_site_build", { p_build: {
       id: site.id,

@@ -4,7 +4,7 @@
  * when there is a photo of them, and on the words when there is not.
  */
 import type { SiteContent } from "./content";
-import { Action, Closing, FirstSteps, Frame, Headline, Picture, Proof, Questions, Reasons, Services, displayTier, find, type PageContext } from "./pages";
+import { Action, Closing, FirstSteps, Frame, Headline, Picture, Proof, Questions, Reasons, Services, displayTier, find, heroPlace, type PageContext } from "./pages";
 import { Signature } from "./signature";
 
 function Hero({ context }: { context: PageContext }) {
@@ -19,7 +19,7 @@ function Hero({ context }: { context: PageContext }) {
       {image ? (
         <figure className="hero-image">
           <div className="frame">
-            <Picture asset={image} ratio={4 / 4.5} sizes="(max-width: 980px) 85vw, 42vw" widths={[480, 800, 1200]} first />
+            <Picture asset={image} ratio={4 / 4.5} {...heroPlace(design, "(max-width: 980px) 82vw, 40vw")} widths={[480, 800, 1200]} first />
           </div>
           {promise.reassurance ? <p className="hero-note">{promise.reassurance.text}</p> : null}
           {pictured ? <figcaption>{pictured.name}, {pictured.role.text}</figcaption> : null}
@@ -45,7 +45,7 @@ function Letter({ content }: { content: SiteContent }) {
     <section className={portrait ? "letter" : "letter letter--words"} aria-label={about.label}>
       {portrait ? (
         <figure className="cameo">
-          <Picture asset={portrait} ratio={4 / 5} sizes="(max-width: 760px) 60vw, 26vw" widths={[480, 800]} />
+          <Picture asset={portrait} ratio={4 / 5} sizes="(max-width: 760px) 63vw, min(480px, 37vw)" widths={[480, 800]} />
         </figure>
       ) : null}
       <div className="letter-words">

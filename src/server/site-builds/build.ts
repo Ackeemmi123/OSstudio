@@ -14,12 +14,18 @@ import { ASSOCIATION_PRESET, enhanceSite, presetForDirection, type PresetName } 
 import { servicesContent, type ServicesImage } from "@/lib/site-spec/to-services";
 import type { SiteSpec } from "@/lib/site-spec/schema";
 import { parseSiteSpec } from "@/lib/site-spec/validate";
+import { webpPictures } from "./images";
 
 export const BUILD_LINK_DAYS = 30;
 /** The private Storage bucket that holds built sites (migration 20261117000100). */
 export const BUILD_BUCKET = "site-builds";
 const MAX_FILES = 500;
 const MAX_BYTES = 100 * 1024 * 1024;
+/** Pictures made into WebP at the same time, and how long all of them may take before the rest go in as uploaded. */
+const PICTURES_AT_ONCE = 3;
+const PICTURE_BUDGET_MS = 40_000;
+/** The widest file a phone fetches for a picture as wide as its screen (390 px at 3x). */
+const PHONE_WIDTH = 1200;
 
 export interface StoredImage {
   /** site_assets.id, the spec asset's fileId. */
@@ -34,6 +40,13 @@ export interface StoredImage {
   rightsBasis?: string | null;
   licenceNote?: string | null;
   identifiablePeople?: boolean;
+}
+
+/** A picture as a build wrote it: the upload's size and its WebP files by width, narrowest first. */
+export interface BuiltPicture {
+  width: number;
+  height: number;
+  variants: { path: string; width: number }[];
 }
 
 export interface BuildCheck {
@@ -133,26 +146,60 @@ export async function buildSite(input: { studioId: string; specVersion: number; 
   const stored = new Map((await deps.images(fileIds)).map((image) => [image.id, image]));
   const files: BuiltSite["files"] = [];
   const imageFiles: Record<string, string> = {};
+  // What the build made of each picture: its size and its WebP files, narrowest first.
+  const pictures: Record<string, BuiltPicture> = {};
+  let icon: string | undefined;
+  const beyondPhone = new Set<string>();
 
-  await Promise.all(
-    spec.assets.map(async (asset) => {
-      const image = asset.fileId ? stored.get(asset.fileId) : undefined;
-      if (!image || image.status === "deleted" || image.status === "uploading") {
-        checks.push({ level: "error", message: `The image "${asset.description || asset.id}" has no stored file.` });
-        return;
+  const usable: { asset: SiteSpec["assets"][number]; image: StoredImage }[] = [];
+  for (const asset of spec.assets) {
+    const image = asset.fileId ? stored.get(asset.fileId) : undefined;
+    if (!image || image.status === "deleted" || image.status === "uploading") {
+      checks.push({ level: "error", message: `The image "${asset.description || asset.id}" has no stored file.` });
+      continue;
+    }
+    if (image.status === "rejected") checks.push({ level: "error", message: `The rights for "${asset.description || asset.id}" were rejected.` });
+    else if (image.status !== "approved")
+      checks.push(
+        input.production
+          ? { level: "error", message: `The rights for "${asset.description || asset.id}" are not approved, so the site cannot be published.` }
+          : { level: "warning", message: `The rights for "${asset.description || asset.id}" are not decided yet. Fine for a preview link, not for publishing.` },
+      );
+    usable.push({ asset, image });
+  }
+  if (checks.some((check) => check.level === "error")) throw new BuildRefused("The site was not built.", checks);
+  const uploads = await Promise.all(usable.map(({ image }) => deps.download(image.storagePath)));
+  // Each picture becomes WebP at a few widths (images.ts), a few pictures at a time so memory stays small.
+  // One that cannot be read, or that there is no time left for, goes in as it was uploaded: never a reason to stop a build.
+  const started = Date.now();
+  let next = 0;
+  const work = async () => {
+    for (let i = next++; i < usable.length; i = next++) {
+      const { asset, image } = usable[i];
+      const body = uploads[i];
+      try {
+        if (Date.now() - started > PICTURE_BUDGET_MS) throw new Error("No time left.");
+        const made = await webpPictures(body, { icon: asset.id === spec.brand.logoAssetId });
+        const variants = made.variants.map((variant) => ({ path: `img/${asset.id}-${variant.width}.webp`, width: variant.width }));
+        made.variants.forEach((variant, n) => files.push({ path: variants[n].path, body: variant.body, contentType: "image/webp" }));
+        pictures[asset.id] = { width: made.width, height: made.height, variants };
+        imageFiles[asset.id] = variants[variants.length - 1].path;
+        // The quality report weighs what a phone fetches: the file that fills its screen.
+        for (const variant of variants) if (variant !== (variants.findLast((entry) => entry.width <= PHONE_WIDTH) ?? variants[0])) beyondPhone.add(variant.path);
+        if (made.icon) {
+          icon = `img/${asset.id}-icon.png`;
+          files.push({ path: icon, body: made.icon, contentType: "image/png" });
+          beyondPhone.add(icon);
+        }
+      } catch {
+        const path = `img/${asset.id}.${EXTENSIONS[image.mimeType] ?? "bin"}`;
+        imageFiles[asset.id] = path;
+        files.push({ path, body, contentType: image.mimeType });
+        checks.push({ level: "warning", message: `The image "${asset.description || asset.id}" could not be made smaller for the web, so it is used as uploaded.` });
       }
-      if (image.status === "rejected") checks.push({ level: "error", message: `The rights for "${asset.description || asset.id}" were rejected.` });
-      else if (image.status !== "approved")
-        checks.push(
-          input.production
-            ? { level: "error", message: `The rights for "${asset.description || asset.id}" are not approved, so the site cannot be published.` }
-            : { level: "warning", message: `The rights for "${asset.description || asset.id}" are not decided yet. Fine for a preview link, not for publishing.` },
-        );
-      const path = `img/${asset.id}.${EXTENSIONS[image.mimeType] ?? "bin"}`;
-      imageFiles[asset.id] = path;
-      files.push({ path, body: await deps.download(image.storagePath), contentType: image.mimeType });
-    }),
-  );
+    }
+  };
+  await Promise.all(Array.from({ length: PICTURES_AT_ONCE }, work));
   if (checks.some((check) => check.level === "error")) throw new BuildRefused("The site was not built.", checks);
 
   // Documents to download, by the list item that offers them.
@@ -183,9 +230,9 @@ export async function buildSite(input: { studioId: string; specVersion: number; 
   let built;
   try {
     if (system === "services@0.1") {
-      built = servicesFiles(spec, input, stored, imageFiles, deps, files);
+      built = servicesFiles(spec, input, stored, imageFiles, pictures, deps, files);
     } else {
-      built = buildAssociation(spec, { files: imageFiles, documents: documentFiles, status: input.production ? "approved" : "prototype", today: deps.now(), madeBy: input.madeBy, formAction: input.production?.formAction });
+      built = buildAssociation(spec, { files: imageFiles, pictures, icon, documents: documentFiles, status: input.production ? "approved" : "prototype", today: deps.now(), madeBy: input.madeBy, formAction: input.production?.formAction });
       // Axivo Signature on an association site: always the calm preset (trust before effect).
       if (spec.brand.concept?.signatureMotion) built = withSignature(built, "association", ASSOCIATION_PRESET, files);
     }
@@ -213,7 +260,7 @@ export async function buildSite(input: { studioId: string; specVersion: number; 
     checks,
     quality: siteQuality({
       pages: built.filter((file) => file.path.endsWith(".html")).map((file) => ({ path: file.path, html: file.text })),
-      images: files.filter((file) => file.contentType.startsWith("image/")).map((file) => ({ path: file.path, bytes: file.body.byteLength })),
+      images: files.filter((file) => file.contentType.startsWith("image/") && !beyondPhone.has(file.path)).map((file) => ({ path: file.path, bytes: file.body.byteLength })),
       industry: spec.strategy.industry,
     }),
     expiresAt: new Date(now.getTime() + BUILD_LINK_DAYS * 86400000),
@@ -240,6 +287,7 @@ function servicesFiles(
   input: { madeBy?: string; production?: { formAction: string; approvedBy?: string; approvedOn?: string } },
   stored: Map<string, StoredImage>,
   imageFiles: Record<string, string>,
+  pictures: Record<string, BuiltPicture>,
   deps: BuildDeps,
   files: BuiltSite["files"],
 ) {
@@ -250,11 +298,12 @@ function servicesFiles(
     if (!image || !path || !asset.fileId) continue;
     images[asset.fileId] = {
       src: `/${path}`,
-      width: image.width ?? 1600,
-      height: image.height ?? 1000,
+      width: pictures[asset.id]?.width ?? image.width ?? 1600,
+      height: pictures[asset.id]?.height ?? image.height ?? 1000,
       source: (image.sourceNote || RIGHTS[image.rightsBasis ?? ""] || "The client").slice(0, 120),
       licence: (image.licenceNote || RIGHTS[image.rightsBasis ?? ""] || "Used with permission").slice(0, 120),
       showsPerson: Boolean(image.identifiablePeople),
+      ...(pictures[asset.id] ? { variants: pictures[asset.id].variants.map((variant) => ({ src: `/${variant.path}`, width: variant.width })) } : {}),
     };
   }
   if (input.production && !input.production.approvedBy) throw new BuildRefused("A published company site names who approved it, and no approval was found.");

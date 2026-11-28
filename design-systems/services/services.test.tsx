@@ -6,7 +6,7 @@ import { STRESS_SITES } from "../../proof/sites/stress";
 import { siteContent, visibleStrings, type Site } from "./content";
 import { build } from "./index";
 import { foundingYear } from "./formal";
-import { CHROME, displayTier } from "./pages";
+import { CHROME, displayTier, widerSizes } from "./pages";
 import { posterLines, stepWords } from "./statement";
 import { STYLES } from "./styles";
 
@@ -318,5 +318,58 @@ describe("the built site", () => {
     // Every range that belongs to such an entrance also names the range of at-rest, or at-rest would follow the entrance's.
     for (const [, range] of STYLES.matchAll(/animation-range:(entry [^;}]*cover [^;}]*)/g)) if (range.includes(",")) expect(range).toMatch(/,0 20vh$/);
     expect(STYLES.match(/,0 20vh\}/g)).toHaveLength(11);
+  });
+});
+
+describe("a built site's own pictures", () => {
+  // The sample firm with its pictures as a build stores them: files in the site's folder.
+  const own = (variants: boolean, width = 1600, height = 1000): Site => ({
+    ...lindqvist,
+    content: {
+      ...lindqvist.content,
+      assets: lindqvist.content.assets.map((asset) => ({
+        ...asset,
+        src: `/img/${asset.id}-1600.webp`,
+        width,
+        height,
+        ...(variants ? { variants: [320, 640, 960, 1600].map((step) => ({ src: `/img/${asset.id}-${step}.webp`, width: step })) } : {}),
+      })),
+    },
+  });
+  const imgs = (site: Site) => htmlOf(site).flatMap((file) => file.text.match(/<img\b[^>]*>/g) ?? []);
+  const attr = (tag: string, name: string) => tag.match(new RegExp(`\\s${name}="([^"]*)"`))?.[1];
+
+  it("offers each picture at the widths the build made, and changes nothing else about it", () => {
+    const made = imgs(own(true));
+    const plain = imgs(own(false));
+    expect(made.length).toBeGreaterThan(2);
+    expect(made).toHaveLength(plain.length);
+    for (const [i, tag] of made.entries()) {
+      const id = attr(tag, "src")!.match(/^\/img\/(.+)-1600\.webp$/)![1];
+      expect(attr(tag, "srcset")).toBe([320, 640, 960, 1600].map((step) => `/img/${id}-${step}.webp ${step}w`).join(", "));
+      expect(attr(plain[i], "srcset")).toBeUndefined();
+      for (const name of ["src", "alt", "width", "height", "loading", "decoding", "fetchpriority", "class", "referrerpolicy"]) expect(attr(tag, name), name).toBe(attr(plain[i], name));
+      expect(attr(tag, "sizes")).toBeTruthy();
+    }
+    const strip = (site: Site) => htmlOf(site).map((file) => file.text.replace(/<img\b[^>]*>/g, "<img>"));
+    expect(strip(own(true))).toEqual(strip(own(false)));
+  });
+
+  it("asks for a wider file when the picture is wider in shape than its frame, since it is cropped to fill it", () => {
+    // A 3:2 photo in the 4:5 portrait frames of the people page is drawn 1.88 times as wide as the frame.
+    const wide = imgs(own(true, 1500, 1000)).map((tag) => attr(tag, "sizes")!);
+    expect(wide.some((sizes) => / \* 1\.88\)/.test(sizes))).toBe(true);
+    // A picture taller in shape than every frame keeps the frames' own widths.
+    const tall = imgs(own(true, 600, 1000)).map((tag) => attr(tag, "sizes")!);
+    expect(tall).toEqual(imgs(own(false)).map((tag) => attr(tag, "sizes")!));
+  });
+
+  it("multiplies every width in a sizes list, whatever its condition", () => {
+    expect(widerSizes("100vw", 1)).toBe("100vw");
+    expect(widerSizes("100vw", 1.5)).toBe("calc(100vw * 1.5)");
+    expect(widerSizes("(max-width: 820px) 90vw, 44vw", 1.875)).toBe("(max-width: 820px) calc(90vw * 1.88), calc(44vw * 1.88)");
+    expect(widerSizes("(max-width: 820px) calc(100vw - 40px), min(650px, 45vw)", 2)).toBe("(max-width: 820px) calc(calc(100vw - 40px) * 2), calc(min(650px, 45vw) * 2)");
+    // One number for each entry: a place that is 4:3 on a phone and 2:1 on a wide screen.
+    expect(widerSizes("(max-width: 820px) 100vw, 100vw", [1.5 / (4 / 3), 1.5 / 2])).toBe("(max-width: 820px) calc(100vw * 1.13), 100vw");
   });
 });

@@ -22,6 +22,13 @@ import { STYLES } from "./styles";
 export interface AssociationOptions {
   /** The file each image id shows, relative to the site root. */
   files: Record<string, string>;
+  /**
+   * What a build made of each image: its size in pixels and the same picture at several widths
+   * (files relative to the site root, narrowest first), for the browser to choose from.
+   */
+  pictures?: Record<string, { width: number; height: number; variants: { path: string; width: number }[] }>;
+  /** A small image for the browser tab. Without it the small logo's own file is used. */
+  icon?: string;
   /** The file each document list item offers, relative to the site root. */
   documents?: Record<string, string>;
   /** The image id of the small one-colour logo for the header and footer. */
@@ -175,13 +182,37 @@ function href(site: Site, pageId: string): string {
   return pagePath(page, site.locale);
 }
 
-function image(site: Site, assetId: string | undefined, attrs: string): string {
+/**
+ * How wide each picture is drawn (styles.ts), so a browser fetches the narrowest file that fills it.
+ * hero: beside the words in a 1120 px page, at most 340 px above them on a phone. half: one of two
+ * columns. card: one of three in a gallery. person: one of four in a board, two on a phone.
+ */
+const SIZES = {
+  hero: "(max-width: 820px) min(340px, calc(100vw - 48px)), min(487px, calc(47.5vw - 46px))",
+  half: "(max-width: 820px) calc(100vw - 48px), min(508px, calc(50vw - 52px))",
+  card: "min(350px, calc(33.4vw - 24px))",
+  person: "(max-width: 900px) calc(50vw - 34px), min(247px, calc(25vw - 33px))",
+  footLogo: "150px",
+  brandLogo: "64px",
+} as const;
+/** A portrait is cropped to 3:4, so a picture wider in shape than that is drawn wider than its frame by this much. */
+const personSizes = (by: number) => (by > 1.02 ? `(max-width: 900px) calc((50vw - 34px) * ${by}), calc(min(247px, 25vw - 33px) * ${by})` : SIZES.person);
+
+function image(site: Site, assetId: string | undefined, attrs: string, slot: keyof typeof SIZES): string {
   if (!assetId) return "";
   const asset = site.spec.assets.find((entry) => entry.id === assetId);
   const file = site.options.files[assetId];
   if (asset && !file && site.options.missingImages === "box") return `<div class="nofile" role="img" aria-label="${escapeHtml(text(asset.alt, site.locale))}">${escapeHtml(asset.description || text(asset.alt, site.locale) || assetId)}</div>`;
   if (!asset || !file) throw new Error(`No file for the image ${assetId}.`);
-  return `<img src="${escapeHtml(fileUrl(file))}" alt="${escapeHtml(text(asset.alt, site.locale))}" ${attrs}>`;
+  const picture = site.options.pictures?.[assetId];
+  if (!picture?.variants.length) return `<img src="${escapeHtml(fileUrl(file))}" alt="${escapeHtml(text(asset.alt, site.locale))}" ${attrs}>`;
+  const srcset = picture.variants.map((variant) => `${fileUrl(variant.path)} ${variant.width}w`).join(", ");
+  // A picture that was drawn at its own size keeps it: with a list of widths a browser would otherwise take the slot's width as its size.
+  // And it keeps the upload's exact shape, whichever width is fetched (a narrower file's height is rounded to a whole pixel).
+  // A board portrait is cropped to 3:4 by the stylesheet instead.
+  const size = (/\bwidth="/.test(attrs) ? "" : ` width="${picture.width}" height="${picture.height}"`) + (slot === "person" ? "" : ` style="aspect-ratio:${picture.width}/${picture.height}"`);
+  const sizes = slot === "person" ? personSizes(Math.round((picture.width / picture.height / (3 / 4)) * 100) / 100) : SIZES[slot];
+  return `<img src="${escapeHtml(fileUrl(file))}" srcset="${escapeHtml(srcset)}" sizes="${sizes}" alt="${escapeHtml(text(asset.alt, site.locale))}" ${attrs}${size}>`;
 }
 
 /** A file in the site's folder, or a full address (a preview's short-lived links). */
@@ -225,7 +256,7 @@ function section(site: Site, page: SiteSpecPage, entry: SiteSpecSection, first: 
   switch (entry.kind) {
     case "hero": {
       const buttons = entry.buttons.map((button, i) => `<a class="btn${i ? " btn--line" : ""}" href="${href(site, button.targetPageId)}">${escapeHtml(text(button.label, locale))}</a>`).join("");
-      const media = image(site, entry.mediaAssetId, 'class="hero-media" width="1100" height="653" fetchpriority="high"');
+      const media = image(site, entry.mediaAssetId, 'class="hero-media" width="1100" height="653" fetchpriority="high"', "hero");
       return `<section class="hero${media ? " has-media" : ""}"><div class="wrap hero-grid"><div><h1>${escapeHtml(heading)}</h1><p class="lead">${linkify(text(entry.subheading, locale))}</p>${buttons ? `<div class="actions">${buttons}</div>` : ""}</div>${media}</div></section>`;
     }
     case "text": {
@@ -236,7 +267,7 @@ function section(site: Site, page: SiteSpecPage, entry: SiteSpecSection, first: 
       return `<section class="${cls}"><div class="wrap narrow">${head}<div class="prose${first ? " prose--lead" : ""}">${richText(body)}</div></div></section>`;
     }
     case "text_media":
-      return `<section class="sec"><div class="wrap split">${image(site, entry.mediaAssetId, 'loading="lazy"')}<div>${head}<div class="prose">${richText(text(entry.body, locale))}</div></div></div></section>`;
+      return `<section class="sec"><div class="wrap split">${image(site, entry.mediaAssetId, 'loading="lazy"', "half")}<div>${head}<div class="prose">${richText(text(entry.body, locale))}</div></div></div></section>`;
     case "features": {
       if (isEventList(entry, locale)) {
         const events = eventsOf({ ...site.spec, pages: [{ ...page, sections: [entry] }] }, locale)!.events;
@@ -257,7 +288,7 @@ function section(site: Site, page: SiteSpecPage, entry: SiteSpecSection, first: 
     case "team": {
       const emails = new Map<string, string>();
       for (const other of page.sections) if (other.kind === "text") for (const line of text(other.body, locale).split("\n")) { const match = line.match(/^(.+): (\S+@\S+)$/); if (match) emails.set(match[1].trim(), match[2]); }
-      return `<section class="sec"><div class="wrap">${head}<div class="board">${entry.items.map((person) => { const email = emails.get(person.name); return `<div class="person">${image(site, person.assetId, 'width="240" height="320" loading="lazy"')}<${I}>${escapeHtml(person.name)}</${I}><p class="role">${escapeHtml(text(person.role, locale))}</p>${email ? `<a href="mailto:${escapeHtml(email)}">${escapeHtml(email)}</a>` : ""}</div>`; }).join("")}</div></div></section>`;
+      return `<section class="sec"><div class="wrap">${head}<div class="board">${entry.items.map((person) => { const email = emails.get(person.name); return `<div class="person">${image(site, person.assetId, 'width="240" height="320" loading="lazy"', "person")}<${I}>${escapeHtml(person.name)}</${I}><p class="role">${escapeHtml(text(person.role, locale))}</p>${email ? `<a href="mailto:${escapeHtml(email)}">${escapeHtml(email)}</a>` : ""}</div>`; }).join("")}</div></div></section>`;
     }
     case "faq":
       return `<section class="sec"><div class="wrap narrow">${head}<div class="accordion">${entry.items.map((item, i) => `<details${i === 0 ? " open" : ""}><summary>${escapeHtml(text(item.question, locale))}</summary><div class="prose">${richText(text(item.answer, locale))}</div></details>`).join("")}</div></div></section>`;
@@ -273,7 +304,7 @@ function section(site: Site, page: SiteSpecPage, entry: SiteSpecSection, first: 
       return `<section class="${first ? "pagehead" : "sec"}"><div class="wrap">${head}${lead ? `<p class="lead">${linkify(lead)}</p>` : ""}<div class="split split--contact">${form ? `<div>${form}</div>` : ""}${details ? `<div class="box prose">${richText(details)}</div>` : ""}</div></div></section>`;
     }
     case "gallery":
-      return `<section class="sec"><div class="wrap">${head}<div class="gallery">${entry.assetIds.map((assetId) => image(site, assetId, 'loading="lazy"')).join("")}</div></div></section>`;
+      return `<section class="sec"><div class="wrap">${head}<div class="gallery">${entry.assetIds.map((assetId) => image(site, assetId, 'loading="lazy"', "card")).join("")}</div></div></section>`;
     case "testimonials":
       return `<section class="sec"><div class="wrap narrow">${head}${entry.items.map((item) => `<blockquote><p>${escapeHtml(text(item.quote, locale))}</p><footer>${escapeHtml(item.author)}</footer></blockquote>`).join("")}</div></section>`;
     case "map":
@@ -303,8 +334,8 @@ function document(site: Site, page: SiteSpecPage | null, title: string, descript
   const contactSection = contactPage?.sections.find((s) => s.kind === "contact");
   const contactLines = contactSection ? (text(contactSection.body, locale).split(/\n{2,}/).find((block) => block.split("\n").every((line) => DETAIL.test(line.trim()))) ?? "") : "";
   const smallLogo = options.smallLogo ?? spec.brand.logoAssetId;
-  const small = smallLogo ? image(site, smallLogo, 'width="150" height="91"') : "";
-  const brandLogo = smallLogo ? image(site, smallLogo, 'width="64" height="39"').replace(/alt="[^"]*"/, `alt="${escapeHtml(siteName)}"`) : "";
+  const small = smallLogo ? image(site, smallLogo, 'width="150" height="91"', "footLogo") : "";
+  const brandLogo = smallLogo ? image(site, smallLogo, 'width="64" height="39"', "brandLogo").replace(/alt="[^"]*"/, `alt="${escapeHtml(siteName)}"`) : "";
   const noindex = options.status !== "approved";
   return [
     "<!doctype html>",
@@ -315,7 +346,7 @@ function document(site: Site, page: SiteSpecPage | null, title: string, descript
     ...(noindex ? ['<meta name="robots" content="noindex,nofollow">'] : []),
     `<title>${escapeHtml(title)}</title>`,
     `<meta name="description" content="${escapeHtml(description)}">`,
-    smallLogo && options.files[smallLogo] ? `<link rel="icon" href="${escapeHtml(fileUrl(options.files[smallLogo]))}">` : "",
+    smallLogo && options.files[smallLogo] ? `<link rel="icon" href="${escapeHtml(fileUrl(options.icon ?? options.files[smallLogo]))}">` : "",
     '<link rel="stylesheet" href="/site.css">',
     '<meta name="generator" content="association@0.1">',
     "</head>",

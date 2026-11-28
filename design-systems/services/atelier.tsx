@@ -5,7 +5,7 @@
  * services take its place, so the page never shows an empty frame.
  */
 import type { SiteContent } from "./content";
-import { Action, CHROME, Closing, Frame, Headline, Picture, Proof, Questions, Services, displayTier, find, type PageContext } from "./pages";
+import { Action, CHROME, Closing, Frame, Headline, Picture, Proof, Questions, Services, displayTier, find, heroPlace, type PageContext } from "./pages";
 import { Signature } from "./signature";
 
 function Hero({ context }: { context: PageContext }) {
@@ -22,7 +22,7 @@ function Hero({ context }: { context: PageContext }) {
       </div>
       {image ? (
         <figure className="hero-image">
-          <Picture asset={image} ratio={16 / 7} sizes="100vw" widths={[800, 1400, 2000]} first />
+          <Picture asset={image} ratio={16 / 7} {...heroPlace(design, "(max-width: 820px) calc(100vw - 40px), 92vw", [4 / 3, 16 / 7])} widths={[800, 1400, 2000]} first />
         </figure>
       ) : null}
     </section>
@@ -44,7 +44,7 @@ function Gallery({ context }: { context: PageContext }) {
         {shown.map((item, i) => (
           <figure key={item.imageId} className={`work-item work-item--${(i % 4) + 1}`}>
             <div className="work-frame">
-              <Picture asset={item.asset!} ratio={[4 / 3, 4 / 5, 1, 16 / 10][i % 4]} sizes="(max-width: 820px) 100vw, 55vw" widths={[480, 800, 1200]} />
+              <Picture asset={item.asset!} ratio={[4 / 3, 4 / 5, 1, 16 / 10][i % 4]} sizes={`(max-width: 820px) calc(100vw - 40px), ${i % 4 === 0 || i % 4 === 3 ? "54vw" : "38vw"}`} frame="own" widths={[480, 800, 1200]} />
             </div>
             <figcaption>{item.caption.text}</figcaption>
           </figure>

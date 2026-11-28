@@ -141,6 +141,32 @@ describe("association design system", () => {
     expect(previewPage(spec(), { files: {}, today: options.today }, "nope").pageId).toBe("home");
   });
 
+  it("offers a picture at the widths a build made, sized for its place, and keeps everything else about it", () => {
+    const pictures = { logo: { width: 1100, height: 653, variants: [{ path: "img/logo-320.webp", width: 320 }, { path: "img/logo-640.webp", width: 640 }, { path: "img/logo-1100.webp", width: 1100 }] } };
+    const made = page(build(spec(), { ...options, files: { logo: "img/logo-1100.webp" }, pictures, icon: "img/logo-icon.png" }), "index.html");
+    const set = 'srcset="/img/logo-320.webp 320w, /img/logo-640.webp 640w, /img/logo-1100.webp 1100w"';
+    expect(made).toContain(`<img src="/img/logo-1100.webp" ${set} sizes="(max-width: 820px) min(340px, calc(100vw - 48px)), min(487px, calc(47.5vw - 46px))" alt="Påhittade föreningens logotyp" class="hero-media" width="1100" height="653" fetchpriority="high" style="aspect-ratio:1100/653">`);
+    expect(made).toContain(`<img src="/img/logo-1100.webp" ${set} sizes="64px" alt="Påhittade föreningen" width="64" height="39" style="aspect-ratio:1100/653">`);
+    expect(made).toContain(`<img src="/img/logo-1100.webp" ${set} sizes="150px" alt="Påhittade föreningens logotyp" width="150" height="91" style="aspect-ratio:1100/653">`);
+    expect(made).toContain('<link rel="icon" href="/img/logo-icon.png">');
+    // Without them: exactly the page as before.
+    const plain = page(build(spec(), options), "index.html");
+    expect(plain).not.toContain("srcset");
+    expect(plain).toContain('<img src="/img/logo.png" alt="Påhittade föreningens logotyp" class="hero-media" width="1100" height="653" fetchpriority="high">');
+    expect(plain).toContain('<link rel="icon" href="/img/logo.png">');
+    const strip = (html: string) => html.replace(/<img\b[^>]*>/g, "<img>").replace(/<link rel="icon"[^>]*>/, "");
+    expect(strip(made)).toBe(strip(plain));
+  });
+
+  it("asks for a wider file when a board portrait is wider in shape than its 3:4 frame", () => {
+    const withBoard = spec();
+    withBoard.assets.push({ id: "anna", kind: "photo", alt: { sv: "Anna" }, origin: "client_supplied", description: "" } as never);
+    withBoard.pages[0].sections.push({ id: "team-1", kind: "team", variant: "grid", heading: { sv: "Styrelsen" }, items: [{ id: "p1", name: "Anna", role: { sv: "Ordförande" }, assetId: "anna" }] } as never);
+    const board = (width: number, height: number) => page(build(withBoard, { ...options, files: { ...options.files, anna: "img/anna-640.webp" }, pictures: { anna: { width, height, variants: [{ path: "img/anna-640.webp", width: 640 }] } } }), "index.html").match(/<img src="\/img\/anna[^>]*>/)![0];
+    expect(board(600, 800)).toContain('sizes="(max-width: 900px) calc(50vw - 34px), min(247px, calc(25vw - 33px))" alt="Anna" width="240" height="320" loading="lazy">');
+    expect(board(1200, 800)).toContain('sizes="(max-width: 900px) calc((50vw - 34px) * 2), calc(min(247px, 25vw - 33px) * 2)"');
+  });
+
   it("uses the brand's logo in the header when no small logo is given", () => {
     const withLogo = { ...spec(), brand: { ...spec().brand, logoAssetId: "logo" } };
     const html = page(build(withLogo, { ...options, smallLogo: undefined }), "index.html");

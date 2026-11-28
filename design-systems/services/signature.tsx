@@ -56,7 +56,7 @@ export function Signature({ context }: { context: PageContext }) {
             <p>{open}{owner.text.text}{close}</p>
           </blockquote>
           <figcaption>
-            {portrait ? <Picture asset={portrait} ratio={1} sizes="6rem" widths={[240]} className="sig-portrait" /> : null}
+            {portrait ? <Picture asset={portrait} ratio={1} sizes="72px" widths={[240]} className="sig-portrait" /> : null}
             <span>
               {owner.who}
               {owner.role ? <small>{owner.role}</small> : null}
@@ -79,7 +79,7 @@ export function Signature({ context }: { context: PageContext }) {
               <li key={item.imageId}>
                 {asset ? (
                   <div className="sig-frame">
-                    <Picture asset={asset} ratio={4 / 5} sizes="(max-width: 820px) 80vw, 24vw" widths={[480, 800]} />
+                    <Picture asset={asset} ratio={4 / 5} sizes={`(max-width: 820px) 45vw, ${{ 3: "30vw", 5: "18vw" }[everyday.items.length] ?? "22vw"}`} frame="own" widths={[480, 800]} />
                   </div>
                 ) : null}
                 {item.when ? <p className="sig-when">{item.when}</p> : null}

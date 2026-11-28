@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { SiteSpec } from "@/lib/site-spec/schema";
 import { briefClient, companySpec, completeSpec } from "@/lib/site-spec/test-helpers";
 import { BuildRefused, buildSite, contentTypeOf, pageChecks, type StoredImage } from "./build";
+import { logo, photo } from "./images.fixtures";
 import { serveBuild } from "./serve";
 import { ASSOCIATION_SIGNATURE_PRESET, SERVICES_DIRECTIONS, SIGNATURE_PRESETS } from "@/lib/site-spec/catalog";
 import { ASSOCIATION_PRESET, DIRECTION_PRESETS } from "../../../signature/layer/enhance.mjs";
@@ -172,6 +173,159 @@ describe("building a site from a spec", () => {
       expect(new Uint8Array(await response.arrayBuffer())).toEqual(file.body);
     }
   });
+});
+
+describe("pictures in a build", () => {
+  const sv = (text: string) => ({ sv: text });
+  const fontDeps = (images: StoredImage[], download: (storagePath: string) => Promise<Uint8Array>) => ({ ...deps(images), download, font: (name: string) => new TextEncoder().encode(name) });
+  const pagesOf = (site: Awaited<ReturnType<typeof buildSite>>) => site.files.filter((file) => file.path.endsWith(".html")).map((file) => ({ path: file.path, html: new TextDecoder().decode(file.body) }));
+  const imgs = (site: Awaited<ReturnType<typeof buildSite>>) => pagesOf(site).flatMap((page) => (page.html.match(/<img\b[^>]*>/g) ?? []).map((tag) => ({ page: page.path, tag })));
+  const attr = (tag: string, name: string) => tag.match(new RegExp(`\\s${name}="([^"]*)"`))?.[1];
+  const imageBytes = (site: Awaited<ReturnType<typeof buildSite>>) => site.files.filter((file) => file.path.startsWith("img/")).reduce((sum, file) => sum + file.body.byteLength, 0);
+
+  /** The association TEST spec with the pictures a real one has: a logo (also its hero), a board, a picture beside text and a gallery. */
+  function associationWithPictures() {
+    const value = spec();
+    const picture = (id: string) => ({ id, kind: "photo" as const, alt: sv(`Bild ${id}`), origin: "client_supplied" as const, description: `Bild ${id}` });
+    value.assets.push({ id: "logo", kind: "logo", alt: sv("Testföreningens logotyp"), origin: "client_supplied", description: "Logotyp" }, picture("person-a"), picture("person-b"), picture("beside"), picture("gallery-1"));
+    value.brand.logoAssetId = "logo";
+    const home = value.pages[0];
+    const hero = home.sections[0];
+    if (hero.kind === "hero") Object.assign(hero, { variant: "split_image_right", mediaAssetId: "logo" });
+    const base = Object.fromEntries(Object.entries(structuredClone(home.sections.find((section) => section.kind === "text")!)).filter(([key]) => key !== "body"));
+    home.sections.push(
+      { ...base, id: "beside-1", kind: "text_media", variant: "image_left", heading: sv("Om oss"), body: sv("En påhittad förening."), mediaAssetId: "beside", buttons: [] } as never,
+      { ...base, id: "team-1", kind: "team", variant: "grid", heading: sv("Styrelsen"), items: ["a", "b"].map((n) => ({ id: `p-${n}`, name: `Person ${n}`, role: sv("Ledamot"), assetId: `person-${n}` })) } as never,
+      { ...base, id: "gallery-1", kind: "gallery", variant: "grid", heading: sv("Bilder"), assetIds: ["gallery-1"] } as never,
+    );
+    return value;
+  }
+
+  /** Each picture by the order of the spec's assets; `images` names what was "uploaded". */
+  async function uploads(value: SiteSpec, make: (assetId: string) => Promise<{ body: Uint8Array; mimeType: string }>) {
+    const images: StoredImage[] = [];
+    const bodies = new Map<string, Uint8Array>();
+    for (const [i, asset] of value.assets.entries()) {
+      const fileId = `00000000-0000-4000-8000-0000000000${String(i).padStart(2, "0")}`;
+      asset.fileId = fileId;
+      const made = await make(asset.id);
+      bodies.set(`test/${i}`, made.body);
+      images.push({ id: fileId, storagePath: `test/${i}`, mimeType: made.mimeType, status: "approved", width: 1600, height: 1000 });
+    }
+    return { images, download: async (storagePath: string) => bodies.get(storagePath)!, bytes: [...bodies.values()].reduce((sum, body) => sum + body.byteLength, 0) };
+  }
+  const real = async (assetId: string) =>
+    assetId === "logo" ? { body: await logo(700, 423), mimeType: "image/png" } : assetId.startsWith("person") ? { body: await photo(240, 320), mimeType: "image/jpeg" } : { body: await photo(1200, 800), mimeType: "image/jpeg" };
+  const unreadable = async () => ({ body: new Uint8Array([1, 2, 3]), mimeType: "image/jpeg" });
+
+  for (const [name, make] of [["the association design", associationWithPictures], ["the company design", companySpec]] as const) {
+    it(`with ${name}, gives every picture a list of WebP files that are in the build, and changes nothing else about it`, async () => {
+      const asToday = make();
+      const before = await uploads(asToday, unreadable);
+      const copied = await buildSite({ studioId, specVersion: 2, spec: asToday, madeBy: "Axivo" }, fontDeps(before.images, before.download));
+      const value = make();
+      const after = await uploads(value, real);
+      const site = await buildSite({ studioId, specVersion: 2, spec: value, madeBy: "Axivo" }, fontDeps(after.images, after.download));
+      expect(site.checks.filter((check) => /could not be made smaller/.test(check.message))).toEqual([]);
+
+      const paths = new Set(site.files.map((file) => file.path));
+      const tags = imgs(site);
+      const asUploaded = imgs(copied);
+      expect(tags.length).toBeGreaterThan(0);
+      expect(tags).toHaveLength(asUploaded.length);
+      for (const [i, { tag, page }] of tags.entries()) {
+        const srcset = attr(tag, "srcset");
+        expect(srcset, `${page}: ${tag}`).toBeTruthy();
+        const entries = srcset!.split(", ").map((entry) => entry.split(" "));
+        for (const [file, width] of entries) {
+          expect(file).toMatch(/^\/img\/[\w-]+-\d+\.webp$/);
+          expect(paths.has(file.slice(1)), `${file} is in the build`).toBe(true);
+          expect(width).toBe(`${file.match(/-(\d+)\.webp$/)![1]}w`);
+        }
+        expect(attr(tag, "src")).toBe(entries.at(-1)![0]);
+        expect(attr(tag, "sizes"), tag).toMatch(/\d(px|vw|rem|\))/);
+        // The same picture as a build that copies uploads writes: its words, its size on the page, how it loads.
+        const old = asUploaded[i].tag;
+        for (const name of ["alt", "class", "loading", "fetchpriority", "decoding"]) expect(attr(tag, name), `${name} of ${tag}`).toBe(attr(old, name));
+        if (attr(old, "width")) expect([attr(tag, "width"), attr(tag, "height")]).toEqual([attr(old, "width"), attr(old, "height")]);
+        expect(Number(attr(tag, "width"))).toBeGreaterThan(0);
+        expect(Number(attr(tag, "height"))).toBeGreaterThan(0);
+        expect(attr(tag, "alt")).toBeTruthy();
+      }
+      // Nothing but pictures and the browser-tab icon differs between the two builds' pages.
+      const plain = (html: string) => html.replace(/<img\b[^>]*>/g, "<img>").replace(/<link rel="icon"[^>]*>/, "");
+      expect(pagesOf(site).map((page) => plain(page.html))).toEqual(pagesOf(copied).map((page) => plain(page.html)));
+      for (const file of site.files.filter((entry) => entry.path.startsWith("img/"))) expect(file.contentType).toBe(file.path.endsWith(".png") ? "image/png" : "image/webp");
+      // What a phone at 2x fetches at most: for each picture, the widest file up to 800 px (a picture as wide as its screen).
+      const widthOf = (path: string) => Number(path.match(/-(\d+)\.webp$/)?.[1] ?? 0);
+      const phone = value.assets.reduce((sum, asset) => {
+        const own = site.files.filter((file) => file.path.startsWith(`img/${asset.id}-`) && file.path.endsWith(".webp"));
+        const pick = own.filter((file) => widthOf(file.path) <= 800).sort((a, b) => widthOf(b.path) - widthOf(a.path))[0] ?? own.sort((a, b) => widthOf(a.path) - widthOf(b.path))[0];
+        return sum + pick.body.byteLength;
+      }, 0);
+      expect(phone).toBeLessThan(after.bytes / 2);
+      console.log(`Pictures in a TEST build with ${name}: ${value.assets.length} uploaded, ${after.bytes} bytes, all of them fetched as today. As WebP a phone fetches at most ${phone} bytes of them; all widths together are ${imageBytes(site)} bytes in ${site.files.filter((file) => file.path.startsWith("img/")).length} files.`);
+    }, 60_000);
+  }
+
+  it("never writes a picture wider than its upload, and draws a picture without a set size at its own", async () => {
+    const value = associationWithPictures();
+    const { images, download } = await uploads(value, real);
+    const site = await buildSite({ studioId, specVersion: 2, spec: value }, fontDeps(images, download));
+    const widths = (id: string) => site.files.flatMap((file) => (file.path.startsWith(`img/${id}-`) && file.path.endsWith(".webp") ? [Number(file.path.match(/-(\d+)\.webp$/)![1])] : []));
+    expect(Math.max(...widths("logo"))).toBe(700);
+    expect(widths("person-a")).toEqual([240]);
+    expect(widths("beside").sort((a, b) => a - b)).toEqual([256, 480, 640, 800, 1200]);
+    const home = pagesOf(site).find((page) => page.path === "index.html")!.html;
+    expect(home).toMatch(/<img src="\/img\/gallery-1-1200\.webp"[^>]* loading="lazy" width="1200" height="800" style="aspect-ratio:1200\/800">/);
+    expect(home).toContain('<link rel="icon" href="/img/logo-icon.png">');
+    expect(site.files.find((file) => file.path === "img/logo-icon.png")?.contentType).toBe("image/png");
+  }, 30_000);
+
+  it("copies a picture it cannot read as uploaded, with a warning, and still builds", async () => {
+    const value = associationWithPictures();
+    const { images, download } = await uploads(value, async (assetId) => (assetId === "beside" ? unreadable() : real(assetId)));
+    const site = await buildSite({ studioId, specVersion: 2, spec: value }, fontDeps(images, download));
+    expect(site.checks).toEqual([{ level: "warning", message: 'The image "Bild beside" could not be made smaller for the web, so it is used as uploaded.' }]);
+    const copied = site.files.find((file) => file.path === "img/beside.jpg")!;
+    expect([...copied.body]).toEqual([1, 2, 3]);
+    expect(copied.contentType).toBe("image/jpeg");
+    const home = pagesOf(site).find((page) => page.path === "index.html")!.html;
+    expect(home).toContain('<img src="/img/beside.jpg" alt="Bild beside" loading="lazy">');
+    expect(home).toMatch(/<img src="\/img\/gallery-1-1200\.webp" srcset=/);
+  }, 30_000);
+
+  it("with Axivo Signature motion, keeps every picture's list of files: the layer changes only the head", async () => {
+    const build = async (motion: boolean) => {
+      const value = companySpec();
+      if (motion) value.brand.concept = { ...value.brand.concept, signatureMotion: true };
+      const { images, download } = await uploads(value, real);
+      return buildSite({ studioId, specVersion: 2, spec: value, madeBy: "Axivo" }, fontDeps(images, download));
+    };
+    const [plain, moving] = [await build(false), await build(true)];
+    expect(moving.checks.filter((check) => check.level === "error")).toEqual([]);
+    expect(moving.files.some((file) => file.path === "signature/layer.js")).toBe(true);
+    expect(imgs(moving).map((entry) => entry.tag)).toEqual(imgs(plain).map((entry) => entry.tag));
+    expect(imgs(moving).every((entry) => attr(entry.tag, "srcset"))).toBe(true);
+  }, 30_000);
+
+  it("serves a build's pictures on a review link: every file in a srcset under the link, WebP as WebP", async () => {
+    const value = associationWithPictures();
+    const { images, download } = await uploads(value, real);
+    const site = await buildSite({ studioId, specVersion: 2, spec: value }, fontDeps(images, download));
+    const stored = new Map(site.files.map((file) => [`${site.storagePrefix}/${file.path}`, file.body]));
+    const serve = (segments: string[]) => serveBuild(site.shareToken, segments, { find: async () => ({ storagePrefix: site.storagePrefix, expiresAt: site.expiresAt.toISOString(), revokedAt: null }), read: async (path: string) => stored.get(path) ?? null, now: () => now });
+    const home = await (await serve([])).text();
+    const sets = [...home.matchAll(/\ssrcset="([^"]*)"/g)].map((match) => match[1]);
+    expect(sets.length).toBeGreaterThan(3);
+    for (const set of sets) {
+      for (const entry of set.split(", ")) {
+        expect(entry).toMatch(new RegExp(`^/s/${site.shareToken}/img/[\\w-]+\\.webp \\d+w$`));
+        const picture = await serve(entry.split(" ")[0].replace(`/s/${site.shareToken}/`, "").split("/"));
+        expect([picture.status, picture.headers.get("Content-Type")]).toEqual([200, "image/webp"]);
+      }
+    }
+  }, 30_000);
 });
 
 describe("documents in a build", () => {
