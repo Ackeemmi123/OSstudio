@@ -527,6 +527,8 @@ svg:has([href="#f-pill"]) {
   font: 600 0.78rem/1.4 var(--text);
   letter-spacing: 0.1em;
   text-transform: uppercase;
+  /* A long Swedish word in capitals is wider in Safari than in Chrome. The page marks where it may break (&shy;); this keeps any other inside the column. */
+  overflow-wrap: break-word;
 }
 .play-figures dd {
   margin: 1.1rem 0 0;

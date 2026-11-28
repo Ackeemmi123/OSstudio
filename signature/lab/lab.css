@@ -1241,6 +1241,8 @@ a {
   letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--on-ink-quiet);
+  /* A long Swedish word in capitals is wider in Safari than in Chrome. The page marks where it may break (&shy;); this keeps any other inside the column. */
+  overflow-wrap: break-word;
 }
 .show-figures dd {
   margin: 1.25rem 0 0;
