@@ -1,6 +1,6 @@
 {
-  "version": "bd220ceecf",
-  "source": "318fe3cfc01c5e7a99b19d3b7c2e6c5c7af081e4bf622bc9998e1ad8b783269f",
+  "version": "0c942d3df7",
+  "source": "5b6ae35609371d4c433670cda60abe2fbd00781cfd2f6f10f10ba6196fbfa6a0",
   "inputs": [
     "src/engine/heading.ts",
     "src/engine/motion.ts",
@@ -33,9 +33,9 @@
     },
     {
       "name": "layer.js",
-      "bytes": 11191,
-      "gzip": 4382,
-      "sha256": "1d6b279e7bb333179eef1460759be231a0413878313bbdcd659e14666484e6c3"
+      "bytes": 11241,
+      "gzip": 4400,
+      "sha256": "8ba2c805c2e9f08fa2104789dc7ade25355f4cfcc989541ca7b7608a55f86876"
     },
     {
       "name": "list.js",

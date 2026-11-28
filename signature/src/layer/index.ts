@@ -176,6 +176,12 @@ function split(element: HTMLElement, byLine: boolean): { undo: () => void; steps
   return { undo, steps: step + 1 };
 }
 
+/**
+ * How far down the screen, as a part of it, an element may start and still count as the first view: the same line
+ * the watcher uses (`rootMargin` -8 %), so an element below it waits for the watcher exactly as it would further down.
+ */
+const FIRST_VIEW = 0.92;
+
 export function start(config: LayerConfig): void {
   const html = document.documentElement;
   const still = matchMedia("(prefers-reduced-motion: reduce)");
@@ -210,6 +216,10 @@ export function start(config: LayerConfig): void {
 
   const allowed = (rule: LayerRule) => preset.modules.includes(rule.module) && (!rule.when || document.querySelector(rule.when)) && !(rule.unless && document.querySelector(rule.unless));
   const inView = (box: DOMRect) => box.top < innerHeight && box.bottom > 0;
+  // The layer maps before the first paint, often before the web fonts are in. An element that starts in the lowest
+  // part of the screen can still be pushed below it when they arrive, and would then arrive where nobody sees it.
+  // It waits for the watcher instead, which decides from the real layout (and shows it at once if it is in view).
+  const firstView = (box: DOMRect) => box.top < innerHeight * FIRST_VIEW && box.bottom > 0;
 
   // What each arriving element still has to do when its motion is over.
   const finish = new Map<HTMLElement, () => void>();
@@ -336,7 +346,7 @@ export function start(config: LayerConfig): void {
           if (inner) inner.dataset.sglInner = "";
           if (inner && open) element.dataset.sglOpen = "";
         }
-        if (seen) first.push([element, box]);
+        if (firstView(box)) first.push([element, box]);
         else {
           element.dataset.sglS = "wait";
           waiting.add(element);
