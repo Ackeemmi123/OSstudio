@@ -2,7 +2,8 @@ import { describe, expect, it } from "vitest";
 import type { SiteSpec } from "@/lib/site-spec/schema";
 import { briefClient, companySpec, completeSpec } from "@/lib/site-spec/test-helpers";
 import { BuildRefused, buildSite, contentTypeOf, pageChecks, type StoredImage } from "./build";
-import { SIGNATURE_PRESETS } from "@/lib/site-spec/catalog";
+import { serveBuild } from "./serve";
+import { SERVICES_DIRECTIONS, SIGNATURE_PRESETS } from "@/lib/site-spec/catalog";
 import { DIRECTION_PRESETS } from "../../../signature/layer/enhance.mjs";
 
 const now = new Date("2026-11-17T10:00:00Z");
@@ -186,6 +187,49 @@ describe("building with the company design", () => {
 
   it("gives each direction the same Signature preset as the layer does", () => {
     expect(SIGNATURE_PRESETS).toEqual(DIRECTION_PRESETS);
+  });
+
+  it.each(SERVICES_DIRECTIONS)("with Axivo Signature motion in the %s direction, builds with no errors, and every script the layer loads is in the build", async (direction) => {
+    const value = companySpec();
+    value.brand.servicesStyle = { direction, palette: "pine" };
+    value.brand.concept = { ...value.brand.concept, signatureMotion: true };
+    const site = await buildSite({ studioId, specVersion: 2, spec: value, madeBy: "Axivo" }, fontDeps(withImages(value, "approved")));
+    expect(site.checks.filter((check) => check.level === "error")).toEqual([]);
+    const scripts = site.files.filter((file) => file.path.startsWith("signature/") && file.path.endsWith(".js"));
+    const paths = new Set(site.files.map((file) => file.path));
+    // The layer loads its modules by relative address (import, import(), new URL); a missing one fails silently in the browser.
+    const loaded = scripts.flatMap((file) => [...new TextDecoder().decode(file.body).matchAll(/["'`]\.\/([\w.-]+\.js)["'`]/g)].map((match) => `signature/${match[1]}`));
+    expect(loaded.length).toBeGreaterThan(0);
+    for (const path of loaded) expect(paths, path).toContain(path);
+    for (const file of scripts) expect(file.contentType, file.path).toMatch(/^text\/javascript/);
+  });
+
+  it("serves a Signature build on a review link: the page's base before the layer, the review bar after, every script as JavaScript", async () => {
+    const value = companySpec();
+    value.brand.concept = { ...value.brand.concept, signatureMotion: true };
+    const site = await buildSite({ studioId, specVersion: 2, spec: value, madeBy: "Axivo" }, fontDeps(withImages(value, "approved")));
+    const stored = new Map(site.files.map((file) => [`studio-1/build-1/${file.path}`, file.body]));
+    const token = "e".repeat(40);
+    const review = {
+      find: async () => ({ storagePrefix: "studio-1/build-1", expiresAt: "2026-12-17T10:00:00Z", revokedAt: null }),
+      read: async (path: string) => stored.get(path) ?? null,
+      now: () => now,
+      review: async () => ({ name: "TEST Studio", website: null, email: null, color: "#1F2A37", logoUrl: null }),
+    };
+    const pageFolder = site.files.find((file) => /^[^/]+\/index\.html$/.test(file.path))!.path.split("/")[0];
+    for (const segments of [[], [pageFolder]]) {
+      const html = await (await serveBuild(token, segments, review)).text();
+      const base = html.indexOf(`<base href="/s/${token}/`);
+      expect(base).toBeGreaterThan(-1);
+      expect(base).toBeLessThan(html.indexOf("<!-- signature-layer"));
+      expect(html.indexOf("<!-- /signature-layer -->")).toBeLessThan(html.indexOf("rv-bar"));
+    }
+    for (const file of site.files.filter((each) => each.path.startsWith("signature/") && each.path.endsWith(".js"))) {
+      const response = await serveBuild(token, file.path.split("/"), review);
+      expect(response.status, file.path).toBe(200);
+      expect(response.headers.get("Content-Type"), file.path).toMatch(/^text\/javascript/);
+      expect(new Uint8Array(await response.arrayBuffer())).toEqual(file.body);
+    }
   });
 
   it("refuses, naming the parts, when the company design cannot draw the spec", async () => {
