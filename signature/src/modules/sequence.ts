@@ -1,7 +1,7 @@
 /**
  * Image sequence (`data-sg="sequence"`): a movement as numbered pictures,
- * drawn on a canvas one at a time as the page scrolls, while the section
- * holds still (the product reveal). The pictures are made in code
+ * drawn on a canvas as the page scrolls, while the section holds still (the
+ * product reveal). The pictures are made in code
  * (scripts/render-sequence.mjs) or are a client's own renders, with written
  * permission.
  *
@@ -17,19 +17,26 @@
  * Loading and decoding happen in a worker (sequence-loader.ts): every fourth
  * frame first (and the last), so the whole movement can be scrubbed coarsely
  * at once, then the rest, kept compressed; a frame is decoded only when this
- * asks for it. Only the frames near the one shown are kept decoded, more of
- * them ahead in the direction of reading: a 1600 × 900 frame is 5.8 MB
- * decoded, so all sixty would be 350 MB. From half a screen away they are
- * decoded, further off let go. Drawing: only when the scroll moves to another
- * frame, or when a frame it waits for arrives; meanwhile the nearest decoded
- * frame on the way to it holds, and a frame that never comes is stood in for
- * by its neighbours.
+ * asks for it. Only the frames near the one shown are
+ * kept decoded, and those are the ones just ahead of the scroll, the faster
+ * it moves the further ahead, so the two frames a position needs are there
+ * when the scroll arrives: a 1600 × 900 frame is 5.8 MB decoded, so all
+ * sixty-one would be 350 MB. From half a screen away they are decoded,
+ * further off let go.
  *
- * Markup: <div data-sg="sequence" data-frames="60">
+ * Drawing: the scroll seldom stops on a frame, so the two frames either side
+ * of where it is are drawn over each other, the later one as strong as the
+ * scroll is far into the step between them. A slow scroll then moves on every
+ * screen frame, not once per picture. While a frame is on its way, the
+ * nearest decoded frame on the way to it holds, whole, and a frame that never
+ * comes is stood in for by its neighbours. It draws only when the scroll
+ * moves or a frame it waits for arrives.
+ *
+ * Markup: <div data-sg="sequence" data-frames="61">
  *           <div data-sg-stage>
  *             <picture>
- *               <source media="(max-width: 699px) and (prefers-reduced-motion: reduce), (max-width: 699px) and (scripting: none)" srcset="…/telefon/59.webp" width="720" height="1560" data-sg-still="(max-width: 699px)">
- *               <source media="(prefers-reduced-motion: reduce), (scripting: none)" srcset="…/bred/59.webp" width="1600" height="900" data-sg-still>
+ *               <source media="(max-width: 699px) and (prefers-reduced-motion: reduce), (max-width: 699px) and (scripting: none)" srcset="…/telefon/60.webp" width="720" height="1560" data-sg-still="(max-width: 699px)">
+ *               <source media="(prefers-reduced-motion: reduce), (scripting: none)" srcset="…/bred/60.webp" width="1600" height="900" data-sg-still>
  *               <source media="(max-width: 699px)" srcset="…/telefon/00.webp" width="720" height="1560" data-sg-frames="…/telefon/{n}.webp">
  *               <img src="…/bred/00.webp" width="1600" height="900" data-sg-frames="…/bred/{n}.webp" alt="…">
  *             </picture>
@@ -37,6 +44,10 @@
  *           </div></div>
  * `{n}` is the frame's index from 0, two digits. A `data-sg-still` source is
  * the last frame; its value is the media it keeps with Save-Data.
+ *
+ * The frames are WebP, not AVIF: measured in Chrome, a 1920 × 1080 AVIF frame
+ * took 13 ms to decode against 5 to 9 for a 1600 × 900 WebP one, and on a busy
+ * machine the picture then stepped several frames at a time behind the scroll.
  *
  * Steps (words over the picture, say): `data-sg-steps="0.25 0.7"` on the root
  * names where the movement passes from one to the next (as parts of it). The
@@ -51,9 +62,17 @@ import type { FromLoader, ToLoader } from "./sequence-loader";
 /** How much of the held distance the frames take; over the rest the last frame holds before the section moves on. */
 const RUN = 0.85;
 /** Frames being decoded at once. */
-const DECODING = 3;
-/** Decoded frames kept, in bytes (eight wide frames of 1600 × 900, ten tall ones of 720 × 1560). */
-const KEEP = 48e6;
+const DECODING = 2;
+/**
+ * Decoded frames kept: at most ten, and at most this many bytes. Ten wide frames of 1600 × 900 are 58 MB, ten tall
+ * ones of 720 × 1560 are 45 MB.
+ */
+const KEEP = 64e6;
+/** How many screen frames ahead of the scroll the decoding aims, and at most how many pictures. */
+const LEAD = 2;
+const FURTHEST = 3;
+/** How far apart two frames may be and still be mixed, in pictures. */
+const REACH = 3;
 /** How far past a step's threshold the frame shown must be, either way, before the step changes (a part of the movement). */
 const HYSTERESIS = 0.03;
 
@@ -115,15 +134,17 @@ export function mountSequence(root: HTMLElement): void {
   const decoding = new Set<number>();
   let running = false;
   let seen = false;
+  /** Where the scroll is in the movement, in frames, and where the canvas is: both may lie between two frames. */
   let wanted = 0;
-  let ahead = 1;
   let shown = -1;
+  /** Where the decoding aims, in frames from the scroll: ahead of it, by as much as it moved in the last screen frames. */
+  let lead = 0;
   let tick = 0;
   let stageHeight = 0;
   let frameWidth = 1;
   let frameHeight = 1;
 
-  const keep = () => Math.max(4, Math.min(count, Math.floor(KEEP / (frameWidth * frameHeight * 4))));
+  const keep = () => Math.max(4, Math.min(10, count, Math.floor(KEEP / (frameWidth * frameHeight * 4))));
 
   const release = () => {
     for (const bitmap of bitmaps.values()) bitmap.close();
@@ -131,11 +152,11 @@ export function mountSequence(root: HTMLElement): void {
     shown = -1;
   };
 
-  /** The frame the scroll has reached: 0 until the stage is held, the last for the final stretch. */
+  /** Where the scroll has reached, in frames: 0 until the stage is held, the last for the final stretch. */
   const measure = () => {
     const box = root.getBoundingClientRect();
     const run = (box.height - stageHeight) * RUN;
-    return run > 0 ? Math.round(Math.min(1, Math.max(0, -box.top / run)) * (count - 1)) : 0;
+    return run > 0 ? Math.min(1, Math.max(0, -box.top / run)) * (count - 1) : 0;
   };
 
   /** Fits the canvas over the stage the way the picture covers it, never with more pixels than a frame has. */
@@ -151,10 +172,11 @@ export function mountSequence(root: HTMLElement): void {
     if (running) update();
   };
 
-  const paint = (bitmap: ImageBitmap) => {
+  const paint = (bitmap: ImageBitmap, strength: number) => {
     const scale = Math.max(canvas.width / bitmap.width, canvas.height / bitmap.height);
     const width = bitmap.width * scale;
     const height = bitmap.height * scale;
+    context.globalAlpha = strength;
     context.drawImage(bitmap, (canvas.width - width) / 2, (canvas.height - height) / 2, width, height);
   };
 
@@ -177,26 +199,34 @@ export function mountSequence(root: HTMLElement): void {
     if (thresholds.length && next !== step) setStep(next);
   };
 
-  /** The decoded frame nearest the one wanted, between `from` and `to`. */
+  /** The decoded frame nearest where the scroll is, between `from` and `to`. */
   const nearest = (from: number, to: number) => {
     let best = -1;
     for (const index of bitmaps.keys()) if (index >= from && index <= to && (best < 0 || Math.abs(index - wanted) < Math.abs(best - wanted))) best = index;
     return best;
   };
   /**
-   * Draws the decoded frame nearest the one wanted, if it is not already the one shown. It looks first between the
-   * frame shown and the one wanted, so the movement never runs past where the scroll is and comes back.
+   * Draws where the scroll is: the decoded frame before it, and over that the decoded frame after, as strong as the
+   * scroll is far into the step between them. Usually they are neighbours. In a quick scroll one may be missing, and
+   * the two either side of it are mixed instead, up to REACH apart, so the picture still moves with the scroll and
+   * never waits and catches up. Further apart than that (the first frames to load are four apart) no mix would
+   * read as one picture: the decoded frame nearest is drawn whole, and only one between what is shown and what is
+   * wanted, so the movement never runs past where the scroll is, nor back from it.
    */
   const draw = () => {
-    let best = shown < 0 ? -1 : nearest(Math.min(shown, wanted), Math.max(shown, wanted));
-    if (best < 0) best = nearest(0, count - 1);
-    if (best < 0 || best === shown) return;
-    paint(bitmaps.get(best)!);
-    shown = best;
-    canvas.dataset.frame = String(best);
-    root.style.setProperty("--sg-p", (best / (count - 1)).toFixed(4));
-    if (at) at.textContent = String(best + 1).padStart(2, "0");
-    follow(best / (count - 1));
+    let next = wanted;
+    let low = nearest(0, next);
+    let high = nearest(next, count);
+    if (low < 0 || high < 0 || high - low > REACH) next = low = high = shown < 0 ? nearest(0, count) : nearest(Math.min(shown, next), Math.max(shown, next));
+    if (next < 0 || next === shown) return;
+    paint(bitmaps.get(low)!, 1);
+    if (high > low) paint(bitmaps.get(high)!, (next - low) / (high - low));
+    shown = next;
+    const progress = next / (count - 1);
+    canvas.dataset.frame = String(Math.round(next * 100) / 100);
+    root.style.setProperty("--sg-p", progress.toFixed(4));
+    if (at) at.textContent = String(Math.round(next) + 1).padStart(total.length, "0");
+    follow(progress);
     if (root.dataset.sgState !== "live") {
       canvas.style.opacity = "1";
       root.dataset.sgState = "live";
@@ -206,8 +236,8 @@ export function mountSequence(root: HTMLElement): void {
   let send: Promise<(message: ToLoader) => void> | null = null;
   const tell = (message: ToLoader) => void send?.then((post) => post(message));
 
-  /** How far a frame is from the one wanted, for keeping it decoded: those behind count double. */
-  const cost = (index: number) => Math.abs(index - wanted) * (Math.sign(index - wanted) === -ahead ? 2 : 1);
+  /** How far a frame is from where the scroll will be, for keeping it decoded; the two the scroll is between come first. */
+  const cost = (index: number) => (Math.abs(index - wanted) < 1 ? 0 : Math.abs(index - wanted - lead));
   /** Keeps decoded the frames nearest the one wanted, asks for the next of them, and lets the others go. */
   const decode = () => {
     if (!running || !seen) return;
@@ -240,7 +270,9 @@ export function mountSequence(root: HTMLElement): void {
       else {
         bitmaps.get(index)?.close();
         bitmaps.set(index, message.bitmap);
-        schedule();
+        // Drawn at once, before the frames far from the scroll are let go below: in a fast scroll a frame arrives
+        // when the scroll has already left it behind, and it is still the nearest picture there is.
+        draw();
       }
     } else {
       decoding.delete(index);
@@ -254,7 +286,7 @@ export function mountSequence(root: HTMLElement): void {
     if (!running) return;
     const next = measure();
     if (next !== wanted) {
-      ahead = next > wanted ? 1 : -1;
+      lead = Math.max(-FURTHEST, Math.min(FURTHEST, (next - wanted) * LEAD));
       wanted = next;
       decode();
     }
@@ -264,7 +296,7 @@ export function mountSequence(root: HTMLElement): void {
     if (running && !tick) tick = requestAnimationFrame(update);
   };
 
-  /** Starts on the frames this screen needs; called again when the screen crosses to another set. */
+  /** Starts on the frames this screen needs; called again when the screen crosses to another shape. */
   const begin = () => {
     const next = choose();
     if (next === set) return;
@@ -304,7 +336,7 @@ export function mountSequence(root: HTMLElement): void {
     running = true;
     send ??= connect(receive);
     root.style.setProperty("--sg-p", "0");
-    if (at) at.textContent = "01";
+    if (at) at.textContent = "1".padStart(total.length, "0");
     if (thresholds.length) setStep(0);
     begin();
     addEventListener("scroll", onScroll, { passive: true });
