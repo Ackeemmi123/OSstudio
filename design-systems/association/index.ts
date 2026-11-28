@@ -17,6 +17,7 @@
  * - The page the spec's main call to action leads to is the menu's button.
  */
 import { siteSpecSchema, type SiteSpec, type SiteSpecPage, type SiteSpecSection } from "@/lib/site-spec/schema";
+import { SITE_LOCALES } from "@/lib/site-spec/catalog";
 import { STYLES } from "./styles";
 
 export interface AssociationOptions {
@@ -43,6 +44,8 @@ export interface AssociationOptions {
   madeBy?: string;
   /** A preview draws an image without a file as a labelled box; a build refuses it. */
   missingImages?: "refuse" | "box";
+  /** Only this one of the site's languages (Studio OS's preview draws one at a time). A build makes them all. */
+  language?: Locale;
 }
 
 export interface BuiltFile {
@@ -60,6 +63,8 @@ interface Chrome {
   /** Says "Axivo"; the build puts the studio's own name in its place. */
   prototype: string;
   notFound: string; backHome: string; sent: string; notSent: string; trap: string;
+  /** Label of the links to the same page in the site's other languages. */
+  languages: string;
   fields: { name: string; email: string; phone: string; company: string; date: string; message: string };
   /** Month under the day in an event's date block. */
   months: readonly string[];
@@ -78,7 +83,7 @@ const CHROME: Record<Locale, Chrome> = {
     send: "Skicka", formOff: "Formuläret är avstängt i prototypen.", prototype: "Prototyp av Axivo. Inte offentlig.",
     notFound: "Sidan hittades inte", backHome: "Till startsidan",
     sent: "Tack! Ditt meddelande har skickats.", notSent: "Meddelandet kunde inte skickas. Skicka gärna e-post till oss i stället.",
-    trap: "Lämna tomt",
+    trap: "Lämna tomt", languages: "Språk",
     fields: { name: "Namn", email: "E-postadress", phone: "Telefonnummer", company: "Organisation", date: "Datum", message: "Meddelande" },
     months: ["jan", "feb", "mar", "apr", "maj", "jun", "jul", "aug", "sep", "okt", "nov", "dec"],
     monthNames: ["januari", "februari", "mars", "april", "maj", "juni", "juli", "augusti", "september", "oktober", "november", "december"],
@@ -91,7 +96,7 @@ const CHROME: Record<Locale, Chrome> = {
     send: "Lähetä", formOff: "Lomake ei ole käytössä prototyypissä.", prototype: "Prototyyppi: Axivo. Ei julkinen.",
     notFound: "Sivua ei löytynyt", backHome: "Etusivulle",
     sent: "Kiitos! Viestisi on lähetetty.", notSent: "Viestiä ei voitu lähettää. Lähetä meille mieluummin sähköpostia.",
-    trap: "Jätä tyhjäksi",
+    trap: "Jätä tyhjäksi", languages: "Kieli",
     fields: { name: "Nimi", email: "Sähköpostiosoite", phone: "Puhelinnumero", company: "Organisaatio", date: "Päivämäärä", message: "Viesti" },
     months: ["tammikuu", "helmikuu", "maaliskuu", "huhtikuu", "toukokuu", "kesäkuu", "heinäkuu", "elokuu", "syyskuu", "lokakuu", "marraskuu", "joulukuu"],
     monthNames: ["tammikuu", "helmikuu", "maaliskuu", "huhtikuu", "toukokuu", "kesäkuu", "heinäkuu", "elokuu", "syyskuu", "lokakuu", "marraskuu", "joulukuu"],
@@ -104,7 +109,7 @@ const CHROME: Record<Locale, Chrome> = {
     send: "Send", formOff: "The form is switched off in the prototype.", prototype: "Prototype by Axivo. Not public.",
     notFound: "Page not found", backHome: "Back to the front page",
     sent: "Thank you. Your message was sent.", notSent: "Your message could not be sent. Please email us instead.",
-    trap: "Leave this empty",
+    trap: "Leave this empty", languages: "Language",
     fields: { name: "Name", email: "Email address", phone: "Phone number", company: "Organisation", date: "Date", message: "Message" },
     months: ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"],
     monthNames: ["january", "february", "march", "april", "may", "june", "july", "august", "september", "october", "november", "december"],
@@ -205,24 +210,36 @@ export function eventsOf(spec: SiteSpec, locale: Locale): { page: SiteSpecPage; 
   return null;
 }
 
+/** A link to another language, written in that language. */
+const IN_LANGUAGE: Record<Locale, string> = { sv: "På svenska", fi: "Suomeksi", en: "In English" };
+
 interface Site {
   spec: SiteSpec;
   options: AssociationOptions;
+  /** The language this part of the site is in, and where it starts: "/" for the site's main language, "/fi/" for another. */
   locale: Locale;
+  root: string;
   chrome: Chrome;
   pagesById: Map<string, SiteSpecPage>;
   ctaPageId: string | undefined;
 }
 
-function pagePath(page: SiteSpecPage, locale: Locale): string {
-  const slug = page.slug[locale] ?? "";
-  return slug ? `/${slug}/` : "/";
+/** The site's main language lives at "/", each other language under its own code ("/fi/"). */
+function rootOf(spec: SiteSpec, locale: Locale): string {
+  return locale === spec.locales.default ? "/" : `/${locale}/`;
 }
+
+function pagePath(page: SiteSpecPage, locale: Locale, root = "/"): string {
+  const slug = page.slug[locale] ?? "";
+  return slug ? `${root}${slug}/` : root;
+}
+
+const isHomePage = (page: SiteSpecPage, locale: Locale) => (page.slug[locale] ?? "") === "";
 
 function href(site: Site, pageId: string): string {
   const page = site.pagesById.get(pageId);
   if (!page) throw new Error(`A button leads to a page that does not exist: ${pageId}`);
-  return pagePath(page, site.locale);
+  return pagePath(page, site.locale, site.root);
 }
 
 /**
@@ -285,7 +302,7 @@ function formHtml(site: Site, formId: string | undefined): string {
   const note = off ? "" : text(form.replyNote, site.locale);
   const trap = `<div class="trap" aria-hidden="true"><label for="${id("website")}">${site.chrome.trap}</label><input id="${id("website")}" name="website" tabindex="-1" autocomplete="off"></div>`;
   const action = site.options.formAction && /^https:\/\/[^\s"<>]+$/.test(site.options.formAction) ? site.options.formAction : "/api/contact";
-  return `<form class="form" method="post" action="${escapeHtml(action)}"><input type="hidden" name="form" value="${escapeHtml(formId)}"><input type="hidden" name="lang" value="${site.spec.locales.default}">${fields}${trap}${consent ? `<div class="check"><input id="${id("consent")}" name="consent" type="checkbox" required><label for="${id("consent")}">${escapeHtml(consent)}</label></div>` : ""}<div><button class="btn" type="submit"${off ? " disabled" : ""}>${site.chrome.send}</button></div>${off ? `<p class="off">${site.chrome.formOff}</p>` : ""}${note ? `<p class="off">${escapeHtml(note)}</p>` : ""}</form>`;
+  return `<form class="form" method="post" action="${escapeHtml(action)}"><input type="hidden" name="form" value="${escapeHtml(formId)}"><input type="hidden" name="lang" value="${site.spec.locales.default}">${site.root !== "/" ? `<input type="hidden" name="back" value="${site.locale}">` : ""}${fields}${trap}${consent ? `<div class="check"><input id="${id("consent")}" name="consent" type="checkbox" required><label for="${id("consent")}">${escapeHtml(consent)}</label></div>` : ""}<div><button class="btn" type="submit"${off ? " disabled" : ""}>${site.chrome.send}</button></div>${off ? `<p class="off">${site.chrome.formOff}</p>` : ""}${note ? `<p class="off">${escapeHtml(note)}</p>` : ""}</form>`;
 }
 
 /** One section. The first heading on a page is its h1. */
@@ -361,18 +378,24 @@ function upcomingOnHome(site: Site): string {
   if (!found) return "";
   const upcoming = found.events.filter((event) => event.date.latest && event.date.latest >= site.options.today).sort((a, b) => a.date.latest!.getTime() - b.date.latest!.getTime()).slice(0, 3);
   if (!upcoming.length) return "";
-  return `<section class="sec"><div class="wrap"><div class="head"><h2>${site.chrome.upcoming}</h2><a href="${pagePath(found.page, site.locale)}">${site.chrome.allEvents}</a></div><ul class="events">${upcoming.map((event) => eventRow(event, false)).join("")}</ul></div></section>`;
+  return `<section class="sec"><div class="wrap"><div class="head"><h2>${site.chrome.upcoming}</h2><a href="${pagePath(found.page, site.locale, site.root)}">${site.chrome.allEvents}</a></div><ul class="events">${upcoming.map((event) => eventRow(event, false)).join("")}</ul></div></section>`;
 }
 
 function document(site: Site, page: SiteSpecPage | null, title: string, description: string, main: string): string {
   const { spec, locale, chrome, options } = site;
   const siteName = text(spec.seo.siteName, locale);
-  const current = page ? pagePath(page, locale) : "";
-  const main_ = spec.pages.filter((entry) => entry.nav === "main" && pagePath(entry, locale) !== "/" && entry.id !== site.ctaPageId);
+  const { root } = site;
+  const current = page ? pagePath(page, locale, root) : "";
+  const main_ = spec.pages.filter((entry) => entry.nav === "main" && !isHomePage(entry, locale) && entry.id !== site.ctaPageId);
   const cta = site.ctaPageId ? site.pagesById.get(site.ctaPageId) : undefined;
-  const link = (entry: SiteSpecPage, cls = "") => `<a${cls ? ` class="${cls}"` : ""} href="${pagePath(entry, locale)}"${pagePath(entry, locale) === current ? ' aria-current="page"' : ""}>${escapeHtml(text(entry.title, locale))}</a>`;
+  const link = (entry: SiteSpecPage, cls = "") => `<a${cls ? ` class="${cls}"` : ""} href="${pagePath(entry, locale, root)}"${pagePath(entry, locale, root) === current ? ' aria-current="page"' : ""}>${escapeHtml(text(entry.title, locale))}</a>`;
   const nav = main_.map((entry) => link(entry)).join("") + (cta ? link(cta, "btn") : "");
-  const footerPages = [...spec.pages.filter((entry) => entry.nav === "main" && pagePath(entry, locale) !== "/"), ...spec.pages.filter((entry) => entry.nav === "footer")];
+  const footerPages = [...spec.pages.filter((entry) => entry.nav === "main" && !isHomePage(entry, locale)), ...spec.pages.filter((entry) => entry.nav === "footer")];
+  // The same page in the site's other languages (their front page for a page outside the spec, such as 404).
+  const others = spec.locales.available.filter((other) => other !== locale);
+  const languages = others.length
+    ? `<nav class="langs" aria-label="${chrome.languages}">${others.map((other) => `<a href="${page ? pagePath(page, other, rootOf(spec, other)) : rootOf(spec, other)}" hreflang="${other}" lang="${other}">${IN_LANGUAGE[other]}</a>`).join("")}</nav>`
+    : "";
   const contactPage = spec.pages.find((entry) => entry.id !== site.ctaPageId && entry.sections.some((s) => s.kind === "contact"));
   const contactSection = contactPage?.sections.find((s) => s.kind === "contact");
   const contactLines = contactSection ? (text(contactSection.body, locale).split(/\n{2,}/).find((block) => block.split("\n").every((line) => DETAIL.test(line.trim()))) ?? "") : "";
@@ -395,7 +418,7 @@ function document(site: Site, page: SiteSpecPage | null, title: string, descript
     "</head>",
     "<body>",
     `<a class="skip" href="#main">${chrome.skip}</a>`,
-    `<header class="top"><div class="wrap bar"><a class="brand" href="/">${brandLogo}<span${brandLogo ? ' aria-hidden="true"' : ""}>${escapeHtml(siteName)}</span></a><nav class="nav" aria-label="${chrome.mainNav}">${nav}</nav><details class="menu"><summary>${chrome.menu}</summary><nav aria-label="${chrome.menu}">${nav}</nav></details></div></header>`,
+    `<header class="top"><div class="wrap bar"><a class="brand" href="${root}">${brandLogo}<span${brandLogo ? ' aria-hidden="true"' : ""}>${escapeHtml(siteName)}</span></a><nav class="nav" aria-label="${chrome.mainNav}">${nav}</nav>${languages}<details class="menu"><summary>${chrome.menu}</summary><nav aria-label="${chrome.menu}">${nav}</nav></details></div></header>`,
     `<main id="main">${main}</main>`,
     `<footer class="foot"><div class="wrap"><div class="foot-grid"><div>${small}<p>${escapeHtml(text(spec.seo.defaultDescription, locale))}</p></div>${contactLines ? `<div><h2>${chrome.contact}</h2>${richText(contactLines)}</div>` : ""}<div><h2>${chrome.pages}</h2><ul>${footerPages.map((entry) => `<li>${link(entry)}</li>`).join("")}</ul></div></div><div class="fine"><span>© ${options.today.getUTCFullYear()} ${escapeHtml(siteName)}</span>${noindex ? `<span>${escapeHtml(chrome.prototype.replace("Axivo", (options.madeBy ?? "Axivo").trim() || "Axivo"))}</span>` : ""}</div></div></footer>`,
     "</body>",
@@ -404,21 +427,37 @@ function document(site: Site, page: SiteSpecPage | null, title: string, descript
   ].filter((line) => line !== "").join("\n");
 }
 
-/** Every page of the site as a file. Images and documents are copied by whoever writes the files out. */
-export function build(input: unknown, options: AssociationOptions): BuiltFile[] {
-  const spec = siteSpecSchema.parse(input);
-  const locale = spec.locales.default;
-  const chrome = CHROME[locale];
-  const site: Site = { spec, options, locale, chrome, pagesById: new Map(spec.pages.map((page) => [page.id, page])), ctaPageId: spec.strategy.primaryCta?.targetPageId };
-  if (site.ctaPageId) href(site, site.ctaPageId);
-  for (const id of Object.keys(options.documents ?? {})) {
-    const known = spec.pages.some((page) => page.sections.some((s) => (s.kind === "features" || s.kind === "services") && s.items.some((item) => item.id === id)));
-    if (!known) throw new Error(`A document is attached to ${id}, which is not a list item in the spec.`);
-  }
-  const files: BuiltFile[] = [{ path: "site.css", text: STYLES(spec) }];
+/**
+ * Texts the site's main language has and another language lacks, as paths into the spec
+ * ("pages.2.title"). A site in two languages is built only when every text is in both.
+ */
+export function missingTranslations(spec: SiteSpec, locale: Locale): string[] {
+  const main = spec.locales.default;
+  const missing: string[] = [];
+  const isText = (value: object) => {
+    const keys = Object.keys(value);
+    return keys.length > 0 && keys.every((key) => (SITE_LOCALES as readonly string[]).includes(key)) && Object.values(value).every((entry) => typeof entry === "string");
+  };
+  const walk = (value: unknown, path: string) => {
+    if (Array.isArray(value)) return value.forEach((entry, i) => walk(entry, `${path}.${i}`));
+    if (!value || typeof value !== "object") return;
+    if (isText(value)) {
+      const texts = value as Text;
+      if (texts[main]?.trim() && !texts[locale]?.trim()) missing.push(path.slice(1));
+      return;
+    }
+    for (const [key, entry] of Object.entries(value)) if (key !== "locales") walk(entry, `${path}.${key}`);
+  };
+  walk(spec, "");
+  return missing;
+}
+
+/** The pages of one language, under its root, with its own events, sent and not-sent pages. */
+function buildLanguage(site: Site, files: BuiltFile[]): void {
+  const { spec, locale, chrome, root } = site;
+  const dir = root.slice(1);
   for (const page of spec.pages) {
-    const path = pagePath(page, locale);
-    const isHome = path === "/";
+    const isHome = isHomePage(page, locale);
     let body = page.sections.map((entry, i) => section(site, page, entry, i === 0)).join("");
     if (isHome) {
       const [hero, ...rest] = page.sections;
@@ -426,13 +465,37 @@ export function build(input: unknown, options: AssociationOptions): BuiltFile[] 
     }
     const h1s = (body.match(/<h1[ >]/g) ?? []).length;
     if (h1s !== 1) throw new Error(`The page ${text(page.title, locale)} has ${h1s} main headings; it needs exactly one. Start it with a section that has a heading.`);
-    files.push({ path: isHome ? "index.html" : `${page.slug[locale]}/index.html`, text: document(site, page, text(page.seo.title, locale) || text(page.title, locale), text(page.seo.description, locale), body) });
+    files.push({ path: `${dir}${isHome ? "" : `${page.slug[locale]}/`}index.html`, text: document(site, page, text(page.seo.title, locale) || text(page.title, locale), text(page.seo.description, locale), body) });
   }
-  files.push({ path: "404.html", text: document(site, null, chrome.notFound, chrome.notFound, `<section class="pagehead"><div class="wrap narrow"><h1>${chrome.notFound}</h1><p><a href="/">${chrome.backHome}</a></p></div></section>`) });
   // Where the form sends a visitor after posting, so it works without scripts.
   for (const [path, message] of [["sent", chrome.sent], ["not-sent", chrome.notSent]] as const) {
-    files.push({ path: `${path}/index.html`, text: document(site, null, message, message, `<section class="pagehead"><div class="wrap narrow"><h1>${message}</h1><p><a href="/">${chrome.backHome}</a></p></div></section>`) });
+    files.push({ path: `${dir}${path}/index.html`, text: document(site, null, message, message, `<section class="pagehead"><div class="wrap narrow"><h1>${message}</h1><p><a href="${root}">${chrome.backHome}</a></p></div></section>`) });
   }
+}
+
+/** Every page of the site as a file, in each of its languages. Images and documents are copied by whoever writes the files out. */
+export function build(input: unknown, options: AssociationOptions): BuiltFile[] {
+  const spec = siteSpecSchema.parse(input);
+  const main = spec.locales.default;
+  // The main language first; then the others, each complete.
+  const all = [main, ...spec.locales.available.filter((locale) => locale !== main)];
+  if (options.language && !all.includes(options.language)) throw new Error(`The site has no ${options.language} version.`);
+  const languages = options.language ? [options.language] : all;
+  for (const locale of languages.filter((locale) => locale !== main)) {
+    const missing = missingTranslations(spec, locale);
+    if (missing.length) throw new Error(`The site is in ${all.join(" and ")}, but ${missing.length} ${missing.length === 1 ? "text has" : "texts have"} no ${locale} version yet (${missing.slice(0, 3).join(", ")}${missing.length > 3 ? ", …" : ""}). Write them, or take ${locale} off the site's languages.`);
+  }
+  const siteFor = (locale: Locale): Site => ({ spec, options, locale, root: rootOf(spec, locale), chrome: CHROME[locale], pagesById: new Map(spec.pages.map((page) => [page.id, page])), ctaPageId: spec.strategy.primaryCta?.targetPageId });
+  const first = siteFor(main);
+  if (first.ctaPageId) href(first, first.ctaPageId);
+  for (const id of Object.keys(options.documents ?? {})) {
+    const known = spec.pages.some((page) => page.sections.some((s) => (s.kind === "features" || s.kind === "services") && s.items.some((item) => item.id === id)));
+    if (!known) throw new Error(`A document is attached to ${id}, which is not a list item in the spec.`);
+  }
+  const files: BuiltFile[] = [{ path: "site.css", text: STYLES(spec) }];
+  for (const locale of languages) buildLanguage(siteFor(locale), files);
+  const { chrome } = first;
+  files.push({ path: "404.html", text: document(first, null, chrome.notFound, chrome.notFound, `<section class="pagehead"><div class="wrap narrow"><h1>${chrome.notFound}</h1><p><a href="/">${chrome.backHome}</a></p></div></section>`) });
   if (options.status !== "approved") files.push({ path: "robots.txt", text: "User-agent: *\nDisallow: /\n" });
   return files;
 }
@@ -441,12 +504,15 @@ export function build(input: unknown, options: AssociationOptions): BuiltFile[] 
  * One page as a single document for Studio OS's sandboxed preview frame: the
  * stylesheet inline, images through the given links, missing images as boxes.
  */
-export function previewPage(input: unknown, options: Omit<AssociationOptions, "status" | "missingImages">, pageId?: string): { html: string; pageId: string } {
+export function previewPage(input: unknown, options: Omit<AssociationOptions, "status" | "missingImages" | "language">, pageId?: string, locale?: string): { html: string; pageId: string } {
   const spec = siteSpecSchema.parse(input);
   const page = spec.pages.find((entry) => entry.id === pageId) ?? spec.pages[0];
-  const files = build(spec, { ...options, documents: undefined, status: "prototype", missingImages: "box" });
-  const slug = page.slug[spec.locales.default] ?? "";
-  const html = files.find((file) => file.path === (slug ? `${slug}/index.html` : "index.html"))!.text;
+  // The language chosen in the preview, if the site has it; otherwise its main one.
+  const language = spec.locales.available.find((entry) => entry === locale) ?? spec.locales.default;
+  const files = build(spec, { ...options, documents: undefined, status: "prototype", missingImages: "box", language });
+  const slug = page.slug[language] ?? "";
+  const path = `${rootOf(spec, language).slice(1)}${slug ? `${slug}/` : ""}index.html`;
+  const html = files.find((file) => file.path === path)!.text;
   const css = files.find((file) => file.path === "site.css")!.text;
   return { pageId: page.id, html: html.replace('<link rel="stylesheet" href="/site.css">', `<style>${css}</style>`) };
 }

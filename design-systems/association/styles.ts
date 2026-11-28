@@ -51,7 +51,12 @@ p{margin:0 0 14px}
 .btn[disabled]{opacity:.55;cursor:not-allowed}
 .nav .btn{padding:8px 14px;margin-left:8px}
 .menu{display:none}
-@media (max-width:920px){.nav{display:none}.menu{display:block;position:relative}
+/* Links to the same page in the other languages of the site: quiet, beside the menu, on every screen. */
+.nav{margin-left:auto}
+.langs{display:flex;flex:none;gap:4px;font-family:var(--head);font-size:13px;white-space:nowrap}
+.langs a{color:var(--ink);text-decoration:none;padding:7px 10px;border:1px solid var(--line);border-radius:var(--r)}
+.langs a:hover{background:var(--line)}
+@media (max-width:920px){.nav{display:none}.langs{margin-left:auto}.menu{display:block;position:relative}
 .menu summary{list-style:none;font-weight:700;cursor:pointer;padding:10px 14px;border:2px solid var(--ink);border-radius:var(--r)}
 .menu summary::-webkit-details-marker{display:none}.menu[open] summary{background:var(--ink);color:var(--bg)}
 .menu nav{position:absolute;right:0;top:54px;background:var(--card);border:1px solid var(--line);box-shadow:0 12px 30px rgba(0,0,0,.14);min-width:240px;padding:8px;display:flex;flex-direction:column;font-family:var(--head)}

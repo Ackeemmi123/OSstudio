@@ -53,7 +53,8 @@ export interface FormDeps {
   send: (mail: { to: string; replyTo?: string; subject: string; text: string }) => Promise<boolean>;
 }
 
-const back = (siteUrl: string, page: "sent" | "not-sent") => new Response(null, { status: 303, headers: { location: `${siteUrl.replace(/\/$/, "")}/${page}/`, "cache-control": "no-store" } });
+/** Back to the site's own sent or not-sent page; on a site in several languages, in the language the visitor used. */
+const back = (siteUrl: string, page: "sent" | "not-sent", language = "") => new Response(null, { status: 303, headers: { location: `${siteUrl.replace(/\/$/, "")}/${/^(sv|fi|en)$/.test(language) ? `${language}/` : ""}${page}/`, "cache-control": "no-store" } });
 
 export async function handleForm(key: string, form: FormData | null, deps: FormDeps): Promise<Response> {
   if (!KEY.test(key) || !form) return new Response("Not found.", { status: 404 });
@@ -65,13 +66,13 @@ export async function handleForm(key: string, form: FormData | null, deps: FormD
   if (!target) return new Response("Not found.", { status: 404 });
   const siteUrl = target.siteUrl ?? "/";
   // A bot fills the hidden field; it is told the message was sent.
-  if (value("website")) return back(siteUrl, "sent");
-  if (target.limited || !target.recipient) return back(siteUrl, "not-sent");
+  if (value("website")) return back(siteUrl, "sent", value("back"));
+  if (target.limited || !target.recipient) return back(siteUrl, "not-sent", value("back"));
 
   const lang = value("lang");
   const words = MAIL[Object.hasOwn(MAIL, lang) ? (lang as MailLanguage) : "sv"];
   const entries = FIELDS.map((field) => [field, value(field).slice(0, field === "message" ? 5000 : 300)] as const).filter(([, v]) => v);
-  if (!entries.length || entries.every(([field]) => field === "name")) return back(siteUrl, "not-sent");
+  if (!entries.length || entries.every(([field]) => field === "name")) return back(siteUrl, "not-sent", value("back"));
   const email = entries.find(([field]) => field === "email")?.[1];
   const replyTo = email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) && email.length <= 200 ? email : undefined;
   const text = [
@@ -85,7 +86,7 @@ export async function handleForm(key: string, form: FormData | null, deps: FormD
     .filter((line, i, all) => line || all[i - 1])
     .join("\n");
   const sent = await deps.send({ to: target.recipient, replyTo, subject: words.subject(target.siteName ?? words.theSite).slice(0, 150), text }).catch(() => false);
-  return back(siteUrl, sent ? "sent" : "not-sent");
+  return back(siteUrl, sent ? "sent" : "not-sent", value("back"));
 }
 
 /** One message through Resend. */
