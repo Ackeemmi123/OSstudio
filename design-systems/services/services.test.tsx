@@ -8,6 +8,7 @@ import { build } from "./index";
 import { foundingYear } from "./formal";
 import { CHROME, displayTier } from "./pages";
 import { posterLines, stepWords } from "./statement";
+import { STYLES } from "./styles";
 
 const all: [string, Site][] = [...Object.entries(SITES).map(([name, { site }]) => [name, site] as [string, Site]), ...Object.entries(STRESS_SITES)];
 const lindqvist = SITES.lindqvist.site;
@@ -298,5 +299,24 @@ describe("the built site", () => {
   it("three firms get three different looks and compositions", () => {
     const bodies = Object.values(SITES).map(({ site }) => /<body class="([^"]+)"/.exec(htmlOf(site)[0].text)![1]);
     expect(new Set(bodies).size).toBe(3);
+  });
+
+  it("never leaves text half-faded: what fades in with the scroll starts hidden, and nothing is faded at the top of the page", () => {
+    const keyframes = new Map([...STYLES.matchAll(/@keyframes ([\w-]+)\{((?:[^{}]*\{[^{}]*\})+)\}/g)].map((found) => [found[1], found[2]]));
+    const scrolled = [...STYLES.matchAll(/([^{}]+)\{animation:([\w-]+) linear both([^;}]*);animation-timeline:view\(\)([^;}]*)/g)].map(([, selector, name, more, timelines]) => ({ selector: selector.trim(), name, more, timelines }));
+    expect(scrolled.length).toBeGreaterThan(20);
+    // An ornament drawn as a pseudo-element carries no text and may stay faint.
+    const fading = scrolled.filter(({ selector, name }) => keyframes.get(name)!.includes("opacity") && !selector.split(",").every((one) => /::(before|after)$/.test(one)));
+    expect(fading.map(({ name }) => name).sort()).toEqual(["atelier-arrive", "atelier-reveal", "cafe-rise", "editorial-rise", "formal-lift", "formal-step", "sig-count", "sig-rise"]);
+    for (const { name, more, timelines } of fading) {
+      expect(keyframes.get(name), name).toMatch(/^from\{[^}]*opacity:0[;}]/);
+      expect(keyframes.get(name), name).toMatch(/^from\{[^}]*\}\d+%\{opacity:1\}/);
+      expect(more, name).toBe(",at-rest linear backwards");
+      expect(timelines, name).toBe(",scroll(root)");
+    }
+    expect(keyframes.get("at-rest")).toBe("from{opacity:1}");
+    // Every range that belongs to such an entrance also names the range of at-rest, or at-rest would follow the entrance's.
+    for (const [, range] of STYLES.matchAll(/animation-range:(entry [^;}]*cover [^;}]*)/g)) if (range.includes(",")) expect(range).toMatch(/,0 20vh$/);
+    expect(STYLES.match(/,0 20vh\}/g)).toHaveLength(11);
   });
 });
