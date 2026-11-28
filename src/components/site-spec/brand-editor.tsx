@@ -7,7 +7,7 @@ import { DENSITIES, DESIGN_SYSTEM_LABELS, DESIGN_SYSTEMS, RADII, SERVICES_DIRECT
 import type { SiteSpec } from "@/lib/site-spec/schema";
 import { CONTRAST_MINIMUM, contrastRatio } from "@/lib/site-spec/validate";
 import type { SpecEditing } from "./site-spec-editor";
-import { ConceptEditor } from "./concept-editor";
+import { ConceptEditor, SignatureMotion } from "./concept-editor";
 import type { ImageLibrary } from "./images-editor";
 import { PhotoBriefPanel } from "./photo-brief-panel";
 import { SourceTag } from "./strategy-editor";
@@ -283,6 +283,7 @@ export function BrandEditor({ spec, editing, projectId, library }: { spec: SiteS
         </Field>
       </div>
       {brand.designSystem === "services@0.1" ? <ConceptEditor spec={spec} editing={editing} projectId={projectId} library={library} /> : null}
+      {brand.designSystem === "association@0.1" ? <SignatureMotion spec={spec} editing={editing} /> : null}
       {brand.designSystem === "services@0.1" ? <PhotoBriefPanel spec={spec} /> : null}
     </div>
   );

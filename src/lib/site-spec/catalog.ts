@@ -52,6 +52,8 @@ export const SIGNATURE_PRESETS: Record<(typeof SERVICES_DIRECTIONS)[number], "ca
   atelier: "editorial",
   clinic: "calm",
 };
+/** The preset an association site gets: a copy of the layer's ASSOCIATION_PRESET, kept equal by the same test. */
+export const ASSOCIATION_SIGNATURE_PRESET: (typeof SIGNATURE_PRESETS)[keyof typeof SIGNATURE_PRESETS] = "calm";
 export const SIGNATURE_PRESET_LABELS: Record<(typeof SIGNATURE_PRESETS)[keyof typeof SIGNATURE_PRESETS], string> = {
   calm: "calm: lines fade up quietly and pictures fade in",
   warm: "warm: words settle one by one, and the order button follows",

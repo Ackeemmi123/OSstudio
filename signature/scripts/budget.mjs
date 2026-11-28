@@ -33,6 +33,12 @@ const BUDGET = {
   largestImage: 100,
   largestFilm: 600,
   largestFullHdFilm: 1200,
+  // An image sequence's frames, all of them, for one screen shape: a visitor fetches one set, never both.
+  // The phone's are in a phone's own shape (19.5:9), so the band is never cut at the sides, and their edges fade into
+  // the page. Both limits are unchanged: 61 WebP pictures each, at 1600 × 900 and 720 × 1560, encoded by sharp from
+  // lossless masters (measured 1,052 and 617 KB; the phone's at quality 72, where Chrome's canvas had room for 66).
+  sequenceWide: 1200,
+  sequencePhone: 640,
   // The Signature layer, on an enhanced site.
   layerScript: 6,
   layerCss: 2.5,
@@ -40,11 +46,6 @@ const BUDGET = {
   layerCta: 2,
   layerCount: 1,
   layerList: 50,
-  // An image sequence's frames, all of them, for one screen shape: a visitor fetches one set, never both. The phone's
-  // are in a phone's own shape (720 × 1560, 19.5:9), so the band is never cut at the sides, and their edges fade into
-  // the page: about 3 % over 600 KB at the quality where the satin keeps its brushed streaks (measured 618).
-  sequenceWide: 1200,
-  sequencePhone: 640,
 };
 
 const kb = (bytes) => Math.round((bytes / 1024) * 10) / 10;
@@ -81,7 +82,10 @@ const films = all.filter((f) => /\.(webm|mp4)$/.test(f));
 const fullHd = films.filter((f) => /-1920[-.]/.test(f));
 const smaller = films.filter((f) => !fullHd.includes(f));
 // Image sequences (lab/public/sekvens/): the wide frames and the tall ones for phones.
-const frames = (shape) => images.filter((f) => new RegExp(`/sekvens/${shape}/`).test(f));
+const frames = (shape, format) => images.filter((f) => new RegExp(`/sekvens/${shape}/[^/]*\\.${format}$`).test(f));
+const stored = (list) => kb(sum(list, (f) => statSync(f).size));
+// Every picture of a sequence is in one of the sets counted: none in a format the budget does not know.
+const uncounted = images.filter((f) => /\/sekvens\//.test(f) && !/\/sekvens\/(bred|telefon)\/[^/]*\.webp$/.test(f));
 
 // Fonts are already compressed: count their size as stored.
 const sum = (list, measure = gz) => list.reduce((total, f) => total + measure(f), 0);
@@ -102,8 +106,9 @@ const rows = [
   ["Largest single film", kb(Math.max(0, ...smaller.map((f) => statSync(f).size))), BUDGET.largestFilm],
   ["Largest film, full HD", kb(Math.max(0, ...fullHd.map((f) => statSync(f).size))), BUDGET.largestFullHdFilm],
   // Frames, as stored: fetched a screen ahead of the sequence, one set per screen shape, never with Save-Data.
-  ["Sequence frames, wide", kb(sum(frames("bred"), (f) => statSync(f).size)), BUDGET.sequenceWide],
-  ["Sequence frames, phone", kb(sum(frames("telefon"), (f) => statSync(f).size)), BUDGET.sequencePhone],
+  ["Sequence frames, wide", stored(frames("bred", "webp")), BUDGET.sequenceWide],
+  ["Sequence frames, phone", stored(frames("telefon", "webp")), BUDGET.sequencePhone],
+  ["Sequence pictures not counted", uncounted.length, 0],
 ];
 
 // The layer, as the enhancer hands it to a site: its entry and the site's own map (here Website Factory's, the largest) are

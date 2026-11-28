@@ -15,15 +15,16 @@
  * site's map and preset.
  */
 import { ASSETS, VERSION } from "../layer-dist/assets.mjs";
+import association, { ASSOCIATION_PRESET } from "./maps/association.mjs";
 import services, { DIRECTION_PRESETS } from "./maps/services.mjs";
 
-export { DIRECTION_PRESETS, VERSION };
+export { ASSOCIATION_PRESET, DIRECTION_PRESETS, VERSION };
 
 export const PRESET_NAMES = ["calm", "warm", "editorial", "bold"];
 export const MODULE_NAMES = ["headline", "rise", "reveal", "stack", "cta", "list", "count"];
 
 /** The maps that ship with the layer, by name. */
-export const MAPS = { services };
+export const MAPS = { services, association };
 
 /** The preset a Website Factory direction gets by default (`formal` → `calm`, …); `calm` for anything unknown. */
 export function presetForDirection(direction) {
@@ -55,8 +56,8 @@ function checkMap(map) {
 
 /**
  * @param {{ path: string, text: string }[]} files The site's files. Only `.html` files are read.
- * @param {{ preset: "calm" | "warm" | "editorial" | "bold" | "auto", map: "services" | object, root?: string, dir?: string }} options
- *   preset: a preset, or "auto" for the map's own choice per page (for `services`, by direction).
+ * @param {{ preset: "calm" | "warm" | "editorial" | "bold" | "auto", map: "services" | "association" | object, root?: string, dir?: string }} options
+ *   preset: a preset, or "auto" for the map's own choice per page (for `services`, by direction; for `association`, always calm).
  *   map: a shipped map's name, or a map object (`{ rules, presets?, tokens? }`).
  *   root: the prefix for the injected addresses. Left out, each page gets the relative way to the site's top
  *         ("./", "../"), as Website Factory writes its own `site.css` link. Pass "/" or "/some/folder/" for absolute ones.

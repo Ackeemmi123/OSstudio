@@ -10,7 +10,7 @@ import { siteQuality, type QualityReport } from "@/lib/quality/site-quality";
 import { randomBytes, randomUUID } from "node:crypto";
 import { build as buildAssociation } from "../../../design-systems/association";
 import { build as buildServices, FONT_FILES } from "../../../design-systems/services";
-import { enhanceSite, presetForDirection } from "../../../signature/layer/enhance.mjs";
+import { ASSOCIATION_PRESET, enhanceSite, presetForDirection, type PresetName } from "../../../signature/layer/enhance.mjs";
 import { servicesContent, type ServicesImage } from "@/lib/site-spec/to-services";
 import type { SiteSpec } from "@/lib/site-spec/schema";
 import { parseSiteSpec } from "@/lib/site-spec/validate";
@@ -186,6 +186,8 @@ export async function buildSite(input: { studioId: string; specVersion: number; 
       built = servicesFiles(spec, input, stored, imageFiles, deps, files);
     } else {
       built = buildAssociation(spec, { files: imageFiles, documents: documentFiles, status: input.production ? "approved" : "prototype", today: deps.now(), madeBy: input.madeBy, formAction: input.production?.formAction });
+      // Axivo Signature on an association site: always the calm preset (trust before effect).
+      if (spec.brand.concept?.signatureMotion) built = withSignature(built, "association", ASSOCIATION_PRESET, files);
     }
   } catch (failure) {
     if (failure instanceof BuildRefused) throw failure;
@@ -216,6 +218,18 @@ export async function buildSite(input: { studioId: string; specVersion: number; 
     }),
     expiresAt: new Date(now.getTime() + BUILD_LINK_DAYS * 86400000),
   };
+}
+
+/**
+ * Axivo Signature: motion added on top of the same pages; without JavaScript or with reduced
+ * motion they are unchanged. Adds the layer's files to `files` and hands back the pages with its head block.
+ */
+function withSignature<Page extends { path: string; text: string }>(pages: Page[], map: "services" | "association", preset: PresetName, files: BuiltSite["files"]): Page[] {
+  const enhanced = enhanceSite(pages, { map, preset });
+  const changed = new Map(enhanced.files.map((file) => [file.path, file.text]));
+  const encoder = new TextEncoder();
+  for (const asset of enhanced.assets) files.push({ path: asset.path, body: encoder.encode(asset.text), contentType: asset.contentType });
+  return pages.map((page) => ({ ...page, text: changed.get(page.path) ?? page.text }));
 }
 
 const RIGHTS: Record<string, string> = { client_owns: "The client's own image", studio_created: "Made by the studio", licensed: "Licensed", other: "Other" };
@@ -254,10 +268,6 @@ function servicesFiles(
     for (const name of FONT_FILES) files.push({ path: `fonts/${name}`, body: deps.font(name), contentType: name.endsWith(".woff2") ? "font/woff2" : "text/plain; charset=utf-8" });
   }
   if (!spec.brand.concept?.signatureMotion) return pages;
-  // Axivo Signature: motion that fits the direction, added on top of the same pages; without JavaScript or with reduced motion they are unchanged.
-  const enhanced = enhanceSite(pages, { map: "services", preset: presetForDirection(result.design.direction) });
-  const changed = new Map(enhanced.files.map((file) => [file.path, file.text]));
-  const encoder = new TextEncoder();
-  for (const asset of enhanced.assets) files.push({ path: asset.path, body: encoder.encode(asset.text), contentType: asset.contentType });
-  return pages.map((page) => ({ ...page, text: changed.get(page.path) ?? page.text }));
+  // Axivo Signature: motion that fits the direction.
+  return withSignature(pages, "services", presetForDirection(result.design.direction), files);
 }
